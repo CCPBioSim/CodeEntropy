@@ -6,7 +6,7 @@ import sys
 from setuptools import setup, find_packages
 import versioneer
 
-short_description = "CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy".split("\n")[0]
+short_description = "CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for computing entropy of macromolecular systems from the forces sampled in a MD simulation.".split("\n")[0]
 
 # from https://github.com/pytest-dev/pytest-runner#conditional-requirement
 needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
