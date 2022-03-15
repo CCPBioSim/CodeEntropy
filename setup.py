@@ -63,6 +63,6 @@ setup(
 	zip_safe = False,
 
 	# scripts for creating executables
-	scripts = ['src/CodeEntropy/mcc_gromacs.py', \
-	           'src/CodeEntropy/mcc_charmm.py']
+	scripts = ['mcc_gromacs.py', \
+	           'mcc_charmm.py']
 )
