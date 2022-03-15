@@ -62,6 +62,11 @@ setup(
 	# can be run as a zip
 	zip_safe = False,
 
+    install_requires=[
+        'numpy',
+        'bitarray'
+    ],
+
 	# scripts for creating executables
 	scripts = ['CodeEntropy/mcc_gromacs.py', \
 	           'CodeEntropy/mcc_charmm.py']
