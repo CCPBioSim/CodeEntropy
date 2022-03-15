@@ -22,8 +22,8 @@ except:
 setup(
     # Self-descriptive entries which should always be present
     name='CodeEntropy',
-    author='DonaldChung-HK',
-    author_email='lpchungaa@gmail.com',
+    author='Arghya \"Argo\" Chakravorty, DonaldChung-HK',
+    author_email='arghyac@umich.edu, lpchungaa@gmail.com',
     description=short_description,
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -55,5 +55,14 @@ setup(
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,
+    ## REQUIREMENTS ##
+	classifiers = ['Programming Language :: Python :: 3.6',
+	               'Intended Audience :: Users'],
 
+	# can be run as a zip
+	zip_safe = False,
+
+	# scripts for creating executables
+	scripts = ['src/CodeEntropy/mcc_gromacs.py', \
+	           'src/CodeEntropy/mcc_charmm.py']
 )
