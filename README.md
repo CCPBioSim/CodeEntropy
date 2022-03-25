@@ -7,6 +7,21 @@ CodeEntropy
 
 CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
 
+## To run
+
+Install via
+```
+pip install .
+```
+
+run using
+```
+python3 $(which mcc_gromacs.py)
+
+# For help
+python3 $(which mcc_gromacs.py) --help
+```
+
 ### Copyright
 
 Copyright (c) 2022, DonaldChung-HK
