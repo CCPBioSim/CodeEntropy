@@ -147,7 +147,6 @@ class GroTrajectory():
 				if self.endTime > t >= self.beginTime and (0 == ((t - self.beginTime) % self.stride)):
 					# create an instance of Trajectory frame which will store 3D vectors 
 					newFrame = TF.TrajectoryFrame(arg_frameIndex = iFrame, \
-					                              arg_baseMolecule = '', \
 					                              arg_vectorDim = TCON.VECTORDIM)
 					newFrame.set_numAtoms(natoms)
 					newFrame.set_timeStep(t)

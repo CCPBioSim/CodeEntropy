@@ -795,3 +795,9 @@ class GroTopology(object):
         return
 #END
 
+if __name__ == '__main__':
+    from CodeEntropy.ClassCollection import DataContainer
+    mainContainer = DataContainer.DataContainer()
+    arg_tprFile = "1AKI_prod.tpr"
+    topol = GroTopology(arg_tprFile, mainContainer)
+    topol.read_tprFile()
