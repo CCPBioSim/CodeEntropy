@@ -5,3 +5,4 @@
 from CodeEntropy.Reader import GromacsReader
 from CodeEntropy.Reader import CharmmReader
 from CodeEntropy.Reader import Constants
+from CodeEntropy.Reader import MDAnalysisReader

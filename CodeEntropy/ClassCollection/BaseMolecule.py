@@ -2,7 +2,7 @@ import numpy as nmp
 import re
 import sys
 from copy import deepcopy
-from collections import Set
+
 
 from CodeEntropy.FunctionCollection import Utils
 from CodeEntropy.FunctionCollection import GeometricFunctions

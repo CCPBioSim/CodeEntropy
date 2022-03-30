@@ -56,7 +56,7 @@ setup(
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,
     ## REQUIREMENTS ##
-	classifiers = ['Programming Language :: Python :: 3.6',
+	classifiers = ['Programming Language :: Python :: 3.9',
 	               'Intended Audience :: Users'],
 
 	# can be run as a zip
@@ -64,7 +64,8 @@ setup(
 
     install_requires=[
         'numpy',
-        'bitarray'
+        'bitarray',
+        'mdanalysis',
     ],
 
 	# scripts for creating executables
