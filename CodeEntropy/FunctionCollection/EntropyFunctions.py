@@ -57,7 +57,7 @@ def compute_ampfac_from_lambda(arg_lambdas, arg_temper):
 	return afac
 #END
 
-def get_avg_hpos(arg_atom, arg_frame, arg_baseMolecule, arg_hostDataContainer):
+def get_avg_hpos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	"""
 	Compute the average of the coordinates of the hydrogen
 	atoms covalently bonded to the atom with index `arg_atom` in a 
@@ -66,14 +66,15 @@ def get_avg_hpos(arg_atom, arg_frame, arg_baseMolecule, arg_hostDataContainer):
 	random value for 3D cartesian coordinates.
 	"""
 	avgHPos = nmp.zeros((3))
-	selH = SEL.Atomselection(arg_baseMolecule, f"BONDed {arg_atom}") & SEL.Atomselection(arg_baseMolecule, "hydrogen")
+	#original argument SEL.Atomselection(arg_baseMolecule, f"BONDed {arg_atom}") & SEL.Atomselection(arg_baseMolecule, "hydrogen")
+	selH = u.select_atoms(f"name H* and bonded index {arg_atom}")
 
-	if selH.nsel != 0:
-		for iH in selH.get_indices():
+	if selH.n_atoms != 0:
+		for iH in selH.indices:
 			iHPosition = arg_hostDataContainer._labCoords[arg_frame, iH]
 			avgHPos = nmp.add(avgHPos, iHPosition)
 
-		avgHPos /= selH.nsel
+		avgHPos /= selH.n_atoms
 
 	else:
 		# assign random position because 
@@ -90,7 +91,7 @@ def get_avg_hpos(arg_atom, arg_frame, arg_baseMolecule, arg_hostDataContainer):
 	return avgHPos
 #END
 
-def get_avg_apos(arg_atom, arg_frame, arg_baseMolecule, arg_hostDataContainer):
+def get_avg_apos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	"""
 	Compute the average of the coordinates of the heavy 
 	atoms covalently bonded to the atom with index `arg_atom` in a 
@@ -99,14 +100,14 @@ def get_avg_apos(arg_atom, arg_frame, arg_baseMolecule, arg_hostDataContainer):
 	random value for 3D cartesian coordinates.
 	"""
 	avgPos = nmp.zeros((3))
-	selHeavy = SEL.Atomselection(arg_baseMolecule,f"BONDed {arg_atom}") & ~SEL.Atomselection(arg_baseMolecule,"hydrogen")
+	selHeavy = u.select_atoms(f"not name H* and bonded index {arg_atom}")
 
-	if selHeavy.nsel != 0:
-		for iA in selHeavy.get_indices():
+	if selHeavy.n_atoms != 0:
+		for iA in selHeavy.indices:
 			iPosition = arg_hostDataContainer._labCoords[arg_frame, iA]
 			avgPos = nmp.add(avgPos, iPosition)
 
-		avgPos /= selHeavy.nsel
+		avgPos /= selHeavy.n_atoms
 
 	else:
 		# assign random position because 
