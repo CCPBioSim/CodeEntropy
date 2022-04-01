@@ -106,3 +106,4 @@ ENV/
 *profraw
 CodeEntropy/tests/data/.md_A4_dna_xf.trr_offsets.npz
 CodeEntropy/tests/dna_mcc.out
+CodeEntropy/tests/outfile_whole_molecule
