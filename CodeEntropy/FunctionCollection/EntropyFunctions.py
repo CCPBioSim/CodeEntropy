@@ -124,7 +124,8 @@ def get_avg_apos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	return avgPos
 #END
 
-def compute_entropy_whole_molecule_level(arg_baseMolecule, 
+def compute_entropy_whole_molecule_level(u, 
+										 arg_baseMolecule, 
 										 arg_hostDataContainer, 
 										 arg_outFile, 
 										 arg_moutFile,
@@ -154,8 +155,8 @@ def compute_entropy_whole_molecule_level(arg_baseMolecule,
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
 	# define a bead representing the whole molecule
-	allSel = SEL.Atomselection(arg_baseMolecule, "ALL")
-	allAtomList = allSel.get_indices()
+	allSel = u.select_atoms('all')
+	allAtomList = allSel.indices
 
 	wholeProteinBead = BC.Bead(arg_atomList= allAtomList, \
 							arg_numFrames=numFrames, \
@@ -211,7 +212,7 @@ def compute_entropy_whole_molecule_level(arg_baseMolecule,
 	#update torques in the arg_hostDataContainer
 	Utils.printflush("Updating Local torques->", end = ' ')
 	for iFrame in range(numFrames):
-		for iAtom in allSel.get_indices():
+		for iAtom in allSel.indices:
 			coords_i = arg_hostDataContainer.localCoords[iFrame, iAtom]
 			forces_i = arg_hostDataContainer.localForces[iFrame, iAtom]
 			# arg_hostDataContainer.localTorques[iFrame,iAtom,:] = nmp.cross(coords_i,forces_i)
@@ -366,7 +367,8 @@ def compute_entropy_whole_molecule_level(arg_baseMolecule,
 #END
 
 
-def compute_entropy_residue_level(arg_baseMolecule, 
+def compute_entropy_residue_level(u, 
+								  arg_baseMolecule, 
 								  arg_hostDataContainer, 
 								  arg_outFile, 
 								  arg_moutFile,
@@ -402,7 +404,7 @@ def compute_entropy_residue_level(arg_baseMolecule,
 	residueSystem.listOfBeads= []
 
 	# all atom selection
-	allSel = SEL.Atomselection(arg_baseMolecule, "ALL")
+	allSel = u.select_atoms('all')
 
 	for rid in range(arg_baseMolecule.numResidues):
 		
