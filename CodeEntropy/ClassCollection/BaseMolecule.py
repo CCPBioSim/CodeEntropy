@@ -355,6 +355,9 @@ class BaseMolecule(object):
 
         com /= totalMass
         return com
+
+        # replace this with 
+        # u.select_atoms("all").center_of_mass()
     #END
 
 

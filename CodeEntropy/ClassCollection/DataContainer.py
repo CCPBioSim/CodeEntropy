@@ -1,5 +1,6 @@
 import numpy as nmp
-
+from CodeEntropy.Trajectory import TrajectoryFrame as TF
+from CodeEntropy.Trajectory import TrajectoryConstants as TCON
 
 class DataContainer(object):
 	""" 
@@ -12,16 +13,41 @@ class DataContainer(object):
 	that contains the info about its topology. 
 	"""
 
-	def __init__(self):
+	def __init__(self, u):
 		
-		self.molecule = None
-		self.numFrames = -1
+		self.universe = u
+		self.numFrames = len(self.universe.trajectory)
 		self.frameIndices = []     # a list of integer values
 		self.trajSnapshots = []  # a list of instances of TrajectoryFrame class
 		
+		#reading trajectorys into memory because MDanalysis reads values on the fly which might slow down processing speed as these values are accessed multiple times
+		for ts in u.trajectory:
+			newFrame = TF.TrajectoryFrame(arg_frameIndex = ts.frame, \
+													arg_vectorDim = TCON.VECTORDIM)
+			newFrame.set_numAtoms(ts.n_atoms)
+			newFrame.set_timeStep(ts.time)
+			newFrame.initialize_matrices(arg_hasVelocities = ts.has_velocities, arg_hasForces = ts.has_forces)
+			newFrame.value["coordinates"] = ts.positions.flatten()
+			if ts.has_velocities:
+				newFrame.value["velocities"] = ts.velocities.flatten()
+			if ts.has_forces:
+				newFrame.value["forces"] = ts.forces.flatten()
+			self.trajSnapshots.append(newFrame)
+			self.frameIndices.append(ts.frame)
+
+		self._labCoords = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		self._labForces = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		
+		self.translationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.universe.n_atoms, 1+3, 3) ) # 4rth row is the origin
+		self.rotationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.universe.n_atoms, 1+3, 3) ) # 4rth row is the origin
+
+		self.localCoords = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		self.localForces = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		self.localTorques = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		
 	def print_attributes(self):
 		# print("{:<20s} : {}".format("Molecule name", self.molecule.name))
-		print("{:<20s} : {}".format("Number of atoms", self.molecule.numCopies * self.molecule.numAtomsPerCopy))
+		print("{:<20s} : {}".format("Number of atoms", self.universe.n_atoms))
 		print("{:<20s} : {}".format("Number of frames", len(self.trajSnapshots)))
 		
 		return
@@ -31,15 +57,15 @@ class DataContainer(object):
 		""" The number of frames for which the container will hold the data must be provided before hand"""
 		assert(len(self.trajSnapshots) >= 0 and len(self.frameIndices) == len(self.trajSnapshots))
 
-		self._labCoords = nmp.ndarray( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 3) )
-		self._labForces = nmp.ndarray( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 3) )
+		self._labCoords = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		self._labForces = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
 		
-		self.translationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 1+3, 3) ) # 4rth row is the origin
-		self.rotationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 1+3, 3) ) # 4rth row is the origin
+		self.translationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.universe.n_atoms, 1+3, 3) ) # 4rth row is the origin
+		self.rotationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.universe.n_atoms, 1+3, 3) ) # 4rth row is the origin
 
-		self.localCoords = nmp.ndarray( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 3) )
-		self.localForces = nmp.ndarray( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 3) )
-		self.localTorques = nmp.ndarray( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 3) )
+		self.localCoords = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		self.localForces = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
+		self.localTorques = nmp.ndarray( (len(self.trajSnapshots), self.universe.n_atoms, 3) )
 
 		
 		return
@@ -48,14 +74,14 @@ class DataContainer(object):
 		"""
 		Reset the translational axes value of every atom per frame while maintaining the shape of the array.
 		""" 
-		self.translationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 4, 3) )
+		self.translationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.universe.n_atoms, 4, 3) )
 		return
 	
 	def reset_rotationAxesArray(self):
 		"""
 		Reset the rotational axes value of every atom per frame while maintaining the shape of the array.
 		"""
-		self.rotationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.molecule.numCopies * self.molecule.numAtomsPerCopy, 4, 3) )
+		self.rotationAxesArray = nmp.ndarray ( (len(self.trajSnapshots), self.universe.n_atoms, 4, 3) )
 		return
 
 	def update_translationAxesArray_at(self, arg_frame, arg_atomList, arg_pAxes, arg_orig):
@@ -95,7 +121,7 @@ class DataContainer(object):
 	#END
 
 	def update_localCoords_of_all_atoms(self, arg_type):
-		allAtoms = nmp.arange(self.molecule.numCopies * self.molecule.numAtomsPerCopy)
+		allAtoms = nmp.arange(self.universe.n_atoms)
 		self.update_localCoords(arg_type, allAtoms)
 		return
 	#END
@@ -118,7 +144,7 @@ class DataContainer(object):
 	#END
 
 	def update_localForces_of_all_atoms(self, arg_type):
-		allAtoms = nmp.arange(self.molecule.numCopies * self.molecule.numAtomsPerCopy)
+		allAtoms = nmp.arange(self.universe.n_atoms)
 		self.update_localForces(arg_type, allAtoms)
 		return
 	#END
