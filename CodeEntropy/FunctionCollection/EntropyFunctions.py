@@ -57,7 +57,7 @@ def compute_ampfac_from_lambda(arg_lambdas, arg_temper):
 	return afac
 #END
 
-def get_avg_hpos(arg_atom, arg_frame, u, arg_hostDataContainer):
+def get_avg_hpos(arg_atom, arg_frame, arg_selector, arg_hostDataContainer):
 	"""
 	Compute the average of the coordinates of the hydrogen
 	atoms covalently bonded to the atom with index `arg_atom` in a 
@@ -65,9 +65,10 @@ def get_avg_hpos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	If no hydrogen is bonded to it, return a 
 	random value for 3D cartesian coordinates.
 	"""
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 	avgHPos = nmp.zeros((3))
 	#original argument SEL.Atomselection(arg_baseMolecule, f"BONDed {arg_atom}") & SEL.Atomselection(arg_baseMolecule, "hydrogen")
-	selH = u.select_atoms(f"name H* and bonded index {arg_atom}")
+	selH = allSel.select_atoms(f"name H* and bonded index {arg_atom}")
 
 	if selH.n_atoms != 0:
 		for iH in selH.indices:
@@ -91,7 +92,7 @@ def get_avg_hpos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	return avgHPos
 #END
 
-def get_avg_apos(arg_atom, arg_frame, u, arg_hostDataContainer):
+def get_avg_apos(arg_atom, arg_frame, arg_selecto, arg_hostDataContainer):
 	"""
 	Compute the average of the coordinates of the heavy 
 	atoms covalently bonded to the atom with index `arg_atom` in a 
@@ -99,8 +100,9 @@ def get_avg_apos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	If no heavy atom is bonded to it, return a 
 	random value for 3D cartesian coordinates.
 	"""
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 	avgPos = nmp.zeros((3))
-	selHeavy = u.select_atoms(f"not name H* and bonded index {arg_atom}")
+	selHeavy = allSel.select_atoms(f"not name H* and bonded index {arg_atom}")
 
 	if selHeavy.n_atoms != 0:
 		for iA in selHeavy.indices:
@@ -124,16 +126,15 @@ def get_avg_apos(arg_atom, arg_frame, u, arg_hostDataContainer):
 	return avgPos
 #END
 
-def compute_entropy_whole_molecule_level(u, 
-										 arg_baseMolecule, 
-										 arg_hostDataContainer, 
-										 arg_outFile, 
-										 arg_moutFile,
-										 arg_nmdFile,
-										 arg_fScale,
-										 arg_tScale,
-										 arg_temper,
-										 arg_verbose):
+def compute_entropy_whole_molecule_level(arg_hostDataContainer,
+										 arg_outFile,
+										 arg_selector = "all", 
+										 arg_moutFile = None,
+										 arg_nmdFile = None,
+										 arg_fScale = 1,
+										 arg_tScale = 1,
+										 arg_temper = 300,
+										 arg_verbose = 3):
 	""" 
 	Conpute the entropy at the whole molecule level. 
 	Determining translation and rotation axes is part of the function.
@@ -155,7 +156,7 @@ def compute_entropy_whole_molecule_level(u,
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
 	# define a bead representing the whole molecule
-	allSel = u.select_atoms('all')
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 	allAtomList = allSel.indices
 
 	wholeProteinBead = BC.Bead(arg_atomList= allAtomList, \
@@ -188,10 +189,10 @@ def compute_entropy_whole_molecule_level(u,
 	# Use Princ. Axes COOR SYS.
 	# USE whole molecule principal axes COOR SYS for each atom
 	for iFrame in range(numFrames):
-		selMOI, selAxes = arg_baseMolecule\
+		selMOI, selAxes = arg_hostDataContainer\
 						  .get_principal_axes(arg_atomList = allAtomList,\
 											  arg_frame = iFrame, arg_sorted=False)
-		selCOM = arg_baseMolecule\
+		selCOM = arg_hostDataContainer\
 				 .get_center_of_mass(arg_atomList = allAtomList, \
 									 arg_frame = iFrame)
 		arg_hostDataContainer.update_translationAxesArray_at(arg_frame = iFrame, arg_atomList = allAtomList, arg_pAxes = selAxes, arg_orig = selCOM)
@@ -363,20 +364,19 @@ def compute_entropy_whole_molecule_level(u,
 	Utils.printOut(arg_outFile, f"{'TT Entropy (Whole mol level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
 	
 
-	return 
+	return (entropyFF, entropyTT)
 #END
 
 
-def compute_entropy_residue_level(u, 
-								  arg_baseMolecule, 
-								  arg_hostDataContainer, 
-								  arg_outFile, 
-								  arg_moutFile,
-								  arg_nmdFile,
-								  arg_fScale,
-								  arg_tScale,
-								  arg_temper,
-								  arg_verbose):
+def compute_entropy_residue_level(arg_hostDataContainer,
+								arg_outFile,
+								arg_selector = "all", 
+								arg_moutFile = None,
+								arg_nmdFile = None,
+								arg_fScale = 1,
+								arg_tScale = 1,
+								arg_temper = 300,
+								arg_verbose = 3):
 	""" 
 	Computes the entropy calculations at the residue level
 	where each residue is treated as a separate bead.
@@ -404,19 +404,20 @@ def compute_entropy_residue_level(u,
 	residueSystem.listOfBeads= []
 
 	# all atom selection
-	allSel = u.select_atoms('all')
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+	allAtoms = allSel.indices
 
-	for rid in range(arg_baseMolecule.numResidues):
+	for resid in allSel.residues.resids:
 		
-		iResname = arg_baseMolecule.resnameArray[rid]
-		iResid = arg_baseMolecule.residArray[rid]
+		iResname = allSel.residues.resnames[resid - 1]
+		iResid = resid
 		resLabel = "{}{}".format(iResname, iResid)
+		Utils.printflush(resLabel)
+		resSel = allSel.select_atoms(f"resid {iResid}")
+		caSel = resSel.select_atoms(f"name CA")
+		caIdx = caSel.indices[0]
 
-		resSel = SEL.Atomselection(arg_baseMolecule, f"RESId {iResid}")
-		caSel = SEL.Atomselection(arg_baseMolecule, "NAME CA")
-		caIdx = caSel.get_index()
-
-		newBead = BC.Bead(arg_atomList = resSel.get_indices(), \
+		newBead = BC.Bead(arg_atomList = resSel.indices, \
 					   arg_numFrames = numFrames, \
 					   arg_hostDataContainer = arg_hostDataContainer,\
 						arg_beadName = resLabel,\
@@ -440,15 +441,15 @@ def compute_entropy_residue_level(u,
 	arg_hostDataContainer.reset_translationAxesArray()
 	# Use Princ. Axes COOR SYS.
 	for iFrame in range(numFrames):
-		selMOI, selAxes = arg_baseMolecule\
-						  .get_principal_axes(arg_atomList = allSel.get_indices(), \
+		selMOI, selAxes = arg_hostDataContainer\
+						  .get_principal_axes(arg_atomList = allAtoms, \
 							arg_frame = iFrame, \
 							arg_sorted=False)
-		selCOM = arg_baseMolecule\
-				 .get_center_of_mass(arg_atomList = allSel.get_indices(), \
+		selCOM = arg_hostDataContainer\
+				 .get_center_of_mass(arg_atomList = allAtoms, \
 					arg_frame = iFrame)
 		arg_hostDataContainer.update_translationAxesArray_at(arg_frame = iFrame, \
-			arg_atomList = allSel.get_indices(), \
+			arg_atomList = allAtoms, \
 			arg_pAxes = selAxes, \
 			arg_orig = selCOM)
 	Utils.printflush("Done")
@@ -458,14 +459,14 @@ def compute_entropy_residue_level(u,
 	arg_hostDataContainer.reset_rotationAxesArray()
 
 	# for each residue, set the rotational axes to the c-ca-N axes
-	for rid in range(arg_baseMolecule.numResidues):
-		iResid = arg_baseMolecule.residArray[rid]
-		resSel = SEL.Atomselection(arg_baseMolecule, f"RESID {iResid}")
-		cIdx = (resSel & SEL.Atomselection(arg_baseMolecule,"name C")).get_index()
-		caIdx = (resSel & SEL.Atomselection(arg_baseMolecule,"name CA")).get_index()
-		nIdx = (resSel & SEL.Atomselection(arg_baseMolecule,"name N")).get_index()
-
-		atoms_in_rid = resSel.get_indices()
+	for resid in allSel.residues.resids:
+		iResid = resid
+		iResSel = allSel.select_atoms(f"resid {iResid}")
+		# Here you are selecting one atom so if you slice an array the shape will missmatch
+		cIdx = iResSel.select_atoms(f"name C").indices[0]
+		caIdx = iResSel.select_atoms(f"name CA").indices[0]
+		nIdx = iResSel.select_atoms(f"name N").indices[0]
+		atoms_in_rid = iResSel.indices
 
 		for iFrame in range(numFrames):
 			cPosition = arg_hostDataContainer._labCoords[iFrame,cIdx]
@@ -482,8 +483,8 @@ def compute_entropy_residue_level(u,
 				arg_orig = ridOrigin)
 
 		if arg_verbose >= 3:
-			Utils.printflush('{:>5d}'.format(rid), end = ' ')
-			if (rid+1) % 5 == 0:
+			Utils.printflush('{:>5d}'.format(iResid), end = ' ')
+			if (iResid) % 5 == 0:
 				Utils.printflush('')
 
 	Utils.printflush("")
@@ -503,7 +504,7 @@ def compute_entropy_residue_level(u,
 	#update torques in the arg_hostDataContainer if asked for (arg_tScale != 0)
 	Utils.printflush("Updating Local torques->", end = ' ')
 	for iFrame in range(numFrames):
-		for iAtom in arg_baseMolecule.atomIndexArray:
+		for iAtom in allSel.indices:
 			coords_i = arg_hostDataContainer.localCoords[iFrame, iAtom]
 			forces_i = arg_hostDataContainer.rotationAxesArray[iFrame, iAtom][0:3,]@arg_hostDataContainer._labForces[iFrame,iAtom]
 			arg_hostDataContainer.localTorques[iFrame,iAtom,:] = CF.cross_product(coords_i,forces_i)
@@ -655,19 +656,19 @@ def compute_entropy_residue_level(u,
 	Utils.printOut(arg_outFile,f"{'FF Entropy (Residue level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K")
 	Utils.printOut(arg_outFile,f"{'TT Entropy (Residue level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
 	
-	return 
+	return (entropyFF, entropyTT)
 #END
 
 
-def compute_entropy_UA_level(arg_baseMolecule, 
-							 arg_hostDataContainer, 
-							 arg_outFile, 
-							 arg_moutFile,
-							 arg_nmdFile,
-							 arg_fScale,
-							 arg_tScale,
-							 arg_temper,
-							 arg_verbose):
+def compute_entropy_UA_level(arg_hostDataContainer,
+							arg_outFile,
+							arg_selector = "all", 
+							arg_moutFile = None,
+							arg_nmdFile = None,
+							arg_fScale = 1,
+							arg_tScale = 1,
+							arg_temper = 300,
+							arg_verbose = 3):
 	""" 
 	Computes the entropy calculations at the united atom (UA) level. 
 	Each heavy atom with its covalently bonded H-atoms make a single bead. H-atoms
@@ -686,6 +687,9 @@ def compute_entropy_UA_level(arg_baseMolecule,
 	Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> United Atom <--"))
 	Utils.printOut(arg_outFile,'-'*60)
 	
+	# Select Scope
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+
 	# preparing header for output file
 	Utils.printOut(arg_outFile,f"	  {'RESNAME':<10s}{'RESID':>5s}{'FF_ENTROPY':>12s}{'TT_ENTROPY':>12s}")
 	
@@ -700,10 +704,13 @@ def compute_entropy_UA_level(arg_baseMolecule,
 	arg_hostDataContainer.reset_rotationAxesArray()
 	arg_hostDataContainer.reset_translationAxesArray()
 
+	#get the heavy Atom List for filtering
+	heavyAtomArray = allSel.select_atoms("not name H*").indices
+
 	# for each residue:
-	for rid in range(arg_baseMolecule.numResidues):
-		iResname = arg_baseMolecule.resnameArray[rid]
-		iResid = arg_baseMolecule.residArray[rid]
+	for resid in allSel.residues.resids:
+		iResname = allSel.residues.resnames[resid - 1] 
+		iResid = resid
 		resLabel = "{}{}".format(iResname, iResid)
 		Utils.printflush('Working on resid : {}'.format(resLabel))
 
@@ -712,22 +719,22 @@ def compute_entropy_UA_level(arg_baseMolecule,
 		ridBeadCollection.listOfBeads = []
 
 		# add UA beads to it (a heavy atom and its bonded hydrogens make a bead)
-		resSel = SEL.Atomselection(arg_baseMolecule,f"RESId {iResid}") 
-		cIdx = (resSel & SEL.Atomselection(arg_baseMolecule,"name C")).get_index()
-		nIdx = (resSel & SEL.Atomselection(arg_baseMolecule,"name N")).get_index()
-		caIdx = (resSel & SEL.Atomselection(arg_baseMolecule,"name CA")).get_index()
+		resSel = allSel.select_atoms(f"resid {iResid}")
+		cIdx = resSel.select_atoms(f"name C").indices[0]
+		nIdx = resSel.select_atoms(f"name N").indices[0]
+		caIdx = resSel.select_atoms(f"name CA").indices[0]
 
-		resHeavySel = resSel & ~SEL.Atomselection(arg_baseMolecule,"hydrogen")
+		resHeavySel = resSel.select_atoms(f"not name H*")
 
-		for iheavy in resHeavySel.get_indices():
+		for iheavy in resHeavySel.indices:
 			# GRP := (a heavy atom and its bonded hydrogens make a bead)
-			igrp = SEL.Atomselection(arg_baseMolecule,f"BONH {iheavy}") 
+			igrp = allSel.select_atoms(f"index {iheavy} or (name H* and bonded index {iheavy})")
 
 			# heavy atom name
-			iName = arg_baseMolecule.atomNameArray[iheavy]
+			iName = allSel.atoms.names[iheavy]
 
 			# create a bead
-			newBead = BC.Bead(arg_atomList=igrp.get_indices(),\
+			newBead = BC.Bead(arg_atomList=igrp.indices,\
 				arg_hostDataContainer=arg_hostDataContainer,\
 				arg_numFrames=numFrames,\
 				arg_beadName = iName,\
@@ -761,7 +768,7 @@ def compute_entropy_UA_level(arg_baseMolecule,
 			tAxes, tOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = cPosition, \
 				arg_coord2 = nPosition, \
 				arg_coord3 = caPosition)
-			arg_hostDataContainer.update_translationAxesArray_at(iFrame, resSel.get_indices(), tAxes, tOrigin)
+			arg_hostDataContainer.update_translationAxesArray_at(iFrame, resSel.indices, tAxes, tOrigin)
 			
 		Utils.printflush('Done')
 
@@ -773,7 +780,7 @@ def compute_entropy_UA_level(arg_baseMolecule,
 		# See Chakravorty et. al. 2020 on the math behind it.
 		for iBead in ridBeadCollection.listOfBeads:
 			# fetch its heavy atom
-			iheavy = list(filter(lambda idx: not arg_baseMolecule.is_hydrogen(idx), iBead.atomList))
+			iheavy = list(filter(lambda idx: idx in heavyAtomArray, iBead.atomList))
 			try:
 				# check that these is only one heavy atom in the bead
 				assert(len(iheavy) == 1)
@@ -788,7 +795,7 @@ def compute_entropy_UA_level(arg_baseMolecule,
 				# get the average position lab coordinate
 				avgHydrogenPosition = get_avg_hpos(arg_atom= iheavy, \
 					arg_frame = iFrame, \
-					arg_baseMolecule = arg_baseMolecule, \
+					arg_selector = arg_selector, \
 					arg_hostDataContainer = arg_hostDataContainer)
 
 				# use the resultant vector to generate an 
@@ -808,13 +815,13 @@ def compute_entropy_UA_level(arg_baseMolecule,
 
 		# update local forces 
 		Utils.printflush('Updating Local forces->',end=' ')
-		arg_hostDataContainer.update_localForces("T", resSel.get_indices())
+		arg_hostDataContainer.update_localForces("T", resSel.indices)
 		Utils.printflush('Done')
 
 
 		# update torques using the local rotational axes
 		Utils.printflush('Updating Local torques->', end = ' ')
-		for iAtom_in_rid in resSel.get_indices():
+		for iAtom_in_rid in resSel.indices:
 			for iFrame in range(numFrames):
 				coords_i = arg_hostDataContainer.localCoords[iFrame, iAtom_in_rid]
 				forces_i = arg_hostDataContainer.rotationAxesArray[iFrame, iAtom_in_rid][0:3,]@arg_hostDataContainer._labForces[iFrame,iAtom_in_rid]
@@ -978,8 +985,8 @@ def compute_entropy_UA_level(arg_baseMolecule,
 		Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('FF Entropy (UA for {})'.format(resLabel), ridTotalEntropyFF))
 		Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('TT Entropy (UA for {})'.format(resLabel), ridTotalEntropyTT))
 		Utils.printOut(arg_outFile,'UATOM {:<10}{:>5}{:>12.3f}{:>12.3f}'\
-								.format(arg_baseMolecule.resnameArray[rid]\
-								, arg_baseMolecule.residArray[rid]\
+								.format(iResname\
+								, iResid\
 								, ridTotalEntropyFF\
 								, ridTotalEntropyTT))
 		Utils.printflush("\n\n")
@@ -998,7 +1005,7 @@ def compute_entropy_UA_level(arg_baseMolecule,
 	Utils.printOut(arg_outFile,f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
 	Utils.printOut(arg_outFile,'-'*60)
 	
-	return 
+	return (totalUAEntropyFF, totalUAEntropyTT)
 #END
 
 def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):

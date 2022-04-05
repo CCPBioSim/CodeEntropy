@@ -107,3 +107,5 @@ ENV/
 CodeEntropy/tests/data/.md_A4_dna_xf.trr_offsets.npz
 CodeEntropy/tests/dna_mcc.out
 CodeEntropy/tests/outfile_whole_molecule
+CodeEntropy/tests/data/.1AKI_ws.trr_offsets.npz
+CodeEntropy/tests/1AKI_mcc.out

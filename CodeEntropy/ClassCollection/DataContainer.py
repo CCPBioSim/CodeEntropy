@@ -18,7 +18,6 @@ class DataContainer(object):
 		"""
 		Can add start stop step here?
 		"""
-		
 		self.universe = u
 		self.numFrames = len(self.universe.trajectory)
 		self.frameIndices = []     # a list of integer values
