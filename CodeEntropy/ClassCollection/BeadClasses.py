@@ -250,8 +250,8 @@ class Bead():
 	"""
 
 	def __init__(self, arg_atomList, arg_numFrames, arg_hostDataContainer\
-		             , arg_beadName = "", arg_beadResn = "", arg_beadResi = ""\
-		             , arg_beadChid = "", **kwargs):
+					 , arg_beadName = "", arg_beadResn = "", arg_beadResi = ""\
+					 , arg_beadChid = "", **kwargs):
 		
 		# set of atom indices that form this bead
 		self.atomList = arg_atomList
@@ -288,7 +288,7 @@ class Bead():
 	def get_total_mass(self):
 		totalMass = 0.
 		for aid in self.atomList:
-			iMass = self.hostDataContainer.molecule.atomMassArray[aid]
+			iMass = self.hostDataContainer.universe.atoms.masses[aid]
 			totalMass += iMass
 
 		return totalMass
@@ -302,10 +302,10 @@ class Bead():
 		
 		com = nmp.zeros((3))
 
-		totalMass = nmp.sum(nmp.asarray([self.hostDataContainer.molecule.atomMassArray[iAtom] for iAtom in self.atomList]))
+		totalMass = nmp.sum(nmp.asarray([self.hostDataContainer.universe.atoms.masses[iAtom] for iAtom in self.atomList]))
 
 		for iAtom in self.atomList:
-			iMassCoord = self.hostDataContainer.molecule.atomMassArray[iAtom] * self.hostDataContainer._labCoords[arg_frame][iAtom]
+			iMassCoord = self.hostDataContainer.universe.atoms.masses[iAtom] * self.hostDataContainer._labCoords[arg_frame][iAtom]
 			com = com + iMassCoord
 
 		com /= totalMass
@@ -320,10 +320,10 @@ class Bead():
 		
 		com = nmp.zeros((3))
 
-		totalMass = nmp.sum(nmp.asarray([self.hostDataContainer.molecule.atomMassArray[iAtom] for iAtom in self.atomList]))
+		totalMass = nmp.sum(nmp.asarray([self.hostDataContainer.universe.atoms.masses[iAtom] for iAtom in self.atomList]))
 
 		for iAtom in self.atomList:
-			iMassCoord = self.hostDataContainer.molecule.atomMassArray[iAtom] * self.hostDataContainer.localCoords[arg_frame][iAtom]
+			iMassCoord = self.hostDataContainer.universe.atoms.masses[iAtom] * self.hostDataContainer.localCoords[arg_frame][iAtom]
 			com = com + iMassCoord
 
 		com /= totalMass
@@ -358,7 +358,7 @@ class Bead():
 			atomLocalCoords[atIdx] = self.hostDataContainer._labCoords[arg_frame][iAtom] - arg_localBasis[-1,]
 			atomLocalCoords[atIdx] = arg_localBasis[0:3,] @ atomLocalCoords[atIdx]
 
-			atomMasses[atIdx] = self.hostDataContainer.molecule.atomMassArray[iAtom]
+			atomMasses[atIdx] = self.hostDataContainer.universe.atoms.masses[iAtom]
 
 			atIdx += 1
 
@@ -368,19 +368,19 @@ class Bead():
 
 		sumDyadicCoordBasis = nmp.zeros((3,3))
 		for iAxis in range(3):
-		    sumDyadicCoordBasis = nmp.add(sumDyadicCoordBasis, nmp.outer(arg_localBasis[iAxis,], arg_localBasis[iAxis,]))
+			sumDyadicCoordBasis = nmp.add(sumDyadicCoordBasis, nmp.outer(arg_localBasis[iAxis,], arg_localBasis[iAxis,]))
 
 		for atIdx in range(len(self.atomList)):
-		    iMass = atomMasses[atIdx]
-		    iLocalCoord = atomLocalCoords[atIdx]
+			iMass = atomMasses[atIdx]
+			iLocalCoord = atomLocalCoords[atIdx]
 
-		    iDyadicLocalCoord = nmp.outer(iLocalCoord, iLocalCoord)
-		    
-		    iMatrix = nmp.dot(iLocalCoord,iLocalCoord) * sumDyadicCoordBasis
-		    iMatrix = nmp.subtract(iMatrix,iDyadicLocalCoord)
-		    iMatrix = iMass * iMatrix
-		    
-		    tensor = nmp.add(tensor, iMatrix)
+			iDyadicLocalCoord = nmp.outer(iLocalCoord, iLocalCoord)
+			
+			iMatrix = nmp.dot(iLocalCoord,iLocalCoord) * sumDyadicCoordBasis
+			iMatrix = nmp.subtract(iMatrix,iDyadicLocalCoord)
+			iMatrix = iMass * iMatrix
+			
+			tensor = nmp.add(tensor, iMatrix)
 
 
 		return tensor
@@ -388,10 +388,10 @@ class Bead():
 
 	def print_atomList(self):
 		""" Prints the atom indices in a particular fashion"""
-		baseMol = self.hostDataContainer.molecule
+		baseMol = self.hostDataContainer.universe
 		Utils.printflush('[{}]'.format(len(self.atomList)), end = ' : ')
 		for iAtom in self.atomList:
-			if baseMol.isHydrogenArray[iAtom] == 1:
+			if iAtom in baseMol.select_atoms("name H*").indices:
 				Utils.printflush('{}'.format(iAtom),end = ' ')
 			else:
 				Utils.printflush('({})'.format(iAtom), end = ' ')
