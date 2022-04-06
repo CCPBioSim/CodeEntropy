@@ -109,3 +109,7 @@ CodeEntropy/tests/dna_mcc.out
 CodeEntropy/tests/outfile_whole_molecule
 CodeEntropy/tests/data/.1AKI_ws.trr_offsets.npz
 CodeEntropy/tests/1AKI_mcc.out
+CodeEntropy/tests/dna_mcc_0_BB.out
+CodeEntropy/tests/dna_mcc_1_BB.out
+CodeEntropy/tests/dna_mcc_0_SC.out
+CodeEntropy/tests/dna_mcc_1_SC.out

@@ -407,10 +407,10 @@ def compute_entropy_residue_level(arg_hostDataContainer,
 	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 	allAtoms = allSel.indices
 
-	for resid in allSel.residues.resids:
+	for resindices in allSel.residues.resindices:
 		
-		iResname = allSel.residues.resnames[resid - 1]
-		iResid = resid
+		iResname = arg_hostDataContainer.universe.residues.resnames[resindices]
+		iResid = arg_hostDataContainer.universe.residues.resids[resindices]
 		resLabel = "{}{}".format(iResname, iResid)
 		Utils.printflush(resLabel)
 		resSel = allSel.select_atoms(f"resid {iResid}")
@@ -459,8 +459,8 @@ def compute_entropy_residue_level(arg_hostDataContainer,
 	arg_hostDataContainer.reset_rotationAxesArray()
 
 	# for each residue, set the rotational axes to the c-ca-N axes
-	for resid in allSel.residues.resids:
-		iResid = resid
+	for resindices in allSel.residues.resindices:
+		iResid = arg_hostDataContainer.universe.residues.resids[resindices]
 		iResSel = allSel.select_atoms(f"resid {iResid}")
 		# Here you are selecting one atom so if you slice an array the shape will missmatch
 		cIdx = iResSel.select_atoms(f"name C").indices[0]
@@ -708,9 +708,9 @@ def compute_entropy_UA_level(arg_hostDataContainer,
 	heavyAtomArray = allSel.select_atoms("not name H*").indices
 
 	# for each residue:
-	for resid in allSel.residues.resids:
-		iResname = allSel.residues.resnames[resid - 1] 
-		iResid = resid
+	for resindices in allSel.residues.resindices:
+		iResname = arg_hostDataContainer.universe.residues.resnames[resindices]
+		iResid = arg_hostDataContainer.universe.residues.resids[resindices]
 		resLabel = "{}{}".format(iResname, iResid)
 		Utils.printflush('Working on resid : {}'.format(resLabel))
 
@@ -1008,7 +1008,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
 	return (totalUAEntropyFF, totalUAEntropyTT)
 #END
 
-def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
 	""" A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
 	Every SC dihedral from every residue will be scanned. 
 	Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
@@ -1024,6 +1024,8 @@ def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, a
 	Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \n computed using all the dihedrals with pLogp formalism"))
 	Utils.printOut(arg_outFile,'-'*60)
 
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
@@ -1037,27 +1039,27 @@ def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, a
 	totalTopogEntropySC = 0.
 
 	# browse through each residue in the system and get their dihedrals
-	for rid in range(arg_baseMolecule.numResidues):
+	for resindices in allSel.residues.resindices:
 		Utils.printflush('-'*10,end='')
-		Utils.printflush('Working on resid : {} ({})'.format(rid, arg_baseMolecule.resnameArray[rid]), end='')
+		Utils.printflush('Working on resid : {} ({})'.format(arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]), end='')
 		Utils.printflush('-'*10)
-	
+		
+		resid = arg_hostDataContainer.universe.residues.resids[resindices]
 
 		# total SC entropy at the topographical level of thi residue
 		ridTopogEntropy = 0.
 
 		diheds_in_rid = set()
-		iAtom_in_rid = int(arg_baseMolecule.residueHead[rid])
-		while iAtom_in_rid != -1:
+		iAtom_in_rid = nmp.flip(allSel.select_atoms(f"resid {resid}").atoms.indices)
+		for idx in iAtom_in_rid:
 
-			for iDih in arg_baseMolecule.dihedralTable[iAtom_in_rid]:
+			for iDih in arg_hostDataContainer.dihedralTable[idx]:
 				# see if it is exclusive to this resid because they could also be peptide bond diheds
-				if iDih.is_from_same_residue() == rid and (iDih.is_heavy())  and (not iDih.is_BB_dihedral()):
+				if iDih.is_from_same_residue() == resid and (iDih.is_heavy())  and (not iDih.is_BB_dihedral()):
 					diheds_in_rid.add(iDih)
 
-			iAtom_in_rid = int(arg_baseMolecule.atomArray[iAtom_in_rid])
 
-		Utils.printflush('Found {} exclusive dihedrals in residue {}'.format(len(diheds_in_rid), arg_baseMolecule.resnameArray[rid]))
+		Utils.printflush('Found {} exclusive dihedrals in residue {}'.format(len(diheds_in_rid), arg_hostDataContainer.universe.residues.resnames[resindices]))
 
 		# define a list of ConformationEntities for this residue
 		conformationEntityList = []
@@ -1079,7 +1081,7 @@ def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, a
 			for iFrame in range(numFrames):
 
 				# fetch the dihedral value at that frame
-				phi = iDih.get_dihedral_angle_lab(arg_dataContainer = arg_hostDataContainer, arg_frame = iFrame)
+				phi = iDih.get_dihedral_angle_lab(arg_frame = iFrame)
 
 				# define its status
 				# isGaucheP = ( 0 <= phi < 120)
@@ -1126,9 +1128,9 @@ def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, a
 
 
 		# Final residue SC information	
-		Utils.printflush('{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy))
+		Utils.printflush('{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
-		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy))
+		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
 		# add this residue's SC entropy to the total SC entropy
 		totalTopogEntropySC += ridTopogEntropy 
@@ -1145,7 +1147,7 @@ def compute_topographical_entropy0_SC(arg_baseMolecule, arg_hostDataContainer, a
 	return
 #END
 
-def compute_topographical_entropy0_BB(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
 	""" A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
 	Every BB dihedral from the protein will be scanned. 
 	Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
@@ -1161,6 +1163,8 @@ def compute_topographical_entropy0_BB(arg_baseMolecule, arg_hostDataContainer, a
 	Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of BB dihedrals \n computed using the pLogp formalism"))
 	Utils.printOut(arg_outFile,'-'*60)
 
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
@@ -1175,7 +1179,7 @@ def compute_topographical_entropy0_BB(arg_baseMolecule, arg_hostDataContainer, a
 
 
 	# fetch all the heavy BB dihedrals
-	bbDiheds = list(filter(lambda dih: dih.is_BB_dihedral() and dih.is_heavy(), arg_baseMolecule.dihedralArray))
+	bbDiheds = list(filter(lambda dih: dih.is_BB_dihedral() and dih.is_heavy(), arg_hostDataContainer.dihedralArray))
 	Utils.printflush('Found a total of {} BB dihedrals.'.format(len(bbDiheds)))
 
 
@@ -1199,7 +1203,7 @@ def compute_topographical_entropy0_BB(arg_baseMolecule, arg_hostDataContainer, a
 		for iFrame in range(numFrames):
 
 			# fetch the dihedral value at that frame
-			phi = iBBDih.get_dihedral_angle_lab(arg_dataContainer = arg_hostDataContainer, arg_frame = iFrame)
+			phi = iBBDih.get_dihedral_angle_lab(arg_frame = iFrame)
 
 			# define its status
 			# isGaucheP = ( 0 <= phi < 120)
@@ -1260,7 +1264,7 @@ def compute_topographical_entropy0_BB(arg_baseMolecule, arg_hostDataContainer, a
 	return
 #END
 
-def compute_topographical_entropy1_SC(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
 	""" A function that computes the entropy over the states acquired by the a residue in terms of the states acquired by 
 	its dihedrals by also accounting for their correlated motions. A residue is depicted as a vector of length N_d where N_d 
 	is the number of dihedrals. Each dihedral is represented using an integer which is a decimal equivalent of its state of some order Q
@@ -1274,6 +1278,8 @@ def compute_topographical_entropy1_SC(arg_baseMolecule, arg_hostDataContainer, a
 	Utils.printOut(arg_outFile,'-'*60)
 	Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with correlation/pLogp formalism"))
 	Utils.printOut(arg_outFile,'-'*60)
+
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
@@ -1291,28 +1297,26 @@ def compute_topographical_entropy1_SC(arg_baseMolecule, arg_hostDataContainer, a
 	conformationEntityList = []	
 
 	# browse through each residue in the system and get their dihedrals
-	for rid in range(arg_baseMolecule.numResidues):
+	for resindices in allSel.residues.resindices:
 		Utils.printflush('-'*10,end='')
-		Utils.printflush('Working on resid : {} ({})'.format(rid, arg_baseMolecule.resnameArray[rid]), end='')
+		Utils.printflush('Working on resid : {} ({})'.format(arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]), end='')
 		Utils.printflush('-'*10)
 
+		resid = arg_hostDataContainer.universe.residues.resids[resindices]
 
 		# build a binary tree that will hold unique dihedrals 
 		# uniqueness is defined based on 2-3 atom indexes
 		diheds_in_rid = CustomDataTypes.BinaryTree()
-		iAtom_in_rid = int(arg_baseMolecule.residueHead[rid])
-		while iAtom_in_rid != -1:
-
-			for iDih in arg_baseMolecule.dihedralTable[iAtom_in_rid]:
+		iAtom_in_rid = nmp.flip(allSel.select_atoms(f"resid {resid}").atoms.indices)
+		for idx in iAtom_in_rid:
+			for iDih in arg_hostDataContainer.dihedralTable[idx]:
 				# see if it is a side chain dihedral exclusive to this resid 
-				if iDih.is_from_same_residue() == rid and iDih.is_heavy() and not (iDih.is_BB_phi() or iDih.is_BB_psi()):
+				if iDih.is_from_same_residue() == resid and iDih.is_heavy() and not (iDih.is_BB_phi() or iDih.is_BB_psi()):
 					dihNode = CustomDataTypes.TreeNode(None, None, iDih)
 					diheds_in_rid.add_node(dihNode)
 
-			iAtom_in_rid = int(arg_baseMolecule.atomArray[iAtom_in_rid])
-
 		Utils.printflush('Found {} exclusive dihedrals in residue {}{}'.\
-			format(len(diheds_in_rid), arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]))
+			format(len(diheds_in_rid), arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]))
 
 		# create an object of Class ConformationEntity corresponding to this residue
 		newEntity = CONF.ConformationEntity(arg_order = len(diheds_in_rid), arg_numFrames = numFrames)
@@ -1326,7 +1330,7 @@ def compute_topographical_entropy1_SC(arg_baseMolecule, arg_hostDataContainer, a
 
 			# fetch the dihedral value of each of the dihedrals for this residue at that frame
 			for i, iDih in enumerate(diheds_in_rid.list_in_order()):
-				phi = iDih.get_dihedral_angle_lab(arg_dataContainer = arg_hostDataContainer, arg_frame = iFrame)
+				phi = iDih.get_dihedral_angle_lab(arg_frame = iFrame)
 
 				# define its status
 				# isGaucheP = ( 0 <= phi < 120)
@@ -1366,9 +1370,9 @@ def compute_topographical_entropy1_SC(arg_baseMolecule, arg_hostDataContainer, a
 		ridTopogEntropy *= -CONST.GAS_CONST  #(R)
 
 		# Final residue SC information	
-		Utils.printflush('{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy))
+		Utils.printflush('{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
-		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy))
+		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
 		# add this residue's SC entropy to the total SC entropy
 		totalTopogEntropySC += ridTopogEntropy
@@ -1385,7 +1389,7 @@ def compute_topographical_entropy1_SC(arg_baseMolecule, arg_hostDataContainer, a
 	return
 #END
 
-def compute_topographical_entropy1_BB(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
 	""" 
 	A function that computes the entropy over the states acquired 
 	collectively by the heavy BB dihedrals in a protein
@@ -1410,6 +1414,8 @@ def compute_topographical_entropy1_BB(arg_baseMolecule, arg_hostDataContainer, a
 	Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of BB dihedrals \ncomputed using the correlated-pLogp formalism"))
 	Utils.printOut(arg_outFile,'-'*60)
 
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
@@ -1424,7 +1430,7 @@ def compute_topographical_entropy1_BB(arg_baseMolecule, arg_hostDataContainer, a
 
 	# fetch all the heavy BB dihedrals
 	bbDiheds = CustomDataTypes.BinaryTree()
-	for iDih in arg_baseMolecule.dihedralArray:
+	for iDih in arg_hostDataContainer.dihedralArray:
 		# see if it is a peptide bond dihedral
 		if iDih.is_heavy() and iDih.is_BB_dihedral():
 			dihNode = CustomDataTypes.TreeNode(None, None, iDih)
@@ -1442,7 +1448,7 @@ def compute_topographical_entropy1_BB(arg_baseMolecule, arg_hostDataContainer, a
 
 		# fetch the dihedral value of each of the BB dihedrals in the protein at that frame
 		for i, iDih in enumerate(bbDiheds.list_in_order()):
-			phi = iDih.get_dihedral_angle_lab(arg_dataContainer = arg_hostDataContainer, arg_frame = iFrame)
+			phi = iDih.get_dihedral_angle_lab(arg_frame = iFrame)
 
 			# define its status
 			# isGaucheP = ( 0 <= phi < 120)
@@ -1493,7 +1499,7 @@ def compute_topographical_entropy1_BB(arg_baseMolecule, arg_hostDataContainer, a
 	return
 #END
 
-def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
 	"""
 	Function that computes the topographical entropy using Method 4,
 	a.k.a the dihedral-state-contingency method.
@@ -1506,6 +1512,8 @@ def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContaine
 	Utils.printOut(arg_outFile,'-'*60)
 	Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
 	Utils.printOut(arg_outFile,'-'*60)
+
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
@@ -1536,26 +1544,28 @@ def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContaine
 	#      Residue wise calculation of topographical entropy
 	#
 	#
-	for rid in range(arg_baseMolecule.numResidues):
+	for resindices in allSel.residues.resindices:
 		Utils.printflush('-'*10,end='')
-		Utils.printflush('Working on resid : {} ({})'.format(rid, arg_baseMolecule.resnameArray[rid]), end='')
+		Utils.printflush('Working on resid : {} ({})'.format(arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]), end='')
 		Utils.printflush('-'*10)
 
-		dihedsInRid = set()
-		iAtomInRid = int(arg_baseMolecule.residueHead[rid])
-		while iAtomInRid != -1:
+		resid = arg_hostDataContainer.universe.residues.resids[resindices]
 
-			for iDih in arg_baseMolecule.dihedralTable[iAtomInRid]:
+		dihedsInRid = set()
+		iAtom_in_rid = nmp.flip(allSel.select_atoms(f"resid {resid}").atoms.indices)
+
+		for idx in iAtom_in_rid:
+
+			for iDih in arg_hostDataContainer.dihedralTable[idx]:
 				# see if it is exclusive to this resid because they could also be peptide bond diheds
-				if iDih.is_from_same_residue() == rid and iDih.is_heavy():
+				if iDih.is_from_same_residue() == resid and iDih.is_heavy():
 					dihedsInRid.add(iDih)
 
-			iAtomInRid = int(arg_baseMolecule.atomArray[iAtomInRid])
 
 		numDiheds = len(dihedsInRid)
 		if arg_verbose >= 2:
 			Utils.printflush('Found {} exclusive dihedrals in residue {}\
-						  '.format(numDiheds, arg_baseMolecule.resnameArray[rid]))
+						  '.format(numDiheds, arg_hostDataContainer.universe.residues.resnames[resindices]))
 	
 		# treat each dihedral as a conformation entity
 		# initialize a list of ConformationEntities for this molecule
@@ -1573,7 +1583,7 @@ def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContaine
 			for iFrame in range(numFrames):
 
 				# fetch the dihedral value at that frame
-				phi = iDih.get_dihedral_angle_local(arg_dataContainer = arg_hostDataContainer, arg_frame = iFrame)
+				phi = iDih.get_dihedral_angle_local(arg_frame = iFrame)
 
 				# define its status
 				# isGaucheP = ( 0 <= phi < 120)
@@ -1601,7 +1611,7 @@ def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContaine
 		#-------------------------------------------------------------------------------------
 		# initialize
 		occuMatrix = -1000 * nmp.ones((numDiheds*vecOrder, numDiheds*vecOrder))
-		Utils.printOut(arg_outFile, "Occupancy matrix for Residue {}".format(arg_baseMolecule.resnameArray[rid]))
+		Utils.printOut(arg_outFile, "Occupancy matrix for Residue {}".format(arg_hostDataContainer.universe.residues.resnames[resindices]))
 
 		# populate
 		for i in range(0,numDiheds):
@@ -1655,10 +1665,10 @@ def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContaine
 		ridTopogEntropy4 *= -CONST.GAS_CONST #(R)
 
 		# Final residue entropy information	
-		Utils.printflush('{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy4))
+		Utils.printflush('{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
 		Utils.hbar(60)
 
-		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy4))
+		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
 		Utils.printOut(arg_outFile, '-'*60)
 
 		# add this residue's topog. entropy to the total topog. entropy
@@ -1675,7 +1685,7 @@ def compute_topographical_entropy_method4(arg_baseMolecule, arg_hostDataContaine
 	return
 #END
 
-def compute_topographical_entropy_AEM(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
 	"""
 	Compute entropy by Adaptive Enumeration Method (AEM).
 	This method deals with each dihedral in a conformational entity on an individual basis. After that it coalesces
@@ -1691,6 +1701,8 @@ def compute_topographical_entropy_AEM(arg_baseMolecule, arg_hostDataContainer, a
 	Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with AEM method"))
 	Utils.printOut(arg_outFile,'-'*60)
 
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
@@ -1702,28 +1714,27 @@ def compute_topographical_entropy_AEM(arg_baseMolecule, arg_hostDataContainer, a
 	
 
 	# browse through each residue in the system and get their dihedrals
-	for rid in range(arg_baseMolecule.numResidues):
+	for resindices in allSel.residues.resindices:
 		Utils.printflush('-'*10,end='')
-		Utils.printflush('Working on resid : {} ({})'.format(rid, arg_baseMolecule.resnameArray[rid]), end='')
+		Utils.printflush('Working on resid : {} ({})'.format(arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]), end='')
 		Utils.printflush('-'*10)
 
+		resid = arg_hostDataContainer.universe.residues.resids[resindices]
 
 		# build a binary tree that will hold unique dihedrals 
 		# uniqueness is defined based on 2-3 atom indexes
 		diheds_in_rid = CustomDataTypes.BinaryTree()
-		iAtom_in_rid = int(arg_baseMolecule.residueHead[rid])
-		while iAtom_in_rid != -1:
+		iAtom_in_rid = nmp.flip(allSel.select_atoms(f"resid {resid}").atoms.indices)
+		for idx in iAtom_in_rid:
 
-			for iDih in arg_baseMolecule.dihedralTable[iAtom_in_rid]:
+			for iDih in arg_hostDataContainer.dihedralTable[idx]:
 				# see if it is a side chain dihedral exclusive to this resid 
-				if iDih.is_from_same_residue() == rid and iDih.is_heavy():
+				if iDih.is_from_same_residue() == resid and iDih.is_heavy():
 					dihNode = CustomDataTypes.TreeNode(None, None, iDih)
 					diheds_in_rid.add_node(dihNode)
 
-			iAtom_in_rid = int(arg_baseMolecule.atomArray[iAtom_in_rid])
-
 		Utils.printflush('Found {} exclusive dihedrals in residue {}{}'.\
-			format(len(diheds_in_rid), arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]))
+			format(len(diheds_in_rid), arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]))
 
 		# create an object of Class ConformationEntity corresponding to this residue
 		newEntity = CONF.ConformationEntity(arg_order = len(diheds_in_rid), arg_numFrames = numFrames)
@@ -1734,7 +1745,7 @@ def compute_topographical_entropy_AEM(arg_baseMolecule, arg_hostDataContainer, a
 
 		# for each dihedral identified, get the state vector
 		for i, iDih in enumerate(diheds_in_rid.list_in_order()):
-			stateTS = iDih.get_state_ts(arg_dataContainer = arg_hostDataContainer, arg_verbose = arg_verbose)
+			stateTS = iDih.get_state_ts(arg_verbose = arg_verbose)
 			newEntity.timeSeries[i,:] = stateTS
 
 		# Now coalesce integer labels of the constituent dihedrals in each time point to get 
@@ -1763,9 +1774,9 @@ def compute_topographical_entropy_AEM(arg_baseMolecule, arg_hostDataContainer, a
 		ridTopogEntropy *= -CONST.GAS_CONST  #(R)
 
 		# Final residue SC information	
-		Utils.printflush('{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy))
+		Utils.printflush('{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
-		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_baseMolecule.resnameArray[rid], arg_baseMolecule.residArray[rid]), ridTopogEntropy))
+		Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
 		# add this residue's SC entropy to the total SC entropy
 		totalTopogEntropySC += ridTopogEntropy
@@ -1783,8 +1794,9 @@ def compute_topographical_entropy_AEM(arg_baseMolecule, arg_hostDataContainer, a
 #END
 
 
-def compute_topographical_entropy_method3(arg_baseMolecule, arg_hostDataContainer, arg_outFile, arg_verbose):
+def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
 
+	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 	# number of frames
 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
@@ -1796,7 +1808,7 @@ def compute_topographical_entropy_method3(arg_baseMolecule, arg_hostDataContaine
 	conformationEntityList = []
 
 	# fetch all the heavy dihedrals
-	nohDiheds = list(filter(lambda dih:  dih.is_heavy(), arg_baseMolecule.dihedralArray))
+	nohDiheds = list(filter(lambda dih:  dih.is_heavy(), arg_hostDataContainer.dihedralArray))
 	
 	# for iDih in arg_baseMolecule.dihedralArray:
 	for iDih in nohDiheds:
@@ -1816,7 +1828,7 @@ def compute_topographical_entropy_method3(arg_baseMolecule, arg_hostDataContaine
 		for iFrame in range(numFrames):
 
 			# fetch the dihedral value at that frame
-			phi = iDih.get_dihedral_angle_lab(arg_dataContainer = arg_hostDataContainer, arg_frame = iFrame)
+			phi = iDih.get_dihedral_angle_lab(arg_frame = iFrame)
 
 			# define its status
 			# isGaucheP = ( 0 <= phi < 120)

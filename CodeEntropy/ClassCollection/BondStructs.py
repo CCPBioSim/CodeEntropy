@@ -7,6 +7,7 @@ import sys
 from CodeEntropy.FunctionCollection import GeometricFunctions as GF
 from CodeEntropy.FunctionCollection import CustomFunctions as CF
 from CodeEntropy.ClassCollection import CustomDataTypes as CDT
+from CodeEntropy.FunctionCollection import Utils
 
 class BondedStructure(object):
 	"""
@@ -15,9 +16,9 @@ class BondedStructure(object):
 	a bond, an angle, a dihedral and an improper.
 	"""
 
-	def __init__(self, atomIndices, arg_baseMolecule):
+	def __init__(self, atomIndices, arg_container):
 		self.atomList = atomIndices
-		self.baseMolecule = arg_baseMolecule
+		self.container = arg_container
 		self.qvalue = None
 
 	def __hash__(self):
@@ -42,7 +43,7 @@ class BondedStructure(object):
 		hydrogens"""
 		retVal = True 
 		for iAtom in self.atomList:
-			if self.baseMolecule.isHydrogenArray[iAtom]:
+			if self.container.isHydrogenArray[iAtom]:
 				retVal = False
 				break
 		return retVal
@@ -52,23 +53,23 @@ class Bond(BondedStructure):
 	""" Bond between two atoms (preferably covalent). 
 	May serve as a parent of 'contact' """
 
-	def __init__(self, arg_atomIndices, arg_baseMolecule):
-		super().__init__(arg_atomIndices, arg_baseMolecule)
+	def __init__(self, arg_atomIndices, arg_container):
+		super().__init__(arg_atomIndices, arg_container)
 		self.atom1, self.atom2 = arg_atomIndices # indices of 2 atoms
 
 #END
 
 class Angle(BondedStructure):
 	""" Angle of three atoms. """
-	def __init__(self, arg_atomIndices, arg_baseMolecule):
-		super().__init__(arg_atomIndices, arg_baseMolecule)
+	def __init__(self, arg_atomIndices, arg_container):
+		super().__init__(arg_atomIndices, arg_container)
 #END
 
 class Dihedral(BondedStructure):
 	""" Dihedral composed of 4 positions (2 planes with an intersecting line) """
 
-	def __init__(self, arg_atomIndices, arg_baseMolecule):
-		super().__init__(arg_atomIndices, arg_baseMolecule)
+	def __init__(self, arg_atomIndices, arg_container):
+		super().__init__(arg_atomIndices, arg_container)
 		self.atom1, self.atom2, self.atom3, self.atom4 = arg_atomIndices	 # indices of the 4 atoms
 
 	def __str__(self):
@@ -90,17 +91,17 @@ class Dihedral(BondedStructure):
 	def is_BB_dihedral(self):
 		""" Based on the information in the base molecule's arrays, see if 2-3 atoms 
 		in this dihedral are BB atoms """
-		retBool = self.baseMolecule.isBBAtomArray[self.atom2] 
-		retBool = retBool and self.baseMolecule.isBBAtomArray[self.atom3] 
+		retBool = self.container.isBBAtomArray[self.atom2] 
+		retBool = retBool and self.container.isBBAtomArray[self.atom3] 
 		return retBool
 	#END
 
 	def is_BB_psi(self):
 		""" Checks if a heavy dihedral is BB psi (X-C-----Ca-Y)"""
 		if self.is_BB_dihedral():
-			if self.baseMolecule.isCAtomArray[self.atom2] and self.baseMolecule.isCaAtomArray[self.atom3]:
+			if self.container.isCAtomArray[self.atom2] and self.container.isCaAtomArray[self.atom3]:
 				return True
-			elif self.baseMolecule.isCAtomArray[self.atom3] and self.baseMolecule.isCaAtomArray[self.atom2]:
+			elif self.container.isCAtomArray[self.atom3] and self.container.isCaAtomArray[self.atom2]:
 				return True
 			else:
 				return False
@@ -112,9 +113,9 @@ class Dihedral(BondedStructure):
 	def is_BB_phi(self):
 		""" Checks if a heavy dihedral is BB phi (X-Ca-----N-Y)"""
 		if self.is_BB_dihedral():
-			if self.baseMolecule.isNAtomArray[self.atom2] and self.baseMolecule.isCaAtomArray[self.atom3]:
+			if self.container.isNAtomArray[self.atom2] and self.container.isCaAtomArray[self.atom3]:
 				return True
-			elif self.baseMolecule.isNAtomArray[self.atom3] and self.baseMolecule.isCaAtomArray[self.atom2]:
+			elif self.container.isNAtomArray[self.atom3] and self.container.isCaAtomArray[self.atom2]:
 				return True
 			else:
 				return False
@@ -126,34 +127,34 @@ class Dihedral(BondedStructure):
 	def is_from_same_residue(self):
 		""" Based on the information in the base molecule's arrays, see if the two central atoms (2,3)
 		in this dihedral belong to the same residue. Return the residue index if yes, else -100"""
-		if self.baseMolecule.atomResidueIdxArray[self.atom2] ==\
-		self.baseMolecule.atomResidueIdxArray[self.atom3]:
-			return self.baseMolecule.atomResidueIdxArray[self.atom2]
+		if self.container.universe.atoms.resids[self.atom2] ==\
+		self.container.universe.atoms.resids[self.atom3]:
+			return self.container.universe.atoms.resids[self.atom2]
 		else:
 			return -10000
 	#END
 
-	def get_dihedral_angle_lab(self, arg_dataContainer, arg_frame):
+	def get_dihedral_angle_lab(self, arg_frame):
 		""" Using the function compute_dihedral in GeometricFunctions module, return the dihedral for this quadruplet in the lab frame"""
-		r1 = arg_dataContainer._labCoords[arg_frame][self.atom1]
-		r2 = arg_dataContainer._labCoords[arg_frame][self.atom2]
-		r3 = arg_dataContainer._labCoords[arg_frame][self.atom3]
-		r4 = arg_dataContainer._labCoords[arg_frame][self.atom4]
+		r1 = self.container._labCoords[arg_frame][self.atom1]
+		r2 = self.container._labCoords[arg_frame][self.atom2]
+		r3 = self.container._labCoords[arg_frame][self.atom3]
+		r4 = self.container._labCoords[arg_frame][self.atom4]
 
 		return GF.compute_dihedral(r1, r2, r3, r4)
 	#END
 
-	def get_dihedral_angle_local(self, arg_dataContainer, arg_frame):
+	def get_dihedral_angle_local(self, arg_frame):
 		""" Using the function compute_dihedral in GeometricFunctions module, return the dihedral for this quadruplet in the local frame"""
-		r1 = arg_dataContainer.localCoords[arg_frame][self.atom1]
-		r2 = arg_dataContainer.localCoords[arg_frame][self.atom2]
-		r3 = arg_dataContainer.localCoords[arg_frame][self.atom3]
-		r4 = arg_dataContainer.localCoords[arg_frame][self.atom4]
+		r1 = self.container.localCoords[arg_frame][self.atom1]
+		r2 = self.container.localCoords[arg_frame][self.atom2]
+		r3 = self.container.localCoords[arg_frame][self.atom3]
+		r4 = self.container.localCoords[arg_frame][self.atom4]
 
 		return GF.compute_dihedral(r1, r2, r3, r4)
 	#END
 
-	def get_state_ts(self, arg_dataContainer, arg_verbose = 3, arg_bw = 30):
+	def get_state_ts(self, arg_verbose = 3, arg_bw = 30):
 		"""
 		Create a state vector, showing the state in which the input dihedral is
 		as a function of time.
@@ -167,14 +168,14 @@ class Dihedral(BondedStructure):
 		
 		"""
 		cosBW = nmp.cos(nmp.deg2rad(arg_bw))
-		numFrames = len(arg_dataContainer.trajSnapshots)
+		numFrames = len(self.container.trajSnapshots)
 		phiTS = nmp.zeros(numFrames)
 		stateTS = nmp.zeros(numFrames)
 		
 		for iFrame in range(numFrames):
 
 			# fetch the dihedral value at that frame
-			phi = self.get_dihedral_angle_lab(arg_dataContainer = arg_dataContainer, arg_frame = iFrame)
+			phi = self.get_dihedral_angle_lab(arg_frame = iFrame)
 			if phi < 0:
 				phi += 360
 				
@@ -234,7 +235,7 @@ class Dihedral(BondedStructure):
 		tpVals = [tp[0] for tp in tpList]
 		
 		if arg_verbose > 3:
-			Utils.printflush('{} turning point(s) found for dihedral {}.'.format(len(tpVals), arg_dih), end=' ')
+			Utils.printflush('{} turning point(s) found for dihedral {}.'.format(len(tpVals), self.atomList), end=' ')
 		
 		if arg_verbose >= 5:
 			Utils.printflush(':', end=' ')
@@ -249,4 +250,3 @@ class Dihedral(BondedStructure):
 			stateTS[iFrame] = nmp.argmin(diffList)
 		
 		return stateTS
-

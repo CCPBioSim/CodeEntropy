@@ -2,6 +2,7 @@ import numpy as nmp
 from CodeEntropy.Trajectory import TrajectoryFrame as TF
 from CodeEntropy.Trajectory import TrajectoryConstants as TCON
 from CodeEntropy.FunctionCollection import Utils
+from CodeEntropy.ClassCollection import BondStructs
 
 class DataContainer(object):
 	""" 
@@ -22,8 +23,38 @@ class DataContainer(object):
 		self.numFrames = len(self.universe.trajectory)
 		self.frameIndices = []     # a list of integer values
 		self.trajSnapshots = []  # a list of instances of TrajectoryFrame class
-		
 
+		num_atom = self.universe.atoms.n_atoms
+
+		self.isCAtomArray = nmp.zeros(num_atom)
+		self.isOAtomArray = nmp.zeros(num_atom)
+		self.isNAtomArray = nmp.zeros(num_atom)
+		self.isCaAtomArray = nmp.zeros(num_atom)
+		self.isBBAtomArray = nmp.zeros(num_atom)
+		self.isHydrogenArray = nmp.zeros(num_atom)
+
+		selection_pair = [
+			(self.isCAtomArray, "name C"),
+			(self.isOAtomArray, "name O"),
+			(self.isNAtomArray, "name N"),
+			(self.isCaAtomArray, "name CA"),
+			(self.isBBAtomArray, "backbone"),
+			(self.isHydrogenArray, "name H*")
+		]
+		for item in selection_pair:
+			idx_list = u.atoms.select_atoms(item[1]).indices
+			for id in idx_list:
+				item[0][id] = 1
+
+		self.dihedralArray = set()
+		self.dihedralTable = dict()
+		dihedList = u.dihedrals.indices
+		for i in range(num_atom):
+			self.dihedralTable[i] = set()
+		
+		for dihedrals in dihedList:
+			newDih = BondStructs.Dihedral(dihedrals, self)
+			self.add_dihedral(newDih)
 
 		#reading trajectorys into memory because MDanalysis reads values on the fly which might slow down processing speed as these values are accessed multiple times
 		for ts in u.trajectory:
@@ -318,3 +349,11 @@ class DataContainer(object):
 
 		else:
 			return pMomentsOfInertia, nmp.transpose(pAxes)
+
+	def add_dihedral(self, arg_dihedral):
+		# add the input dihedral to the value list associated with the indices of the atoms that form it.
+		for atIdx in arg_dihedral.atomList:
+			# Utils.printflush('Adding dihedral {} to the list for atom {}'.format(arg_dihedral, atIdx))
+			self.dihedralTable[atIdx].add(arg_dihedral)
+		
+		self.dihedralArray.add(arg_dihedral)
