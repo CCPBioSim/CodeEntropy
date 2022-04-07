@@ -5,7 +5,6 @@ from CodeEntropy.ClassCollection import BeadClasses as BC
 from CodeEntropy.ClassCollection import ConformationEntity as CONF
 from CodeEntropy.ClassCollection import ModeClasses
 from CodeEntropy.ClassCollection import CustomDataTypes
-from CodeEntropy.ClassCollection import Atomselection as SEL
 from CodeEntropy.FunctionCollection import CustomFunctions as CF
 from CodeEntropy.FunctionCollection import GeometricFunctions as GF
 from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC

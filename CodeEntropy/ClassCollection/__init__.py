@@ -2,8 +2,6 @@
 
 #import all of the package files
 
-from CodeEntropy.ClassCollection import Atomselection
-from CodeEntropy.ClassCollection import BaseMolecule
 from CodeEntropy.ClassCollection import BeadClasses
 from CodeEntropy.ClassCollection import BondStructs
 from CodeEntropy.ClassCollection import ConformationEntity

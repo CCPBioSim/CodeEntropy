@@ -67,8 +67,4 @@ setup(
         'bitarray',
         'mdanalysis',
     ],
-
-	# scripts for creating executables
-	scripts = ['CodeEntropy/mcc_gromacs.py', \
-	           'CodeEntropy/mcc_charmm.py']
 )
