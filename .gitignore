@@ -115,3 +115,5 @@ CodeEntropy/tests/dna_mcc_0_SC.out
 CodeEntropy/tests/dna_mcc_1_SC.out
 Example/data/.md_A4_dna_xf.trr_offsets.npz
 Example/data/.1AKI_ws.trr_offsets.npz
+Example/cProfile_1AKI_UA.out
+Example/1AKI_mcc.out
