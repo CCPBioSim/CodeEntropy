@@ -26,7 +26,7 @@ def printOut(arg_outFile, arg_string, end = "\n"):
 
 #END
 
-def printList( arg_outFile,arg_list, arg_fmt, arg_maxRowLen, arg_descriptor = None):
+def printList(arg_outFile,arg_list, arg_fmt, arg_maxRowLen, arg_descriptor = None):
 	""" Writes the elements of a 1D list into the output file.
 		At most `arg_maxRowLen` values are written per line in addition to the
 		descriptor in each line. """
@@ -150,11 +150,11 @@ def get_frequencies_from_nmd(arg_nmdfile, wnum2freq = True):
 	"""
 	freqList = []
 	with open(arg_nmdfile, "r") as fnmd:
-	    for line in fnmd:
-	        if re.match("^# \*\*\*", line):
-	            freq = float(line.split()[-1])
-	            if wnum2freq:
-	            	freq *= CONST.C_LIGHT
-	            freqList.append(freq)
+		for line in fnmd:
+			if re.match("^# \*\*\*", line):
+				freq = float(line.split()[-1])
+				if wnum2freq:
+					freq *= CONST.C_LIGHT
+				freqList.append(freq)
 	return freqList
 #END
