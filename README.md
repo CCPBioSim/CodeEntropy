@@ -14,14 +14,6 @@ Install via
 pip install .
 ```
 
-run using
-```
-python3 $(which mcc_gromacs.py)
-
-# For help
-python3 $(which mcc_gromacs.py) --help
-```
-
 ### Copyright
 
 Copyright (c) 2022, DonaldChung-HK
@@ -31,3 +23,4 @@ Copyright (c) 2022, DonaldChung-HK
  
 Project based on the 
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.6.
+Modified from [arghya90/CodeEntropy](https://github.com/arghya90/CodeEntropy) version 0.3
