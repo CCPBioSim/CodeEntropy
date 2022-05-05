@@ -124,3 +124,5 @@ Example/dna_mcc_1_BB.out
 Example/dna_mcc.out
 Example/complex.spydata
 Example/dna_mcc.out
+soluteVariablesEE_moleculeLevel.csv
+solventVariablesEE_moleculeLevel.csv

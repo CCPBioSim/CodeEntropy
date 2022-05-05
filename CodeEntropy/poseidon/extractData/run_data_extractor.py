@@ -27,13 +27,29 @@ from CodeEntropy.poseidon.extractData.mainClass import *
 
 
 
-def start(start, end, 
-        step, container, pureAtomNum=1, cutShell=None, 
-        excludedResnames=None,perFrameObj=False,
-        water='WAT', verbose=True):
-    '''
-    Run each analysis step from here
-    '''
+def start(container, start, end, 
+        step=1, pureAtomNum=1, cutShell=None, 
+        excludedResnames=None,
+        water='WAT', verbose=False):
+    """This is a initialization function to collect information from a MDanalysis universe into a data container for analysis using POSEIDON
+    Pending Work
+        - rewrite this into a class initalization for easier understanding
+        - rewrite the energy part to be compulsory
+
+    Args:
+        container (MDAnalysis.Universe): _description_
+        start (int): Starting Frame ID
+        end (int): Ending Frame ID, this frame is not included
+        step (int, optional): Steps between frame. Defaults to 1.
+        pureAtomNum (int, optional): Reference molecule resid for pure liquid. Defaults to 1.
+        cutShell (float, optional): Explicit cut off shell (might be buggy since part of it is not defined). Default to None which uses the relative angular distance (RAD) algorithm. See https://aip.scitation.org/doi/10.1063/1.4961439
+        excludedResnames (list, optional): List of resnames to exclude from nearest non alike analysis. Defaults to None.
+        water (str, optional): Resname for water molecules. Defaults to 'WAT'.
+        verbose (bool, optional): print out progress of each analysis step. Defaults to False.
+
+    Returns:
+        CodeEntropy.poseidon.extractData.allAtomList: a container for CodeEntropy.poseidon.analysis to analyse
+    """
     startTime = datetime.now()
     print(startTime)
     verbosePrint = print if verbose else lambda *a, **k: None
@@ -135,7 +151,8 @@ def start(start, end,
             try:
                 cutoff_dist = float(cutShell)
                 distCutoffNc(all_data, dimensions, cutoff_dist)
-                NcPairs(all_data, dimensions)
+                # #don't know what this is it is not defined anywhere
+                # NcPairs(all_data, dimensions)
                 verbosePrint('distCutoffNc')
                 verbosePrint(datetime.now() - startTime)
                 sys.stdout.flush() 

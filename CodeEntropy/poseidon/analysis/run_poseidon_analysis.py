@@ -60,11 +60,21 @@ def start(moleculeObj,
         entropyEnergy=True, 
         level_list=['moleculeLevel'], 
         solvent=None, water='WAT',
-        verbose=True, weighting=None, 
+        verbose=False, weighting=None, 
         forceUnits='kcal'):
-    '''
-    Read in list of objects and run analyses. 
-    '''
+    """Perform analysis using poseidon
+
+    Args:
+        moleculeObj (CodeEntropy.poseidon.extractData.allAtomList): Input object
+        temperature (int, optional): Temperature for system. Defaults to 298 K.
+        entropyEnergy (bool, optional): Run entropy and energy analysis. Defaults to True.
+        level_list (list, optional): Choose and refine the level of analyiss: moleculeLevel, residLevel_resname, residLevel_atom, atomLevel, soluteContact, res_atomLevel. Defaults to ['moleculeLevel'].
+        solvent (_type_, optional): Resname for solvent. Defaults to None.
+        water (str, optional): Resname for water. Defaults to 'WAT'.
+        verbose (bool, optional): Print out progress of each step. Defaults to False.
+        weighting (_type_, optional): get weighing for each frame if the simulation is biased . Defaults to None. !! It is hard coded to None in the code anyway
+        forceUnits (str, optional): Units of forces, kJ or Kcal. Defaults to 'kcal'.
+    """
 
     verbosePrint = print if verbose else lambda *a, **k: None
     print(startTime)

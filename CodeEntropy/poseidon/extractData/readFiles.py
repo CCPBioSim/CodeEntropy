@@ -10,160 +10,13 @@ from collections import defaultdict
 import operator
 from datetime import datetime
 
-import MDAnalysis
-from MDAnalysis import *
-from MDAnalysis.analysis import distances
-from MDAnalysis.lib.formats.libmdaxdr import TRRFile
-
 from CodeEntropy.poseidon.extractData.generalFunctions import *
 from CodeEntropy.poseidon.extractData.mainClass import *
 
+import MDAnalysis
 
 nested_dict = lambda: defaultdict(nested_dict) 
         #create nested dict in one go
-
-
-
-def readInputs(lammps, amber, gromacs, pdb, verbosePrint):
-    '''
-
-    Use MDAnalysis to read in files from several MD simulation
-    packages: LAMMPS, AMBER and GROMACS
-    Additionally, .pdb files can be read in, but also needs a 
-    LAMMPS topology file to read in force field paramters.
-
-    '''
-
-    topology, trajectory, force, energy, inputType = \
-            None, None, None, None, None
-
-    if lammps != None:
-        inputType = 'lammps'
-        verbosePrint('LAMMPS FILES:', lammps)
-        try:
-            topology = Universe(lammps[0], lammps[1], format='TRJ')
-            verbosePrint('AMBER topology')
-        except (ValueError, IOError, IndexError, EOFError):
-            try:
-                topology = Universe(lammps[0], format='DATA')
-                verbosePrint ('LAMMPS topology')
-            except (ValueError, IOError, IndexError, EOFError):
-                try:
-                    topology = Universe(lammps[0], format='PDB')
-                    verbosePrint ('PDB topology')
-                except (ValueError, IOError, IndexError):
-                    logging.error('No AMBER topology or trajectory/'\
-                            ' LAMMPS topology file given or PDB given.')
-
-
-        try:
-            trajectory = Universe(lammps[2], atom_style='id type x y z', 
-                    format='LAMMPSDUMP')
-            verbosePrint('LAMMPS trajectory')
-        except IndexError:
-            logging.error('No LAMMPS trajectory file given.')
-
-        try:
-            force = Universe(lammps[3], atom_style='id type x y z', 
-                    format='LAMMPSDUMP')
-            verbosePrint('LAMMPS force')
-        except IndexError:
-            logging.warning('No LAMMPS force file given.')
-
-        try:
-            energy = Universe(lammps[4], atom_style='id type x y z', 
-                    format='LAMMPSDUMP') #new file type, where x=PE, y=KE
-            verbosePrint('LAMMPS energy')
-        except IndexError:
-            logging.warning('No LAMMPS energy file given.')
-       
-
-    
-    if amber != None:
-        inputType = 'amber'
-        verbosePrint('AMBER FILES:', amber)
-        try:
-            topology = Universe(amber[0], amber[1], format='TRJ')
-            trajectory = Universe(amber[0], amber[1], format='TRJ')
-            verbosePrint('AMBER topology/trajectory (1)')
-        except (ValueError, IOError, IndexError):
-            try: #try binary format read in
-                topology = Universe(amber[0], amber[1], format='NCDF')
-                trajectory = Universe(amber[0], amber[1], format='NCDF')
-                verbosePrint('AMBER topology/trajectory (2)')
-            except (ValueError, IOError, IndexError):
-                logging.error('No AMBER input topology or '\
-                        'trajectory files given.')
-
-        try:
-            force = Universe(amber[0], amber[2], format='TRJ')
-            verbosePrint('AMBER force (1)')
-        except (ValueError, IOError, IndexError):
-            try: #try binary format read in
-                force = Universe(amber[0], amber[2], format='NCDF')
-                verbosePrint('AMBER force (2)')
-            except (ValueError, IOError, IndexError):
-                logging.warning('No AMBER input topology or force files.')
-
-
-
-    if gromacs != None:
-        inputType = 'gromacs'
-        verbosePrint('GROMACS FILES:', gromacs)
-        try:
-            topology = Universe(gromacs[0], format='TPR')
-            verbosePrint('GROMACS topology (1)')
-        except (ValueError, IOError, IndexError, EOFError):
-            try:
-                topology = Universe(gromacs[0], format='PDB')
-                verbosePrint('GROMACS topology (2)')
-            except (ValueError, IOError, IndexError):
-                logging.error('No GROMACS topology '\
-                        'or PDB given.')
-
-
-        try:
-            trajectory = Universe(gromacs[1], format='TRR')
-            force = gromacs[1]
-            verbosePrint('GROMACS trr trajectory')
-        except (ValueError, IOError, IndexError, EOFError):
-            try:
-                trajectory = Universe(gromacs[1], format='XTC')
-                force = gromacs[1]
-                verbosePrint('GROMACS traj trajectory')
-            except (ValueError, IOError, IndexError):
-                logging.error('No gromacs trajectory file given.')
-
-
-
-
-    if pdb != None:
-        inputType = 'pdb'
-        verbosePrint('PDB FILES:', pdb)
-        try:
-            topology = Universe(pdb[0], format='DATA')
-            verbosePrint('LAMMPS topology')
-        except (ValueError, IOError, IndexError):
-            logging.warning('No LAMMPS topology for PDB coordinates (1).')
-
-        try:
-            topology = Universe(pdb[0], format='PDB')
-            verbosePrint('PDB topology')
-        except (ValueError, IOError, IndexError):
-            logging.warning('No LAMMPS topology for PDB coordinates (2).')
-
-        try:
-            trajectory = Universe(pdb[1], format='PDB') 
-            verbosePrint('PDB trajectory')
-        except (ValueError, IOError, IndexError):
-            logging.error('No PDB coordinates input file.')
-
-
-    return topology, trajectory, force, energy, inputType
-
-
-
-
 
 def populateTopology(container, all_data, waterTuple):
     '''
@@ -215,12 +68,12 @@ def populateTopology(container, all_data, waterTuple):
     molecule_resids_dict = nested_dict()
     for x in range(0, len(all_data)):
         atom = all_data[x]
-        print(f"x = {x}")
+        #print(f"x = {x}")
         if atom.mass > 1.1:
             heavy_bonded = []
             H_bonded = []
             for bonded_atom in atom.bonded_to_atom_num:
-                print(f"bonded_atom = {bonded_atom}")
+                #print(f"bonded_atom = {bonded_atom}")
                 bonded = all_data[bonded_atom-1]
                 if bonded.mass > 1.1:
                     heavy_bonded.append(bonded)
