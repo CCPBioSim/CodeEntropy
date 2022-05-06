@@ -4,7 +4,6 @@ import sys
 import logging
 import argparse
 from glob import glob
-from pathlib2 import Path
 import gc
 import gzip
 

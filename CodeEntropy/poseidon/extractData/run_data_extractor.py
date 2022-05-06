@@ -7,10 +7,7 @@ from glob import glob
 import gzip
 import logging
 
-try:
-    import cPickle as pickle
-except ModuleNotFoundError:
-    import pickle
+import pickle
 
 from collections import Counter
 from datetime import datetime
