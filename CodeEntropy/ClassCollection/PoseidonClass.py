@@ -223,11 +223,15 @@ class Poseidon():
             temperature (float, optional): Temperature for system. Defaults to 298.0 K.
             entropyEnergy (bool, optional): Run entropy and energy analysis. Defaults to True.
             level_list (list, optional): Choose and refine the level of analyiss: moleculeLevel, residLevel_resname, residLevel_atom, atomLevel, soluteContact, res_atomLevel. Defaults to ['moleculeLevel'].
-            solvent (_type_, optional): Resname for solvent. Defaults to None.
+            solvent (str, optional): Resname for solvent. Defaults to None.
             water (str, optional): Resname for water. Defaults to 'WAT'.
             verbose (bool, optional): Print out progress of each step. Defaults to False.
-            weighting (_type_, optional): get weighing for each frame if the simulation is biased . Defaults to None. !! It is hard coded to None in the code anyway
+            weighting (None, optional): get weighing for each frame if the simulation is biased . Defaults to None. !! It is hard coded to None in the code anyway
             forceUnits (str, optional): Units of forces, kJ or Kcal. Defaults to 'kcal'.
+        Returns:
+            Tuple of DataFrame:
+                solventData: dataframe that contains the result for solvent
+                soluteData: dataframe that contains the result for solute
         """
 
         verbosePrint = print if verbose else lambda *a, **k: None

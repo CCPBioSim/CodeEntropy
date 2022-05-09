@@ -66,5 +66,6 @@ setup(
         'numpy',
         'bitarray',
         'mdanalysis',
+        'pandas'
     ],
 )
