@@ -10,7 +10,7 @@ from CodeEntropy.FunctionCollection import GeometricFunctions as GF
 from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
 from CodeEntropy.FunctionCollection import Utils
 from CodeEntropy.IO import Writer
-from CodeEntropy.Reader import Constants as CONST
+from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
 import multiprocessing as mp
 from functools import partial
 
@@ -133,15 +133,30 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
                                          arg_selector = "all", 
                                          arg_moutFile = None,
                                          arg_nmdFile = None,
-                                         arg_fScale = 1,
-                                         arg_tScale = 1,
-                                         arg_temper = 300,
+                                         arg_fScale = 1.0,
+                                         arg_tScale = 1.0,
+                                         arg_temper = 300.0,
                                          arg_verbose = 3):
-    """ 
-    Conpute the entropy at the whole molecule level. 
-    Determining translation and rotation axes is part of the function.
-    Returns void
+    """Conpute the entropy at the whole molecule level. 
+        Determining translation and rotation axes is part of the function.
+
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_fScale (float, optional): Force scale. Defaults to 1.0.
+        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
+        arg_temper (float, optional): temperature in K. Defaults to 300.0.
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+
+    Returns:
+        tuple of floats:
+            entropyFF (float): Whole molecule level FF Entropy in J/mol/K
+            entropyTT (float): Whole molecule level TT Entropy in J/mol/K
     """
+
 
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Hierarchy level. --> Whole molecule <--"))
@@ -375,17 +390,33 @@ def compute_entropy_residue_level(arg_hostDataContainer,
                                 arg_selector = "all", 
                                 arg_moutFile = None,
                                 arg_nmdFile = None,
-                                arg_fScale = 1,
-                                arg_tScale = 1,
-                                arg_temper = 300,
+                                arg_fScale = 1.0,
+                                arg_tScale = 1.0,
+                                arg_temper = 300.0,
                                 arg_verbose = 3):
-    """ 
-    Computes the entropy calculations at the residue level
+
+    """Computes the entropy calculations at the residue level
     where each residue is treated as a separate bead.
     Determining translation and rotation axes is part of the 
     function. A common translation axes are used for all residues
     which is the principal axes of the whole molecule. The rotation
     axes are specific to each residue, in that it is the C-Ca-N axes. 
+
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_fScale (float, optional): Force scale. Defaults to 1.0.
+        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
+        arg_temper (float, optional): temperature in K. Defaults to 300.0.
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+
+    Returns:
+        tuple of floats:
+            entropyFF (float): Residue level FF Entropy in J/mol/K
+            entropyTT (float): Residue level TT Entropy in J/mol/K
     """
 
     Utils.hbar(60)
@@ -648,21 +679,32 @@ def compute_entropy_residue_level(arg_hostDataContainer,
     entropyFF = [calculate_entropy_per_dof(m.modeFreq, arg_temper) for m in residueSystem.modeSpectraFF[6:]]
     entropyTT = [calculate_entropy_per_dof(m.modeFreq, arg_temper) for m in residueSystem.modeSpectraTT[0:]]
 
+    #sum the total
+    totEntropyFF = nmp.sum(entropyFF)
+    totEntropyTT = nmp.sum(entropyTT)
     # print final outputs
     Utils.printflush("Entropy values:")
-
     # print final outputs
-    Utils.printflush(f"{'FF Entropy (Residue level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K")
-    Utils.printflush(f"{'TT Entropy (Residue level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
+    Utils.printflush(f"{'FF Entropy (Residue level)':<40s} : {totEntropyFF:.4f} J/mol/K")
+    Utils.printflush(f"{'TT Entropy (Residue level)':<40s} : {totEntropyTT:.4f} J/mol/K")
     
-    Utils.printOut(arg_outFile,f"{'FF Entropy (Residue level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K")
-    Utils.printOut(arg_outFile,f"{'TT Entropy (Residue level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
+    Utils.printOut(arg_outFile,f"{'FF Entropy (Residue level)':<40s} : {totEntropyFF:.4f} J/mol/K")
+    Utils.printOut(arg_outFile,f"{'TT Entropy (Residue level)':<40s} : {totEntropyTT:.4f} J/mol/K")
     
-    return (entropyFF, entropyTT)
+    return (totEntropyFF, totEntropyTT)
 #END
 
 
 def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray, arg_fScale, arg_tScale, arg_temper,  arg_outFile, arg_selector, arg_verbose, arg_moutFile, arg_nmdFile,resindices):
+    """
+    Support function for calculating UA level entropy for each residue. This function is to break down work into a function for parallel processing
+    Args:
+        Args correspond to variables in CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_UA_level_multiprocess 
+    Returns:
+        Tuple of floats:
+            entropyFF (float): UA level FF Entropy for current residue of resindices
+            entropyTT (float): UA level TT Entropy for current residue of resindices
+    """
     iResname = arg_hostDataContainer.universe.residues.resnames[resindices]
     iResid = arg_hostDataContainer.universe.residues.resids[resindices]
     resLabel = "{}{}".format(iResname, iResid)
@@ -953,11 +995,14 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
                             arg_selector = "all", 
                             arg_moutFile = None,
                             arg_nmdFile = None,
-                            arg_fScale = 1,
-                            arg_tScale = 1,
-                            arg_temper = 300,
+                            arg_fScale = 1.0,
+                            arg_tScale = 1.0,
+                            arg_temper = 300.0,
                             arg_verbose = 3):
     """ 
+    !! This uses multiprocess to spread workload across cores to speed up calculation.
+    However, this will cause print and output to files not print in sequential order.
+
     Computes the entropy calculations at the united atom (UA) level. 
     Each heavy atom with its covalently bonded H-atoms make a single bead. H-atoms
     are, however, treated explicitly.Determining translation and rotation axes is 
@@ -965,6 +1010,22 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
     residue the bead is part of. The rotation axes is a basis whose axes are directed
     along a sphereical-coordinate axes comprised of unit vectors along r,θ and Φ. 
 
+
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_fScale (float, optional): Force scale. Defaults to 1.0.
+        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
+        arg_temper (float, optional): temperature in K. Defaults to 300.0.
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+
+    Returns:
+        tuple of floats:
+            entropyFF (float): United atom level FF Entropy in J/mol/K
+            entropyTT (float): United atom level TT Entropy in J/mol/K
     """
 
     Utils.hbar(60)
@@ -1024,9 +1085,9 @@ def compute_entropy_UA_level(arg_hostDataContainer,
                             arg_selector = "all", 
                             arg_moutFile = None,
                             arg_nmdFile = None,
-                            arg_fScale = 1,
-                            arg_tScale = 1,
-                            arg_temper = 300,
+                            arg_fScale = 1.0,
+                            arg_tScale = 1.0,
+                            arg_temper = 300.0,
                             arg_verbose = 3):
     """ 
     Computes the entropy calculations at the united atom (UA) level. 
@@ -1036,6 +1097,22 @@ def compute_entropy_UA_level(arg_hostDataContainer,
     residue the bead is part of. The rotation axes is a basis whose axes are directed
     along a sphereical-coordinate axes comprised of unit vectors along r,θ and Φ. 
 
+
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_fScale (float, optional): Force scale. Defaults to 1.0.
+        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
+        arg_temper (float, optional): temperature in K. Defaults to 300.0.
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+
+    Returns:
+        tuple of floats:
+            entropyFF (float): United atom level FF Entropy in J/mol/K
+            entropyTT (float): United atom level TT Entropy in J/mol/K
     """
 
     Utils.hbar(60)
@@ -1368,11 +1445,20 @@ def compute_entropy_UA_level(arg_hostDataContainer,
 #END
 
 def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
-    """ A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
+    """A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
     Every SC dihedral from every residue will be scanned. 
     Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
     so can have a maximum of three different configurations it can be in. Its probability of being in each of 
-    these states will be computed and entropy will be coputed form that."""
+    these states will be computed and entropy will be coputed form that.
+
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Total SideChain Topog. Entropy
+    """
 
 
     Utils.hbar(60)
@@ -1503,7 +1589,7 @@ def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_ou
     Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy ', totalTopogEntropySC))
     Utils.printOut(arg_outFile, '-'*60)
 
-    return
+    return totalTopogEntropySC
 #END
 
 def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
@@ -1511,8 +1597,16 @@ def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_o
     Every BB dihedral from the protein will be scanned. 
     Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
     so can have a maximum of three different configurations it can be in. Its probability of being in each of 
-    these states will be computed and entropy will be coputed form that."""
+    these states will be computed and entropy will be coputed form that.
 
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Total Backbone Topog. Entropy
+    """
 
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of BB dihedrals \n computed using the pLogp formalism"))
@@ -1620,7 +1714,7 @@ def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_o
     Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy ', totalTopogEntropyBB))
     Utils.printOut(arg_outFile, '-'*60)
 
-    return
+    return totalTopogEntropyBB
 #END
 
 def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
@@ -1628,8 +1722,16 @@ def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_ou
     its dihedrals by also accounting for their correlated motions. A residue is depicted as a vector of length N_d where N_d 
     is the number of dihedrals. Each dihedral is represented using an integer which is a decimal equivalent of its state of some order Q
     which is represented by a binary vector of that size. At each time frame, a vector of integers of size N_d is stored and it stores that
-    time frame uniquely. All the different states acquired are then used to compute the entropy using p-logP. """
+    time frame uniquely. All the different states acquired are then used to compute the entropy using p-logP.
 
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Total SideChain Topog. Entropy
+    """
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with correlation/pLogp formalism"))
     Utils.hbar(60)
@@ -1745,7 +1847,7 @@ def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_ou
     Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy (corr. pLogP)', totalTopogEntropySC))
     Utils.printOut(arg_outFile, '-'*60)
 
-    return
+    return totalTopogEntropySC
 #END
 
 def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
@@ -1761,8 +1863,15 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_ou
     For the entire protein, each time     frame has a tuple of integers 
     corresponding to it which describes it uniquely. All the different 
     states acquired are then used to compute the entropy using p-logP. 
+    
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Total Backbone Topog. Entropy
     """
-
     
 
     Utils.hbar(60)
@@ -1855,15 +1964,23 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_ou
     Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy (corr. pLogP) ', totalTopogEntropyBB))
     Utils.printOut(arg_outFile, '-'*60)
 
-    return
+    return totalTopogEntropyBB
 #END
 
 def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
     """
-    Function that computes the topographical entropy using Method 4,
+    !!! Work in progress
+    Function that computes the topographical entropy using Method 4, Phi Coeff
     a.k.a the dihedral-state-contingency method.
-    """
 
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Topog. Entropy (Method4)
+    """
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
     Utils.hbar(60)
@@ -2041,7 +2158,7 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,ar
     Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
     Utils.printOut(arg_outFile, '-'*60)
         
-    return
+    return totalTopogEntropy4
 #END
 
 def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
@@ -2050,8 +2167,15 @@ def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_o
     This method deals with each dihedral in a conformational entity on an individual basis. After that it coalesces
     the state vectors of each dihedral in the conformational entity to help compute entropy using p-logP formulation. 
     This function computes the total entropy from all residue in the base molecule.
-    """
 
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Topog. Entropy (AEM)
+    """
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with AEM method"))
     Utils.hbar(60)
@@ -2149,11 +2273,21 @@ def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_o
     Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total Topog. Entropy (AEM)', totalTopogEntropySC))
     Utils.printOut(arg_outFile, '-'*60)
 
-    return
+    return totalTopogEntropySC
 #END
 
 
 def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
+    """
+    Function that computes the topographical entropy using Method 3, Corr. density function
+    Args:
+        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+        arg_outFile (str): path to a output file output is written via append mode
+        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Returns:
+        float: Topog. Entropy (Method4)
+    """
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
     # number of frames

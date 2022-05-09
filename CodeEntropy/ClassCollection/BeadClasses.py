@@ -2,7 +2,7 @@ import numpy as nmp
 import sys
 
 from CodeEntropy.FunctionCollection import Utils, CustomFunctions
-from CodeEntropy.Reader import Constants as CONST
+from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
 
 class BeadCollection(object):
 	""" 

@@ -6,6 +6,7 @@ import logging
 
 import math
 import numpy as np
+import pandas as pd
 from numpy import linalg as LA
 
 from collections import defaultdict
@@ -38,13 +39,15 @@ def processEE(num_frames, totFrames, Aclass, solvent, waterTuple,
 
 
     verbosePrint('\n\n--PRINT_ALL_VARIABLES--\n')
-    printAllVariables(num_frames, Aclass, level, name, solvent, 
+    solventData, soluteData = saveAllVariables(num_frames, Aclass, level, name, solvent, 
             waterTuple, verbosePrint)
 
 
     if level in ['residLevel_resname', 'atomLevel']:
         verbosePrint('\n\n--CONTACTS--\n')
         contactCalculation(Aclass, level, totFrames, verbosePrint)
+    
+    return (solventData, soluteData)
 
 
 
@@ -1311,7 +1314,7 @@ def process_dihedrals(Aclass, verbosePrint):
 
 
 
-def printAllVariables(num_frames, Aclass, level, name, solvent, 
+def saveAllVariables(num_frames, Aclass, level, name, solvent, 
         waterTuple, verbosePrint):
     '''
     '''
@@ -1320,17 +1323,18 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
     if num_frames != None:
         frames = num_frames
 
-    data = open('solventVariables%s%s_%s.csv' % 
-            (frames, name, level), 'w')
-    data.write(
-            '\n'.join(['nearest,assigned,shell_num,variable,value,count']) 
-            + '\n')
+    # solventData = open('solventVariables%s%s_%s.csv' % (frames, name, level), 'w')
+    # solventData.write(
+    #         '\n'.join(['nearest,assigned,shell_num,variable,value,count']) 
+    #         + '\n')
+    solventData = pd.DataFrame(columns=['nearest','assigned', 'shell_num', 'variable', 'value', 'count'])
 
+    # data2 = open('soluteVariables%s%s_%s.csv' % 
+    #         (frames, name, level), 'w')
+    # data2.write('\n'.join(['resName,variable,value,count']) 
+    #         + '\n')
 
-    data2 = open('soluteVariables%s%s_%s.csv' % 
-            (frames, name, level), 'w')
-    data2.write('\n'.join(['resName,variable,value,count']) 
-            + '\n')
+    soluteData = pd.DataFrame(columns=['resName', 'variable', 'value', 'count'])
 
 
     if level == 'res_atomLevel':
@@ -1387,10 +1391,17 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
                     for variable, value in variable_key.items():
                         if value[0] != None and \
                                 assigned in solvent and shellNum == 1:
-                            data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
-                                    (nearest, 
-                                    assigned, shellNum, variable, value[0], 
-                                    value[1])]) + '\n')
+                            # data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
+                            #         (nearest, 
+                            #         assigned, shellNum, variable, value[0], 
+                            #         value[1])]) + '\n')
+                            newRowSolvent = {'nearest': nearest,
+                                            'assigned':assigned,
+                                            'shell_num': shellNum,
+                                            'variable': variable,
+                                            'value': value[0],
+                                            'count': value[1]}
+                            solventData = solventData.append(newRowSolvent, ignore_index = True)
                         else:
                             continue
 
@@ -1419,10 +1430,15 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
                                         [new_var][1] = value[1]
 
                             if 'WM_' in variable or variable == 'conf_AE':
-                                data2.write('\n'.join(['%s,%s,%s,%s' % 
-                                        (assigned[0], 
-                                        variable, value[0], 
-                                        int(round(value[1], 0)))]) + '\n')
+                                # data2.write('\n'.join(['%s,%s,%s,%s' % 
+                                #         (assigned[0], 
+                                #         variable, value[0], 
+                                #         int(round(value[1], 0)))]) + '\n')
+                                newRowSolute = {'resName': assigned[0],
+                                            'variable':variable,
+                                            'value': value[0],
+                                            'count': int(round(value[1], 0))}
+                                soluteData = soluteData.append(newRowSolute, ignore_index = True)
                         else:
                             continue
 
@@ -1431,10 +1447,15 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
                 sorted(list(PE_KE_dict.items())):
             for assigned, variable_key in sorted(list(assigned_key.items())):
                 for variable, value in sorted(list(variable_key.items())):
-                    data2.write('\n'.join(['%s,%s,%s,%s' % 
-                            (assigned, 
-                            variable, value[0], 
-                            value[1])]) + '\n')
+                    # data2.write('\n'.join(['%s,%s,%s,%s' % 
+                    #         (assigned, 
+                    #         variable, value[0], 
+                    #         value[1])]) + '\n')
+                    newRowSolute = {'resName': assigned,
+                                    'variable':variable,
+                                    'value': value[0],
+                                    'count': value[1]}
+                    soluteData = soluteData.append(newRowSolute, ignore_index = True)
         #'''
 
     else:
@@ -1446,11 +1467,18 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
                     for variable, value in variable_key.items():
                         if assigned[0] in solvent and shellNum == 1 and \
                                 value[0] != None:
-                            data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
-                                    (nearest, 
-                                    assigned[0], shellNum, 
-                                    variable, value[0], 
-                                    int(round(value[1], 0)))]) + '\n')
+                            # data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
+                            #         (nearest, 
+                            #         assigned[0], shellNum, 
+                            #         variable, value[0], 
+                            #         int(round(value[1], 0)))]) + '\n')
+                            newRowSolvent = {'nearest': nearest,
+                                            'assigned':assigned[0],
+                                            'shell_num': shellNum,
+                                            'variable': variable,
+                                            'value': value[0],
+                                            'count': int(round(value[1], 0))}
+                            solventData = solventData.append(newRowSolvent, ignore_index = True)
                         else:
                             continue
 
@@ -1478,10 +1506,17 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
                                         [new_var][1] = value[1]
 
                             if 'WM_' in variable or variable == 'conf_AE':
-                                data2.write('\n'.join(['%s,%s,%s,%s' % 
-                                        (assigned[0], 
-                                        variable, value[0], 
-                                        int(round(value[1], 0)))]) + '\n')
+                                # data2.write('\n'.join(['%s,%s,%s,%s' % 
+                                #         (assigned[0], 
+                                #         variable, value[0], 
+                                #         int(round(value[1], 0)))]) + '\n')
+                                newRowSolute = {'resName': assigned[0],
+                                                'variable':variable,
+                                                'value': value[0],
+                                                'count': int(round(value[1], 0))}
+                                soluteData = soluteData.append(newRowSolute, ignore_index = True)
+
+                            
                         else:
                             continue
 
@@ -1489,12 +1524,18 @@ def printAllVariables(num_frames, Aclass, level, name, solvent,
                 sorted(list(PE_KE_dict.items())):
             for assigned, variable_key in sorted(list(assigned_key.items())):
                 for variable, value in sorted(list(variable_key.items())):
-                    data2.write('\n'.join(['%s,%s,%s,%s' % 
-                            (assigned, 
-                            variable, value[0], 
-                            value[1])]) + '\n')
+                    # data2.write('\n'.join(['%s,%s,%s,%s' % 
+                    #         (assigned, 
+                    #         variable, value[0], 
+                    #         value[1])]) + '\n')
+                    newRowSolute = {'resName': assigned[0],
+                                    'variable':variable,
+                                    'value': value[0],
+                                    'count': int(round(value[1], 0))}
+                    soluteData = soluteData.append(newRowSolute, ignore_index = True)
         #'''
 
 
-    data.close()
-    data2.close()
+    # data.close()
+    # data2.close()
+    return (solventData, soluteData)

@@ -16,8 +16,11 @@ class DataContainer(object):
 	"""
 
 	def __init__(self, u):
-		"""
-		Can add start stop step here?
+		"""Create and load data from MDAnalysis.Universe
+
+		Args:
+			u (MDAnalyse.Universe): A Universe object will all topology, coordinates and force information
+			Check Example/create_new_universe.py on how to create a universe from existing data
 		"""
 		self.universe = u
 		self.numFrames = len(self.universe.trajectory)

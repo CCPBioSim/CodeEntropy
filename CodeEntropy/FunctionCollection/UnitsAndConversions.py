@@ -1,4 +1,15 @@
-from CodeEntropy.Reader import Constants as CONST
+# TEMPERATURE
+DEF_TEMPER = 298 #K
+
+# PHYSICAL CONSTANTS
+N_AVOGADRO = 6.0221415e+23
+GAS_CONST= 8.3144598484848  # J/mol/K
+PLANCK_CONST = 6.62607004081818e-34  #J s
+C_LIGHT = 29979245800 #cm/s
+
+# MACHINE DATA
+LITTLE_ENN="<"
+BIG_ENN=">"
 
 # LENGTH
 NM2ANG = 1e1
@@ -24,10 +35,10 @@ def change_lambda_units(arg_lambdas):
 	"""Unit of lambdas : kJ2 mol-2 A-2 amu-1
 	change units of lambda to J/s2"""
 	# return arg_lambdas * N_AVOGADRO * N_AVOGADRO * AMU2KG * 1e-26
-	return arg_lambdas * 1e+29 / CONST.N_AVOGADRO
+	return arg_lambdas * 1e+29 / N_AVOGADRO
 
 def get_KT2J(arg_temper):
 	"""A temperature dependent KT to Joule conversion"""
-	return 4.11e-21 * arg_temper/CONST.DEF_TEMPER
+	return 4.11e-21 * arg_temper/DEF_TEMPER
 
 
