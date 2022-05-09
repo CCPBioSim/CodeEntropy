@@ -825,6 +825,7 @@ def Svib_calc(matrix_SI, T, cov, out, *args, **kwargs):
     ZPE = []
     for value in eigenvalues:
         w = value/(kB*T)
+        #print(f"w = {w}")
         w = w ** 0.5
         frequencies.append(w)
         zpe = 0.5 * w * h * NA
