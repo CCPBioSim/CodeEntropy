@@ -34,7 +34,7 @@ def start(container, start, end,
         - rewrite the energy part to be compulsory
 
     Args:
-        container (MDAnalysis.Universe): _description_
+        container (MDAnalysis.Universe): A MDAnalysis object with coordinates, forces and energy (loaded to velocity field with the value [Potential Energy(index 0), Kinetic Energy(1) and dummy(2)] respectively)
         start (int): Starting Frame ID
         end (int): Ending Frame ID, this frame is not included
         step (int, optional): Steps between frame. Defaults to 1.

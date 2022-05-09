@@ -10,6 +10,7 @@ from CodeEntropy.poseidon.extractData.generalFunctions import *
 
 def calculateDihedrals(all_data, dimensions):
     '''
+    In-place modification of all_data to calculate dihedrals
     For each dihedral in system, find what conformation it is in
     Dihedrals:
 
@@ -30,6 +31,9 @@ def calculateDihedrals(all_data, dimensions):
     source = https://math.stackexchange.com/questions/47059/
         how-do-i-calculate-a-dihedral-angle-given-cartesian-coordinates 
 
+    Args:
+        all_data (list of poseidon.atom_info): Container for all atom info
+        dimensions (numpy array of size (1,3)): dimension of box of current frame
     '''
 
     rad2deg = float(180)/float(np.pi)
