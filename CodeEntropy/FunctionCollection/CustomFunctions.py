@@ -3,6 +3,7 @@ import sys
 
 from bitarray import bitarray
 from CodeEntropy import ClassCollection as CC 
+from CodeEntropy.FunctionCollection import Utils
 
 def cross_product(arg_v1, arg_v2):
 	""" 
@@ -58,7 +59,7 @@ def filter_zero_rows_columns(arg_matrix):
 	finalShape = nmp.shape(arg_matrix)
 
 	if initShape != finalShape:
-		printflush('A shape change has occured ({},{}) -> ({}, {})'.format(*initShape, *finalShape))
+		Utils.printflush('A shape change has occured ({},{}) -> ({}, {})'.format(*initShape, *finalShape))
 
 	return arg_matrix
 #END
@@ -81,8 +82,8 @@ def probability_of_coexistence(arg_v1, arg_v2):
 	prob /= len(arg_v1)
 
 	if prob < 0:
-		printflush(arg_v1)
-		printflush(arg_v2)
+		Utils.printflush(arg_v1)
+		Utils.printflush(arg_v2)
 
 	return prob
 #END
@@ -129,7 +130,7 @@ def phi_coeff(arg_v1, arg_v2):
 	contingencyMatrix[1,1] = probability_of_coexistence(notV1, notV2)
 
 	# print contingency matrix
-	printflush('{:>8.6f} {:>8.6f} \n {:>8.6f} {:>8.6f}'. format(*nmp.ndarray.flatten(contingencyMatrix)))
+	Utils.printflush('{:>8.6f} {:>8.6f} \n {:>8.6f} {:>8.6f}'. format(*nmp.ndarray.flatten(contingencyMatrix)))
 
 	# column and row sums
 	
@@ -141,7 +142,7 @@ def phi_coeff(arg_v1, arg_v2):
 	sumC0 = nmp.sum(contingencyMatrix[:,0])
 	sumC1 = nmp.sum(contingencyMatrix[:,1])
 	
-	printflush('r0 = {:>8.6f}, r1 = {:>8.6f}, c0 = {:>8.6f}, c1 = {:>8.6f}'.format(sumR0, sumR1, sumC0, sumC1))
+	Utils.printflush('r0 = {:>8.6f}, r1 = {:>8.6f}, c0 = {:>8.6f}, c1 = {:>8.6f}'.format(sumR0, sumR1, sumC0, sumC1))
 
 	# return coeff
 	if ( sumR0 * sumR1 * sumC0 * sumC1 == 0 ):
