@@ -134,69 +134,69 @@ def getCoordsForces(container, all_data, dimensions,
 
 
 
+# #Energy is not needed
+# def populateEnergy(container, all_data, dimensions, frame, startTime, 
+#         verbosePrint):
+#     '''
+#     read in energies from lammps input file.
+#     '''
 
-def populateEnergy(container, all_data, dimensions, frame, startTime, 
-        verbosePrint):
-    '''
-    read in energies from lammps input file.
-    '''
-
-    for e in container.trajectory:
-        if e.frame == frame:
-            dimensions = np.array(e.dimensions[0:3])
-            for x in range(0, len(e)):
-                energy = np.array(e.velocities[x])
-                all_data[x].PKenergy = [energy[0], energy[1]]
-            break
-        else:
-            continue
-
-
-    verbosePrint('ENERGIES')
-    verbosePrint(datetime.now() - startTime)
-    sys.stdout.flush() 
+#     for e in container.trajectory:
+#         if e.frame == frame:
+#             dimensions = np.array(e.dimensions[0:3])
+#             for x in range(0, len(e)):
+#                 energy = np.array(e.velocities[x])
+#                 all_data[x].PKenergy = [energy[0], energy[1]]
+#             break
+#         else:
+#             continue
 
 
+#     verbosePrint('ENERGIES')
+#     verbosePrint(datetime.now() - startTime)
+#     sys.stdout.flush() 
 
 
 
-def UAEnergyGroup(all_data):
-    '''
-    For energy on each atom, group together for each UA
-    and sum
-    '''
 
-    for x in range(0, len(all_data)):
-        atom = all_data[x]
-        if atom.mass > 1.1:
-            heavy_bonded = []
-            H_bonded = []
-            for bonded_atom in atom.bonded_to_atom_num:
-                bonded = all_data[bonded_atom-1]
-                if bonded.mass > 1.1:
-                    heavy_bonded.append(bonded)
-                elif bonded.mass < 1.1:
-                    H_bonded.append(bonded)
-                else:
-                    continue
 
-            bonded_atoms_list = [atom] + heavy_bonded + H_bonded
-            atom.bondedUA_H = [len(heavy_bonded), len(H_bonded)]
-            UA_atoms_list = [atom] + H_bonded
+# def UAEnergyGroup(all_data):
+#     '''
+#     For energy on each atom, group together for each UA
+#     and sum
+#     '''
 
-            UA_PE_list = []
-            UA_KE_list = []
-            for A in UA_atoms_list:
-                if A.PKenergy != None:
-                    UA_PE_list.append(A.PKenergy[0])
-                    UA_KE_list.append(A.PKenergy[1])
-                else:
-                    continue
+#     for x in range(0, len(all_data)):
+#         atom = all_data[x]
+#         if atom.mass > 1.1:
+#             heavy_bonded = []
+#             H_bonded = []
+#             for bonded_atom in atom.bonded_to_atom_num:
+#                 bonded = all_data[bonded_atom-1]
+#                 if bonded.mass > 1.1:
+#                     heavy_bonded.append(bonded)
+#                 elif bonded.mass < 1.1:
+#                     H_bonded.append(bonded)
+#                 else:
+#                     continue
 
-            if len(UA_PE_list) != 0:
-                UA_PE = round(sum(UA_PE_list), 3)
-                UA_KE = round(sum(UA_KE_list), 3)
-                atom.UA_PKenergy = [UA_PE, UA_KE]
+#             bonded_atoms_list = [atom] + heavy_bonded + H_bonded
+#             atom.bondedUA_H = [len(heavy_bonded), len(H_bonded)]
+#             UA_atoms_list = [atom] + H_bonded
+
+#             UA_PE_list = []
+#             UA_KE_list = []
+#             for A in UA_atoms_list:
+#                 if A.PKenergy != None:
+#                     UA_PE_list.append(A.PKenergy[0])
+#                     UA_KE_list.append(A.PKenergy[1])
+#                 else:
+#                     continue
+
+#             if len(UA_PE_list) != 0:
+#                 UA_PE = round(sum(UA_PE_list), 3)
+#                 UA_KE = round(sum(UA_KE_list), 3)
+#                 atom.UA_PKenergy = [UA_PE, UA_KE]
 
 
 
@@ -212,11 +212,11 @@ def getDistArray(atom, all_data, traj, max_cutoff,
 
     atom_coords = traj[atom.atom_num-1]
 
-
+    #added a small min cutoff to stop zero distance
     array1, array2 = \
             MDAnalysis.lib.distances.capped_distance(atom_coords, 
                     neighbour_coords, max_cutoff=max_cutoff, 
-                    min_cutoff=None, box=traj.dimensions, 
+                    min_cutoff=0.00001, box=traj.dimensions, 
                     method=None, return_distances=True)
 
 

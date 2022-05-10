@@ -5,7 +5,9 @@ import gc
 from collections import Counter
 from datetime import datetime
 
-from CodeEntropy.poseidon.extractData.readFiles import populateTopology, getCoordsForces, populateEnergy, UAEnergyGroup, getDistArray
+from CodeEntropy.poseidon.extractData.readFiles import populateTopology, getCoordsForces, getDistArray
+# # Energy is not needed
+# from CodeEntropy.poseidon.extractData.readFiles import populateEnergy, UAEnergyGroup
 from CodeEntropy.poseidon.extractData.HBRAD import distCutoffNc, UALevelRAD, HBCalc
 from CodeEntropy.poseidon.extractData.forceTorques import calculateFTMatrix
 from CodeEntropy.poseidon.extractData.dihedrals import calculateDihedrals
@@ -82,10 +84,10 @@ class Poseidon():
             all_data, dimensions = getCoordsForces(container, 
                     all_data, dimensions, frame, startTime, 
                     verbosePrint)
-
-            populateEnergy(container, all_data, 
-                    dimensions, frame, startTime, verbosePrint)
-            UAEnergyGroup(all_data)
+            # # Energy is not needed
+            # populateEnergy(container, all_data, 
+            #         dimensions, frame, startTime, verbosePrint)
+            # UAEnergyGroup(all_data)
 
 
             calculateDihedrals(all_data, dimensions)

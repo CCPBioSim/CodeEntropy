@@ -1395,13 +1395,13 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                             #         (nearest, 
                             #         assigned, shellNum, variable, value[0], 
                             #         value[1])]) + '\n')
-                            newRowSolvent = {'nearest': nearest,
+                            newRowSolvent = pd.DataFrame({'nearest': nearest,
                                             'assigned':assigned,
                                             'shell_num': shellNum,
                                             'variable': variable,
                                             'value': value[0],
-                                            'count': value[1]}
-                            solventData = solventData.append(newRowSolvent, ignore_index = True)
+                                            'count': value[1]}, index=[0])
+                            solventData = pd.concat([solventData, newRowSolvent], ignore_index=True)
                         else:
                             continue
 
@@ -1434,11 +1434,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                 #         (assigned[0], 
                                 #         variable, value[0], 
                                 #         int(round(value[1], 0)))]) + '\n')
-                                newRowSolute = {'resName': assigned[0],
+                                newRowSolute = pd.DataFrame({'resName': assigned[0],
                                             'variable':variable,
                                             'value': value[0],
-                                            'count': int(round(value[1], 0))}
-                                soluteData = soluteData.append(newRowSolute, ignore_index = True)
+                                            'count': int(round(value[1], 0))}, index=[0])
+                                soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)            
                         else:
                             continue
 
@@ -1451,11 +1451,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                     #         (assigned, 
                     #         variable, value[0], 
                     #         value[1])]) + '\n')
-                    newRowSolute = {'resName': assigned,
+                    newRowSolute = pd.DataFrame({'resName': assigned,
                                     'variable':variable,
                                     'value': value[0],
-                                    'count': value[1]}
-                    soluteData = soluteData.append(newRowSolute, ignore_index = True)
+                                    'count': value[1]}, index=[0])
+                    soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
         #'''
 
     else:
@@ -1472,13 +1472,13 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                             #         assigned[0], shellNum, 
                             #         variable, value[0], 
                             #         int(round(value[1], 0)))]) + '\n')
-                            newRowSolvent = {'nearest': nearest,
+                            newRowSolvent = pd.DataFrame({'nearest': nearest,
                                             'assigned':assigned[0],
                                             'shell_num': shellNum,
                                             'variable': variable,
                                             'value': value[0],
-                                            'count': int(round(value[1], 0))}
-                            solventData = solventData.append(newRowSolvent, ignore_index = True)
+                                            'count': int(round(value[1], 0))}, index=[0])
+                            solventData = pd.concat([solventData, newRowSolvent], ignore_index=True)
                         else:
                             continue
 
@@ -1510,11 +1510,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                 #         (assigned[0], 
                                 #         variable, value[0], 
                                 #         int(round(value[1], 0)))]) + '\n')
-                                newRowSolute = {'resName': assigned[0],
+                                newRowSolute = pd.DataFrame({'resName': assigned[0],
                                                 'variable':variable,
                                                 'value': value[0],
-                                                'count': int(round(value[1], 0))}
-                                soluteData = soluteData.append(newRowSolute, ignore_index = True)
+                                                'count': int(round(value[1], 0))}, index=[0])
+                                soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
 
                             
                         else:
@@ -1528,13 +1528,13 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                     #         (assigned, 
                     #         variable, value[0], 
                     #         value[1])]) + '\n')
-                    newRowSolute = {'resName': assigned[0],
+                    newRowSolute = pd.DataFrame({'resName': assigned[0],
                                     'variable':variable,
                                     'value': value[0],
-                                    'count': int(round(value[1], 0))}
-                    soluteData = soluteData.append(newRowSolute, ignore_index = True)
+                                    'count': int(round(value[1], 0))}, index=[0])
+                    soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
         #'''
-
+    
 
     # data.close()
     # data2.close()
