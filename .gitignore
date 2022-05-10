@@ -127,3 +127,8 @@ Example/dna_mcc.out
 soluteVariablesEE_moleculeLevel.csv
 solventVariablesEE_moleculeLevel.csv
 moleculeListAll.obj
+log.txt
+log2.txt
+Example/data/.1AKI_prod.trr_offsets.npz
+Example/data/1AKI_prod.trr
+Example/data/1AKI_prod.tpr
