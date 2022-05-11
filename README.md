@@ -8,18 +8,22 @@ CodeEntropy
 CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
 
 ## To run
+### Requirements
+- Python > 3.6
+- gcc
+- g++
 
-Install via
+### Install via
 ```
 pip install .
 ```
 
-### Copyright
+## Copyright
 
 Copyright (c) 2022, DonaldChung-HK
 
 
-#### Acknowledgements
+## Acknowledgements
  
 Project based on the 
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.6.
