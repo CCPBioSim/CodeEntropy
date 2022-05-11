@@ -39,7 +39,7 @@ class Poseidon():
             end (int): Ending Frame ID, this frame is not included
             step (int, optional): Steps between frame. Defaults to 1.
             pureAtomNum (int, optional): Reference molecule resid for pure liquid. Defaults to 1.
-            cutShell (float, optional): Explicit cut off shell (might be buggy since part of it is not defined). Default to None which uses the relative angular distance (RAD) algorithm. See https://aip.scitation.org/doi/10.1063/1.4961439
+            cutShell (float, optional): Explicit cut off shell (might be buggy since part of it is not defined). Default to None which uses the relative angular distance (RAD) algorithm. See Jonathan Higham and Richard H. Henchman , "Locally adaptive method to define coordination shell", J. Chem. Phys. 145, 084108 (2016)
             excludedResnames (list, optional): List of resnames to exclude from nearest non alike analysis. Defaults to None.
             water (str, optional): Resname for water molecules. Defaults to 'WAT'.
             verbose (bool, optional): print out progress of each analysis step. Defaults to False.

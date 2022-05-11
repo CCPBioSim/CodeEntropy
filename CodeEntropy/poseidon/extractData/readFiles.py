@@ -33,8 +33,8 @@ def populateTopology(container, all_data, waterTuple):
         bonded_atom_nums = []
         for b in tp.bonds:
             for x in b:
-                if x.id != tp.id:
-                    bonded_atom_nums.append(int(x.id))
+                if x.index != tp.index:
+                    bonded_atom_nums.append(int(x.index))
                 else:
                     continue
 
@@ -45,7 +45,7 @@ def populateTopology(container, all_data, waterTuple):
                     diha_list = []
                     for di in dih:
                         if di.mass > 1.1:
-                            diha_list.append(int(di.id))
+                            diha_list.append(int(di.index))
                         else:
                             break
 
@@ -57,7 +57,7 @@ def populateTopology(container, all_data, waterTuple):
             dihedral_list = []
 
 
-        inf = atom_info(int(tp.id), tp.name, tp.mass, 
+        inf = atom_info(int(tp.index), tp.name, tp.mass, 
                 tp.charge, int(tp.resid), 
                 tp.resname, bonded_atom_nums, dihedral_list)
 
@@ -74,7 +74,7 @@ def populateTopology(container, all_data, waterTuple):
             H_bonded = []
             for bonded_atom in atom.bonded_to_atom_num:
                 #print(f"bonded_atom = {bonded_atom}")
-                bonded = all_data[bonded_atom-1]
+                bonded = all_data[bonded_atom]
                 if bonded.mass > 1.1:
                     heavy_bonded.append(bonded)
                 elif bonded.mass < 1.1:
@@ -172,7 +172,7 @@ def getCoordsForces(container, all_data, dimensions,
 #             heavy_bonded = []
 #             H_bonded = []
 #             for bonded_atom in atom.bonded_to_atom_num:
-#                 bonded = all_data[bonded_atom-1]
+#                 bonded = all_data[bonded_atom]
 #                 if bonded.mass > 1.1:
 #                     heavy_bonded.append(bonded)
 #                 elif bonded.mass < 1.1:
@@ -210,13 +210,13 @@ def getDistArray(atom, all_data, traj, max_cutoff,
     Important to use coords directly from MDAnalysis to run NN calc
     '''
 
-    atom_coords = traj[atom.atom_num-1]
+    atom_coords = traj[atom.atom_num]
 
     #added a small min cutoff to stop zero distance
     array1, array2 = \
             MDAnalysis.lib.distances.capped_distance(atom_coords, 
                     neighbour_coords, max_cutoff=max_cutoff, 
-                    min_cutoff=0.00001, box=traj.dimensions, 
+                    min_cutoff=None, box=traj.dimensions, 
                     method=None, return_distances=True)
 
 

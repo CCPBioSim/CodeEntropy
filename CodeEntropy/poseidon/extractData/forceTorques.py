@@ -7,7 +7,7 @@ import numpy as np
 from numpy import linalg as LA
 
 from CodeEntropy.poseidon.extractData.generalFunctions import com, MOI, vector, distance
-
+from collections import defaultdict
 nested_dict = lambda: defaultdict(nested_dict) 
         #create nested dict in one go
 
@@ -31,14 +31,14 @@ def calculateFTMatrix(all_data, dimensions):
                 UAs_list = [] #list of lists [HA + Hs]
 
                 for num in atom.molecule_atomNums: #atom nums in molecule
-                    UA = all_data[num-1]
+                    UA = all_data[num]
 
                     all_molecule_atoms.append(UA)
                     heavy_bonded = []
                     H_bonded = []
 
                     for bonded_atom in UA.bonded_to_atom_num:
-                        bonded = all_data[bonded_atom-1]
+                        bonded = all_data[bonded_atom]
                         if bonded.mass > 1.1 and bonded.atom_num != \
                                 UA.atom_num:
                             heavy_bonded.append(bonded)
@@ -148,7 +148,7 @@ def calculateFTMatrix(all_data, dimensions):
                             bonded_HAs = [UA[0]] #inc itself
                             bonded_Hs = []
                             for b in UA[0].bonded_to_atom_num:
-                                bonded = all_data[b-1]
+                                bonded = all_data[b]
                                 if bonded.mass < 1.1:
                                     bonded_Hs.append(bonded)
                                 elif bonded.mass > 1.1:
@@ -383,7 +383,7 @@ def UA_MOI(all_data, bonded_atoms_list, COM, PIaxes, dimensions, Hs):
                 UA_mass += atom.mass
                 coord_list.append(atom.coords) #only include coords of UA
                 for h in atom.bonded_to_atom_num:
-                    H = all_data[h-1]
+                    H = all_data[h]
                     if H.mass < 1.1:
                         UA_mass += H.mass
                     else:
@@ -500,7 +500,7 @@ def principalAxesMOI(all_data, bonded_atoms_list, COM, Hs):
                 UA_mass += atom.mass
                 coord_list.append(atom.coords) #only include coords of UA
                 for h in atom.bonded_to_atom_num:
-                    H = all_data[h-1]
+                    H = all_data[h]
                     if H.mass < 1.1:
                         UA_mass += H.mass
                     else:
@@ -605,7 +605,7 @@ def rotateFT(all_data, bonded_atoms_list, WM_principal_axes,
                 coord_list.append(atom.coords) #only include coords of UA
                 forces_summed += atom.forces
                 for h in atom.bonded_to_atom_num:
-                    H = all_data[h-1]
+                    H = all_data[h]
                     if H.mass < 1.1:
                         UA_mass += H.mass
                         UA_forces += np.array(H.forces)

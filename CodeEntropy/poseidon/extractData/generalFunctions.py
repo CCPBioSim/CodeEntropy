@@ -518,9 +518,9 @@ def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
     dist_solute_H1, dist_solute_H2 = None, None
 
     for atomDist in solute.nearest_all_atom_array:
-        if atomDist[0] == H1.atom_num-1:
+        if atomDist[0] == H1.atom_num:
             dist_solute_H1 = atomDist[1]
-        elif atomDist[0] == H2.atom_num-1:
+        elif atomDist[0] == H2.atom_num:
             dist_solute_H2 = atomDist[1]
         else:
             continue

@@ -127,7 +127,7 @@ def getShellAssignment(all_data, excludedResnames, dimensions,
                             multiple_atomNumList and \
                             molecule_resid_nearest_dict[X.resid][0] == resid:
                         for molecule_atom in X.molecule_atomNums:
-                            ma = all_data[molecule_atom-1] 
+                            ma = all_data[molecule_atom] 
                             multiple_shellList.append([ma, 1])
                             multiple_atomNumList.append(ma.atom_num)
                             ma.hydrationShellRAD_solute = 1
@@ -193,7 +193,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                 shell_list_atom_nums.append(neighbour.atom_num)
                 ##include Hs in shell_list_atom_nums
                 for bonded in neighbour.bonded_to_atom_num:
-                    b = all_data[bonded-1]
+                    b = all_data[bonded]
                     if b.mass < 1.1:
                         shell_list_atom_nums.append(b.atom_num)
                     else:
@@ -255,7 +255,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                 if len(atom.nearest_Hs) != 0:
                     for H in atom.nearest_Hs:
                         for bonded_atom_num in H.bonded_to_atom_num:
-                            bonded = all_data[bonded_atom_num -1]
+                            bonded = all_data[bonded_atom_num]
                             if bonded.mass > 1.1:
                                 X = bonded
                                 if X.atom_num in shell_list_atom_nums:
@@ -284,7 +284,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
 
                 #what atoms are bonded Hs donating to:
                 for bonded_atom_num in atom.bonded_to_atom_num:
-                    H = all_data[bonded_atom_num-1]
+                    H = all_data[bonded_atom_num]
                     if H.mass < 1.1 and H.nearest_atom != None:
                         X = H.nearest_atom
                         if X.mass > 1.1:
@@ -319,7 +319,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                         elif X.mass < 1.1:
                             UA_X = None
                             for bonded_atom_num2 in X.bonded_to_atom_num:
-                                UA_X = all_data[bonded_atom_num2-1]
+                                UA_X = all_data[bonded_atom_num2]
                                 if UA_X.mass > 1.1 \
                                         and UA_X.atom_num in \
                                         shell_list_atom_nums:

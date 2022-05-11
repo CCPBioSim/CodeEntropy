@@ -148,7 +148,7 @@ def HBCalc(all_data, waterTuple, dimensions):
             H = atom
             O = None
             for bonded in H.bonded_to_atom_num:
-                b = all_data[bonded-1]
+                b = all_data[bonded]
                 if b.mass > 1.1:
                     O = b
                 else:
@@ -161,7 +161,7 @@ def HBCalc(all_data, waterTuple, dimensions):
                 for neighbour in O.RAD:
                     RAD_atom_nums.append(neighbour.atom_num)
                     for bonded in neighbour.bonded_to_atom_num:
-                        b = all_data[bonded-1]
+                        b = all_data[bonded]
                         if b.mass < 1.1:
                             RAD_atom_nums.append(b.atom_num)
                         else:
@@ -216,7 +216,7 @@ def HBCalc(all_data, waterTuple, dimensions):
         H = all_data[x]
         if H.nearest_atom != None:
             nearest_eneg = H.nearest_atom.atom_num
-            all_data[nearest_eneg-1].nearest_Hs.append(H)
+            all_data[nearest_eneg].nearest_Hs.append(H)
 
         if broken_HBs:
             ####Dealing with broken HBs - ND, bifurcated and cyclic
@@ -224,7 +224,7 @@ def HBCalc(all_data, waterTuple, dimensions):
             atom = all_data[x]
             HHX = False
             for b in atom.bonded_to_atom_num:
-                bonded = all_data[b-1]
+                bonded = all_data[b]
                 if atom.mass < 1.1 and bonded.mass > 1.1:
                     if bonded.bondedUA_H != None:
                         if bonded.bondedUA_H[0] == 0 and \
@@ -259,7 +259,7 @@ def HBCalc(all_data, waterTuple, dimensions):
                             '''
 
                             for b in atom.bonded_to_atom_num:
-                                bonded = all_data[b-1]
+                                bonded = all_data[b]
                                 bonded.broken = ['Bifurcated', atom.atom_num,
                                     atom.atom_name,
                                     atom.nearest_atom.atom_num, 
@@ -277,7 +277,7 @@ def HBCalc(all_data, waterTuple, dimensions):
 
 
                             for b2 in atom.nearest_atom.bonded_to_atom_num:
-                                bonded2 = all_data[b2-1]
+                                bonded2 = all_data[b2]
                                 if bonded2.mass < 1.1:
                                     if bonded2.nearest_atom != None and \
                                             bonded2.nearest_atom.resid == \
@@ -298,7 +298,7 @@ def HBCalc(all_data, waterTuple, dimensions):
                                         '''
 
                                         for b3 in atom.bonded_to_atom_num:
-                                            bonded3 = all_data[b3-1]
+                                            bonded3 = all_data[b3]
                                             bonded3.broken = ['ND', 
                                                 atom.atom_num, 
                                                 atom.atom_name, 
@@ -354,7 +354,7 @@ def HBCalc(all_data, waterTuple, dimensions):
                                     '''
 
                                     for b4 in atom.bonded_to_atom_num:
-                                        bonded4 = all_data[b4-1]
+                                        bonded4 = all_data[b4]
                                         bonded4.broken = ['Cyclic', 
                                             atom.atom_num, 
                                             atom.atom_name, 

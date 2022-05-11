@@ -53,24 +53,24 @@ def calculateDihedrals(all_data, dimensions):
             Mdihedrals = [] #unique dihedrals for each atom in molecule
             lowest_atom_num = max_atom_num + 1
             for molecule_atom in atom.molecule_atomNums:
-                Matom = all_data[molecule_atom-1]
+                Matom = all_data[molecule_atom]
                 all_atom_nums_list.append(Matom.atom_num)
                 #get lowest atom num for renumbering
                 for dih in Matom.dihedral_list:
                     for d in dih:
-                        if all_data[d-1].resid == atom.resid:
+                        if all_data[d].resid == atom.resid:
                             if d < lowest_atom_num:
                                 lowest_atom_num = d
                             else:
                                 continue
 
             for molecule_atom in atom.molecule_atomNums:
-                Matom = all_data[molecule_atom-1]
+                Matom = all_data[molecule_atom]
                 for dih in Matom.dihedral_list:
 
                     inside_resid = True
                     for d in dih:
-                        if all_data[d-1].resid != atom.resid:
+                        if all_data[d].resid != atom.resid:
                             inside_resid = False
 
                     if dih not in dihedrals and inside_resid == True: 
@@ -80,7 +80,7 @@ def calculateDihedrals(all_data, dimensions):
                         d_atoms = [] 
                         atom_nums = [] #1,2,3,4
                         for d in dih: #calc dih angles for each dih
-                            atom2 = all_data[d-1]
+                            atom2 = all_data[d]
                             d_atoms.append(atom2)
                             atom_nums.append(atom2.atom_num)
 
