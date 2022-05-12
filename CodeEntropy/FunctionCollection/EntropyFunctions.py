@@ -381,7 +381,7 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
     Utils.printOut(arg_outFile, f"{'TT Entropy (Whole mol level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
     
 
-    return (entropyFF, entropyTT)
+    return (nmp.sum(entropyFF), nmp.sum(entropyTT))
 #END
 
 

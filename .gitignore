@@ -132,3 +132,6 @@ log2.txt
 Example/data/.1AKI_prod.trr_offsets.npz
 Example/data/1AKI_prod.trr
 Example/data/1AKI_prod.tpr
+data.trr
+data.pdb
+.data.trr_offsets.npz
