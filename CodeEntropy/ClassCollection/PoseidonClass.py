@@ -333,7 +333,7 @@ class Poseidon():
         
         print('\n2. Process Dictionaries')
 
-
+        print(level_list)
         for level in level_list:
 
             print('---level:', level)
@@ -351,7 +351,7 @@ class Poseidon():
             
             if entropyEnergy:
                 name = 'EE'
-                solventData, soluteData = processEE(num_frames, totFrames, EEclass2, 
+                result = processEE(num_frames, totFrames, EEclass2, 
                         solvent, waterTuple, 
                         temperature, level, name, forceUnits, verbosePrint)
 
@@ -378,4 +378,4 @@ class Poseidon():
         sys.stdout.flush()
         print('\n')
         print(datetime.now() - startTime)
-        return (solventData, soluteData)
+        return result

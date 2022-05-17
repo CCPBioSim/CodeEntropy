@@ -45,7 +45,8 @@ def processEE(num_frames, totFrames, Aclass, solvent, waterTuple,
 
     if level in ['residLevel_resname', 'atomLevel']:
         verbosePrint('\n\n--CONTACTS--\n')
-        contactCalculation(Aclass, level, totFrames, verbosePrint)
+        contactMatrix = contactCalculation(Aclass, level, totFrames, verbosePrint)
+        return (solventData, soluteData, contactMatrix)
     
     return (solventData, soluteData)
 
@@ -63,11 +64,16 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
         data.write('\n'.join(['centre_resid,neighbour_resid,count,'\
                 'centre_resname,neighbour_resname,centre_atom,'\
                 'neighbour_atom']) 
-                + '\n')   
+                + '\n')
+        contactMatrix = pd.DataFrame(columns=['centre_resid,neighbour_resid,count,'\
+                'centre_resname,neighbour_resname,centre_atom,'\
+                'neighbour_atom'])
     else:
         data.write('\n'.join(['centre_resid,neighbour_resid,count,'\
                 'centre_resname,neighbour_resname']) 
                 + '\n')   
+        contactMatrix = pd.DataFrame(columns=['centre_resid,neighbour_resid,count,'\
+                'centre_resname,neighbour_resname'])
     for centre_info, neighbour_resid_key in \
             sorted(list(Aclass.resid_contact_matrix_dict.items())):
         for neighbour_info, count in \
@@ -87,7 +93,14 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                             neighbour_resid, count, centre_resname, 
                             neighbour_resname, centre_atom, 
                             neighbour_atom)]) + '\n')
-
+                    newRowContact = pd.DataFrame({'centre_resid': centre_resid,
+                                            'neighbour_resid':neighbour_resid,
+                                            'count': count,
+                                            'centre_resname': centre_resname,
+                                            'neighbour_resname': neighbour_resname,
+                                            'centre_atom': centre_atom,
+                                            'neighbour_atom': neighbour_atom}, index=[0])
+                    contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
                 else:
                     centre_resname = centre_info[0]
                     centre_resid = centre_info[1]
@@ -97,11 +110,18 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                     data.write('\n'.join(['%s,%s,%s,%s,%s' % (centre_resid, 
                             neighbour_resid, count, centre_resname, 
                             neighbour_resname)]) + '\n')
+                    newRowContact = pd.DataFrame({'centre_resid': centre_resid,
+                                            'neighbour_resid':neighbour_resid,
+                                            'count': count,
+                                            'centre_resname': centre_resname,
+                                            'neighbour_resname': neighbour_resname})
+                    contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
             else:
                 continue
 
 
     data.close()
+    return contactMatrix
 
 
 
@@ -1323,16 +1343,16 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
     if num_frames != None:
         frames = num_frames
 
-    # solventData = open('solventVariables%s%s_%s.csv' % (frames, name, level), 'w')
-    # solventData.write(
-    #         '\n'.join(['nearest,assigned,shell_num,variable,value,count']) 
-    #         + '\n')
+    data = open('solventVariables%s%s_%s.csv' % (frames, name, level), 'w')
+    data.write(
+            '\n'.join(['nearest,assigned,shell_num,variable,value,count']) 
+            + '\n')
     solventData = pd.DataFrame(columns=['nearest','assigned', 'shell_num', 'variable', 'value', 'count'])
 
-    # data2 = open('soluteVariables%s%s_%s.csv' % 
-    #         (frames, name, level), 'w')
-    # data2.write('\n'.join(['resName,variable,value,count']) 
-    #         + '\n')
+    data2 = open('soluteVariables%s%s_%s.csv' % 
+            (frames, name, level), 'w')
+    data2.write('\n'.join(['resName,variable,value,count']) 
+            + '\n')
 
     soluteData = pd.DataFrame(columns=['resName', 'variable', 'value', 'count'])
 
@@ -1391,10 +1411,10 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                     for variable, value in variable_key.items():
                         if value[0] != None and \
                                 assigned in solvent and shellNum == 1:
-                            # data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
-                            #         (nearest, 
-                            #         assigned, shellNum, variable, value[0], 
-                            #         value[1])]) + '\n')
+                            data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
+                                    (nearest, 
+                                    assigned, shellNum, variable, value[0], 
+                                    value[1])]) + '\n')
                             newRowSolvent = pd.DataFrame({'nearest': nearest,
                                             'assigned':assigned,
                                             'shell_num': shellNum,
@@ -1430,10 +1450,10 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                         [new_var][1] = value[1]
 
                             if 'WM_' in variable or variable == 'conf_AE':
-                                # data2.write('\n'.join(['%s,%s,%s,%s' % 
-                                #         (assigned[0], 
-                                #         variable, value[0], 
-                                #         int(round(value[1], 0)))]) + '\n')
+                                data2.write('\n'.join(['%s,%s,%s,%s' % 
+                                        (assigned[0], 
+                                        variable, value[0], 
+                                        int(round(value[1], 0)))]) + '\n')
                                 newRowSolute = pd.DataFrame({'resName': assigned[0],
                                             'variable':variable,
                                             'value': value[0],
@@ -1447,10 +1467,10 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                 sorted(list(PE_KE_dict.items())):
             for assigned, variable_key in sorted(list(assigned_key.items())):
                 for variable, value in sorted(list(variable_key.items())):
-                    # data2.write('\n'.join(['%s,%s,%s,%s' % 
-                    #         (assigned, 
-                    #         variable, value[0], 
-                    #         value[1])]) + '\n')
+                    data2.write('\n'.join(['%s,%s,%s,%s' % 
+                            (assigned, 
+                            variable, value[0], 
+                            value[1])]) + '\n')
                     newRowSolute = pd.DataFrame({'resName': assigned,
                                     'variable':variable,
                                     'value': value[0],
@@ -1467,11 +1487,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                     for variable, value in variable_key.items():
                         if assigned[0] in solvent and shellNum == 1 and \
                                 value[0] != None:
-                            # data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
-                            #         (nearest, 
-                            #         assigned[0], shellNum, 
-                            #         variable, value[0], 
-                            #         int(round(value[1], 0)))]) + '\n')
+                            data.write('\n'.join(['%s,%s,%s,%s,%s,%s' % 
+                                    (nearest, 
+                                    assigned[0], shellNum, 
+                                    variable, value[0], 
+                                    int(round(value[1], 0)))]) + '\n')
                             newRowSolvent = pd.DataFrame({'nearest': nearest,
                                             'assigned':assigned[0],
                                             'shell_num': shellNum,
@@ -1506,10 +1526,10 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                         [new_var][1] = value[1]
 
                             if 'WM_' in variable or variable == 'conf_AE':
-                                # data2.write('\n'.join(['%s,%s,%s,%s' % 
-                                #         (assigned[0], 
-                                #         variable, value[0], 
-                                #         int(round(value[1], 0)))]) + '\n')
+                                data2.write('\n'.join(['%s,%s,%s,%s' % 
+                                        (assigned[0], 
+                                        variable, value[0], 
+                                        int(round(value[1], 0)))]) + '\n')
                                 newRowSolute = pd.DataFrame({'resName': assigned[0],
                                                 'variable':variable,
                                                 'value': value[0],
@@ -1524,10 +1544,10 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                 sorted(list(PE_KE_dict.items())):
             for assigned, variable_key in sorted(list(assigned_key.items())):
                 for variable, value in sorted(list(variable_key.items())):
-                    # data2.write('\n'.join(['%s,%s,%s,%s' % 
-                    #         (assigned, 
-                    #         variable, value[0], 
-                    #         value[1])]) + '\n')
+                    data2.write('\n'.join(['%s,%s,%s,%s' % 
+                            (assigned, 
+                            variable, value[0], 
+                            value[1])]) + '\n')
                     newRowSolute = pd.DataFrame({'resName': assigned[0],
                                     'variable':variable,
                                     'value': value[0],
@@ -1536,6 +1556,6 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
         #'''
     
 
-    # data.close()
-    # data2.close()
+    data.close()
+    data2.close()
     return (solventData, soluteData)
