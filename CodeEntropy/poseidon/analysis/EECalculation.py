@@ -65,15 +65,12 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                 'centre_resname,neighbour_resname,centre_atom,'\
                 'neighbour_atom']) 
                 + '\n')
-        contactMatrix = pd.DataFrame(columns=['centre_resid,neighbour_resid,count,'\
-                'centre_resname,neighbour_resname,centre_atom,'\
-                'neighbour_atom'])
+        contactMatrix = pd.DataFrame(columns=['centre_resid','neighbour_resid','count','centre_resname','neighbour_resname','centre_atom', 'neighbour_atom'])
     else:
         data.write('\n'.join(['centre_resid,neighbour_resid,count,'\
                 'centre_resname,neighbour_resname']) 
                 + '\n')   
-        contactMatrix = pd.DataFrame(columns=['centre_resid,neighbour_resid,count,'\
-                'centre_resname,neighbour_resname'])
+        contactMatrix = pd.DataFrame(columns=['centre_resid','neighbour_resid','count','centre_resname','neighbour_resname'])
     for centre_info, neighbour_resid_key in \
             sorted(list(Aclass.resid_contact_matrix_dict.items())):
         for neighbour_info, count in \
