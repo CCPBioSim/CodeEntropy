@@ -15,12 +15,15 @@ class DataContainer(object):
 	that contains the info about its topology. 
 	"""
 
-	def __init__(self, u):
+	def __init__(self, u, start=None, end=None, step=1):
 		"""Create and load data from MDAnalysis.Universe
 
 		Args:
 			u (MDAnalyse.Universe): A Universe object will all topology, coordinates and force information
 			Check Example/create_new_universe.py on how to create a universe from existing data
+			start (int): frame id to start analysis. Default None will start from frame 0
+			end (int): frame id to end analysis. Default Nonw will end at last frame
+			step (int): Steps between frame. Defaults to 1.
 		"""
 		self.universe = u
 		self.numFrames = len(self.universe.trajectory)
@@ -60,7 +63,12 @@ class DataContainer(object):
 			self.add_dihedral(newDih)
 
 		#reading trajectorys into memory because MDanalysis reads values on the fly which might slow down processing speed as these values are accessed multiple times
-		for ts in u.trajectory:
+		if start == None:
+			start = 0
+		if end == None:
+			end = len(u.trajectory)
+		for i in range(int(start), int(end), int(step)):
+			ts = u.trajectory[i]
 			newFrame = TF.TrajectoryFrame(arg_frameIndex = ts.frame, \
 													arg_vectorDim = TCON.VECTORDIM)
 			newFrame.set_numAtoms(ts.n_atoms)
