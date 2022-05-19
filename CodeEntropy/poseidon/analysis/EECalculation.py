@@ -39,16 +39,19 @@ def processEE(num_frames, totFrames, Aclass, solvent, waterTuple,
 
 
     verbosePrint('\n\n--PRINT_ALL_VARIABLES--\n')
-    solventData, soluteData = saveAllVariables(num_frames, Aclass, level, name, solvent, 
-            waterTuple, verbosePrint)
-
+    # solventData, soluteData = saveAllVariables(num_frames, Aclass, level, name, solvent, 
+    #         waterTuple, verbosePrint)
+    saveAllVariables(num_frames, Aclass, level, name, solvent, 
+             waterTuple, verbosePrint)
 
     if level in ['residLevel_resname', 'atomLevel']:
         verbosePrint('\n\n--CONTACTS--\n')
+        # contactMatrix = contactCalculation(Aclass, level, totFrames, verbosePrint)
         contactMatrix = contactCalculation(Aclass, level, totFrames, verbosePrint)
-        return (solventData, soluteData, contactMatrix)
+
+        # return (solventData, soluteData, contactMatrix)
     
-    return (solventData, soluteData)
+    # return (solventData, soluteData)
 
 
 
@@ -65,12 +68,12 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                 'centre_resname,neighbour_resname,centre_atom,'\
                 'neighbour_atom']) 
                 + '\n')
-        contactMatrix = pd.DataFrame(columns=['centre_resid','neighbour_resid','count','centre_resname','neighbour_resname','centre_atom', 'neighbour_atom'])
+        # contactMatrix = pd.DataFrame(columns=['centre_resid','neighbour_resid','count','centre_resname','neighbour_resname','centre_atom', 'neighbour_atom'])
     else:
         data.write('\n'.join(['centre_resid,neighbour_resid,count,'\
                 'centre_resname,neighbour_resname']) 
                 + '\n')   
-        contactMatrix = pd.DataFrame(columns=['centre_resid','neighbour_resid','count','centre_resname','neighbour_resname'])
+        # contactMatrix = pd.DataFrame(columns=['centre_resid','neighbour_resid','count','centre_resname','neighbour_resname'])
     for centre_info, neighbour_resid_key in \
             sorted(list(Aclass.resid_contact_matrix_dict.items())):
         for neighbour_info, count in \
@@ -90,14 +93,14 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                             neighbour_resid, count, centre_resname, 
                             neighbour_resname, centre_atom, 
                             neighbour_atom)]) + '\n')
-                    newRowContact = pd.DataFrame({'centre_resid': centre_resid,
-                                            'neighbour_resid':neighbour_resid,
-                                            'count': count,
-                                            'centre_resname': centre_resname,
-                                            'neighbour_resname': neighbour_resname,
-                                            'centre_atom': centre_atom,
-                                            'neighbour_atom': neighbour_atom}, index=[0])
-                    contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
+                    # newRowContact = pd.DataFrame({'centre_resid': centre_resid,
+                    #                         'neighbour_resid':neighbour_resid,
+                    #                         'count': count,
+                    #                         'centre_resname': centre_resname,
+                    #                         'neighbour_resname': neighbour_resname,
+                    #                         'centre_atom': centre_atom,
+                    #                         'neighbour_atom': neighbour_atom}, index=[0])
+                    # contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
                 else:
                     centre_resname = centre_info[0]
                     centre_resid = centre_info[1]
@@ -107,18 +110,18 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                     data.write('\n'.join(['%s,%s,%s,%s,%s' % (centre_resid, 
                             neighbour_resid, count, centre_resname, 
                             neighbour_resname)]) + '\n')
-                    newRowContact = pd.DataFrame({'centre_resid': centre_resid,
-                                            'neighbour_resid':neighbour_resid,
-                                            'count': count,
-                                            'centre_resname': centre_resname,
-                                            'neighbour_resname': neighbour_resname})
-                    contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
+                    # newRowContact = pd.DataFrame({'centre_resid': centre_resid,
+                    #                         'neighbour_resid':neighbour_resid,
+                    #                         'count': count,
+                    #                         'centre_resname': centre_resname,
+                    #                         'neighbour_resname': neighbour_resname})
+                    # contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
             else:
                 continue
 
 
     data.close()
-    return contactMatrix
+    # return contactMatrix
 
 
 
@@ -1344,14 +1347,14 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
     data.write(
             '\n'.join(['nearest,assigned,shell_num,variable,value,count']) 
             + '\n')
-    solventData = pd.DataFrame(columns=['nearest','assigned', 'shell_num', 'variable', 'value', 'count'])
+    # solventData = pd.DataFrame(columns=['nearest','assigned', 'shell_num', 'variable', 'value', 'count'])
 
     data2 = open('soluteVariables%s%s_%s.csv' % 
             (frames, name, level), 'w')
     data2.write('\n'.join(['resName,variable,value,count']) 
             + '\n')
 
-    soluteData = pd.DataFrame(columns=['resName', 'variable', 'value', 'count'])
+    # soluteData = pd.DataFrame(columns=['resName', 'variable', 'value', 'count'])
 
 
     if level == 'res_atomLevel':
@@ -1412,13 +1415,13 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                     (nearest, 
                                     assigned, shellNum, variable, value[0], 
                                     value[1])]) + '\n')
-                            newRowSolvent = pd.DataFrame({'nearest': nearest,
-                                            'assigned':assigned,
-                                            'shell_num': shellNum,
-                                            'variable': variable,
-                                            'value': value[0],
-                                            'count': value[1]}, index=[0])
-                            solventData = pd.concat([solventData, newRowSolvent], ignore_index=True)
+                            # newRowSolvent = pd.DataFrame({'nearest': nearest,
+                            #                 'assigned':assigned,
+                            #                 'shell_num': shellNum,
+                            #                 'variable': variable,
+                            #                 'value': value[0],
+                            #                 'count': value[1]}, index=[0])
+                            # solventData = pd.concat([solventData, newRowSolvent], ignore_index=True)
                         else:
                             continue
 
@@ -1451,11 +1454,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                         (assigned[0], 
                                         variable, value[0], 
                                         int(round(value[1], 0)))]) + '\n')
-                                newRowSolute = pd.DataFrame({'resName': assigned[0],
-                                            'variable':variable,
-                                            'value': value[0],
-                                            'count': int(round(value[1], 0))}, index=[0])
-                                soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)            
+                                # newRowSolute = pd.DataFrame({'resName': assigned[0],
+                                #             'variable':variable,
+                                #             'value': value[0],
+                                #             'count': int(round(value[1], 0))}, index=[0])
+                                # soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)            
                         else:
                             continue
 
@@ -1468,11 +1471,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                             (assigned, 
                             variable, value[0], 
                             value[1])]) + '\n')
-                    newRowSolute = pd.DataFrame({'resName': assigned,
-                                    'variable':variable,
-                                    'value': value[0],
-                                    'count': value[1]}, index=[0])
-                    soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
+                    # newRowSolute = pd.DataFrame({'resName': assigned,
+                    #                 'variable':variable,
+                    #                 'value': value[0],
+                    #                 'count': value[1]}, index=[0])
+                    # soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
         #'''
 
     else:
@@ -1489,13 +1492,13 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                     assigned[0], shellNum, 
                                     variable, value[0], 
                                     int(round(value[1], 0)))]) + '\n')
-                            newRowSolvent = pd.DataFrame({'nearest': nearest,
-                                            'assigned':assigned[0],
-                                            'shell_num': shellNum,
-                                            'variable': variable,
-                                            'value': value[0],
-                                            'count': int(round(value[1], 0))}, index=[0])
-                            solventData = pd.concat([solventData, newRowSolvent], ignore_index=True)
+                            # newRowSolvent = pd.DataFrame({'nearest': nearest,
+                            #                 'assigned':assigned[0],
+                            #                 'shell_num': shellNum,
+                            #                 'variable': variable,
+                            #                 'value': value[0],
+                            #                 'count': int(round(value[1], 0))}, index=[0])
+                            # solventData = pd.concat([solventData, newRowSolvent], ignore_index=True)
                         else:
                             continue
 
@@ -1527,11 +1530,11 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                                         (assigned[0], 
                                         variable, value[0], 
                                         int(round(value[1], 0)))]) + '\n')
-                                newRowSolute = pd.DataFrame({'resName': assigned[0],
-                                                'variable':variable,
-                                                'value': value[0],
-                                                'count': int(round(value[1], 0))}, index=[0])
-                                soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
+                                # newRowSolute = pd.DataFrame({'resName': assigned[0],
+                                #                 'variable':variable,
+                                #                 'value': value[0],
+                                #                 'count': int(round(value[1], 0))}, index=[0])
+                                # soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
 
                             
                         else:
@@ -1545,14 +1548,14 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
                             (assigned, 
                             variable, value[0], 
                             value[1])]) + '\n')
-                    newRowSolute = pd.DataFrame({'resName': assigned[0],
-                                    'variable':variable,
-                                    'value': value[0],
-                                    'count': int(round(value[1], 0))}, index=[0])
-                    soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
+                    # newRowSolute = pd.DataFrame({'resName': assigned[0],
+                    #                 'variable':variable,
+                    #                 'value': value[0],
+                    #                 'count': int(round(value[1], 0))}, index=[0])
+                    # soluteData = pd.concat([soluteData, newRowSolute], ignore_index=True)
         #'''
     
 
     data.close()
     data2.close()
-    return (solventData, soluteData)
+    # return (solventData, soluteData)
