@@ -603,7 +603,10 @@ def compute_entropy_residue_level(arg_hostDataContainer,
     #diagnolaize
     Utils.printflush("Diagonalizing->", end = ' ')
     lambdasFF, eigVectorsFF  = Utils.diagonalize(ffQuadrant)
+    #Fix here
+    # lambdasFF[lambdasFF < 1e-14] = 1e-17
     lambdasTT, eigVectorsTT  = Utils.diagonalize(ttQuadrant)
+    # lambdasTT[lambdasTT < 1e-14] = 1e-17
     Utils.printflush('Done')
 
     # since eigen values can be complex numbers but with imag parts very close to zero
