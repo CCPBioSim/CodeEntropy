@@ -1001,7 +1001,8 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
                             arg_fScale = 1.0,
                             arg_tScale = 1.0,
                             arg_temper = 300.0,
-                            arg_verbose = 3):
+                            arg_verbose = 3,
+                            thread = 4):
     """ 
     !! This uses multiprocess to spread workload across cores to speed up calculation.
     However, this will cause print and output to files not print in sequential order.
@@ -1059,7 +1060,7 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
     #get the heavy Atom List for filtering
     heavyAtomArray = allSel.select_atoms("not name H*").indices
     
-    pool = mp.Pool()
+    pool = mp.Pool(thread)
     f = partial(UA_residue_protein, allSel, arg_hostDataContainer, numFrames, heavyAtomArray, arg_fScale, arg_tScale, arg_temper,  arg_outFile, arg_selector, arg_verbose, arg_moutFile, arg_nmdFile)
     items = allSel.residues.resindices
     result = pool.map(f, items)
