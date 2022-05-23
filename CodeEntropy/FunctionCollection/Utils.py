@@ -140,7 +140,9 @@ def diagonalize(arg_matrix):
 	Find the eigen vectors and values for the arg_matrix 
 	using the linalg module of numpy.
 	"""
-	eigenValues, eigenVectors = nmp.linalg.eig(arg_matrix)
+	eigenValues, eigenVectors = nmp.linalg.eigh(arg_matrix)
+	# a work around for complex values changing all very small value and negative to zero
+	# eigenValues[eigenValues < 0 ] = 0
 	return eigenValues, eigenVectors
 #END 
 
