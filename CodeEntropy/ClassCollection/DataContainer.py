@@ -4,6 +4,12 @@ from CodeEntropy.Trajectory import TrajectoryConstants as TCON
 from CodeEntropy.FunctionCollection import Utils
 from CodeEntropy.ClassCollection import BondStructs
 
+#warining
+class ComplexWarning(Warning):
+	"""Waring for complex number result
+	"""
+	pass
+
 class DataContainer(object):
 	""" 
 	This is the main data container that has the framewise information of
