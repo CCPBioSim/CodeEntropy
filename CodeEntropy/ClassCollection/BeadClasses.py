@@ -114,8 +114,8 @@ class BeadCollection(object):
 				elif arg_pairString == "TT":
 					self.subMatrixDict["TT"][i][j] = self.generate_block_matrix(arg_bead_i = iBead, arg_bead_j = jBead, arg_pairString="TT", arg_frameList = nmp.arange(numFrames))
 					self.subMatrixDict["TT"][j][i] = self.subMatrixDict["TT"][i][j].T
-
-		Utils.printflush("Finished updating submatrix {}".format(arg_pairString))
+		if arg_verbose >= 3:
+			Utils.printflush("Finished updating submatrix {}".format(arg_pairString))
 		return
 	#END	 
 	

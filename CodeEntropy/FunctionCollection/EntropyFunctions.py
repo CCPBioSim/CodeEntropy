@@ -1,3 +1,4 @@
+from ast import arg
 import sys, os
 import numpy as nmp
 
@@ -13,7 +14,7 @@ from CodeEntropy.IO import Writer
 from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
 import multiprocessing as mp
 from functools import partial
-
+import pandas as pd
 
 
 def calculate_entropy_per_dof(arg_frequencies, arg_temper):
@@ -129,7 +130,7 @@ def get_avg_apos(arg_atom, arg_frame, arg_selector, arg_hostDataContainer):
 #END
 
 def compute_entropy_whole_molecule_level(arg_hostDataContainer,
-                                         arg_outFile,
+                                         arg_outFile = None,
                                          arg_selector = "all", 
                                          arg_moutFile = None,
                                          arg_nmdFile = None,
@@ -142,10 +143,10 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
 
     Args:
         arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_outFile (str): path to a output file output is written via append mode
+        arg_outFile (str, optional): path to a output file output is written via append mode. Defaults to None.
         arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
         arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a spectra out file is not None. Defaults to None.
         arg_fScale (float, optional): Force scale. Defaults to 1.0.
         arg_tScale (float, optional): Torque scale. Defaults to 1.0.
         arg_temper (float, optional): temperature in K. Defaults to 300.0.
@@ -161,10 +162,10 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Hierarchy level. --> Whole molecule <--"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> Whole molecule <--"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> Whole molecule <--"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     # Define a bead collection at this level
     wholeMoleculeSystem = BC.BeadCollection("whole_mol_bead", arg_hostDataContainer)
@@ -188,7 +189,8 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
     wholeMoleculeSystem.listOfBeads = [wholeProteinBead]
 
     Utils.printflush(f"Total number of beads at the whole molecule level = {len(wholeMoleculeSystem.listOfBeads)}")
-    Utils.printOut(arg_outFile,f"Total number of beads at the whole molecule level = {len(wholeMoleculeSystem.listOfBeads)}")
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,f"Total number of beads at the whole molecule level = {len(wholeMoleculeSystem.listOfBeads)}")
 
     # reset weighted vectors for each bead and
     for iBead in wholeMoleculeSystem.listOfBeads:
@@ -375,10 +377,12 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
     # print final outputs
     Utils.printflush("Entropy values:")
     Utils.printflush(f"{'FF Entropy (Whole mol level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K")
-    Utils.printOut(arg_outFile, f"{'FF Entropy (Whole mol level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K")
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, f"{'FF Entropy (Whole mol level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K")
     
     Utils.printflush(f"{'TT Entropy (Whole mol level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
-    Utils.printOut(arg_outFile, f"{'TT Entropy (Whole mol level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, f"{'TT Entropy (Whole mol level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K")
     
 
     return (nmp.sum(entropyFF), nmp.sum(entropyTT))
@@ -386,7 +390,7 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
 
 
 def compute_entropy_residue_level(arg_hostDataContainer,
-                                arg_outFile,
+                                arg_outFile = None,
                                 arg_selector = "all", 
                                 arg_moutFile = None,
                                 arg_nmdFile = None,
@@ -404,10 +408,10 @@ def compute_entropy_residue_level(arg_hostDataContainer,
 
     Args:
         arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_outFile (str): path to a output file output is written via append mode
+        arg_outFile (str, optional): path to a output file output is written via append mode. Defaults to None.
         arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
         arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a spectra out file is not None. Defaults to None.
         arg_fScale (float, optional): Force scale. Defaults to 1.0.
         arg_tScale (float, optional): Torque scale. Defaults to 1.0.
         arg_temper (float, optional): temperature in K. Defaults to 300.0.
@@ -422,10 +426,10 @@ def compute_entropy_residue_level(arg_hostDataContainer,
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Hierarchy level. --> Residues <--"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> Residues <--"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> Residues <--"))
+        Utils.printOut(arg_outFile,'-'*60)
     
     # define a bead collection at this level
     residueSystem = BC.BeadCollection("res_bead",arg_hostDataContainer)
@@ -690,9 +694,9 @@ def compute_entropy_residue_level(arg_hostDataContainer,
     # print final outputs
     Utils.printflush(f"{'FF Entropy (Residue level)':<40s} : {totEntropyFF:.4f} J/mol/K")
     Utils.printflush(f"{'TT Entropy (Residue level)':<40s} : {totEntropyTT:.4f} J/mol/K")
-    
-    Utils.printOut(arg_outFile,f"{'FF Entropy (Residue level)':<40s} : {totEntropyFF:.4f} J/mol/K")
-    Utils.printOut(arg_outFile,f"{'TT Entropy (Residue level)':<40s} : {totEntropyTT:.4f} J/mol/K")
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,f"{'FF Entropy (Residue level)':<40s} : {totEntropyFF:.4f} J/mol/K")
+        Utils.printOut(arg_outFile,f"{'TT Entropy (Residue level)':<40s} : {totEntropyTT:.4f} J/mol/K")
     
     return (totEntropyFF, totEntropyTT)
 #END
@@ -711,7 +715,7 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
     iResname = arg_hostDataContainer.universe.residues.resnames[resindices]
     iResid = arg_hostDataContainer.universe.residues.resids[resindices]
     resLabel = "{}{}".format(iResname, iResid)
-    Utils.printflush('Working on resid : {}'.format(resLabel))
+    # Utils.printflush('Working on resid : {}'.format(resLabel))
 
     # create a bead collection 
     ridBeadCollection = BC.BeadCollection("{}_bead".format(resLabel),arg_hostDataContainer)
@@ -746,8 +750,8 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
 
 
     # by this point, the UA beads for that residue have been created
-    Utils.printflush('Total number of UA beads in residue {} : {}'\
-                  .format(resLabel, len(ridBeadCollection.listOfBeads)))
+    # Utils.printflush('Total number of UA beads in residue {} : {}'\
+    #               .format(resLabel, len(ridBeadCollection.listOfBeads)))
 
     # reset weighted vectors for each bead
     for iBead in ridBeadCollection.listOfBeads:
@@ -758,7 +762,7 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
 
     # setup Translation and Rotation axes
     # Translation axes : each atom is in the c-ca-n axes of its host residue
-    Utils.printflush("Assigning Translation Axes at the UA level->", end = ' ')
+    # Utils.printflush("Assigning Translation Axes at the UA level->", end = ' ')
     for iFrame in range(numFrames):
         cPosition = arg_hostDataContainer._labCoords[iFrame,cIdx]
         nPosition = arg_hostDataContainer._labCoords[iFrame,nIdx]
@@ -769,9 +773,9 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
             arg_coord3 = caPosition)
         arg_hostDataContainer.update_translationAxesArray_at(iFrame, resSel.indices, tAxes, tOrigin)
         
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
-    Utils.printflush("Assigning Rotational Axes at the UA level->", end = ' ')
+    # Utils.printflush("Assigning Rotational Axes at the UA level->", end = ' ')
     # Rotation axes : 
     # the axes will have the geometry of a 
     # local spherical-polar coordinate system
@@ -810,26 +814,26 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
 
         arg_hostDataContainer.update_localCoords("R", iBead.atomList)
 
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
     # update local forces 
-    Utils.printflush('Updating Local forces->',end=' ')
+    # Utils.printflush('Updating Local forces->',end=' ')
     arg_hostDataContainer.update_localForces("T", resSel.indices)
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
 
     # update torques using the local rotational axes
-    Utils.printflush('Updating Local torques->', end = ' ')
+    # Utils.printflush('Updating Local torques->', end = ' ')
     for iAtom_in_rid in resSel.indices:
         for iFrame in range(numFrames):
             coords_i = arg_hostDataContainer.localCoords[iFrame, iAtom_in_rid]
             forces_i = arg_hostDataContainer.rotationAxesArray[iFrame, iAtom_in_rid][0:3,]@arg_hostDataContainer._labForces[iFrame,iAtom_in_rid]
             arg_hostDataContainer.localTorques[iFrame,iAtom_in_rid,:] = CF.cross_product(coords_i,forces_i)
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
 
     # mass weighting the forces and torque
-    Utils.printflush('Weighting forces and torques->', end = ' ')
+    # Utils.printflush('Weighting forces and torques->', end = ' ')
     for iBead in ridBeadCollection.listOfBeads:
 
         for iFrame in range(numFrames):
@@ -860,19 +864,19 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
                 except:
                     raise AssertionError(f"Moment of Intertia is non-zero for a bead lying on axis {j}")
                     
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
     # now fill in the matrices
-    Utils.printflush("Updating the submatrices ... ")
+    # Utils.printflush("Updating the submatrices ... ")
     ridBeadCollection.update_subMatrix(arg_pairString="FF",arg_verbose=arg_verbose)
     ridBeadCollection.update_subMatrix(arg_pairString="TT",arg_verbose=arg_verbose)
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
     #make quadrant from subMatrices
-    Utils.printflush("Generating Quadrants->",end = ' ')
+    # Utils.printflush("Generating Quadrants->",end = ' ')
     ffQuadrant = ridBeadCollection.generate_quadrant(arg_pairString="FF",arg_filterZeros=0)
     ttQuadrant = ridBeadCollection.generate_quadrant(arg_pairString="TT",arg_filterZeros=0)
-    Utils.printflush("Done")
+    # Utils.printflush("Done")
 
     # scale forces/torques of these quadrants
     ffQuadrant = nmp.multiply(arg_fScale**2, ffQuadrant)
@@ -894,10 +898,10 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
                               , arg_outFile = arg_moutFile)
         
     #diagnolaize
-    Utils.printflush("Diagonalizing->", end = ' ')
+    # Utils.printflush("Diagonalizing->", end = ' ')
     lambdasFF, eigVectorsFF  = Utils.diagonalize(ffQuadrant)
     lambdasTT, eigVectorsTT  = Utils.diagonalize(ttQuadrant)
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
     # since eigen values can be complex numbers 
     # but with imag parts very close to zero
@@ -914,10 +918,10 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
 
 
     # change to SI units
-    Utils.printflush('Changing the units of eigen values to SI units->', end = ' ')
+    # Utils.printflush('Changing the units of eigen values to SI units->', end = ' ')
     lambdasFF = UAC.change_lambda_units(lambdasFF)
     lambdasTT = UAC.change_lambda_units(lambdasTT)
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
     # Create a spectrum to store these modes for 
     # proper output and analyses.
@@ -955,10 +959,10 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
     ridBeadCollection.assign_attribute("modeSpectraTT", modeSpectraTT)
 
     # sorting the spectrum
-    Utils.printflush('Sorting spectrum in ascending order of frequencies->', end = ' ')
+    # Utils.printflush('Sorting spectrum in ascending order of frequencies->', end = ' ')
     ridBeadCollection.modeSpectraFF = ModeClasses.sort_modes(ridBeadCollection.modeSpectraFF)
     ridBeadCollection.modeSpectraTT = ModeClasses.sort_modes(ridBeadCollection.modeSpectraTT)
-    Utils.printflush('Done')
+    # Utils.printflush('Done')
 
     # Print modes if asked
     if arg_nmdFile:
@@ -979,18 +983,25 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
     ridTotalEntropyTT = nmp.sum(entropyTT)
 
     # print final outputs
-    Utils.printflush("Entropy values:")
+    # Utils.printflush("Entropy values:")
 
-    Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('FF Entropy (UA for {})'.format(resLabel), ridTotalEntropyFF))
-    Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('TT Entropy (UA for {})'.format(resLabel), ridTotalEntropyTT))
-    Utils.printOut(arg_outFile,'UATOM {:<10}{:>5}{:>12.3f}{:>12.3f}'\
-                            .format(iResname\
-                            , iResid\
-                            , ridTotalEntropyFF\
-                            , ridTotalEntropyTT))
+    # Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('FF Entropy (UA for {})'.format(resLabel), ridTotalEntropyFF))
+    # Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('TT Entropy (UA for {})'.format(resLabel), ridTotalEntropyTT))
+    
+    # dataframe here 
+    # Utils.printOut(arg_outFile,'UATOM {:<10}{:>5}{:>12.3f}{:>12.3f}'\
+    #                         .format(iResname\
+    #                         , iResid\
+    #                         , ridTotalEntropyFF\
+    #                         , ridTotalEntropyTT))
+    # newRowSolvent = pd.DataFrame({'RESNAME': iResname,
+    #                 'RESID':iResid,
+    #                 'FF_ENTROPY': ridTotalEntropyFF,
+    #                 'TT_ENTROPY': ridTotalEntropyTT}, index=[0])
+
     Utils.printflush("\n\n")
     
-    return (ridTotalEntropyFF, ridTotalEntropyTT)
+    return (iResname, iResid, ridTotalEntropyFF, ridTotalEntropyTT)
 
 
 def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
@@ -1002,7 +1013,8 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
                             arg_tScale = 1.0,
                             arg_temper = 300.0,
                             arg_verbose = 3,
-                            thread = 4):
+                            arg_csv_out = None,
+                            arg_thread = 4):
     """ 
     !! This uses multiprocess to spread workload across cores to speed up calculation.
     However, this will cause print and output to files not print in sequential order.
@@ -1020,32 +1032,36 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
         arg_outFile (str): path to a output file output is written via append mode
         arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
         arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
+        arg_nmdFile (str, optional): print modespectra if path to a spectra out file is not None. Defaults to None.
         arg_fScale (float, optional): Force scale. Defaults to 1.0.
         arg_tScale (float, optional): Torque scale. Defaults to 1.0.
         arg_temper (float, optional): temperature in K. Defaults to 300.0.
         arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-
+        arg_csv_out (str, optional): print entropy of each residue as sorted dataframe if path to a csv out file is not None. Defaults to None.
+        arg_thread (int, optional): number of process to spawn for parallarization.
     Returns:
         tuple of floats:
             entropyFF (float): United atom level FF Entropy in J/mol/K
             entropyTT (float): United atom level TT Entropy in J/mol/K
     """
 
-    Utils.hbar(60)
-    Utils.printflush("{:^60}".format("Hierarchy level. --> United Atom <--"))
-    Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> United Atom <--"))
-    Utils.printOut(arg_outFile,'-'*60)
+    # Utils.hbar(60)
+    # Utils.printflush("{:^60}".format("Hierarchy level. --> United Atom <--"))
+    # Utils.hbar(60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> United Atom <-- parallel mode, log disabled"))
+        Utils.printOut(arg_outFile,'-'*60)
     
     # Select Scope
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
     # preparing header for output file
-    Utils.printOut(arg_outFile,f"      {'RESNAME':<10s}{'RESID':>5s}{'FF_ENTROPY':>12s}{'TT_ENTROPY':>12s}")
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,f"      {'RESNAME':<10s}{'RESID':>5s}{'FF_ENTROPY':>12s}{'TT_ENTROPY':>12s}")
     
+    
+
     # initialize total entropy values
     totalUAEntropyFF = 0.
     totalUAEntropyTT = 0.
@@ -1060,26 +1076,30 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
     #get the heavy Atom List for filtering
     heavyAtomArray = allSel.select_atoms("not name H*").indices
     
-    pool = mp.Pool(thread)
+    pool = mp.Pool(arg_thread)
     f = partial(UA_residue_protein, allSel, arg_hostDataContainer, numFrames, heavyAtomArray, arg_fScale, arg_tScale, arg_temper,  arg_outFile, arg_selector, arg_verbose, arg_moutFile, arg_nmdFile)
     items = allSel.residues.resindices
     result = pool.map(f, items)
     pool.close()
     pool.join()
-    result = nmp.sum(nmp.array(result), axis=0)
-    totalUAEntropyFF = result[0]
-    totalUAEntropyTT = result[1]
+    result_df = pd.DataFrame(result, columns=['RESNAME', 'RESID', 'FF_ENTROPY(J/mol/K)', 'TT_ENTROPY(J/mol/K)'])
+    result_df = result_df.sort_values('RESID')
+    print(result_df)
+    totalUAEntropyFF = result_df['FF_ENTROPY(J/mol/K)'].sum()
+    totalUAEntropyTT = result_df['TT_ENTROPY(J/mol/K)'].sum()
 
     # Final information    
-    Utils.hbar(60)
-    Utils.printflush(f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
-    Utils.printflush(f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
-    Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'_'*60)
-    Utils.printOut(arg_outFile,f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
-    Utils.printOut(arg_outFile,f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
-    Utils.printOut(arg_outFile,'-'*60)
+    # Utils.hbar(60)
+    # Utils.printflush(f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
+    # Utils.printflush(f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
+    # Utils.hbar(60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'_'*60)
+        Utils.printOut(arg_outFile,f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
+        Utils.printOut(arg_outFile,f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
+        Utils.printOut(arg_outFile,'-'*60)
+    if arg_csv_out != None:
+        result_df.to_csv(arg_csv_out, index=False)
     
     return (totalUAEntropyFF, totalUAEntropyTT)
 #END
@@ -1092,6 +1112,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
                             arg_fScale = 1.0,
                             arg_tScale = 1.0,
                             arg_temper = 300.0,
+                            arg_csv_out = None,
                             arg_verbose = 3):
     """ 
     Computes the entropy calculations at the united atom (UA) level. 
@@ -1111,6 +1132,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
         arg_fScale (float, optional): Force scale. Defaults to 1.0.
         arg_tScale (float, optional): Torque scale. Defaults to 1.0.
         arg_temper (float, optional): temperature in K. Defaults to 300.0.
+        arg_csv_out (str, optional): print entropy of each residue as sorted dataframe if path to a csv out file is not None. Defaults to None.
         arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
 
     Returns:
@@ -1122,16 +1144,17 @@ def compute_entropy_UA_level(arg_hostDataContainer,
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Hierarchy level. --> United Atom <--"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> United Atom <--"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Hierarchy level. --> United Atom <--"))
+        Utils.printOut(arg_outFile,'-'*60)
     
     # Select Scope
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
     # preparing header for output file
-    Utils.printOut(arg_outFile,f"      {'RESNAME':<10s}{'RESID':>5s}{'FF_ENTROPY':>12s}{'TT_ENTROPY':>12s}")
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,f"      {'RESNAME':<10s}{'RESID':>5s}{'FF_ENTROPY':>12s}{'TT_ENTROPY':>12s}")
     
     # initialize total entropy values
     totalUAEntropyFF = 0.
@@ -1147,6 +1170,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
     #get the heavy Atom List for filtering
     heavyAtomArray = allSel.select_atoms("not name H*").indices
 
+    result = []
     # for each residue:
     for resindices in allSel.residues.resindices:
         iResname = arg_hostDataContainer.universe.residues.resnames[resindices]
@@ -1424,27 +1448,34 @@ def compute_entropy_UA_level(arg_hostDataContainer,
 
         Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('FF Entropy (UA for {})'.format(resLabel), ridTotalEntropyFF))
         Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('TT Entropy (UA for {})'.format(resLabel), ridTotalEntropyTT))
-        Utils.printOut(arg_outFile,'UATOM {:<10}{:>5}{:>12.3f}{:>12.3f}'\
-                                .format(iResname\
-                                , iResid\
-                                , ridTotalEntropyFF\
-                                , ridTotalEntropyTT))
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile,'UATOM {:<10}{:>5}{:>12.3f}{:>12.3f}'\
+                                    .format(iResname\
+                                    , iResid\
+                                    , ridTotalEntropyFF\
+                                    , ridTotalEntropyTT))
         Utils.printflush("\n\n")
         
         totalUAEntropyFF += ridTotalEntropyFF
         totalUAEntropyTT += ridTotalEntropyTT
+    
+    result_df = pd.DataFrame(result, columns=['RESNAME', 'RESID', 'FF_ENTROPY(J/mol/K)', 'TT_ENTROPY(J/mol/K)'])
 
     # Final information    
     Utils.hbar(60)
     Utils.printflush(f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
     Utils.printflush(f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
     Utils.hbar(60)
+    if arg_outFile != None:
 
-    Utils.printOut(arg_outFile,'_'*60)
-    Utils.printOut(arg_outFile,f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
-    Utils.printOut(arg_outFile,f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
-    Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,'_'*60)
+        Utils.printOut(arg_outFile,f"{'Total Entropy FF (UA level)':<25} : {totalUAEntropyFF:>15.3f} J/mol/K")
+        Utils.printOut(arg_outFile,f"{'Total Entropy TT (UA level)':<25} : {totalUAEntropyTT:>15.3f} J/mol/K")
+        Utils.printOut(arg_outFile,'-'*60)
     
+    if arg_csv_out != None:
+        result_df.to_csv(arg_csv_out, index=False)
+        
     return (totalUAEntropyFF, totalUAEntropyTT)
 #END
 
