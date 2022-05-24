@@ -195,13 +195,14 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
     # reset weighted vectors for each bead and
     for iBead in wholeMoleculeSystem.listOfBeads:
         iBead.reset_totalWeightedVectors( (numFrames, 3) )
+        iBead.position = iBead.get_center_of_mass_lab(arg_frame = 0)
 
     # reseting all the F-T combo matrices to zero
     wholeMoleculeSystem.reinitialize_matrices()
 
-    # and assign a representative position
-    for iBead in wholeMoleculeSystem.listOfBeads:
-        iBead.position = iBead.get_center_of_mass_lab(arg_frame = 0)
+    # # and assign a representative position
+    # for iBead in wholeMoleculeSystem.listOfBeads:
+    #     iBead.position = iBead.get_center_of_mass_lab(arg_frame = 0)
 
     # setup translational and rotational axes
     Utils.printflush("Assigning Translation and Rotation Axes @ whole molecule level->", end = ' ' )
@@ -397,14 +398,14 @@ def compute_entropy_residue_level(arg_hostDataContainer,
                                 arg_fScale = 1.0,
                                 arg_tScale = 1.0,
                                 arg_temper = 300.0,
+                                arg_axis_list = ['C', 'CA', 'N'],
                                 arg_verbose = 3):
-
     """Computes the entropy calculations at the residue level
     where each residue is treated as a separate bead.
     Determining translation and rotation axes is part of the 
     function. A common translation axes are used for all residues
     which is the principal axes of the whole molecule. The rotation
-    axes are specific to each residue, in that it is the C-Ca-N axes. 
+    axes are specific to each residue, which can be specified. 
 
     Args:
         arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
@@ -415,6 +416,7 @@ def compute_entropy_residue_level(arg_hostDataContainer,
         arg_fScale (float, optional): Force scale. Defaults to 1.0.
         arg_tScale (float, optional): Torque scale. Defaults to 1.0.
         arg_temper (float, optional): temperature in K. Defaults to 300.0.
+        arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
         arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
 
     Returns:
@@ -422,6 +424,7 @@ def compute_entropy_residue_level(arg_hostDataContainer,
             entropyFF (float): Residue level FF Entropy in J/mol/K
             entropyTT (float): Residue level TT Entropy in J/mol/K
     """
+
 
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Hierarchy level. --> Residues <--"))
@@ -451,8 +454,8 @@ def compute_entropy_residue_level(arg_hostDataContainer,
         resLabel = "{}{}".format(iResname, iResid)
         Utils.printflush(resLabel)
         resSel = allSel.select_atoms(f"resid {iResid}")
-        caSel = resSel.select_atoms(f"name CA")
-        caIdx = caSel.indices[0]
+        # caSel = resSel.select_atoms(f"name CA")
+        # caIdx = caSel.indices[0]
 
         newBead = BC.Bead(arg_atomList = resSel.indices, \
                        arg_numFrames = numFrames, \
@@ -461,7 +464,7 @@ def compute_entropy_residue_level(arg_hostDataContainer,
                         arg_beadResi = iResid,\
                         arg_beadResn = iResname,\
                         arg_beadChid = "X" )
-        newBead.position = arg_hostDataContainer._labCoords[0,caIdx]
+        # newBead.position = arg_hostDataContainer._labCoords[0,caIdx]
         residueSystem.listOfBeads.append(newBead)
 
     Utils.printflush(f"Total number of beads at the residue level = {len(residueSystem.listOfBeads)}")
@@ -469,6 +472,7 @@ def compute_entropy_residue_level(arg_hostDataContainer,
     # reset weighted vectors for each bead
     for iBead in residueSystem.listOfBeads:
         iBead.reset_totalWeightedVectors( (numFrames,3) )
+        iBead.position = iBead.get_center_of_mass_lab(arg_frame = 0)
 
     # reseting all the F-T combo matrices to zero
     residueSystem.reinitialize_matrices()
@@ -500,19 +504,19 @@ def compute_entropy_residue_level(arg_hostDataContainer,
         iResid = arg_hostDataContainer.universe.residues.resids[resindices]
         iResSel = allSel.select_atoms(f"resid {iResid}")
         # Here you are selecting one atom so if you slice an array the shape will missmatch
-        cIdx = iResSel.select_atoms(f"name C").indices[0]
-        caIdx = iResSel.select_atoms(f"name CA").indices[0]
-        nIdx = iResSel.select_atoms(f"name N").indices[0]
+        a1Idx = iResSel.select_atoms(f"name {arg_axis_list[0]}").indices[0]
+        a2Idx = iResSel.select_atoms(f"name {arg_axis_list[1]}").indices[0]
+        a3Idx = iResSel.select_atoms(f"name {arg_axis_list[2]}").indices[0]
         atoms_in_rid = iResSel.indices
 
         for iFrame in range(numFrames):
-            cPosition = arg_hostDataContainer._labCoords[iFrame,cIdx]
-            nPosition = arg_hostDataContainer._labCoords[iFrame,nIdx]
-            caPosition = arg_hostDataContainer._labCoords[iFrame,caIdx]
+            a1Position = arg_hostDataContainer._labCoords[iFrame,a1Idx]
+            a2Position = arg_hostDataContainer._labCoords[iFrame,a2Idx]
+            a3Position = arg_hostDataContainer._labCoords[iFrame,a3Idx]
 
-            ridAxes, ridOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = cPosition, \
-                arg_coord2 = nPosition, \
-                arg_coord3 = caPosition)
+            ridAxes, ridOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = a1Position, \
+                arg_coord2 = a2Position, \
+                arg_coord3 = a3Position)
 
             arg_hostDataContainer.update_rotationAxesArray_at(arg_frame = iFrame, \
                 arg_atomList = atoms_in_rid, \
@@ -702,7 +706,20 @@ def compute_entropy_residue_level(arg_hostDataContainer,
 #END
 
 
-def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray, arg_fScale, arg_tScale, arg_temper,  arg_outFile, arg_selector, arg_verbose, arg_moutFile, arg_nmdFile,resindices):
+def UA_residue_protein(allSel, 
+                        arg_hostDataContainer, 
+                        numFrames, 
+                        heavyAtomArray, 
+                        arg_fScale, 
+                        arg_tScale, 
+                        arg_temper,  
+                        arg_outFile, 
+                        arg_selector, 
+                        arg_verbose, 
+                        arg_moutFile, 
+                        arg_nmdFile,
+                        arg_axis_list,  
+                        resindices):
     """
     Support function for calculating UA level entropy for each residue. This function is to break down work into a function for parallel processing
     Args:
@@ -723,9 +740,9 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
 
     # add UA beads to it (a heavy atom and its bonded hydrogens make a bead)
     resSel = allSel.select_atoms(f"resid {iResid}")
-    cIdx = resSel.select_atoms(f"name C").indices[0]
-    nIdx = resSel.select_atoms(f"name N").indices[0]
-    caIdx = resSel.select_atoms(f"name CA").indices[0]
+    a1Idx = resSel.select_atoms(f"name {arg_axis_list[0]}").indices[0]
+    a2Idx = resSel.select_atoms(f"name {arg_axis_list[1]}").indices[0]
+    a3Idx = resSel.select_atoms(f"name {arg_axis_list[2]}").indices[0]
 
     resHeavySel = resSel.select_atoms(f"not name H*")
 
@@ -764,13 +781,13 @@ def UA_residue_protein(allSel, arg_hostDataContainer, numFrames, heavyAtomArray,
     # Translation axes : each atom is in the c-ca-n axes of its host residue
     # Utils.printflush("Assigning Translation Axes at the UA level->", end = ' ')
     for iFrame in range(numFrames):
-        cPosition = arg_hostDataContainer._labCoords[iFrame,cIdx]
-        nPosition = arg_hostDataContainer._labCoords[iFrame,nIdx]
-        caPosition = arg_hostDataContainer._labCoords[iFrame,caIdx]
+        a1Position = arg_hostDataContainer._labCoords[iFrame,a1Idx]
+        a2Position = arg_hostDataContainer._labCoords[iFrame,a2Idx]
+        a3Position = arg_hostDataContainer._labCoords[iFrame,a3Idx]
 
-        tAxes, tOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = cPosition, \
-            arg_coord2 = nPosition, \
-            arg_coord3 = caPosition)
+        tAxes, tOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = a1Position, \
+            arg_coord2 = a2Position, \
+            arg_coord3 = a3Position)
         arg_hostDataContainer.update_translationAxesArray_at(iFrame, resSel.indices, tAxes, tOrigin)
         
     # Utils.printflush('Done')
@@ -1014,6 +1031,7 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
                             arg_temper = 300.0,
                             arg_verbose = 3,
                             arg_csv_out = None,
+                            arg_axis_list = ['C', 'CA', 'N'],
                             arg_thread = 4):
     """ 
     !! This uses multiprocess to spread workload across cores to speed up calculation.
@@ -1039,6 +1057,7 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
         arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
         arg_csv_out (str, optional): print entropy of each residue as sorted dataframe if path to a csv out file is not None. Defaults to None.
         arg_thread (int, optional): number of process to spawn for parallarization.
+        arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
     Returns:
         tuple of floats:
             entropyFF (float): United atom level FF Entropy in J/mol/K
@@ -1077,7 +1096,7 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
     heavyAtomArray = allSel.select_atoms("not name H*").indices
     
     pool = mp.Pool(arg_thread)
-    f = partial(UA_residue_protein, allSel, arg_hostDataContainer, numFrames, heavyAtomArray, arg_fScale, arg_tScale, arg_temper,  arg_outFile, arg_selector, arg_verbose, arg_moutFile, arg_nmdFile)
+    f = partial(UA_residue_protein, allSel, arg_hostDataContainer, numFrames, heavyAtomArray, arg_fScale, arg_tScale, arg_temper,  arg_outFile, arg_selector, arg_verbose, arg_moutFile, arg_nmdFile, arg_axis_list)
     items = allSel.residues.resindices
     result = pool.map(f, items)
     pool.close()
@@ -1113,6 +1132,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
                             arg_tScale = 1.0,
                             arg_temper = 300.0,
                             arg_csv_out = None,
+                            arg_axis_list = ['C', 'CA', 'N'],
                             arg_verbose = 3):
     """ 
     Computes the entropy calculations at the united atom (UA) level. 
@@ -1133,6 +1153,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
         arg_tScale (float, optional): Torque scale. Defaults to 1.0.
         arg_temper (float, optional): temperature in K. Defaults to 300.0.
         arg_csv_out (str, optional): print entropy of each residue as sorted dataframe if path to a csv out file is not None. Defaults to None.
+        arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
         arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
 
     Returns:
@@ -1184,9 +1205,9 @@ def compute_entropy_UA_level(arg_hostDataContainer,
 
         # add UA beads to it (a heavy atom and its bonded hydrogens make a bead)
         resSel = allSel.select_atoms(f"resid {iResid}")
-        cIdx = resSel.select_atoms(f"name C").indices[0]
-        nIdx = resSel.select_atoms(f"name N").indices[0]
-        caIdx = resSel.select_atoms(f"name CA").indices[0]
+        a1Idx = resSel.select_atoms(f"name {arg_axis_list[0]}").indices[0]
+        a2Idx = resSel.select_atoms(f"name {arg_axis_list[1]}").indices[0]
+        a3Idx = resSel.select_atoms(f"name {arg_axis_list[2]}").indices[0]
 
         resHeavySel = resSel.select_atoms(f"not name H*")
 
@@ -1225,13 +1246,13 @@ def compute_entropy_UA_level(arg_hostDataContainer,
         # Translation axes : each atom is in the c-ca-n axes of its host residue
         Utils.printflush("Assigning Translation Axes at the UA level->", end = ' ')
         for iFrame in range(numFrames):
-            cPosition = arg_hostDataContainer._labCoords[iFrame,cIdx]
-            nPosition = arg_hostDataContainer._labCoords[iFrame,nIdx]
-            caPosition = arg_hostDataContainer._labCoords[iFrame,caIdx]
+            a1Position = arg_hostDataContainer._labCoords[iFrame,a1Idx]
+            a2Position = arg_hostDataContainer._labCoords[iFrame,a2Idx]
+            a3Position = arg_hostDataContainer._labCoords[iFrame,a3Idx]
 
-            tAxes, tOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = cPosition, \
-                arg_coord2 = nPosition, \
-                arg_coord3 = caPosition)
+            tAxes, tOrigin = GF.generate_orthonormal_axes_system(arg_coord1 = a1Position, \
+                arg_coord2 = a2Position, \
+                arg_coord3 = a3Position)
             arg_hostDataContainer.update_translationAxesArray_at(iFrame, resSel.indices, tAxes, tOrigin)
             
         Utils.printflush('Done')
