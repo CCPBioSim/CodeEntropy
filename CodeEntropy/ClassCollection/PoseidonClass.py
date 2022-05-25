@@ -218,7 +218,7 @@ class Poseidon():
             level_list=['moleculeLevel'], 
             solvent=None, water='WAT',
             verbose=False, weighting=None, 
-            forceUnits='kcal'):
+            forceUnits='kJ'):
         """Perform analysis using poseidon
 
         Args:
@@ -229,7 +229,7 @@ class Poseidon():
             water (str, optional): Resname for water. Defaults to 'WAT'.
             verbose (bool, optional): Print out progress of each step. Defaults to False.
             weighting (None, optional): get weighing for each frame if the simulation is biased . Defaults to None. !! It is hard coded to None in the code anyway
-            forceUnits (str, optional): Units of forces, kJ or Kcal. Defaults to 'kcal'.
+            forceUnits (str, optional): Units of forces, kJ or Kcal. Defaults to 'kJ' as MDAnalysis use kJ.
         Returns:
             Tuple of DataFrame:
                 solventData: dataframe that contains the result for solvent

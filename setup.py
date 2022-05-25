@@ -68,4 +68,6 @@ setup(
         'mdanalysis',
         'pandas'
     ],
+
+    scripts=['scripts/CodeEntropyPoseidon']
 )
