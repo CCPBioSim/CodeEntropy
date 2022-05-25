@@ -258,8 +258,9 @@ elif len(fileTuple) == 2:
 	u = mda.Universe(tprfile, trrfile)
 
 results_df = pd.DataFrame(columns=['Method and Level','Type', 'result'])
+
 reduced_frame = MDAHelper.new_U_select_frame(u,  start, end, step)
-reduced_frame_name = f"{(len(reduced_frame.trajectory))//step}_frame_dump"
+reduced_frame_name = f"{(len(reduced_frame.trajectory))}_frame_dump"
 reduced_frame_filename = MDAHelper.write_universe(reduced_frame, reduced_frame_name)
 reduced_atom = MDAHelper.new_U_select_atom(reduced_frame, selection_string)
 reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_strip_solvent"
