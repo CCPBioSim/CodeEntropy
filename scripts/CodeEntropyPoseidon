@@ -1,5 +1,6 @@
 #! /usr/share/python
 import argparse
+from typing_extensions import Required
 import MDAnalysis as mda
 from CodeEntropy.FunctionCollection import EntropyFunctions as EF
 from CodeEntropy.ClassCollection import DataContainer as DC
@@ -26,18 +27,17 @@ try:
 	
 	group = parser.add_mutually_exclusive_group(required=True)
 	group.add_argument('-f', '--top_traj_file',
-						dest="fileTuple",
+						dest="filePath",
 						action='store',
 						nargs=2,
 						default=None,
-						help="Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file (AMBER NETCDF or GROMACS TRR)")
+						help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with picklePath")
 	group.add_argument('-i', '--pickle',
 						dest="picklePath",
 						action='store',
-						nargs=2,
 						type=str,
 						default=None,
-						help="Pickled MDAnalyiss.Universe")
+						help="Pickled MDAnalyiss.Universe for unsupported format Required but Mutually exclusive with fileTuple")
 	# parser.add_argument('topology_file',
 	# 					action="store", 
 	# 					type=str,
@@ -48,27 +48,27 @@ try:
 	# 					help="Trajectory file (AMBER NETCDF or GROMACS TRR)")
 	parser.add_argument('-l', '--selectString', 
 						action='store',
-						dest="selectionString", 
-						default='all', 
+						dest="selectionString",  
 						type=str,
-						help='Selection string for protein or system of interest, refer to MDAnalysis.select_atoms for more information.')
+						required=True,
+						help='Selection string for CodeEntropy such as protein or resid, refer to MDAnalysis.select_atoms for more information.')
 	parser.add_argument('-b', '--begin', 
 						action="store", 
 						dest="start", 
 						help="Start analysing the trajectory from this frame index.", 
-						default=0, 
+						required=True, 
 						type= int)
 	parser.add_argument('-e', '--end', 
 						action="store", 
 						dest="end", 
 						help="Stop analysing the trajectory from this frame index.", 
-						default=-1, 
+						required=True,
 						type=int)
 	parser.add_argument('-d', '--step', 
 						action="store", 
 						dest="step", 
 						help="interval between two consecutive frames to be read index.", 
-						default=1, 
+						required=True,
 						type=int)
 	parser.add_argument('-k', '--tempra', 
 						action="store", 
@@ -148,13 +148,13 @@ try:
 						default=None, 
 						help='exclude a list of molecule names from nearest non-like analysis. Default: None. Multiples are gathered into list.')
 	parser.add_argument('-w', '--water',
-						dest = "waterTuple",
+						dest = "waterResnames",
 						action='store', 
 						default='WAT',
 						nargs='+', 
 						help='resname for water molecules. Default: WAT. Multiples are gathered into list.')
 	parser.add_argument('-s', '--solvent',
-						dest="solventTuple", 
+						dest="solventResnames", 
 						action='store', 
 						nargs='+',
 						default=None, 
@@ -217,7 +217,7 @@ for arg in vars(args):
     print(' {} {}'.format(arg, getattr(args, arg) or ''))
 
 startTime = datetime.now()
-fileTuple = args.fileTuple
+filePath = args.filePath
 picklePath = args.picklePath
 
 outfile = args.outFile
@@ -246,15 +246,15 @@ doSolContact = args.doSolContact
 cutShell = args.cutShell
 puteAtomNum = args.puteAtomNum
 excludedResnanes = args.excludedResnanes
-waterTuple = args.waterTuple
-solventTuple = args.solventTuple
+waterResnames = args.waterResnames
+solventResnames = args.solventResnames
 
 
 if picklePath != None:
 	u = MDAHelper.read_universe(picklePath)
-elif len(fileTuple) == 2:
-	tprfile = args.fileTuple[0]
-	trrfile = args.fileTuple[1]
+elif len(filePath) == 2:
+	tprfile = args.filePath[0]
+	trrfile = args.filePath[1]
 	u = mda.Universe(tprfile, trrfile)
 
 results_df = pd.DataFrame(columns=['Method and Level','Type', 'result'])
@@ -473,15 +473,15 @@ if len(level_list) > 0:
 		step=step,
 		pureAtomNum=puteAtomNum,
 		cutShell=cutShell,
-		water=waterTuple, 
+		water=waterResnames, 
 		excludedResnames=excludedResnanes,
 		verbose=True
 	)
 	poseidon_object.run_analysis(
 		temperature=temper,
 		level_list=level_list,
-		solvent=solventTuple,
-		water=waterTuple, 
+		solvent=solventResnames,
+		water=waterResnames, 
 		verbose=True,
 		weighting = None,
 		#forceUnits = "kJ"
