@@ -1476,6 +1476,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
                                     , ridTotalEntropyFF\
                                     , ridTotalEntropyTT))
         Utils.printflush("\n\n")
+        result.append([iResname, iResid, ridTotalEntropyFF, ridTotalEntropyTT])
         
         totalUAEntropyFF += ridTotalEntropyFF
         totalUAEntropyTT += ridTotalEntropyTT

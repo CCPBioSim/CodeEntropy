@@ -24,7 +24,7 @@ class Poseidon():
     Container to host data from MDAnalysis.Universe and run Poseidon Analysis
     """
 
-    def __init__(self ,container, start, end, 
+    def __init__(self ,container, start=0, end=-1, 
         step=1, pureAtomNum=1, cutShell=None, 
         excludedResnames=None,
         water='WAT', verbose=False):
@@ -35,8 +35,8 @@ class Poseidon():
 
         Args:
             container (MDAnalysis.Universe): A MDAnalysis object with coordinates, forces and energy (loaded to velocity field with the value [Potential Energy(index 0), Kinetic Energy(1) and dummy(2)] respectively)
-            start (int): Starting Frame ID
-            end (int): Ending Frame ID, this frame is not included
+            start (int): Starting Frame ID. Defaults to 0.
+            end (int): Ending Frame ID, this frame is not included. Defaults to -1.
             step (int, optional): Steps between frame. Defaults to 1.
             pureAtomNum (int, optional): Reference molecule resid for pure liquid. Defaults to 1.
             cutShell (float, optional): Explicit cut off shell (might be buggy since part of it is not defined). Default to None which uses the relative angular distance (RAD) algorithm. See Jonathan Higham and Richard H. Henchman , "Locally adaptive method to define coordination shell", J. Chem. Phys. 145, 084108 (2016)
@@ -72,7 +72,6 @@ class Poseidon():
         
 
         dimensions = None
-        start = int(start)-1
         allMoleculeList = []
 
         for frame in range(int(start), int(end), int(step)):

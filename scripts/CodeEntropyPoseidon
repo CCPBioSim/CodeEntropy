@@ -260,12 +260,19 @@ elif len(fileTuple) == 2:
 results_df = pd.DataFrame(columns=['Method and Level','Type', 'result'])
 
 reduced_frame = MDAHelper.new_U_select_frame(u,  start, end, step)
+
 reduced_frame_name = f"{(len(reduced_frame.trajectory))}_frame_dump"
+
 reduced_frame_filename = MDAHelper.write_universe(reduced_frame, reduced_frame_name)
+
 reduced_atom = MDAHelper.new_U_select_atom(reduced_frame, selection_string)
+
 reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_strip_solvent"
+
 reduced_atom_filename = MDAHelper.write_universe(reduced_atom, reduced_atom_name)
+
 dataContainer = DC.DataContainer(reduced_atom)
+
 if doMolEntropy:
 	wm_entropyFF, wm_entropyTT = EF.compute_entropy_whole_molecule_level(
 		arg_hostDataContainer = dataContainer,
@@ -453,16 +460,17 @@ if doSolMolEntropy:
 if doSolResEntropy:
 	level_list.append('residLevel_resname')
 if doSolUAEntropy:
-	level_list.append('moleculeLevel')
+	level_list.append('atomLevel')
 if doSolContact:
-	level_list.append('moleculeLevel')	
+	level_list.append('soluteContact')	
 
 if len(level_list) > 0:
 	#none because the frame is already striped
 	poseidon_object = Poseidon(
-		container=reduced_frame, 
-		start=None, 
-		end=None,
+		container=u, 
+		start=start, 
+		end=end,
+		step=step,
 		pureAtomNum=puteAtomNum,
 		cutShell=cutShell,
 		water=waterTuple, 
