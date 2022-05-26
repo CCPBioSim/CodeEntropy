@@ -29,9 +29,9 @@ try:
 	group.add_argument('-f', '--top_traj_file',
 						dest="filePath",
 						action='store',
-						nargs=2,
+						nargs='+',
 						default=None,
-						help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with picklePath")
+						help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with picklePath")
 	group.add_argument('-i', '--pickle',
 						dest="picklePath",
 						action='store',
@@ -61,7 +61,7 @@ try:
 	parser.add_argument('-e', '--end', 
 						action="store", 
 						dest="end", 
-						help="Stop analysing the trajectory from this frame index. Defaults to -1 (eitire frame)", 
+						help="Stop analysing the trajectory from this frame index. Defaults to -1 (all frame)", 
 						default=-1,
 						type=int)
 	parser.add_argument('-d', '--step', 
@@ -254,7 +254,7 @@ if picklePath != None:
 	u = MDAHelper.read_universe(picklePath)
 elif len(filePath) == 2:
 	tprfile = args.filePath[0]
-	trrfile = args.filePath[1]
+	trrfile = args.filePath[1:]
 	u = mda.Universe(tprfile, trrfile)
 
 results_df = pd.DataFrame(columns=['Method and Level','Type', 'result'])
