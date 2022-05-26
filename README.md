@@ -19,14 +19,14 @@ pip install .
 ```
 
 ### Command-line tools
-For help
-'''
+#### For help
+```
 CodeEntropyPoseidon -h
-'''
-Example 
-'''
+```
+#### Example 
+```
 CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 1 --solwm --solres --soluatom
-'''
+```
 
 ## Examples
 See `Example` folder
