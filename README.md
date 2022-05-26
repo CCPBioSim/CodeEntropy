@@ -18,6 +18,16 @@ CodeEntropy tool with POSEIDON code integrated to form a complete and generally 
 pip install .
 ```
 
+### Command-line tools
+For help
+'''
+CodeEntropyPoseidon -h
+'''
+Example 
+'''
+CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 1 --solwm --solres --soluatom
+'''
+
 ## Examples
 See `Example` folder
 You can add your own trajectories by editing the path in the python script to point to your own trajectories
