@@ -73,12 +73,18 @@ class Poseidon():
 
         dimensions = None
         allMoleculeList = []
+        
+        #fix end frame
+        if end == -1:
+            end = len(container.trajectory)
 
         for frame in range(int(start), int(end), int(step)):
 
             iterations += 1
 
             clearClass(all_data)
+
+            print(f"frame = {frame}")
 
             all_data, dimensions = getCoordsForces(container, 
                     all_data, dimensions, frame, startTime, 
