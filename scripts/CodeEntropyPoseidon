@@ -31,13 +31,13 @@ try:
 						action='store',
 						nargs='+',
 						default=None,
-						help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with picklePath")
+						help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with pickle----pickle")
 	group.add_argument('-i', '--pickle',
 						dest="picklePath",
 						action='store',
 						type=str,
 						default=None,
-						help="Pickled MDAnalyiss.Universe for unsupported format Required but Mutually exclusive with fileTuple")
+						help="Pickled MDAnalyiss.Universe for unsupported format Required but Mutually exclusive with --top_traj_file")
 	# parser.add_argument('topology_file',
 	# 					action="store", 
 	# 					type=str,
@@ -61,7 +61,7 @@ try:
 	parser.add_argument('-e', '--end', 
 						action="store", 
 						dest="end", 
-						help="Stop analysing the trajectory from this frame index. Defaults to -1 (all frame)", 
+						help="Stop analysing the trajectory at this frame index. Defaults to -1 (end of trajectory file)", 
 						default=-1,
 						type=int)
 	parser.add_argument('-d', '--step', 
@@ -73,7 +73,7 @@ try:
 	parser.add_argument('-k', '--tempra', 
 						action="store", 
 						dest="temp", 
-						help="Temperature for entropy calculation (K)", 
+						help="Temperature for entropy calculation (K). Default to 298.0 K", 
 						default=298.0, 
 						type=float)
 	parser.add_argument('-t', '--thread', 
@@ -138,9 +138,9 @@ try:
 	parser.add_argument('-p', '--pureAtomNum', 
 						action='store',
 						dest="puteAtomNum", 
-						default='1', 
-						type=str,
-						help='reference molecule resid for pure liquid')
+						default=1, 
+						type=int,
+						help='Reference molecule resid for system of pure liquid. Default to 1')
 	parser.add_argument('-x', '--excludedResnames', 
 						dest="excludedResnanes",
 						action='store', 
@@ -178,23 +178,23 @@ try:
 						action="store",
 						dest  = "topogEntropyMethod",
 						type = int,
-						default = "0",
+						default = 0,
 						help = "Compute the topographical entropy using\n 1 : pLogP method \n 2: Corr. pLogP method \n 3: Corr. density function \n 4: Phi Coeff method \n 5: Corr. pLogP after adaptive enumeration of states. Default: 0 = no topographical analysis")
 	parser.add_argument("--solwm",
 						action="store_true",
 						dest  ="doSolMolEntropy",
 						default=False,
-						help  ="Do water entropy calculation at whole molecule level (The whole molecule is treated as one single bead.)")
+						help  ="Do solution entropy calculation at whole molecule level (The whole molecule is treated as one single bead.)")
 	parser.add_argument("--solres",
 						action="store_true",
 						dest  ="doSolResEntropy",
 						default=False,
-						help  ="Do water entropy calculation at residue level (A residue as a whole represents a bead.)")
+						help  ="Do solution entropy calculation at residue level (A residue as a whole represents a bead.)")
 	parser.add_argument("--soluatom",
 						action="store_true",
 						dest  ="doSolUAEntropy",
 						default=False,
-						help  ="Do water entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.)")
+						help  ="Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.)")
 	parser.add_argument("--solContact",
 						action="store_true",
 						dest  ="doSolContact",
