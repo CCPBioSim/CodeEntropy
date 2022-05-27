@@ -50,7 +50,7 @@ try:
 						action='store',
 						dest="selectionString",  
 						type=str,
-						required=True,
+						default='all',
 						help='Selection string for CodeEntropy such as protein or resid, refer to MDAnalysis.select_atoms for more information.')
 	parser.add_argument('-b', '--begin', 
 						action="store", 
