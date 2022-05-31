@@ -337,7 +337,7 @@ class Poseidon():
         #and output to files
         
         print('\n2. Process Dictionaries')
-
+        result_list = dict()
         print(level_list)
         for level in level_list:
 
@@ -359,8 +359,7 @@ class Poseidon():
                 result = processEE(num_frames, totFrames, EEclass2, 
                         solvent, waterTuple, 
                         temperature, level, name, forceUnits, verbosePrint)
-
-
+                result_list[level] = result
         # #'''
         # ##Save each class as an object so that we can continue populating
         # #in stages.
@@ -383,4 +382,4 @@ class Poseidon():
         sys.stdout.flush()
         print('\n')
         print(datetime.now() - startTime)
-        return result
+        return result_list
