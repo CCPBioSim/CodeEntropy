@@ -1501,7 +1501,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
     return (totalUAEntropyFF, totalUAEntropyTT)
 #END
 
-def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
+def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
     Every SC dihedral from every residue will be scanned. 
     Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
@@ -1521,10 +1521,10 @@ def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_ou
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \n computed using all the dihedrals with pLogp formalism"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \n computed using all the dihedrals with pLogp formalism"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \n computed using all the dihedrals with pLogp formalism"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
@@ -1626,13 +1626,14 @@ def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_ou
             ridTopogEntropy += sEntity
 
             Utils.printflush('Dihedral {:<5d}{:<5d}{:<5d}{:<5d} : {:.4f}'.format(iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, sEntity))
-            Utils.printOut(arg_outFile, 'Dihedral {:<5d}{:<5d}{:<5d}{:<5d} : {:.4f}'.format(iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, sEntity))
+            if arg_outFile != None:
+                Utils.printOut(arg_outFile, 'Dihedral {:<5d}{:<5d}{:<5d}{:<5d} : {:.4f}'.format(iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, sEntity))
 
 
         # Final residue SC information    
         Utils.printflush('{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
-
-        Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
         # add this residue's SC entropy to the total SC entropy
         totalTopogEntropySC += ridTopogEntropy 
@@ -1641,15 +1642,15 @@ def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector,arg_ou
     Utils.hbar(60)
     Utils.printflush('{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy ', totalTopogEntropySC))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile, '_'*60)
-    Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy ', totalTopogEntropySC))
-    Utils.printOut(arg_outFile, '-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, '_'*60)
+        Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy ', totalTopogEntropySC))
+        Utils.printOut(arg_outFile, '-'*60)
 
     return totalTopogEntropySC
 #END
 
-def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
+def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """ A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
     Every BB dihedral from the protein will be scanned. 
     Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
@@ -1668,10 +1669,10 @@ def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_o
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of BB dihedrals \n computed using the pLogp formalism"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of BB dihedrals \n computed using the pLogp formalism"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of BB dihedrals \n computed using the pLogp formalism"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
@@ -1756,7 +1757,8 @@ def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_o
         sEntity *= -CONST.GAS_CONST #(R)
 
         Utils.printflush('Dihedral {:<5d}{:<5d}{:<5d}{:<5d} : {:.4f} ({:>5d})'.format(iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, sEntity, iEntity.isSameRes))
-        Utils.printOut(arg_outFile, 'Dihedral {:<5d}{:<5d}{:<5d}{:<5d} : {:.4f} ({:>5d})'.format(iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, sEntity, iEntity.isSameRes))
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, 'Dihedral {:<5d}{:<5d}{:<5d}{:<5d} : {:.4f} ({:>5d})'.format(iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, sEntity, iEntity.isSameRes))
 
         # add entropy of this entity to the residue's SC topographical entropy
         totalTopogEntropyBB += sEntity
@@ -1766,15 +1768,15 @@ def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector, arg_o
     Utils.hbar(60)
     Utils.printflush('{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy ', totalTopogEntropyBB))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile, '_'*60)
-    Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy ', totalTopogEntropyBB))
-    Utils.printOut(arg_outFile, '-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, '_'*60)
+        Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy ', totalTopogEntropyBB))
+        Utils.printOut(arg_outFile, '-'*60)
 
     return totalTopogEntropyBB
 #END
 
-def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
+def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """ A function that computes the entropy over the states acquired by the a residue in terms of the states acquired by 
     its dihedrals by also accounting for their correlated motions. A residue is depicted as a vector of length N_d where N_d 
     is the number of dihedrals. Each dihedral is represented using an integer which is a decimal equivalent of its state of some order Q
@@ -1792,10 +1794,10 @@ def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_ou
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with correlation/pLogp formalism"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with correlation/pLogp formalism"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with correlation/pLogp formalism"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
@@ -1889,8 +1891,8 @@ def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_ou
 
         # Final residue SC information    
         Utils.printflush('{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
-
-        Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Side Chain Topographical Entropy from corr. pLogP method ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
         # add this residue's SC entropy to the total SC entropy
         totalTopogEntropySC += ridTopogEntropy
@@ -1899,15 +1901,15 @@ def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector,arg_ou
     Utils.hbar(60)
     Utils.printflush('{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy (corr. pLogP) ', totalTopogEntropySC))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile, '_'*60)
-    Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy (corr. pLogP)', totalTopogEntropySC))
-    Utils.printOut(arg_outFile, '-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, '_'*60)
+        Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total SC Topog. Entropy (corr. pLogP)', totalTopogEntropySC))
+        Utils.printOut(arg_outFile, '-'*60)
 
     return totalTopogEntropySC
 #END
 
-def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
+def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """ 
     A function that computes the entropy over the states acquired 
     collectively by the heavy BB dihedrals in a protein
@@ -1934,10 +1936,10 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_ou
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of BB dihedrals \ncomputed using the correlated-pLogp formalism"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of BB dihedrals \ncomputed using the correlated-pLogp formalism"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of BB dihedrals \ncomputed using the correlated-pLogp formalism"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
@@ -2016,15 +2018,15 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector,arg_ou
     Utils.hbar(60)
     Utils.printflush('{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy (corr. pLogP) ', totalTopogEntropyBB))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile, '_'*60)
-    Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy (corr. pLogP) ', totalTopogEntropyBB))
-    Utils.printOut(arg_outFile, '-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, '_'*60)
+        Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total BB Topog. Entropy (corr. pLogP) ', totalTopogEntropyBB))
+        Utils.printOut(arg_outFile, '-'*60)
 
     return totalTopogEntropyBB
 #END
 
-def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,arg_outFile, arg_verbose):
+def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """
     !!! Work in progress
     Function that computes the topographical entropy using Method 4, Phi Coeff
@@ -2041,10 +2043,10 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,ar
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
@@ -2144,7 +2146,8 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,ar
         #-------------------------------------------------------------------------------------
         # initialize
         occuMatrix = -1000 * nmp.ones((numDiheds*vecOrder, numDiheds*vecOrder))
-        Utils.printOut(arg_outFile, "Occupancy matrix for Residue {}".format(arg_hostDataContainer.universe.residues.resnames[resindices]))
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, "Occupancy matrix for Residue {}".format(arg_hostDataContainer.universe.residues.resnames[resindices]))
 
         # populate
         for i in range(0,numDiheds):
@@ -2188,7 +2191,8 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,ar
 
         # is the occupancy matrix symmetric-positive definite? (are all the eigen values positive?)
         for iLm, lm in enumerate(lambdasPhi):
-            Utils.printOut(arg_outFile, "Eigen value {} = {}".format(iLm, lm))
+            if arg_outFile != None:
+                Utils.printOut(arg_outFile, "Eigen value {} = {}".format(iLm, lm))
 
         # compute residue topog. entropy from the eigen values using the `lm.log(lm)` formalism
         ridTopogEntropy4 = 0
@@ -2200,9 +2204,9 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,ar
         # Final residue entropy information    
         Utils.printflush('{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
         Utils.hbar(60)
-
-        Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
-        Utils.printOut(arg_outFile, '-'*60)
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
+            Utils.printOut(arg_outFile, '-'*60)
 
         # add this residue's topog. entropy to the total topog. entropy
         totalTopogEntropy4 += ridTopogEntropy4
@@ -2211,14 +2215,14 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector,ar
     if arg_verbose >= 0:
         Utils.printflush('{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
         Utils.hbar(60)
-
-    Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
-    Utils.printOut(arg_outFile, '-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
+        Utils.printOut(arg_outFile, '-'*60)
         
     return totalTopogEntropy4
 #END
 
-def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
+def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """
     Compute entropy by Adaptive Enumeration Method (AEM).
     This method deals with each dihedral in a conformational entity on an individual basis. After that it coalesces
@@ -2236,10 +2240,10 @@ def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_o
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with AEM method"))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile,'-'*60)
-    Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with AEM method"))
-    Utils.printOut(arg_outFile,'-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile,'-'*60)
+        Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with AEM method"))
+        Utils.printOut(arg_outFile,'-'*60)
 
     allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
@@ -2315,8 +2319,8 @@ def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_o
 
         # Final residue SC information    
         Utils.printflush('{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
-
-        Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Residue Topographical Entropy from AEM ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy))
 
         # add this residue's SC entropy to the total SC entropy
         totalTopogEntropySC += ridTopogEntropy
@@ -2325,16 +2329,16 @@ def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector, arg_o
     Utils.hbar(60)
     Utils.printflush('{:<40} : {:>15.3f}'.format('Total Topog. Entropy (AEM) ', totalTopogEntropySC))
     Utils.hbar(60)
-
-    Utils.printOut(arg_outFile, '_'*60)
-    Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total Topog. Entropy (AEM)', totalTopogEntropySC))
-    Utils.printOut(arg_outFile, '-'*60)
+    if arg_outFile != None:
+        Utils.printOut(arg_outFile, '_'*60)
+        Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Total Topog. Entropy (AEM)', totalTopogEntropySC))
+        Utils.printOut(arg_outFile, '-'*60)
 
     return totalTopogEntropySC
 #END
 
 
-def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector, arg_outFile, arg_verbose):
+def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """
     Function that computes the topographical entropy using Method 3, Corr. density function
     Args:
@@ -2415,10 +2419,12 @@ def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector, a
 
         for j in range(i, numDiheds):
             jEntity = conformationEntityList[j]
-            Utils.printflush('.',end='')
+            if arg_outFile != None:
 
-            Utils.printOut(arg_outFile, 'Dihedral {}: ({} {} {} {}) and Dihedral {}: ({} {} {} {})'.format(i, iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, \
-                j, jEntity.atom1, jEntity.atom2, jEntity.atom3, jEntity.atom4))
+                Utils.printflush('.',end='')
+
+                Utils.printOut(arg_outFile, 'Dihedral {}: ({} {} {} {}) and Dihedral {}: ({} {} {} {})'.format(i, iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, \
+                    j, jEntity.atom1, jEntity.atom2, jEntity.atom3, jEntity.atom4))
 
             for iState in range(vecOrder):
                 idx = (vecOrder * i) + iState
@@ -2458,11 +2464,12 @@ def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector, a
 
                     # add same entry at the tranpose position because the matrix is symmetric
                     densityMatrix[jdx, idx] = densityMatrix[idx, jdx]
-
-                    Utils.printOut(arg_outFile, "{:>15.8f}".format(densityMatrix[idx, jdx]), end = "")
+                    if arg_outFile != None:
+                        Utils.printOut(arg_outFile, "{:>15.8f}".format(densityMatrix[idx, jdx]), end = "")
 
                     if jState == (vecOrder - 1):
-                        Utils.printOut(arg_outFile,'')
+                        if arg_outFile != None:
+                            Utils.printOut(arg_outFile,'')
         
         Utils.printflush('|')    
             
@@ -2474,7 +2481,8 @@ def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector, a
 
     # is the density matrix symmetric-positive definite?
     for lr in lambdasRho:
-        Utils.printOut(arg_outFile, lr)
+        if arg_outFile != None:
+            Utils.printOut(arg_outFile, lr)
     
 
     # plot the matrix with imshow
