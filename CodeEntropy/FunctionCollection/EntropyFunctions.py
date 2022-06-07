@@ -2492,6 +2492,6 @@ def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector="a
         plt.imshow(densityMatrix, cmap = "jet", vmin = -1, vmax = +1)
         plt.show()
 
-    return
+    return lambdasRho
 #END
 
