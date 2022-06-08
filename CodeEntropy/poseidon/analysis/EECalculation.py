@@ -1362,7 +1362,7 @@ def saveAllVariables(num_frames, Aclass, level, name, solvent,
     #         (frames, name, level), 'w')
     # data2.write('\n'.join(['resName,variable,value,count']) 
     #         + '\n')
-    Utils.printOut(solventDataName,'resName,variable,value,count')
+    Utils.printOut(soluteDataName,'resName,variable,value,count')
 
     soluteData = pd.DataFrame(columns=['resName', 'variable', 'value', 'count'])
 
