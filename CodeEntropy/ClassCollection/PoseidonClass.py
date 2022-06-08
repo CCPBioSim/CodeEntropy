@@ -232,7 +232,7 @@ class Poseidon():
         Args:
             temperature (float, optional): Temperature for system. Defaults to 298.0 K.
             entropyEnergy (bool, optional): Run entropy and energy analysis. Defaults to True.
-            level_list (list, optional): Choose and refine the level of analyiss: moleculeLevel, residLevel_resname, residLevel_atom, atomLevel, soluteContact, res_atomLevel. Defaults to ['moleculeLevel'].
+            level_list (list, optional): Choose and refine the level of analyiss: moleculeLevel, residLevel_resname, atomLevel, soluteContact. Defaults to ['moleculeLevel'].
             solvent (str, optional): Resname for solvent. Defaults to None.
             water (str, optional): Resname for water. Defaults to 'WAT'.
             verbose (bool, optional): Print out progress of each step. Defaults to False.
