@@ -121,7 +121,7 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                                             'neighbour_resid':neighbour_resid,
                                             'count': count,
                                             'centre_resname': centre_resname,
-                                            'neighbour_resname': neighbour_resname})
+                                            'neighbour_resname': neighbour_resname}, index=[0])
                     contactMatrix = pd.concat([contactMatrix, newRowContact], ignore_index=True)
             else:
                 continue
