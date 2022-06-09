@@ -8,7 +8,7 @@ CodeEntropy tool with POSEIDON code integrated to form a complete and generally 
 
 ## To run
 ### Requirements
-- Python > 3.6
+- Python > 3.7
 - gcc
 - g++
 
