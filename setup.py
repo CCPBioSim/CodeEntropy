@@ -66,7 +66,8 @@ setup(
         'numpy',
         'bitarray',
         'mdanalysis',
-        'pandas'
+        'pandas',
+        'psutil'
     ],
 
     scripts=['scripts/CodeEntropyPoseidon']
