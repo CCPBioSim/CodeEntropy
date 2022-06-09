@@ -1120,7 +1120,7 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
     if arg_csv_out != None:
         result_df.to_csv(arg_csv_out, index=False)
     
-    return (totalUAEntropyFF, totalUAEntropyTT)
+    return (totalUAEntropyFF, totalUAEntropyTT, result_df)
 #END
 
 def compute_entropy_UA_level(arg_hostDataContainer,
@@ -1498,7 +1498,7 @@ def compute_entropy_UA_level(arg_hostDataContainer,
     if arg_csv_out != None:
         result_df.to_csv(arg_csv_out, index=False)
         
-    return (totalUAEntropyFF, totalUAEntropyTT)
+    return (totalUAEntropyFF, totalUAEntropyTT, result_df)
 #END
 
 def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
