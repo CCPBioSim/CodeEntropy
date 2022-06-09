@@ -103,11 +103,11 @@ ENV/
 
 # result and temp file
 *.out
-*.csv
 *.obj
 *.npz
 *.pkl
 Example_output/
+Example/data/*.csv
 
 # profraw files from LLVM? Unclear exactly what triggers this
 # There are reports this comes from LLVM profiling, but also Xcode 9.
