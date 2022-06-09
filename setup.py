@@ -67,7 +67,8 @@ setup(
         'bitarray',
         'mdanalysis',
         'pandas',
-        'psutil'
+        'psutil',
+        'dill'
     ],
 
     scripts=['scripts/CodeEntropyPoseidon']
