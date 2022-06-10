@@ -462,7 +462,7 @@ if doSolResEntropy:
 if doSolUAEntropy:
 	level_list.append('atomLevel')
 if doSolContact:
-	level_list.append('soluteContact')	
+	level_list.append('soluteContacts')	
 
 if len(level_list) > 0:
 	#none because the frame is already striped
