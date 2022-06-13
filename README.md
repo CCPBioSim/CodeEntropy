@@ -1,6 +1,7 @@
 CodeEntropy
 ==============================
 [//]: # (Badges)
+[![GitHub Actions Build Status](https://github.com/DonaldChung-HK/CodeEntropy/workflows/CI/badge.svg)](https://github.com/DonaldChung-HK/CodeEntropy/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/main/graph/badge.svg)](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/main)
 
 
