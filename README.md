@@ -1,7 +1,7 @@
 CodeEntropy
 ==============================
 [//]: # (Badges)
-[![codecov](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/master/graph/badge.svg)](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/master)
+[![codecov](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/main/graph/badge.svg)](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/main)
 
 
 CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
