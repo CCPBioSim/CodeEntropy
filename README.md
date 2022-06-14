@@ -9,7 +9,7 @@ CodeEntropy tool with POSEIDON code integrated to form a complete and generally 
 
 ## To run
 ### Requirements
-- Python > 3.7
+- Python > 3.9
 - gcc
 - g++
 
@@ -49,14 +49,18 @@ CodeEntropyPoseidon -h
 | `--wm`  | Do entropy calculation at whole molecule level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
 | `--res`  | Do entropy calculation at residue level (A residue as a whole represents a bead.).  | Flag, activate when included | Flag |
 | `--uatom`  | Do entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
-| `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method</li><li>2: Corr. pLogP method</li><li>3: Corr. density function</li><li>4: Phi Coeff method </li><li>5: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
+| `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method (will separate between backbone and side chain)</li><li>2: Corr. pLogP method (will separate between backbone and side chain)</li><li>3: Corr. density function (only output LamdaRho)</li><li>4: Phi Coeff method (not functional!!) </li><li>5: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
 | `--solwm`  | Do water entropy calculation at residue level (A residue as a whole represents a bead.).  | Flag, activate when included | Flag |
 | `--solres`  | Do water entropy calculation at residue level (A residue as a whole represents a bead.  | Flag, activate when included | Flag |
 | `--soluatom`  | Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
 | `--solContact`  | Do solute contact calculation.  | Flag, activate when included | Flag |
 #### Example 
 ```
+# example 1 DNA
 CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 1 --solwm --solres --soluatom
+
+# example 2 lysozyme in water
+CodeEntropyPoseidon -f "Example/data/1AKI_prod.tpr" "Example/data/1AKI_prod.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom
 ```
 
 ## Script Examples
