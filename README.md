@@ -36,7 +36,7 @@ CodeEntropyPoseidon -h
 | `-k`, `--tempra`  | Temperature for entropy calculation (K) | `298.0` | `float` |
 | `-t`, `--thread`  | How many multiprocess to use. | `1`: for single core execution | `int` |
 | `-o`, `--out`  | Name of the file where the text format output will be written. | `outfile.out` | `str` |
-| `-v`, `--csvout`  | Name of the file where the total entropy output will be written. | `outfile.out` | `str` |
+| `-v`, `--csvout`  | Name of the file where the total entropy output will be written. | `outfile.csv` | `str` |
 | `-r`, `--resout`  | Name of the file where the residue entropy output will be written. | `res_outfile.csv` | `str` |
 | `-m`, `--mout`  | Name of the file where certain matrices will be written. | `None` | `str` |
 | `-n`, `--nmd`  | Name of the file where VMD compatible NMD format files with mode information will be printed. | `None` | `str` |
