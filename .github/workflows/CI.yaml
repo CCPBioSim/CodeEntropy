@@ -71,5 +71,6 @@ jobs:
     
     - name: Testing executable
       shell: bash
+      if: runner.os != 'Windows'
       run: |
-        CodeEntropyPoseidon -f "CodeEntropy/tests/data/poseidon_example.prmtop" "CodeEntropy/tests/data/poseidon_example.trr" -l "resname ARG" -b 0 -e 20 --wm --res --uatom --topog 2 --solwm --solres --soluatom
+        CodeEntropyPoseidon -f "CodeEntropy/tests/data/poseidon_example.prmtop" "CodeEntropy/tests/data/poseidon_example.trr" -l "resname ARG" -b 0 -e 20 --wm --res --uatom --topog 2 --solwm --solres --soluatom --solContact
