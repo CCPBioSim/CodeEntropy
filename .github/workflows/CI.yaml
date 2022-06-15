@@ -69,8 +69,14 @@ jobs:
         flags: unittests
         name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
     
-    - name: Testing executable
+    - name: Testing executable capped protein
       shell: bash
       if: runner.os != 'Windows'
       run: |
         CodeEntropyPoseidon -f "CodeEntropy/tests/data/poseidon_example.prmtop" "CodeEntropy/tests/data/poseidon_example.trr" -l "resname ARG" -b 0 -e 20 --wm --res --uatom --topog 2 --solwm --solres --soluatom --solContact
+
+    - name: Testing executable lysozyme in water
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        CodeEntropyPoseidon -f "CodeEntropy/tests/data/1AKI_prod_60.tpr" "CodeEntropy/tests/data/1AKI_prod_60.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom --solContact

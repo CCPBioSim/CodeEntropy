@@ -57,10 +57,13 @@ CodeEntropyPoseidon -h
 #### Example 
 ```
 # example 1 DNA
-CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 1 --solwm --solres --soluatom
+CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 5
 
 # example 2 capped protein fragment in water
 CodeEntropyPoseidon -f "CodeEntropy/tests/data/poseidon_example.prmtop" "CodeEntropy/tests/data/poseidon_example.trr" -l "resname ARG" -b 0 -e 20 --wm --res --uatom --topog 2 --solwm --solres --soluatom --solContact
+
+# example 3 lysozyme in water
+CodeEntropyPoseidon -f "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom --solContact
 ```
 
 ## Script Examples
