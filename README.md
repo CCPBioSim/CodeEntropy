@@ -18,8 +18,8 @@ CodeEntropy tool with POSEIDON code integrated to form a complete and generally 
 pip install .
 ```
 
-### Command-line tools
-A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing `CodeEntropyPoseidon`
+### Command-line tool
+A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing `CodeEntropyPoseidon` (Note: this doesn't work on Windows!!!)
 #### For help
 ```
 CodeEntropyPoseidon -h
