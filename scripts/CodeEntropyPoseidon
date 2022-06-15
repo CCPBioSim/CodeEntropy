@@ -1,6 +1,5 @@
 #! /usr/share/python
 import argparse
-from typing_extensions import Required
 import MDAnalysis as mda
 from CodeEntropy.FunctionCollection import EntropyFunctions as EF
 from CodeEntropy.ClassCollection import DataContainer as DC
