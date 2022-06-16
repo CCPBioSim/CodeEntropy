@@ -50,7 +50,7 @@ CodeEntropyPoseidon -h
 | `--res`  | Do entropy calculation at residue level (A residue as a whole represents a bead.).  | Flag, activate when included | Flag |
 | `--uatom`  | Do entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
 | `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method (will separate between backbone and side chain)</li><li>2: Corr. pLogP method (will separate between backbone and side chain)</li><li>3: Corr. density function (only output LamdaRho)</li><li>4: Phi Coeff method (not functional!!) </li><li>5: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
-| `--solwm`  | Do water entropy calculation at residue level (A residue as a whole represents a bead.).  | Flag, activate when included | Flag |
+| `--solwm`  | Do water entropy calculation at residue level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
 | `--solres`  | Do water entropy calculation at residue level (A residue as a whole represents a bead.  | Flag, activate when included | Flag |
 | `--soluatom`  | Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
 | `--solContact`  | Do solute contact calculation.  | Flag, activate when included | Flag |
@@ -90,7 +90,7 @@ A LAMMPS example for POSEIDON this is a capped amino acid example (note the forc
 A DNA example for CodeEntropy without using function to show the inner working of CodeEntropy
 ### `mcc_mdanalysis_multiprocess`
 mcc_mdanalysis with multiprocess parallelization 
-### `DNA_test_Case.py`, `CodeEntropy_DNA.py`
+### `CodeEntropy_DNA.py`
 the DNA strand example but with updated generalized CodeEntropy functions
 
 ## Copyright
