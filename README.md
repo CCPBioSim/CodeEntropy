@@ -59,12 +59,19 @@ CodeEntropyPoseidon -h
 # example 1 DNA
 CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 5
 
-# example 2 capped protein fragment in water
-CodeEntropyPoseidon -f "CodeEntropy/tests/data/poseidon_example.prmtop" "CodeEntropy/tests/data/poseidon_example.trr" -l "resname ARG" -b 0 -e 20 --wm --res --uatom --topog 2 --solwm --solres --soluatom --solContact
-
-# example 3 lysozyme in water
+# example 2 lysozyme in water
 CodeEntropyPoseidon -f "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom --solContact
 ```
+
+## Units
+The program assumes the following default unit
+| Qunatity  | Unit | 
+| ------------- | ------------- |
+| Length | Å |
+| time | ps |
+| charge | *e* |
+| mass | u |
+| force | kJ/(mol·Å) |
 
 ## Script Examples
 See `Example` folder
@@ -72,19 +79,19 @@ You can add your own trajectories by editing the path in the python script to po
 ### `create_new_universe.py`
 This repo uses MDAnalysis to parse values and it can only parse force natively for GROMACS TRR and AMBER NETCDF. This scripts shows you how to create a new universe from unsuppported data so that you can use trajectories created from other simulation software or reduce the size of universe to focus on a section of simulation.
 ### `CodeEntropy_non_topo.py`
-Calculate entropy of target trajectory non topographical level
+Calculate entropy of target trajectory non topographical level with a no water lysozyme trajectory
 ### `CodeEntropy_topo.py`
-Calculate entropy of target trajectory based on different method
+Calculate entropy of target trajectory based on different method with a no water lysozyme trajectory
 ### `Poseidon_GROMACS`
-!!! the trajectories are not included in this repo due to file size limit. 
-
-Run POSEIDON analysis for a GROMACS trajectories
+Run POSEIDON analysis for a GROMACS trajectories with a lysozyme in water
 ### `Poseidon_LAMMPS`
-A LAMMPS example for POSEIDON
+A LAMMPS example for POSEIDON this is a capped amino acid example (note the force unit of this trajectory is based on KCal not KJ)
 ### `mcc_mdanalysis`
-A DNA example for CodeEntropy
+A DNA example for CodeEntropy without using function to show the inner working of CodeEntropy
 ### `mcc_mdanalysis_multiprocess`
 mcc_mdanalysis with multiprocess parallelization 
+### `DNA_test_Case.py`, `CodeEntropy_DNA.py`
+the DNA strand example but with updated generalized CodeEntropy functions
 
 ## Copyright
 
