@@ -725,9 +725,11 @@ def UA_residue_protein(allSel,
     Args:
         Args correspond to variables in CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_UA_level_multiprocess 
     Returns:
-        Tuple of floats:
-            entropyFF (float): UA level FF Entropy for current residue of resindices
-            entropyTT (float): UA level TT Entropy for current residue of resindices
+        Tuple:
+            iResname (str): current residue name 
+            iResid (str): current residue id 
+            ridTotalEntropyFF (float): UA level FF Entropy for current residue of resindices
+            ridTotalEntropyTT (float): UA level TT Entropy for current residue of resindices
     """
     iResname = arg_hostDataContainer.universe.residues.resnames[resindices]
     iResid = arg_hostDataContainer.universe.residues.resids[resindices]
