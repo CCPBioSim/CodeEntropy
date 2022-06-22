@@ -1,7 +1,7 @@
 from ast import arg
 import sys, os
 import numpy as nmp
-
+nmp.set_printoptions(threshold=sys.maxsize)
 from CodeEntropy.ClassCollection import BeadClasses as BC
 from CodeEntropy.ClassCollection import ConformationEntity as CONF
 from CodeEntropy.ClassCollection import ModeClasses
@@ -2490,13 +2490,13 @@ def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector="a
     for lr in lambdasRho:
         if arg_outFile != None:
             Utils.printOut(arg_outFile, lr)
-    
+    print("Density Matrix:")
     print(densityMatrix)
     # plot the matrix with imshow
     mplot = plt.figure()
     ax = mplot.add_axes([0, 0, 1, 1], frameon=False, aspect=1)
     plt.imshow(densityMatrix, cmap = "jet", vmin = -1, vmax = +1)
-    plt.savefig('method3_out.png')
+    plt.savefig('method3_densityMatrix_plot.png')
 
     return lambdasRho
 #END
