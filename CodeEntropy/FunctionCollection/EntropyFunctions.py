@@ -1038,6 +1038,8 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
     """ 
     !! This uses multiprocess to spread workload across cores to speed up calculation.
     However, this will cause print and output to files not print in sequential order.
+    !! For larger dataset running on multithread might result in reduced performance 
+    and excessive RAM use due to python GIL which data must be serialized.
 
     Computes the entropy calculations at the united atom (UA) level. 
     Each heavy atom with its covalently bonded H-atoms make a single bead. H-atoms
@@ -1061,9 +1063,10 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
         arg_thread (int, optional): number of process to spawn for parallarization.
         arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
     Returns:
-        tuple of floats:
+        Tuple:
             entropyFF (float): United atom level FF Entropy in J/mol/K
             entropyTT (float): United atom level TT Entropy in J/mol/K
+            result_df (pandas.DataFrame): the FF and TT entropy for each residue at UA level sort by residue ID
     """
 
     # Utils.hbar(60)
@@ -1159,9 +1162,10 @@ def compute_entropy_UA_level(arg_hostDataContainer,
         arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
 
     Returns:
-        tuple of floats:
+        tuple:
             entropyFF (float): United atom level FF Entropy in J/mol/K
             entropyTT (float): United atom level TT Entropy in J/mol/K
+            result_df (pandas.DataFrame): the FF and TT entropy for each residue at UA level sort by residue ID
     """
 
     Utils.hbar(60)
