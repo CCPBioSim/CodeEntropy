@@ -16,6 +16,7 @@ import multiprocessing as mp
 from functools import partial
 import pandas as pd
 
+import matplotlib.pyplot as plt
 
 def calculate_entropy_per_dof(arg_frequencies, arg_temper):
     """
@@ -2490,13 +2491,12 @@ def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector="a
         if arg_outFile != None:
             Utils.printOut(arg_outFile, lr)
     
-
+    print(densityMatrix)
     # plot the matrix with imshow
-    if False:
-        mplot = plt.figure()
-        ax = mplot.add_axes([0, 0, 1, 1], frameon=False, aspect=1)
-        plt.imshow(densityMatrix, cmap = "jet", vmin = -1, vmax = +1)
-        plt.show()
+    mplot = plt.figure()
+    ax = mplot.add_axes([0, 0, 1, 1], frameon=False, aspect=1)
+    plt.imshow(densityMatrix, cmap = "jet", vmin = -1, vmax = +1)
+    plt.savefig('method3_out.png')
 
     return lambdasRho
 #END
