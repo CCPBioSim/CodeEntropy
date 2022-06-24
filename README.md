@@ -27,8 +27,7 @@ CodeEntropyPoseidon -h
 #### Arguments
 | Arguments  | Description | Default | type|
 | ------------- | ------------- |----------- |--------------|
-| `-f`, `--top_traj_file`  | Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s)  | Requires either `--top_traj_file` or `--pickle`  | list of `str` |
-| `-i`, `--pickle`  | Pickled MDAnalyiss.Universe for unsupported format, refer to `create_new_universe.py` for how to load unsuppported data into a universe  | Requires either `--top_traj_file` or `--pickle`  | `str` |
+| `-f`, `--top_traj_file`  | Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR or topology file with MDAnalysis readable dihedral information (not officially supported)) followed by Trajectory file(s) (GROMAC TRR or AMBER NETCDF) | Required | list of `str` |
 | `-l`, `--selectString`  | Selection string for CodeEntropy such as protein or resid, refer to `MDAnalysis.select_atoms` for more information. | `"all"`: select all atom in trajectory for CodeEntropy analysis for trajectory without solvent  | `str` |
 | `-b`, `--begin`  | Start analysing the trajectory from this frame index. | `0`: From begining | `int` |
 | `-e`, `--end`  | Stop analysing the trajectory at this frame index | `-1`: end of trajectory | `int` |
@@ -78,6 +77,7 @@ See `Example` folder
 You can add your own trajectories by editing the path in the python script to point to your own trajectories
 ### `create_new_universe.py`
 This repo uses MDAnalysis to parse values and it can only parse force natively for GROMACS TRR and AMBER NETCDF. This scripts shows you how to create a new universe from unsuppported data so that you can use trajectories created from other simulation software or reduce the size of universe to focus on a section of simulation.
+The key is toha a tpology file with MDAnalysis readable topology and dihedral information, and output the packaged force data as TRR file.
 ### `CodeEntropy_non_topo.py`
 Calculate entropy of target trajectory non topographical level with a no water lysozyme trajectory
 ### `CodeEntropy_topo.py`
