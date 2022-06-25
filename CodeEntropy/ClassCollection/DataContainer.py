@@ -22,14 +22,17 @@ class DataContainer(object):
 	"""
 
 	def __init__(self, u, start=None, end=None, step=1):
-		"""Create and load data from MDAnalysis.Universe
+		"""
+		Create a data container for CodeEntropy and load data from MDAnalysis.Universe
 
-		Args:
-			u (MDAnalyse.Universe): A Universe object will all topology, coordinates and force information
-			Check Example/create_new_universe.py on how to create a universe from existing data
-			start (int): frame id to start analysis. Default None will start from frame 0
-			end (int): frame id to end analysis. Default Nonw will end at last frame
-			step (int): Steps between frame. Defaults to 1.
+		:param u: A Universe object will all topology, dihedrals,coordinates and force information Check Example/create_new_universe.py on how to create a universe from existing data
+		:type u: MDAnalyse.Universe
+		:param start: Frame id to start analysis. Default None will start from frame 0
+		:type start: int, Optional
+		:param end: frame id to end analysis. Default Nonw will end at last frame
+		:type end: int, Optional
+		:param step: Steps between frame. Defaults to 1
+		:type step: int, Optional
 		"""
 		self.universe = u
 		self.numFrames = len(self.universe.trajectory)
