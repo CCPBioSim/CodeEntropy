@@ -12,27 +12,26 @@ class ComplexWarning(Warning):
 
 class DataContainer(object):
 	""" 
-	This is the main data container that has the framewise information of
-	positions and forces on all the atoms, in lab and local frames. The vectors
-	in the local frames are obtained after transforming the lab frame vectors 
-	using orthonormal bases that also stored framewise for each atom. 
+	This is the main data container for CodeEntropy Solute calculation
+	This host framewise information of positions and forces on all the atoms, in lab and local frames. The vectors in the local frames are obtained after transforming the lab frame vectors  using orthonormal bases that also stored framewise for each atom. 
 
-	The properties of its molecule (base molecule) is linked to a molecule class object
-	that contains the info about its topology. 
+	The properties of its molecule (base molecule) is linked to a molecule class object that contains the info about its topology. 
 	"""
 
 	def __init__(self, u, start=None, end=None, step=1):
 		"""
 		Create a data container for CodeEntropy and load data from MDAnalysis.Universe
-
-		:param u: A Universe object will all topology, dihedrals,coordinates and force information Check Example/create_new_universe.py on how to create a universe from existing data
-		:type u: MDAnalyse.Universe
-		:param start: Frame id to start analysis. Default None will start from frame 0
-		:type start: int, Optional
-		:param end: frame id to end analysis. Default Nonw will end at last frame
-		:type end: int, Optional
-		:param step: Steps between frame. Defaults to 1
-		:type step: int, Optional
+		
+		Parameters
+		----------
+		u : MDAnalyse.Universe
+			A Universe object will all topology, dihedrals,coordinates and force information Check ``Example/create_new_universe.py`` on how to create a universe from existing data
+		start : int or None, Optional, default: None
+			Frame id to start analysis. Default None will start from frame 0
+		end : int or None, Optional, default: None
+			Frame id to end analysis. Default Nonw will end at last frame
+		step : int, Optional, default: 1
+			Steps between frame.
 		"""
 		self.universe = u
 		self.numFrames = len(self.universe.trajectory)

@@ -139,24 +139,37 @@ def compute_entropy_whole_molecule_level(arg_hostDataContainer,
                                          arg_tScale = 1.0,
                                          arg_temper = 300.0,
                                          arg_verbose = 3):
-    """Conpute the entropy at the whole molecule level. 
-        Determining translation and rotation axes is part of the function.
+    """
+    Conpute the entropy at the whole molecule level for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
+    Determining translation and rotation axes is part of the function.
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_outFile (str, optional): path to a output file output is written via append mode. Defaults to None.
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a spectra out file is not None. Defaults to None.
-        arg_fScale (float, optional): Force scale. Defaults to 1.0.
-        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
-        arg_temper (float, optional): temperature in K. Defaults to 300.0.
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_moutFile : str, optional, default: None
+            Print matrices if path to a matrices out file is not `None`.
+        arg_nmdFile : str, optional, default: None 
+            Print modespectra if path to a spectra out file is not `None`.
+        arg_fScale : float, optional, default: 1.0 
+            Force scale.
+        arg_tScale : float, optional, default: 1.0 
+            Torque scale.
+        arg_temper : float, optional, default: 300.0 
+            Temperature in K
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
 
-    Returns:
-        tuple of floats:
-            entropyFF (float): Whole molecule level FF Entropy in J/mol/K
-            entropyTT (float): Whole molecule level TT Entropy in J/mol/K
+    Returns
+    -------
+        entropyFF : float 
+            Whole molecule level Force-Force Entropy in J/mol/K
+        entropyTT : float
+            Whole molecule level Torque-Torque Entropy in J/mol/K
     """
 
 
@@ -401,31 +414,44 @@ def compute_entropy_residue_level(arg_hostDataContainer,
                                 arg_temper = 300.0,
                                 arg_axis_list = ['C', 'CA', 'N'],
                                 arg_verbose = 3):
-    """Computes the entropy calculations at the residue level
-    where each residue is treated as a separate bead.
-    Determining translation and rotation axes is part of the 
-    function. A common translation axes are used for all residues
-    which is the principal axes of the whole molecule. The rotation
-    axes are specific to each residue, which can be specified. 
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_outFile (str, optional): path to a output file output is written via append mode. Defaults to None.
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a spectra out file is not None. Defaults to None.
-        arg_fScale (float, optional): Force scale. Defaults to 1.0.
-        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
-        arg_temper (float, optional): temperature in K. Defaults to 300.0.
-        arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-
-    Returns:
-        tuple of floats:
-            entropyFF (float): Residue level FF Entropy in J/mol/K
-            entropyTT (float): Residue level TT Entropy in J/mol/K
     """
+    Conpute the entropy at the residue level where each residue is treated as a separate bead for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
+    Determining translation and rotation axes is part of the function. 
+    A common translation axes are used for all residues which is the principal axes of the whole molecule. 
+    The rotational axes are specific to each residue, which can be specified. 
 
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_moutFile : str, optional, default: None
+            Print matrices if path to a matrices out file is not `None`.
+        arg_nmdFile : str, optional, default: None 
+            Print modespectra if path to a spectra out file is not `None`.
+        arg_fScale : float, optional, default: 1.0 
+            Force scale.
+        arg_tScale : float, optional, default: 1.0 
+            Torque scale.
+        arg_temper : float, optional, default: 300.0 
+            Temperature in K
+        arg_axis_list : list of str, optional, default: ['C', 'CA', 'N']
+            The atom name of rotational axis of each residue. They must be present at each residue of selected atom system
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+
+    Returns
+    -------
+        entropyFF : float 
+            Residue level level Force-Force Entropy in J/mol/K
+        entropyTT : float
+            Residue level level Torque-Torque Entropy in J/mol/K
+    """
+    
 
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Hierarchy level. --> Residues <--"))
@@ -1037,37 +1063,59 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
                             arg_axis_list = ['C', 'CA', 'N'],
                             arg_thread = 4):
     """ 
-    !! This uses multiprocess to spread workload across cores to speed up calculation.
-    However, this will cause print and output to files not print in sequential order.
-    !! For larger dataset running on multithread might result in reduced performance 
-    and excessive RAM use due to python GIL which data must be serialized.
+    
+    
 
-    Computes the entropy calculations at the united atom (UA) level. 
-    Each heavy atom with its covalently bonded H-atoms make a single bead. H-atoms
-    are, however, treated explicitly.Determining translation and rotation axes is 
-    part of the function. Translation axes for each bead is the C-Ca-N axes of the 
-    residue the bead is part of. The rotation axes is a basis whose axes are directed
-    along a sphereical-coordinate axes comprised of unit vectors along r,θ and Φ. 
+    Computes the entropy calculations at the united atom (UA) level with multiple thread for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
+    Each heavy atom with its covalently bonded H-atoms make a single bead. 
+    H-atoms are, however, treated explicitly.
+    Determining rotation axes is part of the function. 
+    Translation axes for each bead by default is the C-Ca-N axes of the residue the bead is part of but can be specified. 
+    The rotation axes is a basis whose axes are directed along a sphereical-coordinate axes comprised of unit vectors along r,θ and Φ. 
 
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a spectra out file is not None. Defaults to None.
-        arg_fScale (float, optional): Force scale. Defaults to 1.0.
-        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
-        arg_temper (float, optional): temperature in K. Defaults to 300.0.
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-        arg_csv_out (str, optional): print entropy of each residue as sorted dataframe if path to a csv out file is not None. Defaults to None.
-        arg_thread (int, optional): number of process to spawn for parallarization.
-        arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
-    Returns:
-        Tuple:
-            entropyFF (float): United atom level FF Entropy in J/mol/K
-            entropyTT (float): United atom level TT Entropy in J/mol/K
-            result_df (pandas.DataFrame): the FF and TT entropy for each residue at UA level sort by residue ID
+    .. Warning ::
+        
+        This uses multiprocess to spread workload across cores to speed up calculation. However, this will cause print and output to files not print in sequential order.
+        For larger dataset running on multithread might result in reduced performance and excessive RAM use due to python GIL which data must be serialized.
+
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_moutFile : str, optional, default: None
+            Print matrices if path to a matrices out file is not `None`.
+        arg_nmdFile : str, optional, default: None 
+            Print modespectra if path to a spectra out file is not `None`.
+        arg_fScale : float, optional, default: 1.0 
+            Force scale.
+        arg_tScale : float, optional, default: 1.0 
+            Torque scale.
+        arg_temper : float, optional, default: 300.0 
+            Temperature in K
+        arg_axis_list : list of str, optional, default: ['C', 'CA', 'N']
+            The atom name of translational axis of each residue. They must be present at each residue of selected atom system
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+        arg_csv_out : str, optional, default: None 
+            Print entropy of each residue as sorted dataframe if path to a csv out file is not None.
+        arg_thread : int, optional, default: 4
+            Number of process to spawn for parallarization.
+
+
+
+    Returns
+    -------
+        entropyFF : float 
+            United-Atom level level Force-Force Entropy in J/mol/K
+        entropyTT : float
+            United-Atom level level Torque-Torque Entropy in J/mol/K
+        result_df : pandas.DataFrame
+            The FF and TT entropy for each residue at UA level sort by residue ID
     """
 
     # Utils.hbar(60)
@@ -1141,32 +1189,48 @@ def compute_entropy_UA_level(arg_hostDataContainer,
                             arg_axis_list = ['C', 'CA', 'N'],
                             arg_verbose = 3):
     """ 
-    Computes the entropy calculations at the united atom (UA) level. 
-    Each heavy atom with its covalently bonded H-atoms make a single bead. H-atoms
-    are, however, treated explicitly.Determining translation and rotation axes is 
-    part of the function. Translation axes for each bead is the C-Ca-N axes of the 
-    residue the bead is part of. The rotation axes is a basis whose axes are directed
-    along a sphereical-coordinate axes comprised of unit vectors along r,θ and Φ. 
+    Computes the entropy calculations at the united atom (UA) level for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
+    Each heavy atom with its covalently bonded H-atoms make a single bead. 
+    H-atoms are, however, treated explicitly.
+    Determining rotation axes is part of the function. 
+    Translation axes for each bead by default is the C-Ca-N axes of the residue the bead is part of but can be specified. 
+    The rotation axes is a basis whose axes are directed along a sphereical-coordinate axes comprised of unit vectors along r,θ and Φ. 
+
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_moutFile : str, optional, default: None
+            Print matrices if path to a matrices out file is not `None`.
+        arg_nmdFile : str, optional, default: None 
+            Print modespectra if path to a spectra out file is not `None`.
+        arg_fScale : float, optional, default: 1.0 
+            Force scale.
+        arg_tScale : float, optional, default: 1.0 
+            Torque scale.
+        arg_temper : float, optional, default: 300.0 
+            Temperature in K
+        arg_axis_list : list of str, optional, default: ['C', 'CA', 'N']
+            The atom name of translational axis of each residue. They must be present at each residue of selected atom system
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+        arg_csv_out : str, optional, default: None 
+            Print entropy of each residue as sorted dataframe if path to a csv out file is not None.
 
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_moutFile (str, optional): print matrices if path to a matrices out file is not None. Defaults to None.
-        arg_nmdFile (str, optional): print modespectra if path to a matrices out file is not None. Defaults to None.
-        arg_fScale (float, optional): Force scale. Defaults to 1.0.
-        arg_tScale (float, optional): Torque scale. Defaults to 1.0.
-        arg_temper (float, optional): temperature in K. Defaults to 300.0.
-        arg_csv_out (str, optional): print entropy of each residue as sorted dataframe if path to a csv out file is not None. Defaults to None.
-        arg_axis_list (list, optional): the atom name of rotational axis of each residue. Defaults to ['C', 'CA', 'N'].
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
 
-    Returns:
-        tuple:
-            entropyFF (float): United atom level FF Entropy in J/mol/K
-            entropyTT (float): United atom level TT Entropy in J/mol/K
-            result_df (pandas.DataFrame): the FF and TT entropy for each residue at UA level sort by residue ID
+    Returns
+    -------
+        entropyFF : float 
+            United-Atom level level Force-Force Entropy in J/mol/K
+        entropyTT : float
+            United-Atom level level Torque-Torque Entropy in J/mol/K
+        result_df : pandas.DataFrame
+            The FF and TT entropy for each residue at UA level sort by residue ID
     """
 
     Utils.hbar(60)
@@ -1509,19 +1573,27 @@ def compute_entropy_UA_level(arg_hostDataContainer,
 #END
 
 def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
-    """A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
+    """A code that computes the topographical entropy using the formula `S = -Sum(pLog(p))` for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
     Every SC dihedral from every residue will be scanned. 
     Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
     so can have a maximum of three different configurations it can be in. Its probability of being in each of 
     these states will be computed and entropy will be coputed form that.
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-    Returns:
-        float: Total SideChain Topog. Entropy
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+    
+    Returns
+    -------
+        totalTopogEntropySC: float
+            Total SideChain Topog. Entropy
     """
 
 
