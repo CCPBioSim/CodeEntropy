@@ -31,7 +31,7 @@ CodeEntropyPoseidon -h
 | `-l`, `--selectString`  | Selection string for CodeEntropy such as protein or resid, refer to `MDAnalysis.select_atoms` for more information. | `"all"`: select all atom in trajectory for CodeEntropy analysis for trajectory without solvent  | `str` |
 | `-b`, `--begin`  | Start analysing the trajectory from this frame index. | `0`: From begining | `int` |
 | `-e`, `--end`  | Stop analysing the trajectory at this frame index | `-1`: end of trajectory | `int` |
-| `-d`, `--step`  | Stop analysing the trajectory at this frame index | `1` | `int` |
+| `-d`, `--step`  | Steps between frame | `1` | `int` |
 | `-k`, `--tempra`  | Temperature for entropy calculation (K) | `298.0` | `float` |
 | `-t`, `--thread`  | How many multiprocess to use. | `1`: for single core execution | `int` |
 | `-o`, `--out`  | Name of the file where the text format output will be written. | `outfile.out` | `str` |
