@@ -48,9 +48,9 @@ CodeEntropyPoseidon -h
 | `--wm`  | Do entropy calculation at whole molecule level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
 | `--res`  | Do entropy calculation at residue level (A residue as a whole represents a bead.).  | Flag, activate when included | Flag |
 | `--uatom`  | Do entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
-| `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method (will separate between backbone and side chain)</li><li>2: Corr. pLogP method (will separate between backbone and side chain)</li><li>3: Corr. density function (only output LamdaRho)</li><li>4: Phi Coeff method (not functional!!) </li><li>5: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
-| `--solwm`  | Do water entropy calculation at residue level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
-| `--solres`  | Do water entropy calculation at residue level (A residue as a whole represents a bead.  | Flag, activate when included | Flag |
+| `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method (will separate between backbone and side chain)</li><li>2: Corr. pLogP method (will separate between backbone and side chain)</li><li>5: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
+| `--solwm`  | Do solution entropy calculation at residue level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
+| `--solres`  | Do solution entropy calculation at residue level (A residue as a whole represents a bead.  | Flag, activate when included | Flag |
 | `--soluatom`  | Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
 | `--solContact`  | Do solute contact calculation.  | Flag, activate when included | Flag |
 #### Example 
