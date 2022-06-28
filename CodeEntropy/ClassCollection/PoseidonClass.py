@@ -31,21 +31,30 @@ class Poseidon():
         step=1, pureAtomNum=1, cutShell=None, 
         excludedResnames=None,
         water='WAT', verbose=False):
-        """This is a initialization function to collect information from a MDanalysis universe into a data container for analysis using POSEIDON
-        Pending Work
-            - rewrite this into a class initalization for easier understanding
-            - rewrite the energy part to be compulsory
-
-        Args:
-            container (MDAnalysis.Universe): A MDAnalysis object with coordinates, forces and energy (loaded to velocity field with the value [Potential Energy(index 0), Kinetic Energy(1) and dummy(2)] respectively)
-            start (int): Starting Frame ID. Defaults to 0.
-            end (int): Ending Frame ID, this frame is not included. Defaults to -1.
-            step (int, optional): Steps between frame. Defaults to 1.
-            pureAtomNum (int, optional): Reference molecule resid for pure liquid. Defaults to 1.
-            cutShell (float, optional): Explicit cut off shell (might be buggy since part of it is not defined). Default to None which uses the relative angular distance (RAD) algorithm. See Jonathan Higham and Richard H. Henchman , "Locally adaptive method to define coordination shell", J. Chem. Phys. 145, 084108 (2016)
-            excludedResnames (list, optional): List of resnames to exclude from nearest non alike analysis. Defaults to None.
-            water (str, optional): Resname for water molecules. Defaults to 'WAT'.
-            verbose (bool, optional): print out progress of each analysis step. Defaults to False.
+        """
+        This is a initialization function to collect information from a MDanalysis universe into a data container for analysis using POSEIDON
+        
+        Parameters
+		----------
+        container : MDAnalyse.Universe
+			A Universe object will all topology, dihedrals,coordinates and force information Check ``Example/create_new_universe.py`` on how to create a universe from existing data.
+        start : int or None, Optional, default: 0
+			Frame id to start analysis.
+        end : int or None, Optional, default: -1
+			Frame id to end analysis.
+        step : int, Optional, default: 1
+			Steps between frame.
+        pureAtomNum : int, Optional, default: 1
+            Reference molecule resid for pure liquid.
+        cutShell : float or None, Optional, default: 1
+            Explicit cut off shell. Default to None which uses the relative angular distance (RAD) algorithm. See Jonathan Higham and Richard H. Henchman , "Locally adaptive method to define coordination shell", J. Chem. Phys. 145, 084108 (2016)
+        excludedResnames : list of str or None, Optional, default: None
+            List of resnames to exclude from nearest non alike analysis.
+        water : list of str, Optional, default: "WAT"
+            Resname for water molecules.
+        verbose : bool, Optional, default: False
+            Print out progress of each step.
+        
         """
         startTime = datetime.now()
         print(startTime)
@@ -229,19 +238,31 @@ class Poseidon():
             forceUnits='kJ'):
         """Perform analysis using poseidon
 
-        Args:
-            temperature (float, optional): Temperature for system. Defaults to 298.0 K.
-            entropyEnergy (bool, optional): Run entropy and energy analysis. Defaults to True.
-            level_list (list, optional): Choose and refine the level of analyiss: moleculeLevel, residLevel_resname, atomLevel, soluteContacts. Defaults to ['moleculeLevel'].
-            solvent (str, optional): Resname for solvent. Defaults to None.
-            water (str, optional): Resname for water. Defaults to 'WAT'.
-            verbose (bool, optional): Print out progress of each step. Defaults to False.
-            weighting (None, optional): get weighing for each frame if the simulation is biased . Defaults to None. !! It is hard coded to None in the code anyway
-            forceUnits (str, optional): Units of forces, kJ or Kcal. Defaults to 'kJ' as MDAnalysis use kJ.
-        Returns:
-            Tuple of DataFrame:
+        Parameters
+		-----------
+		temperature : float, Optional, default: 298.0
+			Temperature for system.
+		entropyEnergy : Bool, Optional, default: True
+			Run entropy and energy analysis.
+		level_list : list of str, Optional, default: ['moleculeLevel']
+			Choose and refine the level of analyiss: moleculeLevel, residLevel_resname, atomLevel, soluteContacts.
+		solvent : str, Optional, default: None
+			Resname for solvent.
+        water : str or list of str, Optional, default: 'WAT'
+            Resname for water.
+        verbose : bool, Optional, default: False
+            Print out progress of each step.
+        weighting : str or None, Optional, default: None
+            Get weighing for each frame if the simulation is biased.
+        forceUnits : str, Optional, default: 'kJ'
+            Units of forces, kJ or Kcal. 
+
+        Returns
+        ---------
+            Tuple of DataFrame, for each level analysed:
                 solventData: dataframe that contains the result for solvent
                 soluteData: dataframe that contains the result for solute
+                contactMatrix: dataframe that contains the contact matrix
         """
 
         verbosePrint = print if verbose else lambda *a, **k: None

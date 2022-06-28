@@ -29,7 +29,7 @@ class DataContainer(object):
 		start : int or None, Optional, default: None
 			Frame id to start analysis. Default None will start from frame 0
 		end : int or None, Optional, default: None
-			Frame id to end analysis. Default Nonw will end at last frame
+			Frame id to end analysis. Default None will end at last frame
 		step : int, Optional, default: 1
 			Steps between frame.
 		"""

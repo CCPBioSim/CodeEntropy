@@ -1097,12 +1097,12 @@ def compute_entropy_UA_level_multiprocess(arg_hostDataContainer,
             Torque scale.
         arg_temper : float, optional, default: 300.0 
             Temperature in K
-        arg_axis_list : list of str, optional, default: ['C', 'CA', 'N']
-            The atom name of translational axis of each residue. They must be present at each residue of selected atom system
         arg_verbose : int, optional, default: 3
             Verbose level from 1-5
         arg_csv_out : str, optional, default: None 
             Print entropy of each residue as sorted dataframe if path to a csv out file is not None.
+        arg_axis_list : list of str, optional, default: ['C', 'CA', 'N']
+            The atom name of translational axis of each residue. They must be present at each residue of selected atom system
         arg_thread : int, optional, default: 4
             Number of process to spawn for parallarization.
 
@@ -1214,14 +1214,12 @@ def compute_entropy_UA_level(arg_hostDataContainer,
             Torque scale.
         arg_temper : float, optional, default: 300.0 
             Temperature in K
+        arg_csv_out : str, optional, default: None 
+            Print entropy of each residue as sorted dataframe if path to a csv out file is not None.
         arg_axis_list : list of str, optional, default: ['C', 'CA', 'N']
             The atom name of translational axis of each residue. They must be present at each residue of selected atom system
         arg_verbose : int, optional, default: 3
             Verbose level from 1-5
-        arg_csv_out : str, optional, default: None 
-            Print entropy of each residue as sorted dataframe if path to a csv out file is not None.
-
-
 
     Returns
     -------
@@ -1730,19 +1728,27 @@ def compute_topographical_entropy0_SC(arg_hostDataContainer, arg_selector="all",
 #END
 
 def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
-    """ A code that computes the topographical entropy using the formula S = -Sum(pLog(p)). 
+    """ A code that computes the topographical entropy using the formula S = -Sum(pLog(p)) for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
     Every BB dihedral from the protein will be scanned. 
     Each dihedral will be depicted using a vector of order 3 of the form |g+, g-, t> (arbitrarily chosen) and 
     so can have a maximum of three different configurations it can be in. Its probability of being in each of 
     these states will be computed and entropy will be coputed form that.
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-    Returns:
-        float: Total Backbone Topog. Entropy
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+    
+    Returns
+    -------
+        totalTopogEntropyBB: float
+            Total Backbone Topog. Entropy
     """
 
     Utils.hbar(60)
@@ -1857,18 +1863,27 @@ def compute_topographical_entropy0_BB(arg_hostDataContainer, arg_selector="all",
 
 def compute_topographical_entropy1_SC(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """ A function that computes the entropy over the states acquired by the a residue in terms of the states acquired by 
-    its dihedrals by also accounting for their correlated motions. A residue is depicted as a vector of length N_d where N_d 
+    its dihedrals by also accounting for their correlated motions for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system. 
+    A residue is depicted as a vector of length N_d where N_d 
     is the number of dihedrals. Each dihedral is represented using an integer which is a decimal equivalent of its state of some order Q
     which is represented by a binary vector of that size. At each time frame, a vector of integers of size N_d is stored and it stores that
     time frame uniquely. All the different states acquired are then used to compute the entropy using p-logP.
-
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-    Returns:
-        float: Total SideChain Topog. Entropy
+    
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+    
+    Returns
+    -------
+        totalTopogEntropySC: float
+            Total SideChain Topog. Entropy
     """
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with correlation/pLogp formalism"))
@@ -1992,7 +2007,7 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector="all",
     """ 
     A function that computes the entropy over the states acquired 
     collectively by the heavy BB dihedrals in a protein
-    by also accounting for their correlated motions. 
+    by also accounting for their correlated motions for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system.
     A protein's colleciton of BB diheds is depicted as 
     a vector of length N_d where N_d is the number of BB dihedrals. 
     Each dihedral's state is represented using 0/1 telling which state it was in. 
@@ -2002,13 +2017,21 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector="all",
     corresponding to it which describes it uniquely. All the different 
     states acquired are then used to compute the entropy using p-logP. 
     
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-    Returns:
-        float: Total Backbone Topog. Entropy
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+    
+    Returns
+    -------
+        totalTopogEntropyBB: float
+            Total BackBone Topog. Entropy
     """
     
 
@@ -2303,18 +2326,27 @@ def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector="a
 
 def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
     """
-    Compute entropy by Adaptive Enumeration Method (AEM).
+    Compute entropy by Adaptive Enumeration Method (AEM) for a ``CodeEntropy.ClassCollection.DataContainer.DataContainer`` system.
     This method deals with each dihedral in a conformational entity on an individual basis. After that it coalesces
     the state vectors of each dihedral in the conformational entity to help compute entropy using p-logP formulation. 
     This function computes the total entropy from all residue in the base molecule.
 
-    Args:
-        arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-        arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-        arg_outFile (str): path to a output file output is written via append mode
-        arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-    Returns:
-        float: Topog. Entropy (AEM)
+    Parameters
+    ----------
+        arg_hostDataContainer : CodeEntropy.ClassCollection.DataContainer.DataContainer 
+            Data Container for CodeEntropy
+        arg_outFile : str, optional, default: None
+            Path to a output file output is written via append mode if it is not `None`.
+        arg_selector : str, optional, default: "all" 
+            Selection string for MDanalysis.Universe.select_atoms.
+        arg_verbose : int, optional, default: 3
+            Verbose level from 1-5
+    
+    Returns
+    -------
+        totalTopogEntropySC: float
+            Topog. Entropy (AEM)
+
     """
     Utils.hbar(60)
     Utils.printflush("{:^60}".format("Topographical entropy of residue side chains \ncomputed using all the dihedrals with AEM method"))
