@@ -1,8 +1,19 @@
 API Documentation
 =================
 
+MDAnalysis Helper
+-------------------
+.. autosummary::
+   :toctree: autosummary
+
+   CodeEntropy.IO.MDAUniverseHelper.new_U_select_frame
+   CodeEntropy.IO.MDAUniverseHelper.new_U_select_atom
+   CodeEntropy.IO.MDAUniverseHelper.write_universe
+   CodeEntropy.IO.MDAUniverseHelper.read_universe
+
 Solute
 -------
+
 Import Data
 ^^^^^^^^^^^^^^^
 .. autosummary::
