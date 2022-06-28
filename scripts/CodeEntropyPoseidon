@@ -178,7 +178,7 @@ try:
 						dest  = "topogEntropyMethod",
 						type = int,
 						default = 0,
-						help = "Compute the topographical entropy using\n 1 : pLogP method \n 2: Corr. pLogP method \n 3: Corr. density function \n 4: Phi Coeff method \n 5: Corr. pLogP after adaptive enumeration of states. Default: 0 = no topographical analysis")
+						help = "Compute the topographical entropy using\n 1 : pLogP method \n 2: Corr. pLogP method \n 5: Corr. pLogP after adaptive enumeration of states. Default: 0 = no topographical analysis")
 	parser.add_argument("--solwm",
 						action="store_true",
 						dest  ="doSolMolEntropy",
@@ -404,33 +404,33 @@ if topogEntropyMethod != 0:
 								'result': [result_entropy1_SC, result_entropy1_BB],})
 		results_df = pd.concat([results_df, newRow], ignore_index=True)
 
-	elif topogEntropyMethod == 3:
-		# Demanding computation if large amount of Dihedral
-		result_entropy3 = EF.compute_topographical_entropy_method3(
-			arg_hostDataContainer = dataContainer, 
-			arg_selector = "all",
-			arg_outFile = outfile, 
-			arg_verbose = 5
-		) 
-		print(f"result_entropy3 = {result_entropy3}")
+	# elif topogEntropyMethod == 3:
+	# 	# Demanding computation if large amount of Dihedral
+	# 	result_entropy3 = EF.compute_topographical_entropy_method3(
+	# 		arg_hostDataContainer = dataContainer, 
+	# 		arg_selector = "all",
+	# 		arg_outFile = outfile, 
+	# 		arg_verbose = 5
+	# 	) 
+	# 	print(f"result_entropy3 = {result_entropy3}")
 
-		newRow = pd.DataFrame({'Method and Level': ['Topographical ', ],
-								'Type':['Phi Coeff',],
-								'result': [result_entropy3,],})
-		results_df = pd.concat([results_df, newRow], ignore_index=True)
-	elif topogEntropyMethod == 4:
-		#work in progress
-		result_entropy4 = EF.compute_topographical_entropy_method4(
-		    arg_hostDataContainer = dataContainer, 
-		    arg_selector = "all",
-		    arg_outFile = outfile, 
-		    arg_verbose = 5
-		)
-		newRow = pd.DataFrame({'Method and Level': ['Topographical', ],
-								'Type':['Phi Coeff.',],
-								'result': [result_entropy4,],})
-		results_df = pd.concat([results_df, newRow], ignore_index=True)
-		print(f"result_entropy4 = {result_entropy4}")
+	# 	newRow = pd.DataFrame({'Method and Level': ['Topographical ', ],
+	# 							'Type':['Phi Coeff',],
+	# 							'result': [result_entropy3,],})
+	# 	results_df = pd.concat([results_df, newRow], ignore_index=True)
+	# elif topogEntropyMethod == 4:
+	# 	#work in progress
+	# 	result_entropy4 = EF.compute_topographical_entropy_method4(
+	# 	    arg_hostDataContainer = dataContainer, 
+	# 	    arg_selector = "all",
+	# 	    arg_outFile = outfile, 
+	# 	    arg_verbose = 5
+	# 	)
+	# 	newRow = pd.DataFrame({'Method and Level': ['Topographical', ],
+	# 							'Type':['Phi Coeff.',],
+	# 							'result': [result_entropy4,],})
+	# 	results_df = pd.concat([results_df, newRow], ignore_index=True)
+	# 	print(f"result_entropy4 = {result_entropy4}")
 
 	elif topogEntropyMethod == 5:
 		result_entropyAEM = EF.compute_topographical_entropy_AEM(
