@@ -9,6 +9,7 @@ See `MDAnalysis Format Overview <https://userguide.mdanalysis.org/stable/formats
 
 .. code-block:: python
 
+    import MDAnalysis as mda
     tprfile = "data/1AKI_ws_60.tpr"
     trrfile = "data/1AKI_ws_60.trr"
     u = mda.Universe(tprfile, trrfile)
@@ -19,6 +20,10 @@ Non-standard file
 You may be able to load non standard file by turning the force data into an array and create a new universe by combining the force and trajectory data.
 
 .. code-block:: python
+
+    import MDAnalysis as mda
+    from MDAnalysis.analysis.base import AnalysisFromFunction
+    from MDAnalysis.coordinates.memory import MemoryReader
 
     topo_file = "data/molecules.prmtop"
     traj_file = "data/Trajectory_npt_1.data.gz"
@@ -48,6 +53,8 @@ To start solute analysis, you must load your data into the solute data container
 
 .. code-block:: python
 
+    from CodeEntropy.ClassCollection import DataContainer as DC
+    from CodeEntropy.IO import MDAUniverseHelper as MDAHelper
     start = 0
     end = 21
     step = 2
@@ -60,7 +67,8 @@ To start solute analysis, you must load your data into the solute data container
 You can now calculate entropy at different levels with the following function using information from the ``dataContainer``
 
 .. code-block:: python
-    
+
+    from CodeEntropy.FunctionCollection import EntropyFunctions as EF
     tScale = 1.0
     fScale = 1.0
     temper = 300.0 #K
@@ -168,3 +176,19 @@ You can now calculate entropy at different levels with the following function us
     )
 
     print(f"result_entropyAEM = {result_entropyAEM}")
+
+2b. Solvent Analysis
+------------------------
+
+To run solvent analysis you must load the data into the poseidon object
+
+.. code-block:: python
+
+    poseidon_object = Poseidon(container=main, start=0, end=10, water=('SOL',), excludedResnames=("CL",), verbose=False)
+
+After that, add the level/ analysis you want to run to the `level_list` arguments and run with `run_analysis`. There are 4 levels ``['moleculeLevel', 'residLevel_resname', 'atomLevel', 'soluteContacts']`` 
+
+.. code-block:: python
+
+    poseidon_object.run_analysis(level_list=['moleculeLevel', 'residLevel_resname', 'atomLevel', 'soluteContacts'], verbose=False)
+
