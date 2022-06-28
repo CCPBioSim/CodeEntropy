@@ -13,38 +13,37 @@ try:
 	parser = argparse.ArgumentParser(description="""
 	CodeEntropy-POSEIDON is a tool to compute entropy using the multiscale-cell-correlation (MCC) theory and force/torque covariance methods with the ablity to compute solvent entropy. 
 	Version:
-		0.3.1
+		0.3.1;
 
 	Author: 
-		Arghya Chakravorty (arghya90), 
-		Jas Kalayan (jkalayan)
+		Arghya Chakravorty (arghya90),
+		Jas Kalayan (jkalayan);
 
 	Output:
-		*.csv = results from different calculateion
-		*.pkl - Pickled reduced universe for further analysis
+		*.csv = results from different calculateion,
+		*.pkl - Pickled reduced universe for further analysis,
 		*.out - detailed output such as matrix and spectra""")
 	
-	group = parser.add_mutually_exclusive_group(required=True)
-	group.add_argument('-f', '--top_traj_file',
+	
+	# group = parser.add_mutually_exclusive_group(required=True)
+	# group.add_argument('-f', '--top_traj_file',
+	# 					dest="filePath",
+	# 					action='store',
+	# 					nargs='+',
+	# 					default=None,
+	# 					help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with pickle----pickle")
+	# group.add_argument('-i', '--pickle',
+	# 					dest="picklePath",
+	# 					action='store',
+	# 					type=str,
+	# 					default=None,
+	# 					help="Pickled MDAnalyiss.Universe for unsupported format Required but Mutually exclusive with --top_traj_file")
+	parser.add_argument('-f', '--top_traj_file',
+						required=True,
 						dest="filePath",
 						action='store',
 						nargs='+',
-						default=None,
-						help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with pickle----pickle")
-	group.add_argument('-i', '--pickle',
-						dest="picklePath",
-						action='store',
-						type=str,
-						default=None,
-						help="Pickled MDAnalyiss.Universe for unsupported format Required but Mutually exclusive with --top_traj_file")
-	# parser.add_argument('topology_file',
-	# 					action="store", 
-	# 					type=str,
-	# 					help="Structure/topology file (AMBER PRMTOP or GROMACS TPR)")
-	# parser.add_argument('trajectoryFile',
-	# 					action="store", 
-	# 					type=str,
-	# 					help="Trajectory file (AMBER NETCDF or GROMACS TRR)")
+						help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which contains topology and dihedral information) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR). Required.")
 	parser.add_argument('-l', '--selectString', 
 						action='store',
 						dest="selectionString",  
@@ -217,7 +216,6 @@ for arg in vars(args):
 
 startTime = datetime.now()
 filePath = args.filePath
-picklePath = args.picklePath
 
 outfile = args.outFile
 tScale = 1.0
@@ -248,13 +246,9 @@ excludedResnanes = args.excludedResnanes
 waterResnames = args.waterResnames
 solventResnames = args.solventResnames
 
-
-if picklePath != None:
-	u = MDAHelper.read_universe(picklePath)
-elif len(filePath) == 2:
-	tprfile = args.filePath[0]
-	trrfile = args.filePath[1:]
-	u = mda.Universe(tprfile, trrfile)
+tprfile = filePath[0]
+trrfile = filePath[1:]
+u = mda.Universe(tprfile, trrfile)
 
 results_df = pd.DataFrame(columns=['Method and Level','Type', 'result'])
 
