@@ -2128,201 +2128,201 @@ def compute_topographical_entropy1_BB(arg_hostDataContainer, arg_selector="all",
 	return totalTopogEntropyBB
 #END
 
-def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
-	"""
-	!!! Work in progress
-	Function that computes the topographical entropy using Method 4, Phi Coeff
-	a.k.a the dihedral-state-contingency method.
+# def compute_topographical_entropy_method4(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
+# 	"""
+# 	!!! Work in progress
+# 	Function that computes the topographical entropy using Method 4, Phi Coeff
+# 	a.k.a the dihedral-state-contingency method.
 
-	Args:
-		arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-		arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-		arg_outFile (str): path to a output file output is written via append mode
-		arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-	Returns:
-		float: Topog. Entropy (Method4)
-	"""
-	Utils.hbar(60)
-	Utils.printflush("{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
-	Utils.hbar(60)
-	if arg_outFile != None:
-		Utils.printOut(arg_outFile,'-'*60)
-		Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
-		Utils.printOut(arg_outFile,'-'*60)
+# 	Args:
+# 		arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+# 		arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+# 		arg_outFile (str): path to a output file output is written via append mode
+# 		arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+# 	Returns:
+# 		float: Topog. Entropy (Method4)
+# 	"""
+# 	Utils.hbar(60)
+# 	Utils.printflush("{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
+# 	Utils.hbar(60)
+# 	if arg_outFile != None:
+# 		Utils.printOut(arg_outFile,'-'*60)
+# 		Utils.printOut(arg_outFile,"{:^60}".format("Topographical entropy using dihedral-state-contingency method"))
+# 		Utils.printOut(arg_outFile,'-'*60)
 
-	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+# 	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
 
-	# number of frames
-	numFrames = len(arg_hostDataContainer.trajSnapshots)
+# 	# number of frames
+# 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
-	# conformation vector order |g+, g-, t>
-	vecOrder = 3   # (= Q)
+# 	# conformation vector order |g+, g-, t>
+# 	vecOrder = 3   # (= Q)
 
-	# initialize total entropy from all residues
-	totalTopogEntropy4 = 0
+# 	# initialize total entropy from all residues
+# 	totalTopogEntropy4 = 0
 
-	# all the dihedrals will be computed using coordinates projected onto 
-	# molecular principal axes frames. (It should howver not matter what 
-	# axes system we chose because dihedrals are measured using vector differences
-	# which should not depend on the choice of coordinate systems).
-	CF.cast_translationAxesArray_at_molecule_level(arg_dataContainer=arg_hostDataContainer)
+# 	# all the dihedrals will be computed using coordinates projected onto 
+# 	# molecular principal axes frames. (It should howver not matter what 
+# 	# axes system we chose because dihedrals are measured using vector differences
+# 	# which should not depend on the choice of coordinate systems).
+# 	CF.cast_translationAxesArray_at_molecule_level(arg_dataContainer=arg_hostDataContainer)
 
-	# update local coordinates
-	if arg_verbose >= 2:
-		Utils.printflush("Updating Local coordinates based on new Principal Axes ... ",end= ' ')
+# 	# update local coordinates
+# 	if arg_verbose >= 2:
+# 		Utils.printflush("Updating Local coordinates based on new Principal Axes ... ",end= ' ')
 	
-	arg_hostDataContainer.update_localCoords_of_all_atoms(arg_type="T")
+# 	arg_hostDataContainer.update_localCoords_of_all_atoms(arg_type="T")
 	
-	if arg_verbose >= 2:
-		Utils.printflush('Done')
+# 	if arg_verbose >= 2:
+# 		Utils.printflush('Done')
 
-	#
-	#
-	#      Residue wise calculation of topographical entropy
-	#
-	#
-	for resindices in allSel.residues.resindices:
-		Utils.printflush('-'*10,end='')
-		Utils.printflush('Working on resid : {} ({})'.format(arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]), end='')
-		Utils.printflush('-'*10)
+# 	#
+# 	#
+# 	#      Residue wise calculation of topographical entropy
+# 	#
+# 	#
+# 	for resindices in allSel.residues.resindices:
+# 		Utils.printflush('-'*10,end='')
+# 		Utils.printflush('Working on resid : {} ({})'.format(arg_hostDataContainer.universe.residues.resids[resindices], arg_hostDataContainer.universe.residues.resnames[resindices]), end='')
+# 		Utils.printflush('-'*10)
 
-		resid = arg_hostDataContainer.universe.residues.resids[resindices]
+# 		resid = arg_hostDataContainer.universe.residues.resids[resindices]
 
-		dihedsInRid = set()
-		iAtom_in_rid = nmp.flip(allSel.select_atoms(f"resid {resid}").atoms.indices)
+# 		dihedsInRid = set()
+# 		iAtom_in_rid = nmp.flip(allSel.select_atoms(f"resid {resid}").atoms.indices)
 
-		for idx in iAtom_in_rid:
+# 		for idx in iAtom_in_rid:
 
-			for iDih in arg_hostDataContainer.dihedralTable[idx]:
-				# see if it is exclusive to this resid because they could also be peptide bond diheds
-				if iDih.is_from_same_residue() == resid and iDih.is_heavy():
-					dihedsInRid.add(iDih)
+# 			for iDih in arg_hostDataContainer.dihedralTable[idx]:
+# 				# see if it is exclusive to this resid because they could also be peptide bond diheds
+# 				if iDih.is_from_same_residue() == resid and iDih.is_heavy():
+# 					dihedsInRid.add(iDih)
 
 
-		numDiheds = len(dihedsInRid)
-		if arg_verbose >= 2:
-			Utils.printflush('Found {} exclusive dihedrals in residue {}\
-						  '.format(numDiheds, arg_hostDataContainer.universe.residues.resnames[resindices]))
+# 		numDiheds = len(dihedsInRid)
+# 		if arg_verbose >= 2:
+# 			Utils.printflush('Found {} exclusive dihedrals in residue {}\
+# 						  '.format(numDiheds, arg_hostDataContainer.universe.residues.resnames[resindices]))
 	
-		# treat each dihedral as a conformation entity
-		# initialize a list of ConformationEntities for this molecule
-		conformationEntityList = []
+# 		# treat each dihedral as a conformation entity
+# 		# initialize a list of ConformationEntities for this molecule
+# 		conformationEntityList = []
 
 
-		# for each heavy dihedral
-		for iDih in dihedsInRid:
+# 		# for each heavy dihedral
+# 		for iDih in dihedsInRid:
 				
-			# make an entity from this dihedral
-			newEntity = CONF.ConformationEntity(arg_order = vecOrder, arg_numFrames = numFrames)
+# 			# make an entity from this dihedral
+# 			newEntity = CONF.ConformationEntity(arg_order = vecOrder, arg_numFrames = numFrames)
 
-			# generate a time series of the conformations it acquires.
-			# at each frame
-			for iFrame in range(numFrames):
+# 			# generate a time series of the conformations it acquires.
+# 			# at each frame
+# 			for iFrame in range(numFrames):
 
-				# fetch the dihedral value at that frame
-				phi = iDih.get_dihedral_angle_local(arg_frame = iFrame)
+# 				# fetch the dihedral value at that frame
+# 				phi = iDih.get_dihedral_angle_local(arg_frame = iFrame)
 
-				# define its status
-				# isGaucheP = ( 0 <= phi < 120)
-				# isGaucheN = ( 0 > phi >= -120 )
-				# isTrans   = ( phi >= 120 or phi < -120)
+# 				# define its status
+# 				# isGaucheP = ( 0 <= phi < 120)
+# 				# isGaucheN = ( 0 > phi >= -120 )
+# 				# isTrans   = ( phi >= 120 or phi < -120)
 
-				# using a different categorisation because some dihedrals
-				# hover around the zero-lines and that makes it incorectly flexible
-				# e.g. aromatic ring planar dihedrals
-				isGaucheP = ( -30 <= phi < 90)
-				isGaucheN = ( -30 > phi >= -150 )
-				isTrans   = ( phi >= 90 or phi < -150)
+# 				# using a different categorisation because some dihedrals
+# 				# hover around the zero-lines and that makes it incorectly flexible
+# 				# e.g. aromatic ring planar dihedrals
+# 				isGaucheP = ( -30 <= phi < 90)
+# 				isGaucheN = ( -30 > phi >= -150 )
+# 				isTrans   = ( phi >= 90 or phi < -150)
 
-				# place it in the time series block appropriately
-				newEntity.timeSeries[:,iFrame] = nmp.asarray([isGaucheP, isGaucheN, isTrans], dtype = nmp.int8)
+# 				# place it in the time series block appropriately
+# 				newEntity.timeSeries[:,iFrame] = nmp.asarray([isGaucheP, isGaucheN, isTrans], dtype = nmp.int8)
 
-			# add this dihedral into the list of conformation entities
-			conformationEntityList.append(newEntity)
+# 			# add this dihedral into the list of conformation entities
+# 			conformationEntityList.append(newEntity)
 
 
-		#-------------------------------------------------------------------------------------
-		#
-		#          initialize and populate the symmetric occupancy matrix (for the residue)
-		#
-		#-------------------------------------------------------------------------------------
-		# initialize
-		occuMatrix = -1000 * nmp.ones((numDiheds*vecOrder, numDiheds*vecOrder))
-		if arg_outFile != None:
-			Utils.printOut(arg_outFile, "Occupancy matrix for Residue {}".format(arg_hostDataContainer.universe.residues.resnames[resindices]))
+# 		#-------------------------------------------------------------------------------------
+# 		#
+# 		#          initialize and populate the symmetric occupancy matrix (for the residue)
+# 		#
+# 		#-------------------------------------------------------------------------------------
+# 		# initialize
+# 		occuMatrix = -1000 * nmp.ones((numDiheds*vecOrder, numDiheds*vecOrder))
+# 		if arg_outFile != None:
+# 			Utils.printOut(arg_outFile, "Occupancy matrix for Residue {}".format(arg_hostDataContainer.universe.residues.resnames[resindices]))
 
-		# populate
-		for i in range(0,numDiheds):
-			iDih = conformationEntityList[i]
-			if arg_verbose >= 2: 
-				Utils.printflush('Dihedral {} : |'.format(i), end = ' ' )    
+# 		# populate
+# 		for i in range(0,numDiheds):
+# 			iDih = conformationEntityList[i]
+# 			if arg_verbose >= 2: 
+# 				Utils.printflush('Dihedral {} : |'.format(i), end = ' ' )    
 
-			for j in range(i, numDiheds):
-				jDih = conformationEntityList[j]
-				if arg_verbose >= 2: 
-					Utils.printflush('.',end='')
+# 			for j in range(i, numDiheds):
+# 				jDih = conformationEntityList[j]
+# 				if arg_verbose >= 2: 
+# 					Utils.printflush('.',end='')
 
-				for iState in range(vecOrder):
-					idx = (vecOrder * i) + iState
-					iDihTimeSeries = iDih.timeSeries[iState,:]
+# 				for iState in range(vecOrder):
+# 					idx = (vecOrder * i) + iState
+# 					iDihTimeSeries = iDih.timeSeries[iState,:]
 
-					for jState in range(vecOrder):
-						jdx = (vecOrder * j) + jState
-						jDihTimeSeries = jDih.timeSeries[jState,:]
+# 					for jState in range(vecOrder):
+# 						jdx = (vecOrder * j) + jState
+# 						jDihTimeSeries = jDih.timeSeries[jState,:]
 				
-						# get the determinant of the contingency matrix computed from 
-						# the dihedral states for this pair of dihedrals
-						ijElement = CF.phi_coeff(arg_v1 = iDihTimeSeries\
-															 , arg_v2 = jDihTimeSeries)
+# 						# get the determinant of the contingency matrix computed from 
+# 						# the dihedral states for this pair of dihedrals
+# 						ijElement = CF.phi_coeff(arg_v1 = iDihTimeSeries\
+# 															 , arg_v2 = jDihTimeSeries)
 
-						# add entry at position idx, jdx
-						occuMatrix[idx, jdx] = (ijElement)
+# 						# add entry at position idx, jdx
+# 						occuMatrix[idx, jdx] = (ijElement)
 
-						# add same entry at the tranpose position because the matrix is symmetric
-						occuMatrix[jdx, idx] = occuMatrix[idx, jdx]
+# 						# add same entry at the tranpose position because the matrix is symmetric
+# 						occuMatrix[jdx, idx] = occuMatrix[idx, jdx]
 
-			if arg_verbose >= 2: 
-				Utils.printflush('|')    
+# 			if arg_verbose >= 2: 
+# 				Utils.printflush('|')    
 				
 
-		# diagonlaize the occupancy matrix 
-		lambdasPhi, eigVectorsPhi  = Utils.diagonalize(occuMatrix)
+# 		# diagonlaize the occupancy matrix 
+# 		lambdasPhi, eigVectorsPhi  = Utils.diagonalize(occuMatrix)
 		
-		# normalize the eig values with number of states and return the absolute value
-		lambdasPhi = nmp.abs(nmp.divide(lambdasPhi, vecOrder))
+# 		# normalize the eig values with number of states and return the absolute value
+# 		lambdasPhi = nmp.abs(nmp.divide(lambdasPhi, vecOrder))
 
-		# is the occupancy matrix symmetric-positive definite? (are all the eigen values positive?)
-		for iLm, lm in enumerate(lambdasPhi):
-			if arg_outFile != None:
-				Utils.printOut(arg_outFile, "Eigen value {} = {}".format(iLm, lm))
+# 		# is the occupancy matrix symmetric-positive definite? (are all the eigen values positive?)
+# 		for iLm, lm in enumerate(lambdasPhi):
+# 			if arg_outFile != None:
+# 				Utils.printOut(arg_outFile, "Eigen value {} = {}".format(iLm, lm))
 
-		# compute residue topog. entropy from the eigen values using the `lm.log(lm)` formalism
-		ridTopogEntropy4 = 0
-		for lm in filter(lambda x: x != 0, lambdasPhi):
-			ridTopogEntropy4 += (lm * nmp.log(lm) )
+# 		# compute residue topog. entropy from the eigen values using the `lm.log(lm)` formalism
+# 		ridTopogEntropy4 = 0
+# 		for lm in filter(lambda x: x != 0, lambdasPhi):
+# 			ridTopogEntropy4 += (lm * nmp.log(lm) )
 
-		ridTopogEntropy4 *= -CONST.GAS_CONST #(R)
+# 		ridTopogEntropy4 *= -CONST.GAS_CONST #(R)
 
-		# Final residue entropy information    
-		Utils.printflush('{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
-		Utils.hbar(60)
-		if arg_outFile != None:
-			Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
-			Utils.printOut(arg_outFile, '-'*60)
+# 		# Final residue entropy information    
+# 		Utils.printflush('{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
+# 		Utils.hbar(60)
+# 		if arg_outFile != None:
+# 			Utils.printOut(arg_outFile, '{:<40s} : {:.4f}'.format('Topog. Entropy using method4 ({} {})'.format(arg_hostDataContainer.universe.residues.resnames[resindices], arg_hostDataContainer.universe.residues.resids[resindices]), ridTopogEntropy4))
+# 			Utils.printOut(arg_outFile, '-'*60)
 
-		# add this residue's topog. entropy to the total topog. entropy
-		totalTopogEntropy4 += ridTopogEntropy4
+# 		# add this residue's topog. entropy to the total topog. entropy
+# 		totalTopogEntropy4 += ridTopogEntropy4
 		
-	# print out the outputs
-	if arg_verbose >= 0:
-		Utils.printflush('{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
-		Utils.hbar(60)
-	if arg_outFile != None:
-		Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
-		Utils.printOut(arg_outFile, '-'*60)
+# 	# print out the outputs
+# 	if arg_verbose >= 0:
+# 		Utils.printflush('{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
+# 		Utils.hbar(60)
+# 	if arg_outFile != None:
+# 		Utils.printOut(arg_outFile, '{:<40} : {:>15.3f}'.format('Topog. Entropy (Method4) ', totalTopogEntropy4))
+# 		Utils.printOut(arg_outFile, '-'*60)
 		
-	return totalTopogEntropy4
-#END
+# 	return totalTopogEntropy4
+# #END
 
 def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
 	"""
@@ -2449,159 +2449,159 @@ def compute_topographical_entropy_AEM(arg_hostDataContainer, arg_selector="all",
 #END
 
 
-def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
-	"""
-	Function that computes the topographical entropy using Method 3, Corr. density function
-	Args:
-		arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
-		arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
-		arg_outFile (str): path to a output file output is written via append mode
-		arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
-	Returns:
-		float: Topog. Entropy (Method4)
-	"""
+# def compute_topographical_entropy_method3(arg_hostDataContainer, arg_selector="all", arg_outFile=None, arg_verbose=3):
+# 	"""
+# 	Function that computes the topographical entropy using Method 3, Corr. density function
+# 	Args:
+# 		arg_hostDataContainer (CodeEntropy.ClassCollection.DataContainer): Data Container for CodeEntropy
+# 		arg_selector (str, optional): Selection string for MDanalysis.Universe.select_atoms. Defaults to "all".
+# 		arg_outFile (str): path to a output file output is written via append mode
+# 		arg_verbose (int, optional): verbose level from 1-5. Defaults to 3.
+# 	Returns:
+# 		float: Topog. Entropy (Method4)
+# 	"""
 
-	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
-	# number of frames
-	numFrames = len(arg_hostDataContainer.trajSnapshots)
+# 	allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+# 	# number of frames
+# 	numFrames = len(arg_hostDataContainer.trajSnapshots)
 
-	# conformation vector order |g+, g-, t>
-	vecOrder = 3   # (= Q)
+# 	# conformation vector order |g+, g-, t>
+# 	vecOrder = 3   # (= Q)
 
-	# treat each dihedral as a conformation entity
-	# initialize a list of ConformationEntities for this molecule
-	conformationEntityList = []
+# 	# treat each dihedral as a conformation entity
+# 	# initialize a list of ConformationEntities for this molecule
+# 	conformationEntityList = []
 
-	# fetch all the heavy dihedrals
-	nohDiheds = list(filter(lambda dih:  dih.is_heavy(), arg_hostDataContainer.dihedralArray))
+# 	# fetch all the heavy dihedrals
+# 	nohDiheds = list(filter(lambda dih:  dih.is_heavy(), arg_hostDataContainer.dihedralArray))
 	
-	# for iDih in arg_baseMolecule.dihedralArray:
-	for iDih in nohDiheds:
-		dihAtoms = {"atom1": iDih.atom1, 
-					"atom2":     iDih.atom2, 
-					"atom3":     iDih.atom3, 
-					"atom4":     iDih.atom4,
-					"isBB" :     iDih.is_BB_dihedral(),
-					"isHeavy" :  iDih.is_heavy(),
-					"isSameRes" : iDih.is_from_same_residue()}
+# 	# for iDih in arg_baseMolecule.dihedralArray:
+# 	for iDih in nohDiheds:
+# 		dihAtoms = {"atom1": iDih.atom1, 
+# 					"atom2":     iDih.atom2, 
+# 					"atom3":     iDih.atom3, 
+# 					"atom4":     iDih.atom4,
+# 					"isBB" :     iDih.is_BB_dihedral(),
+# 					"isHeavy" :  iDih.is_heavy(),
+# 					"isSameRes" : iDih.is_from_same_residue()}
 			
-		# make an entity from this dihedral
-		newEntity = CONF.ConformationEntity(arg_order = vecOrder, arg_numFrames = numFrames, **dihAtoms)
+# 		# make an entity from this dihedral
+# 		newEntity = CONF.ConformationEntity(arg_order = vecOrder, arg_numFrames = numFrames, **dihAtoms)
 
-		# generate a time series of the conformations it acquires.
-		# at each frame
-		for iFrame in range(numFrames):
+# 		# generate a time series of the conformations it acquires.
+# 		# at each frame
+# 		for iFrame in range(numFrames):
 
-			# fetch the dihedral value at that frame
-			phi = iDih.get_dihedral_angle_lab(arg_frame = iFrame)
+# 			# fetch the dihedral value at that frame
+# 			phi = iDih.get_dihedral_angle_lab(arg_frame = iFrame)
 
-			# define its status
-			# isGaucheP = ( 0 <= phi < 120)
-			# isGaucheN = ( 0 > phi >= -120 )
-			# isTrans   = ( phi >= 120 or phi < -120)
+# 			# define its status
+# 			# isGaucheP = ( 0 <= phi < 120)
+# 			# isGaucheN = ( 0 > phi >= -120 )
+# 			# isTrans   = ( phi >= 120 or phi < -120)
 
-			# using a different categorisation because some dihedrals
-			# hover around the zero-lines and that makes it incorectly flexible
-			# e.g. aromatic ring planar dihedrals
-			isGaucheP = ( -30 <= phi < 90)
-			isGaucheN = ( -30 > phi >= -150 )
-			isTrans   = ( phi >= 90 or phi < -150)
+# 			# using a different categorisation because some dihedrals
+# 			# hover around the zero-lines and that makes it incorectly flexible
+# 			# e.g. aromatic ring planar dihedrals
+# 			isGaucheP = ( -30 <= phi < 90)
+# 			isGaucheN = ( -30 > phi >= -150 )
+# 			isTrans   = ( phi >= 90 or phi < -150)
 
-			# place it in the time series block appropriately
-			newEntity.timeSeries[:,iFrame] = nmp.asarray([isGaucheP, isGaucheN, isTrans], dtype = nmp.int8)
+# 			# place it in the time series block appropriately
+# 			newEntity.timeSeries[:,iFrame] = nmp.asarray([isGaucheP, isGaucheN, isTrans], dtype = nmp.int8)
 
-		# add this dihedral into the list of conformation entities
-		conformationEntityList.append(newEntity)
+# 		# add this dihedral into the list of conformation entities
+# 		conformationEntityList.append(newEntity)
 
 	
-	# total number of conformational entities (or dihedrals)
-	numDiheds = len(conformationEntityList)
+# 	# total number of conformational entities (or dihedrals)
+# 	numDiheds = len(conformationEntityList)
 
-	# for each pair of dihedrals, find a matrix \rho_ij = \p_ij * \r_ij for i,j = 1 .. Q
-	# where \p_ij is the probability of seeing dihedral1 in state 'i' and dihedral 2 in state 'j'
-	# and   \r_ij is the correlation of dihedral1 in state 'i' and dihedral 2 in state 'j'
+# 	# for each pair of dihedrals, find a matrix \rho_ij = \p_ij * \r_ij for i,j = 1 .. Q
+# 	# where \p_ij is the probability of seeing dihedral1 in state 'i' and dihedral 2 in state 'j'
+# 	# and   \r_ij is the correlation of dihedral1 in state 'i' and dihedral 2 in state 'j'
 
-	# initialize a density matrix with values that can never be!
-	densityMatrix = -1000 * nmp.zeros((numDiheds*vecOrder, numDiheds*vecOrder))
+# 	# initialize a density matrix with values that can never be!
+# 	densityMatrix = -1000 * nmp.zeros((numDiheds*vecOrder, numDiheds*vecOrder))
 
-	for i in range(0,numDiheds):
-		iEntity = conformationEntityList[i]
-		Utils.printflush('Dihedral {} : |'.format(i), end = ' ' )    
+# 	for i in range(0,numDiheds):
+# 		iEntity = conformationEntityList[i]
+# 		Utils.printflush('Dihedral {} : |'.format(i), end = ' ' )    
 
-		for j in range(i, numDiheds):
-			jEntity = conformationEntityList[j]
-			if arg_outFile != None:
+# 		for j in range(i, numDiheds):
+# 			jEntity = conformationEntityList[j]
+# 			if arg_outFile != None:
 
-				Utils.printflush('.',end='')
+# 				Utils.printflush('.',end='')
 
-				Utils.printOut(arg_outFile, 'Dihedral {}: ({} {} {} {}) and Dihedral {}: ({} {} {} {})'.format(i, iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, \
-					j, jEntity.atom1, jEntity.atom2, jEntity.atom3, jEntity.atom4))
+# 				Utils.printOut(arg_outFile, 'Dihedral {}: ({} {} {} {}) and Dihedral {}: ({} {} {} {})'.format(i, iEntity.atom1, iEntity.atom2, iEntity.atom3, iEntity.atom4, \
+# 					j, jEntity.atom1, jEntity.atom2, jEntity.atom3, jEntity.atom4))
 
-			for iState in range(vecOrder):
-				idx = (vecOrder * i) + iState
-				iDihedralTimeSeries = iEntity.timeSeries[iState,:]
-				iDihedralTimeSeriesSTD = nmp.std(iDihedralTimeSeries)
+# 			for iState in range(vecOrder):
+# 				idx = (vecOrder * i) + iState
+# 				iDihedralTimeSeries = iEntity.timeSeries[iState,:]
+# 				iDihedralTimeSeriesSTD = nmp.std(iDihedralTimeSeries)
 
-				for jState in range(vecOrder):
-					jdx = (vecOrder * j) + jState
-					jDihedralTimeSeries = jEntity.timeSeries[jState,:]
-					jDihedralTimeSeriesSTD = nmp.std(jDihedralTimeSeries)
+# 				for jState in range(vecOrder):
+# 					jdx = (vecOrder * j) + jState
+# 					jDihedralTimeSeries = jEntity.timeSeries[jState,:]
+# 					jDihedralTimeSeriesSTD = nmp.std(jDihedralTimeSeries)
 
-					# correlation (r_ij)
-					ijCorrelation = -1000    #initialize with a number that can never be!
+# 					# correlation (r_ij)
+# 					ijCorrelation = -1000    #initialize with a number that can never be!
 
-					if iDihedralTimeSeriesSTD == 0:
-						if jDihedralTimeSeriesSTD == 0:
-							#both are not changing => correlation is '1'
-							ijCorrelation = 1
-						elif jDihedralTimeSeriesSTD != 0:
-							#one is changing irrespective of the other => no correlation
-							ijCorrelation = 0
+# 					if iDihedralTimeSeriesSTD == 0:
+# 						if jDihedralTimeSeriesSTD == 0:
+# 							#both are not changing => correlation is '1'
+# 							ijCorrelation = 1
+# 						elif jDihedralTimeSeriesSTD != 0:
+# 							#one is changing irrespective of the other => no correlation
+# 							ijCorrelation = 0
 
-					elif iDihedralTimeSeriesSTD != 0:
-						if jDihedralTimeSeriesSTD == 0:
-							#one is changing irrespective of the other => no correlation
-							ijCorrelation = 0
-						else:
-							#compute the correlation using covariance
-							ijCovariance = CF.covariance(iDihedralTimeSeries, jDihedralTimeSeries)
-							ijCorrelation = ijCovariance/(iDihedralTimeSeriesSTD * jDihedralTimeSeriesSTD)
+# 					elif iDihedralTimeSeriesSTD != 0:
+# 						if jDihedralTimeSeriesSTD == 0:
+# 							#one is changing irrespective of the other => no correlation
+# 							ijCorrelation = 0
+# 						else:
+# 							#compute the correlation using covariance
+# 							ijCovariance = CF.covariance(iDihedralTimeSeries, jDihedralTimeSeries)
+# 							ijCorrelation = ijCovariance/(iDihedralTimeSeriesSTD * jDihedralTimeSeriesSTD)
 
-					# probability of coexistence (p_ij)
-					ijProb = CF.probability_of_coexistence(iDihedralTimeSeries, jDihedralTimeSeries)
+# 					# probability of coexistence (p_ij)
+# 					ijProb = CF.probability_of_coexistence(iDihedralTimeSeries, jDihedralTimeSeries)
 					
-					# add entry at position idx, jdx
-					densityMatrix[idx, jdx] = ijProb * ijCorrelation
+# 					# add entry at position idx, jdx
+# 					densityMatrix[idx, jdx] = ijProb * ijCorrelation
 
-					# add same entry at the tranpose position because the matrix is symmetric
-					densityMatrix[jdx, idx] = densityMatrix[idx, jdx]
-					if arg_outFile != None:
-						Utils.printOut(arg_outFile, "{:>15.8f}".format(densityMatrix[idx, jdx]), end = "")
+# 					# add same entry at the tranpose position because the matrix is symmetric
+# 					densityMatrix[jdx, idx] = densityMatrix[idx, jdx]
+# 					if arg_outFile != None:
+# 						Utils.printOut(arg_outFile, "{:>15.8f}".format(densityMatrix[idx, jdx]), end = "")
 
-					if jState == (vecOrder - 1):
-						if arg_outFile != None:
-							Utils.printOut(arg_outFile,'')
+# 					if jState == (vecOrder - 1):
+# 						if arg_outFile != None:
+# 							Utils.printOut(arg_outFile,'')
 		
-		Utils.printflush('|')    
+# 		Utils.printflush('|')    
 			
-	# filter rows and columns with all zero (which make the matrix singular)
-	densityMatrix = CF.filter_zero_rows_columns(densityMatrix)
+# 	# filter rows and columns with all zero (which make the matrix singular)
+# 	densityMatrix = CF.filter_zero_rows_columns(densityMatrix)
 	
-	# diagonlaize the density matrix 
-	lambdasRho, eigVectorsRho  = Utils.diagonalize(densityMatrix)
+# 	# diagonlaize the density matrix 
+# 	lambdasRho, eigVectorsRho  = Utils.diagonalize(densityMatrix)
 
-	# is the density matrix symmetric-positive definite?
-	for lr in lambdasRho:
-		if arg_outFile != None:
-			Utils.printOut(arg_outFile, lr)
-	print("Density Matrix:")
-	print(densityMatrix)
-	# plot the matrix with imshow
-	mplot = plt.figure()
-	ax = mplot.add_axes([0, 0, 1, 1], frameon=False, aspect=1)
-	plt.imshow(densityMatrix, cmap = "jet", vmin = -1, vmax = +1)
-	plt.savefig('method3_densityMatrix_plot.png')
+# 	# is the density matrix symmetric-positive definite?
+# 	for lr in lambdasRho:
+# 		if arg_outFile != None:
+# 			Utils.printOut(arg_outFile, lr)
+# 	print("Density Matrix:")
+# 	print(densityMatrix)
+# 	# plot the matrix with imshow
+# 	mplot = plt.figure()
+# 	ax = mplot.add_axes([0, 0, 1, 1], frameon=False, aspect=1)
+# 	plt.imshow(densityMatrix, cmap = "jet", vmin = -1, vmax = +1)
+# 	plt.savefig('method3_densityMatrix_plot.png')
 
-	return lambdasRho
-#END
+# 	return lambdasRho
+# #END
 
