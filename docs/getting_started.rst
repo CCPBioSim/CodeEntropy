@@ -19,7 +19,7 @@ Units
 ------------
 The program assumes the following default unit
 
-.. list-table:: Arguments
+.. list-table:: Units
    :widths: 20 20
    :class: tight-table
    :header-rows: 1
