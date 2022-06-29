@@ -60,6 +60,7 @@ def new_U_select_atom(u, select_string='all'):
 
 def write_universe(u, name='default'):
 	"""Write a universe to working directories as pickle
+	
 	Parameters
 	----------
 	u : MDAnalyse.Universe

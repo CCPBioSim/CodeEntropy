@@ -15,7 +15,27 @@ Run the following at the root directory of this repository
     
     pip install .
 
+Units
+------------
+The program assumes the following default unit
 
+.. list-table:: Arguments
+   :widths: 20 20
+   :class: tight-table
+   :header-rows: 1
+   
+   * - Qunatity
+     - Unit
+   * - Length
+     - Å
+   * - Time
+     - ps
+   * - Charge
+     - `e`
+   * - Mass
+     - u
+   * - Force
+     - kJ/(mol·Å)
 
 Quick start guide
 --------------------
