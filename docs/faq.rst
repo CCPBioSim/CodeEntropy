@@ -1,6 +1,6 @@
 Frequently asked questions
 ==============================
-What are FF ant TT entropy?
+What are FF and TT entropy?
 ---------------------------------
 FF and TT stand for Force-Force and Torque-Torque, respectively. But they really are the translational and rotational components of vibration entropy at a given level of hierarchy, also respectively. The former is computed by diagonalizing a force-force covariance matrix <F\ :sub:`i` • F\ :sub:`j``> and latter using a torque-torque covariance matrix <T\ :sub:`i` • T\ :sub:`j`> - each normalized separately using masses and inertias, respectively, to have the same dimensions. 
 
