@@ -8,5 +8,6 @@ dependencies:
 
 
     # Pip-only installs
-  #- pip:
+  - pip:
+    - nbsphinx
 
