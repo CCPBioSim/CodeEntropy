@@ -7,7 +7,7 @@ CodeEntropy
 
 CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
 
-See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest/) for mor information.
+See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest/) for more information.
 
 ## To run
 ### Requirements
