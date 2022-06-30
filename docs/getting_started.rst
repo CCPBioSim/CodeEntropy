@@ -3,9 +3,9 @@ Getting Started
 
 Requirements
 ----------------
-- Python >3.9
-- gcc
-- g++
+* Python >3.9
+* gcc
+* g++
 
 Installation
 ----------------
