@@ -30,7 +30,6 @@ CodeEntropyPoseidon -h
 | Arguments  | Description | Default | type|
 | ------------- | ------------- |----------- |--------------|
 | `-f`, `--top_traj_file`  | Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s)  | Requires either `--top_traj_file` or `--pickle`  | list of `str` |
-| `-i`, `--pickle`  | Pickled MDAnalyiss.Universe for unsupported format, refer to `create_new_universe.py` for how to load unsuppported data into a universe  | Requires either `--top_traj_file` or `--pickle`  | `str` |
 | `-l`, `--selectString`  | Selection string for CodeEntropy such as protein or resid, refer to `MDAnalysis.select_atoms` for more information. | `"all"`: select all atom in trajectory for CodeEntropy analysis for trajectory without solvent  | `str` |
 | `-b`, `--begin`  | Start analysing the trajectory from this frame index. | `0`: From begining | `int` |
 | `-e`, `--end`  | Stop analysing the trajectory at this frame index | `-1`: end of trajectory | `int` |
