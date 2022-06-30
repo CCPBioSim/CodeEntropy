@@ -16,6 +16,7 @@ This code is based on the CodeEntropy tool with POSEIDON code integrated to form
 
    getting_started
    Run_as_script
+   Script_example
    api
    faq
 
