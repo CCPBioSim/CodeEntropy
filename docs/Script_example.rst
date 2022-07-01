@@ -5,5 +5,6 @@ Script Example
    :maxdepth: 2
    :caption: Contents:
 
-   DNA_example.ipynb
-   Capped_protein_Example.ipynb
+   notebook/DNA_example.ipynb
+   notebook/Capped_protein_Example.ipynb
+   notebook/Protein_example.ipynb
