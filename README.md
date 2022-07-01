@@ -1,9 +1,5 @@
 CodeEntropy
 ==============================
-!!! This repo is now moved to [CCPBioSim/CodeEntropy](https://github.com/CCPBioSim/CodeEntropy). Please check there for the latest version.
-
-
-
 [//]: # (Badges)
 [![GitHub Actions Build Status](https://github.com/CCPBioSim/CodeEntropy/workflows/CI/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions?query=workflow%3ACI)
 
