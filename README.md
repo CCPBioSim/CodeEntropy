@@ -1,8 +1,7 @@
 CodeEntropy
 ==============================
 [//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/DonaldChung-HK/CodeEntropy/workflows/CI/badge.svg)](https://github.com/DonaldChung-HK/CodeEntropy/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/main/graph/badge.svg)](https://codecov.io/gh/DonaldChung-HK/CodeEntropy/branch/main)
+[![GitHub Actions Build Status](https://github.com/CCPBioSim/CodeEntropy/workflows/CI/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions?query=workflow%3ACI)
 
 
 CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
@@ -74,29 +73,9 @@ The program assumes the following default unit
 | mass | u |
 | force | kJ/(mol·Å) |
 
-## Script Examples
-See `Example` folder
-You can add your own trajectories by editing the path in the python script to point to your own trajectories
-### `create_new_universe.py`
-This repo uses MDAnalysis to parse values and it can only parse force natively for GROMACS TRR and AMBER NETCDF. This scripts shows you how to create a new universe from unsuppported data so that you can use trajectories created from other simulation software or reduce the size of universe to focus on a section of simulation.
-### `CodeEntropy_non_topo.py`
-Calculate entropy of target trajectory non topographical level with a no water lysozyme trajectory
-### `CodeEntropy_topo.py`
-Calculate entropy of target trajectory based on different method with a no water lysozyme trajectory
-### `Poseidon_GROMACS`
-Run POSEIDON analysis for a GROMACS trajectories with a lysozyme in water
-### `Poseidon_LAMMPS`
-A LAMMPS example for POSEIDON this is a capped amino acid example (note the force unit of this trajectory is based on KCal not KJ)
-### `mcc_mdanalysis`
-A DNA example for CodeEntropy without using function to show the inner working of CodeEntropy
-### `mcc_mdanalysis_multiprocess`
-mcc_mdanalysis with multiprocess parallelization 
-### `CodeEntropy_DNA.py`
-the DNA strand example but with updated generalized CodeEntropy functions
-
 ## Copyright
 
-Copyright (c) 2022, DonaldChung-HK
+Copyright (c) 2022, DonaldChung-HK, CCPBioSim
 
 
 ## Acknowledgements
