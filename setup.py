@@ -22,8 +22,8 @@ except:
 setup(
     # Self-descriptive entries which should always be present
     name='CodeEntropy',
-    author='Arghya \"Argo\" Chakravorty, DonaldChung-HK',
-    author_email='arghyac@umich.edu, lpchungaa@gmail.com',
+    author='Arghya \"Argo\" Chakravorty, Jas Kalayan, DonaldChung-HK',
+    author_email='arghyac@umich.edu, jas.kalayan@manchester.ac.uk, donald.chung@stfc.ac.uk',
     description=short_description,
     long_description=long_description,
     long_description_content_type="text/markdown",
