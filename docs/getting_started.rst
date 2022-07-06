@@ -14,7 +14,7 @@ Run the following at the root directory of this repository
 
 .. code-block:: bash
     
-    pip install .
+    pip install CodeEntropy
 
 Units
 ------------

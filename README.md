@@ -16,7 +16,7 @@ See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest
 
 ### Install via
 ```
-pip install .
+pip install CodeEntropy
 ```
 
 ### Command-line tool
