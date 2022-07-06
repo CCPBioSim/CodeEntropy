@@ -1,0 +1,21 @@
+name: Publish
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+jobs:
+  publish:
+    name: Publish to pypi if tagged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - uses: casperdcl/deploy-pypi@v2
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          pip: wheel -w dist/ --no-deps .
+          # only upload if a tag is pushed (otherwise just build & check)
+          upload: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
