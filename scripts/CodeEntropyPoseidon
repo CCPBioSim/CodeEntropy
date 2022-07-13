@@ -426,7 +426,7 @@ if topogEntropyMethod != 0:
 	# 	results_df = pd.concat([results_df, newRow], ignore_index=True)
 	# 	print(f"result_entropy4 = {result_entropy4}")
 
-	elif topogEntropyMethod == 5:
+	elif topogEntropyMethod == 3:
 		result_entropyAEM = EF.compute_topographical_entropy_AEM(
 			arg_hostDataContainer = dataContainer, 
 			arg_selector = "all",

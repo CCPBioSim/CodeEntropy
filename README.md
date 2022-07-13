@@ -32,7 +32,7 @@ CodeEntropyPoseidon -h
 | `-l`, `--selectString`  | Selection string for CodeEntropy such as protein or resid, refer to `MDAnalysis.select_atoms` for more information. | `"all"`: select all atom in trajectory for CodeEntropy analysis for trajectory without solvent  | `str` |
 | `-b`, `--begin`  | Start analysing the trajectory from this frame index. | `0`: From begining | `int` |
 | `-e`, `--end`  | Stop analysing the trajectory at this frame index | `-1`: end of trajectory | `int` |
-| `-d`, `--step`  | Stop analysing the trajectory at this frame index | `1` | `int` |
+| `-d`, `--step`  | Steps between frame | `1` | `int` |
 | `-k`, `--tempra`  | Temperature for entropy calculation (K) | `298.0` | `float` |
 | `-t`, `--thread`  | How many multiprocess to use. | `1`: for single core execution | `int` |
 | `-o`, `--out`  | Name of the file where the text format output will be written. | `outfile.out` | `str` |
@@ -49,7 +49,7 @@ CodeEntropyPoseidon -h
 | `--wm`  | Do entropy calculation at whole molecule level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
 | `--res`  | Do entropy calculation at residue level (A residue as a whole represents a bead.).  | Flag, activate when included | Flag |
 | `--uatom`  | Do entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
-| `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method (will separate between backbone and side chain)</li><li>2: Corr. pLogP method (will separate between backbone and side chain)</li><li>5: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
+| `--topog`  | Compute the topographical entropy using  <ul><li>1 : pLogP method (will separate between backbone and side chain)</li><li>2: Corr. pLogP method (will separate between backbone and side chain)</li><li>3: Corr. pLogP after adaptive enumeration of states</li></ul> | `0`: no topographical analysis | `int` |
 | `--solwm`  | Do water entropy calculation at residue level (The whole molecule is treated as one single bead.).  | Flag, activate when included | Flag |
 | `--solres`  | Do water entropy calculation at residue level (A residue as a whole represents a bead.  | Flag, activate when included | Flag |
 | `--soluatom`  | Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
@@ -57,7 +57,7 @@ CodeEntropyPoseidon -h
 #### Example 
 ```
 # example 1 DNA
-CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 5
+CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 3
 
 # example 2 lysozyme in water
 CodeEntropyPoseidon -f "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom --solContact
