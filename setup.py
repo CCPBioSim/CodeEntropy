@@ -63,12 +63,12 @@ setup(
 	zip_safe = False,
 
     install_requires=[
-        'numpy',
-        'bitarray',
-        'mdanalysis',
-        'pandas',
-        'psutil',
-        'dill'
+        'numpy==1.22.3',
+        'bitarray==2.5.0',
+        'mdanalysis==2.1.0',
+        'pandas==1.4.2',
+        'psutil==5.9.0',
+        'dill==0.3.5.1'
     ],
 
     scripts=['scripts/CodeEntropyPoseidon']

@@ -6,5 +6,4 @@ include versioneer.py
 graft CodeEntropy
 global-exclude *.py[cod] __pycache__ *.so
 
-exclude CodeEntropy/tests/data/1AKI_prod_60.trr
-exclude CodeEntropy/tests/data/1AKI_prod_60.tpr
+prune CodeEntropy/tests/*
