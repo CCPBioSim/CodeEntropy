@@ -68,7 +68,8 @@ setup(
         'mdanalysis==2.1.0',
         'pandas==1.4.2',
         'psutil==5.9.0',
-        'dill==0.3.5.1'
+        'dill==0.3.5.1',
+        'pathos==0.2.9',
     ],
 
     scripts=['scripts/CodeEntropyPoseidon']

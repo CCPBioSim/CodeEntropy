@@ -27,11 +27,6 @@ from functools import partial
 from multiprocessing import Pool
 
 from pathos.pools import ProcessPool
-import dask
-import dask.multiprocessing
-dask.config.set(scheduler='processes')
-
-from dask.distributed import Client
 
 import numpy as nmp
 
