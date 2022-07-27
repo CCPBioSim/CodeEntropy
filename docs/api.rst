@@ -69,6 +69,7 @@ Import Data
    :toctree: autosummary
 
    CodeEntropy.ClassCollection.PoseidonClass.Poseidon
+   CodeEntropy.ClassCollection.PoseidonClass.Poseidon_mp
 
 Run Analysis
 ^^^^^^^^^^^^^^^^
@@ -77,3 +78,4 @@ Run Analysis
    :toctree: autosummary
 
    CodeEntropy.ClassCollection.PoseidonClass.Poseidon.run_analysis
+   CodeEntropy.ClassCollection.PoseidonClass.Poseidon_mp.run_analysis
