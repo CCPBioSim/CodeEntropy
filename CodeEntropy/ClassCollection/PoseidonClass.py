@@ -422,11 +422,12 @@ class Poseidon_mp(Poseidon):
 		excludedResnames=None,
 		water='WAT', verbose=False, thread=4):
 		"""
-		Warning!!!
-     		
-			This requires a lot of memory to run with very little performance gain.
 		
 		This is a initialization function to collect information from a MDanalysis universe into a data container for analysis using POSEIDON.
+		
+		.. Warning ::
+			
+			This requires a lot of memory to run with very little performance gain.
 		
 		Parameters
 		----------

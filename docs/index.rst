@@ -19,6 +19,7 @@ This code is based on the CodeEntropy tool with POSEIDON code integrated to form
    Script_example
    api
    faq
+   community_guide
 
 
 
