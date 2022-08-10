@@ -2,6 +2,8 @@ Run As Script
 =================
 CodeEntropy can also be run as a script for more advanced operations.
 
+.. _load-custom:
+
 1. Loading data
 -------------------
 First you should load the data into an MDanalysis universe. For this code, MDanalysis must be able to read dihedral and force directly from the trajectory files 

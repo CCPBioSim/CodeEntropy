@@ -43,7 +43,7 @@ try:
 						dest="filePath",
 						action='store',
 						nargs='+',
-						help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which contains topology and dihedral information) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR). Required.")
+						help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which contains topology and dihedral information) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) you will need to output the coordinates and forces to the same file. Required.")
 	parser.add_argument('-l', '--selectString', 
 						action='store',
 						dest="selectionString",  
