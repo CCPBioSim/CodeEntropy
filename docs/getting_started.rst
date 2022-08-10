@@ -16,6 +16,12 @@ Run the following at the root directory of this repository
     
     pip install CodeEntropy
 
+Input
+----------
+For supported format (AMBER NETCDF and GROMACS TRR) you will need to output the **coordinates** and **forces** to the **same file**.
+
+For unsupported format see :ref:`load-custom` for ideas on how to load custom data into MDanalysis universe and convert to supported format.
+
 Units
 ------------
 The program assumes the following default unit
@@ -65,7 +71,7 @@ Arguments
      - Default
      - Type
    * - ``-f``, ``--top_traj_file`` 
-     - Path to Structure/topology file(``AMBER PRMTOP``, ``GROMACS TPR`` or topology file with MDAnalysis readable dihedral information (not officially supported)) followed by Trajectory file(s) (``GROMAC TRR`` or ``AMBER NETCDF``)
+     - Path to Structure/topology file(``AMBER PRMTOP``, ``GROMACS TPR`` or topology file with MDAnalysis readable dihedral information (not officially supported)) followed by Trajectory file(s) (``GROMAC TRR`` or ``AMBER NETCDF``) You will need to output the **coordinates** and **forces** to the **same file** . 
      - Required
      - list of ``str`` 
    * - ``-l``, ``--selectString``
