@@ -19,6 +19,11 @@ See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest
 pip install CodeEntropy
 ```
 
+### Input
+For supported format (AMBER NETCDF and GROMACS TRR) you will need to output the **coordinates** and **forces** to the **same file**.
+
+See [Format overview — MDAnalysis User Guide documentation](https://userguide.mdanalysis.org/stable/formats/index.html)
+
 ### Command-line tool
 A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing `CodeEntropyPoseidon` (Note: this doesn't work on Windows!!!)
 #### For help
@@ -28,7 +33,7 @@ CodeEntropyPoseidon -h
 #### Arguments
 | Arguments  | Description | Default | type|
 | ------------- | ------------- |----------- |--------------|
-| `-f`, `--top_traj_file`  | Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s)  | Requires either `--top_traj_file` or `--pickle`  | list of `str` |
+| `-f`, `--top_traj_file`  | Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR). You will need to output the **coordinates** and **forces** to the **same file**  | Require at least 2 file: a topology and a trajectory file | list of `str` |
 | `-l`, `--selectString`  | Selection string for CodeEntropy such as protein or resid, refer to `MDAnalysis.select_atoms` for more information. | `"all"`: select all atom in trajectory for CodeEntropy analysis for trajectory without solvent  | `str` |
 | `-b`, `--begin`  | Start analysing the trajectory from this frame index. | `0`: From begining | `int` |
 | `-e`, `--end`  | Stop analysing the trajectory at this frame index | `-1`: end of trajectory | `int` |
@@ -55,6 +60,7 @@ CodeEntropyPoseidon -h
 | `--soluatom`  | Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).  | Flag, activate when included | Flag |
 | `--solContact`  | Do solute contact calculation.  | Flag, activate when included | Flag |
 #### Example 
+You need to clone this repository to download example trajectories.
 ```
 # example 1 DNA
 CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 3
