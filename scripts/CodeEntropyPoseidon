@@ -2,6 +2,7 @@
 import argparse
 import MDAnalysis as mda
 from CodeEntropy.FunctionCollection import EntropyFunctions as EF
+from CodeEntropy.FunctionCollection import Utils
 from CodeEntropy.ClassCollection import DataContainer as DC
 from CodeEntropy.IO import MDAUniverseHelper as MDAHelper
 import pandas as pd
@@ -440,7 +441,15 @@ if topogEntropyMethod != 0:
 
 		print(f"result_entropyAEM = {result_entropyAEM}")
 
-
+# Print out the total entropy
+totalEntropy = results_df['result'].sum()
+print('\n'+'-'*60)
+print('{:<40} : {:>15.3f}'.format('Total Entropy ', totalEntropy))
+print('-'*60)
+if outfile != None:
+	Utils.printOut(outfile, '_'*60 + '\n' +
+				   '{:<40} : {:>15.3f}'.format('Total Entropy ', totalEntropy)
+				   + '\n' + '-'*60)
 
 print(f"total time {datetime.now() - startTime}")
 results_df = results_df.replace(np.nan, 'nan')
@@ -479,3 +488,4 @@ if len(level_list) > 0:
 		weighting = None,
 		#forceUnits = "kJ"
 	)
+
