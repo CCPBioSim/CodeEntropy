@@ -21,13 +21,6 @@ def cross_product(arg_v1, arg_v2):
 
 #END
 
-def dot_product(arg_v1, arg_v2):
-	"""
-	Returns dot product of two vectors using numpy's dot function.
-	""" 
-	return nmp.dot(arg_v1, arg_v2)
-#END
-
 def euler_vector(arg_r, arg_theta):
 	"""
 	Create and return a vector of the form r*e^i(theta) in the argand plane.
