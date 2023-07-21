@@ -1,28 +1,6 @@
 import numpy as nmp
 from CodeEntropy.FunctionCollection import CustomFunctions as CF 
 
-def transform_coordinates(arg_origVector, arg_oldBase, arg_newBase):
-	"""Given a 3D vector (origVector; V) with components in the old_base (3,3 matrix), 
-	transform it to a new 3D vector (return value) with components in the new_base (3x3 matrix).
-	A 3X3 transformation matrix TM is created which gives new vector components V' = TM @ V. 
-	TM[i,j] = dot(axis{j_new}, axis{i_old}).
-
-	NOTE: Axes in both coordinate system have to be orthogonal"""
-
-	#transformation matrix
-	TM = [[nmp.dot(j,i) for i in arg_newBase] for j in arg_oldBase]
-
-	return TM @ arg_origVector
-
-#END
-
-
-def get_cartesian_midpoint3D(arg_point1, arg_point2):
-	""" Get the cartesian midpoint of the line joining two 3D points """
-	return nmp.multiply(0.5, nmp.add(arg_point1, arg_point2))
-
-#END
-
 def generate_orthonormal_axes_system(arg_coord1, arg_coord2, arg_coord3):
 	"""Generate a 3 x 3 matrix with columns as axes of the returning coordinate system. 
 	They must be orthonormal (assert).
@@ -69,33 +47,6 @@ def generate_orthonormal_axes_system(arg_coord1, arg_coord2, arg_coord3):
 	return basis, rAltitude
 
 #END
-
-def get_altitude(arg_lineEndPoint1, arg_lineEndPoint2, arg_sourcePoint):
-	"""
-	For the three points in the input, 
-	2 form a line segement and 
-	the thrid one is the point from
-	where the altitude on the line segement is computed.
-
-	Returns te altitude vector"""
-
-
-	r1 = arg_lineEndPoint1
-	r2 = arg_lineEndPoint2
-	r3 = arg_sourcePoint
-
-	r31 = r3 - r1
-	r21 = r2 - r1
-
-	#derived formula
-	rAltitude = nmp.dot(r31, r21) * r21
-	rAltitude /= nmp.linalg.norm(r21)**2
-	rAltitude = r31 - rAltitude
-
-	return rAltitude
-
-# END
-
 
 def get_sphCoord_axes(arg_r):
 	""" For a given vector in space, treat it is a radial vector rooted at 0,0,0 and 
