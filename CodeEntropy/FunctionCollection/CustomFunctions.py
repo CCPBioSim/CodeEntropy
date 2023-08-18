@@ -5,7 +5,7 @@ from bitarray import bitarray
 from CodeEntropy import ClassCollection as CC 
 from CodeEntropy.FunctionCollection import Utils
 
-##TODO replace custom cross_product with numpy function
+## DEPRECIATED replaced custom cross_product with numpy.cross() function
 def cross_product(arg_v1, arg_v2):
 	""" 
 	Returns cross product of two vectors using analytical expressions 
