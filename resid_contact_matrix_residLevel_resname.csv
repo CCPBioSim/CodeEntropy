@@ -1,0 +1,7 @@
+centre_resid,neighbour_resid,count,centre_resname,neighbour_resname
+1,2,3.0,ACE_1,ARG
+1,3,0.1,ACE_1,NME
+2,1,3.0,ARG_2,ACE
+2,3,3.0,ARG_2,NME
+3,1,0.1,NME_3,ACE
+3,2,3.0,NME_3,ARG
