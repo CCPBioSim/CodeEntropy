@@ -63,7 +63,7 @@ setup(
 	zip_safe = False,
 
     install_requires=[
-        'numpy==1.22.4s',
+        'numpy==1.22.4',
         'bitarray==2.5.0',
         'mdanalysis==2.6.1', #updated from MDanalysis 2.1.0 
         'pandas==2.1.0',
