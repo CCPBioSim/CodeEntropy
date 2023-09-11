@@ -63,10 +63,10 @@ setup(
 	zip_safe = False,
 
     install_requires=[
-        'numpy==1.22.3',
+        'numpy==1.22.4s',
         'bitarray==2.5.0',
-        'mdanalysis==2.5.0', #updated from MDanalysis 2.1.0 
-        'pandas==1.4.2',
+        'mdanalysis==2.6.1', #updated from MDanalysis 2.1.0 
+        'pandas==2.1.0',
         'psutil==5.9.0',
         'dill==0.3.5.1',
         'pathos==0.2.9',
