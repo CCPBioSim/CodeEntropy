@@ -221,7 +221,7 @@ class Dihedral(BondedStructure):
 					tpAngle = tp[0]
 					tpVec = CF.euler_vector(arg_r = 1., arg_theta = tpAngle)
 					
-					dotProd = CF.dot_product(newVec, tpVec)
+					dotProd = nmp.dot(newVec, tpVec)
 					if nmp.isclose(dotProd, cosBW) or dotProd > cosBW:
 						goodTP = False
 

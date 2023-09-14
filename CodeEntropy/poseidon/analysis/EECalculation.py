@@ -855,8 +855,16 @@ def Svib_calc(matrix_SI, T, cov, out, *args, **kwargs):
     ZPE = []
     for value in eigenvalues:
         w = value/(kB*T)
-        #print(f"w = {w}")
-        w = w ** 0.5
+       # print('w = ', (w))
+        ## Need to avoid square root of negative number -> NaN results
+        # If w is positive no problems
+        if w > 0:
+            w = w ** 0.5
+        # If w is very close to zero but on the negative side, we think this is noise and using zero should be fine.
+        elif w > -0.0001:
+            w = 0
+        else:
+            raise ValueError("Cannot take square root of negative number")
         frequencies.append(w)
         zpe = 0.5 * w * h * NA
         ZPE.append(zpe)

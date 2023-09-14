@@ -106,6 +106,7 @@ ENV/
 *.obj
 *.npz
 *.pkl
+*.csv
 Example_output/
 Example/data/*.csv
 
