@@ -112,8 +112,8 @@ try:
 						dest = "rotationalAxis",
 						action='store', 
 						nargs='+',
-						default=['C', 'CA', 'N'], 
-						help="The 3 atom name in each residue for rotational axis. Default for protein ['C', 'CA', 'N'] axis")
+						default=None, 
+                                                help="Optional: The 3 atom name in each residue for rotational axis. Default none.")
 	# disabled for now since POSEIDON don't have this option
 	# parser.add_argument("-f", "--fscale",
 	# 					action="store",
