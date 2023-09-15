@@ -5,6 +5,7 @@ from bitarray import bitarray
 from CodeEntropy import ClassCollection as CC 
 from CodeEntropy.FunctionCollection import Utils
 
+## DEPRECIATED replaced custom cross_product with numpy.cross() function
 def cross_product(arg_v1, arg_v2):
 	""" 
 	Returns cross product of two vectors using analytical expressions 
@@ -19,13 +20,6 @@ def cross_product(arg_v1, arg_v2):
 		 
 	return vecCross
 
-#END
-
-def dot_product(arg_v1, arg_v2):
-	"""
-	Returns dot product of two vectors using numpy's dot function.
-	""" 
-	return nmp.dot(arg_v1, arg_v2)
 #END
 
 def euler_vector(arg_r, arg_theta):

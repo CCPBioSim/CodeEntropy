@@ -1,0 +1,14 @@
+Method and Level,Type,result
+Whole molecule,FF Entropy (J/mol/K),57.84681431840161
+Whole molecule,TT Entropy (J/mol/K),47.47760620355753
+Residue,FF Entropy (J/mol/K),nan
+Residue,TT Entropy (J/mol/K),nan
+United atom,FF Entropy (J/mol/K),4638.060915252163
+United atom,TT Entropy (J/mol/K),2557.147655217485
+United atom,FF Entropy (J/mol/K),4638.060915252162
+United atom,TT Entropy (J/mol/K),2557.1476552174845
+Topographical pLogp,Total SC Topog. Entropy,513.1417615404547
+Topographical pLogp,Total BB Topog. Entropy,672.4185390772386
+Topographical correlation/pLogp,Total SC Topog. Entropy (corr. pLogP),513.1417615404547
+Topographical correlation/pLogp,Total BB Topog. Entropy (corr. pLogP),672.4185390772386
+Topographical AEM,Total Topog. Entropy (AEM),200.0492711648051

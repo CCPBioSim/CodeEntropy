@@ -65,6 +65,7 @@ class BeadCollection(object):
 		return quadrant
 	#END	 
 
+        ##TODO remove this as a duplicate of CustomFunctions filter_zero_rows_columns
 	def filter_zero_rows_columns(self, arg_matrix):
 		#record the initial size
 		initShape = nmp.shape(arg_matrix)
