@@ -66,27 +66,26 @@ class BeadCollection(object):
 	#END	 
 
         ##TODO remove this as a duplicate of CustomFunctions filter_zero_rows_columns
-	def filter_zero_rows_columns(self, arg_matrix):
-		#record the initial size
-		initShape = nmp.shape(arg_matrix)
+	#def filter_zero_rows_columns(self, arg_matrix):
+	#	#record the initial size
+	#	initShape = nmp.shape(arg_matrix)
+#
+#		zeroIdx = list(filter(lambda row : nmp.all(nmp.isclose(arg_matrix[row,:] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[0])))
+#		allIdx = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
+#		allIdx[zeroIdx] = False 
+#		arg_matrix = arg_matrix[allIdx,:]
+#
+#		allIdx = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
+#		zeroIdx = list(filter(lambda col : nmp.all(nmp.isclose(arg_matrix[:,col] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[1])))
+#		allIdx[zeroIdx] = False
+#		arg_matrix = arg_matrix[:,allIdx]
+#
+#		# get the final shape
+#		finalShape = nmp.shape(arg_matrix)
+#		if initShape != finalShape:
+#			Utils.printflush('A shape change has occured ({},{}) -> ({}, {})'.format(*initShape, *finalShape))
 
-		zeroIdx = list(filter(lambda row : nmp.all(nmp.isclose(arg_matrix[row,:] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[0])))
-		allIdx = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
-		allIdx[zeroIdx] = False 
-		arg_matrix = arg_matrix[allIdx,:]
-
-		allIdx = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
-		zeroIdx = list(filter(lambda col : nmp.all(nmp.isclose(arg_matrix[:,col] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[1])))
-		allIdx[zeroIdx] = False
-		arg_matrix = arg_matrix[:,allIdx]
-
-		# get the final shape
-		finalShape = nmp.shape(arg_matrix)
-
-		if initShape != finalShape:
-			Utils.printflush('A shape change has occured ({},{}) -> ({}, {})'.format(*initShape, *finalShape))
-
-		return arg_matrix
+#		return arg_matrix
 	#END	 
 
 	def update_subMatrix(self, arg_pairString, arg_verbose):

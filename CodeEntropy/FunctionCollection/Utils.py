@@ -9,7 +9,7 @@ import numpy as nmp
 import re
 from datetime import datetime, timedelta
 
-from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
+from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
 
 def printflush(arg_string, end = '\n'):
 	""" Modified print statement with flush = True in the end """
@@ -156,7 +156,7 @@ def get_frequencies_from_nmd(arg_nmdfile, wnum2freq = True):
 			if re.match("^# \*\*\*", line):
 				freq = float(line.split()[-1])
 				if wnum2freq:
-					freq *= CONST.C_LIGHT
+					freq *= UAC.C_LIGHT
 				freqList.append(freq)
 	return freqList
 #END

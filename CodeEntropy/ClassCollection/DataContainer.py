@@ -70,7 +70,7 @@ class DataContainer(object):
 			newDih = BondStructs.Dihedral(dihedrals, self)
 			self.add_dihedral(newDih)
 
-		#reading trajectorys into memory because MDanalysis reads values on the fly which might slow down processing speed as these values are accessed multiple times
+		#reading trajectories into memory because MDanalysis reads values on the fly which might slow down processing speed as these values are accessed multiple times
 		if start == None:
 			start = 0
 		if end == None:
