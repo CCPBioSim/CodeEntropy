@@ -49,8 +49,8 @@ def vibrational_entropies(FTmatrix, temp,level): #could also separate the terms 
     S_components=S_components*UAC.GAS_CONST
     if level =='WM':
         S=sum(S_components) # 6x6 force-torque covariance matrix => 6 eigenvalues
-    #elif level == 'RES': - 
-            
+    elif level == 'RES': #should expect 6M x 6M force torque covariance matrix, where M= no of residues 
+         S=sum(S_components[6:])   
     elif level == 'UA': #6N x 6N force torque covariance matrix => 6N eigenvalues of which we take the largest 6N-6 frequencies
         S=sum(S_components[6:])
         
