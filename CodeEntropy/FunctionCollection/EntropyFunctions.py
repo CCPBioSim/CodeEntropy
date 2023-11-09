@@ -49,10 +49,26 @@ def vibrational_entropies(FTmatrix, temp,level): #could also separate the terms 
     S_components=S_components*UAC.GAS_CONST
     if level =='P': #polymer
         S=sum(S_components) # 6x6 force-torque covariance matrix => 6 eigenvalues
-    elif level == 'M': #monomer
-         S=sum(S_components[6:])   #should expect 6M x 6M force torque covariance matrix, where M= no of residues/monomers  
-    elif level == 'UA': #united atom
-        S=sum(S_components[6:])  #6N x 6N force torque covariance matrix => 6N eigenvalues of which we take the largest 6N-6 frequencies
+    else:
+         S=sum(S_components[6:]  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
+    
+def total_entropy(matrix,T):
+    S_vib_P = vibrational_entropies(matrix,T, 'P')
+    print("$S^{vib}_P$:",S_vib_P)
+    S_vib_M = vibrational_entropies(matrix,T, 'M')
+    print("$S^{vib}_M$:",S_vib_M)
+    S_vib_UA = vibrational_entropies(matrix,T, 'UA')
+    print("$S^{vib}_{UA}$:",S_vib_UA)
+    S_conf = conformational_entropy()
+    print("$S^{conf}$:",S_conf)
+    S_or = orientational_entropy()
+    print("$S^{conf}$:",S_or)
+    S_total = S_vib_P + S_vib_M + S_vib_UA + S_conf + S_or
+    print(S_total)
+
+total_entropy(matrix, 298)
+
+
         
     
 
