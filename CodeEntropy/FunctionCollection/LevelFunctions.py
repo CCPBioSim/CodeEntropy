@@ -14,26 +14,29 @@ from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
 
 def select_levels(arg_hostDataContainer):
     """
-    Function to read input system and identify the number of molecules and the levels (i.e. united atom, residue and or whole molecule) that should be used
+    Function to read input system and identify the number of molecules and the levels (i.e. united atom, residue and/or polymer) that should be used
     """
 
     # fragments is MDAnalysis terminology for what chemists would call molecules
     number_molecules = len(arg_hostDataContainer.atoms.fragments)
+    print("The number of molecules is {}.".format(number_molecules))
     fragments = arg_hostDataContainer.atoms.fragments
-    levels = []
+    levels = [[] for _ in range(number_molecules)]
 
     for i in range(number_molecules):
         levels[i].append("united_atom") # every molecule has at least one atom
 
-        atoms_in_fragment = fragments[i].select_atoms("record type ATOM and not H*")
+        atoms_in_fragment = fragments[i].select_atoms("not name H*")
         number_residues = len(atoms_in_fragment.residues)
 
         # if a fragment has more than one atom assign residue level
-        if len(atoms_in_fragment > 1):
+        if len(atoms_in_fragment) > 1:
             levels[i].append("residue")
 
-            #if assigned residue level and there is more than one residue assign whole molecule level
+            #if assigned residue level and there is more than one residue assign polymer level
             if number_residues > 1:
-                levels[i].append("whole_molecule")
+                levels[i].append("polymer")
 
-    return levels        
+    print(levels)
+
+    return number_molecules, levels        
