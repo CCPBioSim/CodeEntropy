@@ -31,14 +31,14 @@ def frequency_calculation(lambdas,temp):
     frequencies=1/(2*pi)*np.sqrt(lambdas/kT)
     return frequencies
     
-def vibrational_entropies(FTmatrix, temp,level): #could also separate the terms and use the separate force/torque covariance matrices
+def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque covariance matrix at a given level of entropy
     '''
     
     vibrational entropy calculated from eq. (4) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
     
     '''
-    lambdas=la.eigvals(FTmatrix)
+    lambdas=la.eigvals(matrix)
     frequencies=frequency_calculation(lambdas,temp)
     frequencies=frequencies.sort()
     kT=UAC.get_KT2J(temp)
@@ -47,11 +47,16 @@ def vibrational_entropies(FTmatrix, temp,level): #could also separate the terms 
     power_negative=np.power (np.e,-exponent)
     S_components=exponent/(power_positive-1)-np.ln(1-power_negative)
     S_components=S_components*UAC.GAS_CONST
-    if level =='P': #polymer
-        S=sum(S_components) # 6x6 force-torque covariance matrix => 6 eigenvalues
-    else:
-         S=sum(S_components[6:]  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
-    
+    if matrix_type='FF':
+        if level =='P': #polymer
+            S=sum(S_components) # 3x3 force covariance matrix => 6 eigenvalues
+        else:
+            S=sum(S_components[6:]  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
+    else: #for the torque covariance matrix, we take all values into account
+        S=sum(S_components)
+        
+def conformational_entropies        
+        
 def total_entropy(matrix,T):
     S_vib_P = vibrational_entropies(matrix,T, 'P')
     print("$S^{vib}_P$:",S_vib_P)
