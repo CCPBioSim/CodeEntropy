@@ -23,19 +23,19 @@ def select_levels(arg_hostDataContainer):
     fragments = arg_hostDataContainer.atoms.fragments
     levels = [[] for _ in range(number_molecules)]
 
-    for i in range(number_molecules):
-        levels[i].append("united_atom") # every molecule has at least one atom
+    for molecule in range(number_molecules):
+        levels[molecule].append("united_atom") # every molecule has at least one atom
 
-        atoms_in_fragment = fragments[i].select_atoms("not name H*")
+        atoms_in_fragment = fragments[molecule].select_atoms("not name H*")
         number_residues = len(atoms_in_fragment.residues)
 
         # if a fragment has more than one atom assign residue level
         if len(atoms_in_fragment) > 1:
-            levels[i].append("residue")
+            levels[molecule].append("residue")
 
             #if assigned residue level and there is more than one residue assign polymer level
             if number_residues > 1:
-                levels[i].append("polymer")
+                levels[molecule].append("polymer")
 
     print(levels)
 

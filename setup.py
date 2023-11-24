@@ -72,5 +72,5 @@ setup(
         'pathos==0.2.9',
     ],
 
-    scripts=['scripts/CodeEntropyPoseidon']
+    scripts=['scripts/CodeEntropy']
 )
