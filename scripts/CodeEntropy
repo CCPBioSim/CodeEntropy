@@ -1,0 +1,272 @@
+#! /usr/share/python
+import argparse
+import MDAnalysis as mda
+from CodeEntropy.FunctionCollection import EntropyFunctions as EF
+from CodeEntropy.FunctionCollection import LevelFunctions as LF
+from CodeEntropy.FunctionCollection import Utils
+from CodeEntropy.ClassCollection import DataContainer as DC
+from CodeEntropy.IO import MDAUniverseHelper as MDAHelper
+import pandas as pd
+import numpy as np
+from datetime import datetime
+from CodeEntropy.ClassCollection.PoseidonClass import Poseidon
+
+try:
+	parser = argparse.ArgumentParser(description="""
+	CodeEntropy-POSEIDON is a tool to compute entropy using the multiscale-cell-correlation (MCC) theory and force/torque covariance methods with the ablity to compute solvent entropy. 
+	Version:
+		0.3.1;
+
+	Author: 
+		Arghya Chakravorty (arghya90),
+		Jas Kalayan (jkalayan);
+
+	Output:
+		*.csv = results from different calculateion,
+		*.pkl - Pickled reduced universe for further analysis,
+		*.out - detailed output such as matrix and spectra""")
+	
+	
+	# group = parser.add_mutually_exclusive_group(required=True)
+	# group.add_argument('-f', '--top_traj_file',
+	# 					dest="filePath",
+	# 					action='store',
+	# 					nargs='+',
+	# 					default=None,
+	# 					help="Path to Structure/topology file (AMBER PRMTOP or GROMACS TPR) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) Required, Mutually exclusive with pickle----pickle")
+	# group.add_argument('-i', '--pickle',
+	# 					dest="picklePath",
+	# 					action='store',
+	# 					type=str,
+	# 					default=None,
+	# 					help="Pickled MDAnalyiss.Universe for unsupported format Required but Mutually exclusive with --top_traj_file")
+	parser.add_argument('-f', '--top_traj_file',
+						required=True,
+						dest="filePath",
+						action='store',
+						nargs='+',
+						help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which contains topology and dihedral information) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) you will need to output the coordinates and forces to the same file. Required.")
+	parser.add_argument('-l', '--selectString', 
+						action='store',
+						dest="selectionString",  
+						type=str,
+						default='all',
+						help='Selection string for CodeEntropy such as protein or resid, refer to MDAnalysis.select_atoms for more information.')
+	parser.add_argument('-b', '--begin', 
+						action="store", 
+						dest="start", 
+						help="Start analysing the trajectory from this frame index. Defaults to 0", 
+						default=0, 
+						type= int)
+	parser.add_argument('-e', '--end', 
+						action="store", 
+						dest="end", 
+						help="Stop analysing the trajectory at this frame index. Defaults to -1 (end of trajectory file)", 
+						default=-1,
+						type=int)
+	parser.add_argument('-d', '--step', 
+						action="store", 
+						dest="step", 
+						help="interval between two consecutive frames to be read index. Defaults to 1", 
+						default=1,
+						type=int)
+	parser.add_argument('-k', '--tempra', 
+						action="store", 
+						dest="temp", 
+						help="Temperature for entropy calculation (K). Default to 298.0 K", 
+						default=298.0, 
+						type=float)
+	parser.add_argument('-t', '--thread', 
+						action="store", 
+						dest="thread", 
+						help="How many multiprocess to use. Default 1 for single core execution.", 
+						default=1, 
+						type=int)
+	parser.add_argument("-o","--out",
+						action="store",
+						dest  ="outFile",
+						default="outfile.out",
+						help   ="Name of the file where the text format output will be written. Default: outfile.out")
+	parser.add_argument("-v","--csvout",
+						action="store",
+						dest  ="csvOutFile",
+						default="outfile.csv",
+						help   ="Name of the file where the total entropy output will be written. Default: outfile.csv")
+	parser.add_argument("-r","--resout",
+						action="store",
+						dest  ="rescsvOutFile",
+						default="res_outfile.csv",
+						help   ="Name of the file where the residue entropy output will be written. Default: res_outfile.csv")
+
+	parser.add_argument("-m", "--mout",
+						action="store",
+						dest  ="moutFile",
+						default=None,
+						help   ="Name of the file where certain matrices will be written (default: None).")
+
+	parser.add_argument("-n", "--nmd",
+						action="store",
+						dest  = "nmdFile",
+						default=None,
+						help   = "Name of the file where VMD compatible NMD format files with mode information will be printed (default: None).")
+	parser.add_argument('-a', '--rotationalaxis', 
+						dest = "rotationalAxis",
+						action='store', 
+						nargs='+',
+						default=None, 
+                                                help="Optional: The 3 atom name in each residue for rotational axis. Default none.")
+	# disabled for now since POSEIDON don't have this option
+	# parser.add_argument("-f", "--fscale",
+	# 					action="store",
+	# 					dest="fScale",
+	# 					default = 1.0,
+	# 					type=float,
+	# 					help = "Scale the atomic forces by this factor. Default 1.0")
+
+	# parser.add_argument("-t", "--tscale",
+	# 					action = "store",
+	# 					dest = "tScale",
+	# 					default = 1.0,
+	# 					type=float,
+	# 					help = "Scale the atomic torques by this factor. Defaule 1.0")
+	parser.add_argument('-c', '--cutShell', 
+						action='store',
+						dest="cutShell",
+						default=None, 
+						type=float,
+						help='include cutoff shell analysis, add cutoff distance in angstrom Default None will ust the RAD Algorithm')
+	parser.add_argument('-p', '--pureAtomNum', 
+						action='store',
+						dest="puteAtomNum", 
+						default=1, 
+						type=int,
+						help='Reference molecule resid for system of pure liquid. Default to 1')
+	parser.add_argument('-x', '--excludedResnames', 
+						dest="excludedResnanes",
+						action='store', 
+						nargs='+',
+						default=None, 
+						help='exclude a list of molecule names from nearest non-like analysis. Default: None. Multiples are gathered into list.')
+	parser.add_argument('-w', '--water',
+						dest = "waterResnames",
+						action='store', 
+						default='WAT',
+						nargs='+', 
+						help='resname for water molecules. Default: WAT. Multiples are gathered into list.')
+	parser.add_argument('-s', '--solvent',
+						dest="solventResnames", 
+						action='store', 
+						nargs='+',
+						default=None, 
+						help='include resname of solvent molecules (case-sensitive) Default: None. Multiples are gathered into list.')
+	parser.add_argument("--solContact",
+						action="store_true",
+						dest  ="doSolContact",
+						default=False,
+						help  ="Do solute contact calculation")
+
+	args = parser.parse_args()
+except argparse.ArgumentError:
+	print('Command line arguments are ill-defined, please check the arguments')
+	raise
+
+						
+############## REPLACE INPUTS ##############
+print("printing all input")
+for arg in vars(args):
+    print(' {} {}'.format(arg, getattr(args, arg) or ''))
+
+startTime = datetime.now()
+filePath = args.filePath
+
+outfile = args.outFile
+tScale = 1.0
+fScale = 1.0
+temper = args.temp
+selection_string = args.selectionString
+start = args.start
+end = args.end
+step = args.step
+thread = args.thread
+axis_list = args.rotationalAxis
+moutFile = args.moutFile
+nmdFile = args.nmdFile
+rescsvOutFile = args.rescsvOutFile
+csvOutFile = args.csvOutFile
+
+cutShell = args.cutShell
+puteAtomNum = args.puteAtomNum
+excludedResnanes = args.excludedResnanes
+waterResnames = args.waterResnames
+solventResnames = args.solventResnames
+
+tprfile = filePath[0]
+trrfile = filePath[1:]
+u = mda.Universe(tprfile, trrfile)
+
+# Create pandas data frame for results
+results_df = pd.DataFrame(columns=['Molecule ID', 'Level','Type', 'Result'])
+
+# Reduce time frames in MDA universe using start/end/step args (default all frames)
+reduced_frame = MDAHelper.new_U_select_frame(u,  start, end, step)
+reduced_frame_name = f"{(len(reduced_frame.trajectory))}_frame_dump"
+reduced_frame_filename = MDAHelper.write_universe(reduced_frame, reduced_frame_name)
+
+# Reduce number of atoms in MDA universe to selection_string arg (default all)
+reduced_atom = MDAHelper.new_U_select_atom(reduced_frame, selection_string)
+reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
+reduced_atom_filename = MDAHelper.write_universe(reduced_atom, reduced_atom_name)
+
+# Scan system for molecules and select levels (united atom, residue, polymer) for each
+number_molecules, levels = LF.select_levels(reduced_atom)
+
+# Loop over molecules
+for molecule in range(number_molecules):
+    dataContainer = DC.DataContainer(reduced_atom.fragment[molecule])
+
+    # Calculate entropy for each relevent level
+    for level in levels[molecule]:
+
+        # Vibrational entropy at every level
+        force_matrix = LF.get_force_matrix()
+        S_trans_{level} = vibrational_entropy(force_matrix)
+	    print(f"S_trans = {S_trans_{level}}")
+        newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+							'Type':['Transvibrational Entropy (J/mol/K)'],
+							'Result': [S_trans_{level}],})
+	    results_df = pd.concat([results_df, newRow], ignore_index=True)
+
+        torque_matrix = LF.get_torque_matrix()
+        S_rot_{level} = vibrational_entropy(torque_matrix)
+	    print(f"S_rot = {S_rot_{level}}")
+        newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+							'Type':['Rovibrational Entropy (J/mol/K)'],
+							'Result': [S_rot_{level}],})
+	    results_df = pd.concat([results_df, newRow], ignore_index=True)
+
+        # Conformational entropy for residues and polymers
+        if level != "united_atom":
+            S_conf_{level} = conformational_entropy(dihedrals)
+	        print(f"S_conf = {S_conf_{level}}")
+            newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+							'Type':['Conformational Entropy (J/mol/K)'],
+							'Result': [S_conf_{level}],})
+	        results_df = pd.concat([results_df, newRow], ignore_index=True)
+
+    # Orientational entropy at highest level only
+    level = levels[molecule][-1]
+    S_orient = orientational_entropy(neighbours)
+	print(f"S_orient = {S_orient_{level}}")
+    newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+							'Type':['Orientational Entropy (J/mol/K)'],
+							'Result': [S_orient_{level}],})
+	results_df = pd.concat([results_df, newRow], ignore_index=True)
+
+    # Report total entropy for the molecule
+    molecule_data = results_df[results_df["Molecule ID"] == molecule]
+    S_molecule = molecule_data["Result"].sum
+	print(f"S_molecule = {S_molecule}")
+    newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['Molecule Total'],
+							'Type':['Molecule Total Entropy (J/mol/K)'],
+							'Result': [S_molecule],})
+	results_df = pd.concat([results_df, newRow], ignore_index=True)
