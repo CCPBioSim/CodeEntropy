@@ -20,6 +20,8 @@ import pandas as pd
 import MDAnalysis as mda
 import matplotlib.pyplot as plt
 import math
+
+water={''}
 def frequency_calculation(lambdas,temp):
     '''
     
@@ -55,7 +57,7 @@ def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque cov
             S_vib_total=sum(S_components[6:]  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
     else: #for the torque covariance matrix, we take all values into account
         S_vib_total=sum(S_components)
-    return S
+    return S_vib_total
         
 def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
     '''
@@ -112,36 +114,30 @@ def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
         S_conf_total += rid_conf_entropy
         return S_conf_total
         
-def orientational_entropy(water_flag):
+def orientational_entropy():
 ''' Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
     σ = 2 for water + divide by 4 OR 1 for other molecules = ligands we're concerned with
     -might need to add another case for molecules with high symmetry about 1 axis - e.g. methanol, ethane
- orientational entropies are calculated using eq. (10) in Higham, S.-Y. Chou, F. Gräter and 
-    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
+    orientational entropies are calculated using eq. (10) in Higham, S.-Y. Chou, F. Gräter and 
+    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 for molecules other than water
 '''    
-    S_or_total=0
-    if water_flag:
-        
-    else:
-        omega= np.sqrt((Nc**3)*math.pi) #array of neighbours
-    S_component = p_Nc* np.log(omega)*UAC.GAS_CONST 
-    S_or_total=sum(S_or_total)  
-    
-def total_entropy(matrix,T):
-    S_vib_P = vibrational_entropies(matrix,T, 'P')
-    print("$S^{vib}_P$:",S_vib_P)
-    S_vib_M = vibrational_entropies(matrix,T, 'M')
-    print("$S^{vib}_M$:",S_vib_M)
-    S_vib_UA = vibrational_entropies(matrix,T, 'UA')
-    print("$S^{vib}_{UA}$:",S_vib_UA)
-    S_conf = conformational_entropy()
-    print("$S^{conf}$:",S_conf)
-    S_or = orientational_entropy()
-    print("$S^{conf}$:",S_or)
-    S_total = S_vib_P + S_vib_M + S_vib_UA + S_conf + S_or
-    print(S_total)
+# assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y}
+    S_or_total=0    
+    for molecule in neighbours_dict:
+        if molecule in [] : #water flag
+            omega = np.sqrt((N_eff*math.pi)**3)*p_HBav*0.5
+            
+        else:
+            omega= np.sqrt((Nc**3)*math.pi) #always going to be larger than 1 as σ = 1
+        S_molecule = p_Nc* np.log(omega)*UAC.GAS_CONST
+        S_or_total+=S_molecule = p_Nc* np.log(omega)*UAC.GAS_CONST
+    return S_or_total
+                
 
-total_entropy(matrix, 298)
+    
+
+
+
 
 
         
