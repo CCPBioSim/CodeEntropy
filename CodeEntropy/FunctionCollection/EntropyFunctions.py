@@ -50,11 +50,11 @@ def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque cov
     power_negative=np.power (np.e,-exponent)
     S_components=exponent/(power_positive-1)-np.ln(1-power_negative)
     S_components=S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-    if matrix_type='FF':
+    if matrix_type=='FF':
         if level =='P': #polymer
             S_vib_total=sum(S_components) # 3x3 force covariance matrix => 6 eigenvalues
         else:
-            S_vib_total=sum(S_components[6:]  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
+            S_vib_total=sum(S_components[6:])  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
     else: #for the torque covariance matrix, we take all values into account
         S_vib_total=sum(S_components)
     return S_vib_total
@@ -66,11 +66,10 @@ def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
     -used the Adaptive Enumeration Method (AEM) from previous EntropyFunctions script
     '''
     S_conf_total=0       
-    allSel = arg_hostDataContainer.universe.select_atoms(arg_selector)
+    allSel = arg_hostDataContainer.universe.select_atoms(arg_selector) #we select all atoms to go through
     #we browse through all residues in the system to get their dihedrals 
-    resindices  allSel.residues.resindices:
-        Utils.printflush('Working on resid : {} ({})'.format (arg_hostDataContainer.universe.residues.resids[resindices], 
-                         arg_hostDataContainer.universe.residues.resnames[resindices]), end= '')
+    resindices  allSel.residues.resindices
+        
     resid = arg_hostDataContainer.universe.residues.resids[resindices]
     #we build a binary tree that hold unique dihedrals
     diheds_in_rid = CustomDataTypes.BinaryTree()
@@ -89,7 +88,7 @@ def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
     ridDecimalReprArray = []
     #for each dihedral identified we get the state vector
     i, iDih enumerate(diheds_in_rid.list_in_order()):
-    stateTS = iDih.get_states_ts(arg_verbose=arg_verbose)
+    stateTS = iDih.get_states_ts()
     new_entity.timeSeries[i,:] = stateTS
     #now we coalesce the integer labels of the constituent dihedrals in each point to get an expression of the conformation at that time
     iFrame  range(numFrames):
@@ -115,22 +114,27 @@ def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
         return S_conf_total
         
 def orientational_entropy():
-''' Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
+''' Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,3' 1965–1976
     σ = 2 for water + divide by 4 OR 1 for other molecules = ligands we're concerned with
     -might need to add another case for molecules with high symmetry about 1 axis - e.g. methanol, ethane
     orientational entropies are calculated using eq. (10) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 for molecules other than water
 '''    
-# assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y}
-    S_or_total=0    
-    for molecule in neighbours_dict:
-        if molecule in [] : #water flag
-            omega = np.sqrt((N_eff*math.pi)**3)*p_HBav*0.5
+# assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y} - identified using RAD for each orientation
+    S_or_total=0
+    neighbours_dict= RAD() #could do a separate function for identifying neighbours 
+    for molecule in neighbours_dict: #we are going through neighbo
+    #get the probabilities from somewhere - TBD
+        if molecule in [] : #water flag'
+            
+             omega= np.sqrt((neighbours_dict[molecule]**3)*math.pi)*0.125 - #multiply by (HBav)/σ - HBav =0.25 as each water molecule is equally likely 
+                                                                             #to donate and accept H bonds  
+            
             
         else:
-            omega= np.sqrt((Nc**3)*math.pi) #always going to be larger than 1 as σ = 1
-        S_molecule = p_Nc* np.log(omega)*UAC.GAS_CONST
-        S_or_total+=S_molecule = p_Nc* np.log(omega)*UAC.GAS_CONST
+            omega= np.sqrt((neighbours_dict[molecule]**3)*math.pi) #always going to be larger than 1 as σ = 1
+        S_molecule = probabilities_dict[molecule]* np.log(omega)*UAC.GAS_CONST
+        S_or_total+=S_molecule 
     return S_or_total
                 
 
