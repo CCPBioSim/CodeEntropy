@@ -128,7 +128,7 @@ def binary_to_dec_repr(arg_byteArray):
 #END
 
 def coalesce_numeric_array(arg_numArray):
-	""" Take the elements in a given input array with integer elements and coalesce them to returna string whose characters
+	""" Take the elements in a given input array with integer elements and coalesce them to return a string whose characters
 	are string cast of teh elements """
 	charList = [str(char) for char in arg_numArray.astype(int)]
 	return ''.join(charList)
