@@ -14,7 +14,7 @@ class DataContainer(object):
 	""" 
 	This is the main data container for CodeEntropy Solute calculation
 	This host framewise information of positions and forces on all the atoms, in lab and local frames. The vectors in the local frames are obtained after transforming the lab frame vectors  using orthonormal bases that also stored framewise for each atom. 
-
+    
 	The properties of its molecule (base molecule) is linked to a molecule class object that contains the info about its topology. 
 	"""
 
@@ -48,12 +48,12 @@ class DataContainer(object):
 		self.isHydrogenArray = nmp.zeros(num_atom)
 
 		selection_pair = [
-			(self.isCAtomArray, "name C"),
-			(self.isOAtomArray, "name O"),
-			(self.isNAtomArray, "name N"),
-			(self.isCaAtomArray, "name CA"),
+			(self.isCAtomArray, "name C"), #backbone C bonded to O
+			(self.isOAtomArray, "name O"), #backbone C=O O
+			(self.isNAtomArray, "name N"), #backbone N
+			(self.isCaAtomArray, "name CA"), #backbone C bonded to -NH
 			(self.isBBAtomArray, "backbone"),
-			(self.isHydrogenArray, "name H*")
+			(self.isHydrogenArray, "name H*") #H atom
 		]
 		for item in selection_pair:
 			idx_list = u.atoms.select_atoms(item[1]).indices
@@ -112,7 +112,7 @@ class DataContainer(object):
 
 		
 	def print_attributes(self):
-		# print("{:<20s} : {}".format("Molecule name", self.molecule.name))
+		print("{:<20s} : {}".format("Molecule name", self.molecule.name))
 		print("{:<20s} : {}".format("Number of atoms", self.universe.atoms.n_atoms))
 		print("{:<20s} : {}".format("Number of frames", len(self.trajSnapshots)))
 		
@@ -341,7 +341,7 @@ class DataContainer(object):
 		#compute the moment of inertia for the imput list
 		momentOfInertiaTensor = self.get_moment_of_inertia_tensor_lab(arg_atomList = arg_atomList, arg_frame = arg_frame)
 
-		#diagonlaize
+		#diagonalize
 		try:
 			pMomentsOfInertia, pAxes = Utils.diagonalize(momentOfInertiaTensor)
 		except ComplexWarning:
