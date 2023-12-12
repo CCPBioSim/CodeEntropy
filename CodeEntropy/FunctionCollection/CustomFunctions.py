@@ -5,23 +5,6 @@ from bitarray import bitarray
 from CodeEntropy import ClassCollection as CC 
 from CodeEntropy.FunctionCollection import Utils
 
-## DEPRECIATED replaced custom cross_product with numpy.cross() function
-def cross_product(arg_v1, arg_v2):
-	""" 
-	Returns cross product of two vectors using analytical expressions 
-	that one would have from using the determinant used to compute the product.
-	It appears to be a tad bit faster than the numpy one.
-	"""
-	vecCross = nmp.zeros(3)
-
-	vecCross[0] =  arg_v1[1]*arg_v2[2] - arg_v2[1]*arg_v1[2]
-	vecCross[1] = -arg_v1[0]*arg_v2[2] + arg_v2[0]*arg_v1[2]
-	vecCross[2] =  arg_v1[0]*arg_v2[1] - arg_v2[0]*arg_v1[1]
-		 
-	return vecCross
-
-#END
-
 def euler_vector(arg_r, arg_theta):
 	"""
 	Create and return a vector of the form r*e^i(theta) in the argand plane.

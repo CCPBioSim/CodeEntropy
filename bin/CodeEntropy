@@ -17,9 +17,12 @@ try:
 	Version:
 		0.3.1;
 
-	Author: 
+	Authors: 
 		Arghya Chakravorty (arghya90),
-		Jas Kalayan (jkalayan);
+		Jas Kalayan (jkalayan),
+        Donald Chang,
+        Sarah Fegan
+        Ioana Papa;
 
 	Output:
 		*.csv = results from different calculateion,
@@ -115,20 +118,6 @@ try:
 						nargs='+',
 						default=None, 
                                                 help="Optional: The 3 atom name in each residue for rotational axis. Default none.")
-	# disabled for now since POSEIDON don't have this option
-	# parser.add_argument("-f", "--fscale",
-	# 					action="store",
-	# 					dest="fScale",
-	# 					default = 1.0,
-	# 					type=float,
-	# 					help = "Scale the atomic forces by this factor. Default 1.0")
-
-	# parser.add_argument("-t", "--tscale",
-	# 					action = "store",
-	# 					dest = "tScale",
-	# 					default = 1.0,
-	# 					type=float,
-	# 					help = "Scale the atomic torques by this factor. Defaule 1.0")
 	parser.add_argument('-c', '--cutShell', 
 						action='store',
 						dest="cutShell",
@@ -200,6 +189,7 @@ excludedResnanes = args.excludedResnanes
 waterResnames = args.waterResnames
 solventResnames = args.solventResnames
 
+# Create MDAnalysis universe object from the given topology and trajectory files
 tprfile = filePath[0]
 trrfile = filePath[1:]
 u = mda.Universe(tprfile, trrfile)
@@ -207,28 +197,34 @@ u = mda.Universe(tprfile, trrfile)
 # Create pandas data frame for results
 results_df = pd.DataFrame(columns=['Molecule ID', 'Level','Type', 'Result'])
 
-# Reduce time frames in MDA universe using start/end/step args (default all frames)
+# Reduce time frames in MDA universe using start/end/step args (default all frames included)
 reduced_frame = MDAHelper.new_U_select_frame(u,  start, end, step)
 reduced_frame_name = f"{(len(reduced_frame.trajectory))}_frame_dump"
 reduced_frame_filename = MDAHelper.write_universe(reduced_frame, reduced_frame_name)
 
-# Reduce number of atoms in MDA universe to selection_string arg (default all)
+# Reduce number of atoms in MDA universe to selection_string arg (default all atoms included)
 reduced_atom = MDAHelper.new_U_select_atom(reduced_frame, selection_string)
 reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
 reduced_atom_filename = MDAHelper.write_universe(reduced_atom, reduced_atom_name)
+
+# system data container needed for orientational entropy
 
 # Scan system for molecules and select levels (united atom, residue, polymer) for each
 number_molecules, levels = LF.select_levels(reduced_atom)
 
 # Loop over molecules
 for molecule in range(number_molecules):
-    dataContainer = DC.DataContainer(reduced_atom.fragment[molecule])
+    # molecule data container for internal degrees of freedom
+    molecule_dataContainer = reduced_atom.fragment[molecule]
 
     # Calculate entropy for each relevent level
     for level in levels[molecule]:
 
         # Vibrational entropy at every level
-        force_matrix = LF.get_force_matrix()
+        # Get the force and torque matrices for the beads at the relevant level
+        force_matrix, torque_matrix = LF.get_matrices(molecule_dataContainer, level)
+
+        # Calculate the entropy from the diagonalisation of the matrices
         S_trans_{level} = vibrational_entropy(force_matrix)
 	    print(f"S_trans = {S_trans_{level}}")
         newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
@@ -236,7 +232,6 @@ for molecule in range(number_molecules):
 							'Result': [S_trans_{level}],})
 	    results_df = pd.concat([results_df, newRow], ignore_index=True)
 
-        torque_matrix = LF.get_torque_matrix()
         S_rot_{level} = vibrational_entropy(torque_matrix)
 	    print(f"S_rot = {S_rot_{level}}")
         newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
@@ -244,8 +239,8 @@ for molecule in range(number_molecules):
 							'Result': [S_rot_{level}],})
 	    results_df = pd.concat([results_df, newRow], ignore_index=True)
 
-        # Conformational entropy for residues and polymers
-        if level != "united_atom":
+        # Conformational entropy for residues and polymers based on distributions of dihedral angles (not applicable for united atoms which don't have internal conformations)
+        if level != "united_atom": 
             S_conf_{level} = conformational_entropy(dihedrals)
 	        print(f"S_conf = {S_conf_{level}}")
             newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
@@ -253,7 +248,7 @@ for molecule in range(number_molecules):
 							'Result': [S_conf_{level}],})
 	        results_df = pd.concat([results_df, newRow], ignore_index=True)
 
-    # Orientational entropy at highest level only
+    # Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
     level = levels[molecule][-1]
     S_orient = orientational_entropy(neighbours)
 	print(f"S_orient = {S_orient_{level}}")

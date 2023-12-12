@@ -1,51 +1,115 @@
 import numpy as nmp
 from CodeEntropy.FunctionCollection import CustomFunctions as CF 
 
-def generate_orthonormal_axes_system(arg_coord1, arg_coord2, arg_coord3):
-    """Generate a 3 x 3 matrix with columns as axes of the returning coordinate system. 
-    They must be orthonormal (assert).
-    Axis 1: Along the C-N line, from altitude bisector to C
-    Axis 2: from altitde bisecting point of C-N to Ca
-    Axis 3: Cross of Axis1 and Axis 2
 
-    Return the basis and the origin"""
+def get_axes(arg_dataContainer, level, index=0, frame=0):
+    """
+    Function to set the translational and rotational axes.
+    The translational axes are based on the principal axes of the unit one level larger than the level we are interested in (except for the polymer level where there is no larger unit).
+    The rotational axes use the covalent links between residues or atoms where possible to define the axes, or if the unit is not bonded to others of the same level the prinicpal axes of the unit are used.
 
-    basis = nmp.ndarray((3,3))
+    Input
+    -----
+    arg_dataContainer : the information about the molecule and trajectory
+    level : the level (united atom, residue, or polymer) of interest
+    index : residue index (integer)
+    frame : frame index (integer)
 
-    r1 = arg_coord1
-    r2 = arg_coord2
-    r3 = arg_coord3
+    Output
+    ------
+    trans_axes : translational axes
+    rot_axes : rotational axes
+    """
 
-    r31 = r3 - r1
-    r21 = r2 - r1
+    if level == "polymer":
+        # for polymer use principle axis for both translation and rotation
+        trans_axes = arg_dataContainer.principal_axes()
+        rot_axes = arg_dataContainer.principal_axes()
 
-    #derived formula
-    rAltitude = nmp.dot(r31, r21) * r21
-    rAltitude /= nmp.linalg.norm(r21)**2
-    rAltitude += r1
+    if level == "residue":
+        ## Translation
+        # for residues use principal axes of whole molecule for translation
+        trans_axes = arg_dataContainer.principal_axes()
 
-    # Axis 0
-    axis0 = r2 - rAltitude
-    axis0 /= nmp.linalg.norm(axis0)
-    basis[0,:] = axis0
+        ## Rotation
+        # find bonds between atoms in residue of interest and other residues
+        # we are assuming bonds only exist between adjacent residues (linear chains of residues)
+        # TODO refine selection so that it will work for branched polymers
+        atom_set = arg_dataContainer.select(f"(resid {index}-1 or resid {index}+1) and bonded resid {index}")
+
+        if len(atom_set) == 0:
+            # if no bonds to other residues use pricipal axes of residue
+            rot_axes = arg_dataContainer.residue[index].principal_axes()
+
+        else:
+            # set center of rotation to center of mass of the residue
+            center = arg_dataContainer.residue[index].center_of_mass()
+
+            # get vector for average position of bonded atoms
+            vector = get_avg_pos(atom_set, frame, center)
+
+            # use spherical coordinates function to get rotational axes
+            rot_axes = get_sphCoord_axes(vector)
+
+    if level == "united_atom":
+        ## Translation
+        # for united atoms use principal axes of residue for translation
+        trans_axes = arg_dataContainer.residue.principal_axes()
+        
+        ## Rotation
+        # for united atoms use heavy atoms bonded to the heavy atom 
+        atom_set = arg_dataContainer.select(f"name not H* and bonded index {index}")
+
+        # center at position of heavy atom
+        center = arg_dataContainer.atom[index].position()
+
+        # get vector for average position of hydrogens
+        vector = get_avg_pos(atom_set, frame, center)
+
+        # use spherical coordinates function to get rotational axes
+        rot_axes = get_sphCoord_axes(vector)
 
 
-    # Axis 1
-    axis1 = r3 - rAltitude
-    axis1 /= nmp.linalg.norm(axis1)
-    basis[1,:] = axis1
+    return trans_axes, rot_axes
+# END
 
-    # Axis 2
-    axis2 = nmp.cross(axis0, axis1)
-    # axis2 = CF.cross_product(axis0, axis1)
-    axis2 /= nmp.linalg.norm(axis2)
-    basis[2,:] = axis2
+def get_avg_pos(atom_set, arg_frame, center):
+    """
+    Function to get the average position of a set of atoms. 
+    
+    Input
+    -----
+    atoms : MDAnalysis atom group
+    arg_frame : frame index (integer)
+    center : position for center of rotation
 
-    # due to FP limitations, the check will verly likely fail
-    # assert(nmp.dot(axis1, axis2) == 0)
+    Output
+    ------
+    avg_position : three dimensional vector
+    """
+    # start with an empty vector
+    avg_position = nmp.zeros((3))
 
-    return basis, rAltitude
+    # get number of atoms
+    number_atoms = len(atom_set.names)
 
+    if number_atoms != 0:
+        # sum positions for all atoms in the given set
+        for atom_index in atoms.indices:
+            atom_position = atom_set.atoms.positions[arg_frame, atom_index]
+            avg_position = nmp.add(avg_position, atom_position)
+
+        avg_position /= number_atoms # divide by number of atoms to get average
+
+    else:
+        # if no atoms in set the unit has no bonds to restrict its rotational motion, so we can
+        # use a random vector to get the spherical coordinates axes
+        avg_position = nmp.random.random(3)
+
+    # transform the average position to a coordinate system with the origin at center
+    avg_position = avg_position - center
+
+    return avg_position
 #END
 
 def get_sphCoord_axes(arg_r):
@@ -91,33 +155,5 @@ def get_sphCoord_axes(arg_r):
     # Phi^
     sphericalBasis[2,:] = nmp.asarray([-sinPhi, cosPhi, 0.])
     
-    return sphericalBasis
-    
-# END
-
-def compute_dihedral(arg_ri, arg_rj, arg_rk, arg_rl):
-    """ 
-    Return the dihedral angle in degrees formed by the atoms with the input coordinates.
-    The formula to compute was obtained from: 
-    https://www.math.fsu.edu/~quine/MB_10/6_torsion.pdf
-    
-    """
-
-    # define the directed line segments (vectors)
-    a = nmp.subtract(arg_rj, arg_ri) # i->j
-    b = nmp.subtract(arg_rk, arg_rj) # j->k
-    c = nmp.subtract(arg_rl, arg_rk) # k->l
-
-    # Complex number formalism for finding the angle
-    # Z = X + jY
-    X = -nmp.dot(a,c) * nmp.dot(b,b)
-    X += ( nmp.dot(a,b) * nmp.dot(b,c) )
-
-    Y = nmp.dot(a, nmp.cross(b,c))
-    Y *= nmp.linalg.norm(b)
-
-    # dihedral angle (in degrees)
-    dih = nmp.angle(complex(X,Y), deg=True)
-
-    return dih
+    return sphericalBasis    
 # END
