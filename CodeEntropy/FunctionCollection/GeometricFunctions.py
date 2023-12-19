@@ -1,6 +1,34 @@
 import numpy as nmp
 from CodeEntropy.FunctionCollection import CustomFunctions as CF 
 
+def get_beads(arg_dataContainer, level):
+    """
+    Function to define beads depending on the level in the hierarchy.
+
+    Input
+    -----
+    arg_dataContainer : the MDAnalysis universe
+    level : the heirarchy level (polymer, residue, or united atom)
+
+    Output
+    ------
+    list_of_beads : the relevent beads
+    """
+
+    if level == "polymer":
+        list_of_beads = arg_dataContainer.fragments
+
+    if level == "residue":
+        list_of_beads = arg_dataContainer.residues
+
+    if level == "united_atom":
+        list_of_beads = []
+        heavy_atoms = arg_dataContainer.select("name not H*")
+        for atom in heavy_atoms:
+            list_of_beads.append(arg_dataContainer.select(f"index {atom} or (name H* and bonded index {iheavy})")
+
+    return list_of_beads
+#END
 
 def get_axes(arg_dataContainer, level, index=0, frame=0):
     """
@@ -157,3 +185,73 @@ def get_sphCoord_axes(arg_r):
     
     return sphericalBasis    
 # END
+
+def get_weighted_forces(arg_DataContainer, bead, trans_axes, frame):
+    """
+    Function to calculate the mass weighted forces for a given bead.
+
+    Input
+    -----
+    bead : the part of the system to be considered
+    trans_axes : the axes relative to which the forces are located
+    frame : the frame number from the trajectory
+
+    Output
+    ------
+    weighted_force : the mass weighted sum of the forces in the bead
+    """
+
+    forces_trans = []
+
+    # Sum forces from all atoms in the bead
+    for atom in bead.atoms:
+        # update local forces in translational axes
+        forces_trans += trans_axes @ arg_DataContainer.trajectory[frame].atoms[atom].velocities[3:5]
+
+    # divide the sum of forces by the mass of the bead to get the weighted forces
+    mass = bead.mass()
+    weighted_force = forces_trans / nmp.sqrt(mass)
+
+    return weighted_force
+#END
+
+def get_weighted_torques(arg_dataContainer, bead, rot_axes, frame):
+    """
+    Function to calculate the moment of inertia weighted torques for a given bead.
+
+    Input
+    -----
+    bead : the part of the molecule to be considered
+    rot_axes : the axes relative to which the forces and coordinates are located
+    frame : the frame number from the trajectory
+
+    Output
+    ------
+    weighted_torque : the mass weighted sum of the forces in the bead
+    """
+
+    torques = []
+
+    for atom in bead.atoms:
+
+        # update local coordinates in rotational axes
+        coords_rot = arg_DataContiner.trajectory[frame].atom[atom].positions - bead.center_of_mass()
+        coords_rot = rot_axes @ coords_rot
+        # update local forces in rotational frame
+        forces_rot = rot_axes @ arg_DataContainer.trajectory[frame].atoms[atom].velocities[3:5]
+        # define torques (cross product of coordinates and forces) in rotational axes
+        torques += nmp.cross(coords_rot, forces_rot)
+
+    # divide by moment of inertia to get weighted torques
+    moment_of_inertia = bead.moment_of_inertia()
+    weighted_torque = torques / nmp.sqrt(moment_of_inertia)
+
+    return weighted_torque
+#END
+
+def create_submatrix(i, j, data_i, data_j):
+    """
+    Function for making covariance matrices.
+    """
+
+    return submatrix
