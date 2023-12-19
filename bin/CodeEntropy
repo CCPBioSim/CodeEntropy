@@ -241,6 +241,10 @@ for molecule in range(number_molecules):
 
         # Conformational entropy for residues and polymers based on distributions of dihedral angles (not applicable for united atoms which don't have internal conformations)
         if level != "united_atom": 
+            # Get dihedral angle distribution
+            dihedrals = LF.get_dihedrals(molecule_dataContainer, level)
+
+            # Calculate conformational entropy
             S_conf_{level} = conformational_entropy(dihedrals)
 	        print(f"S_conf = {S_conf_{level}}")
             newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
