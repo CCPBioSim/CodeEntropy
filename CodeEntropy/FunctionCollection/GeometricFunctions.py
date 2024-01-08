@@ -239,6 +239,7 @@ def get_weighted_torques(arg_dataContainer, bead, rot_axes, frame):
         coords_rot = rot_axes @ coords_rot
         # update local forces in rotational frame
         forces_rot = rot_axes @ arg_DataContainer.trajectory[frame].atoms[atom].velocities[3:5]
+        
         # define torques (cross product of coordinates and forces) in rotational axes
         torques += nmp.cross(coords_rot, forces_rot)
 
@@ -249,9 +250,30 @@ def get_weighted_torques(arg_dataContainer, bead, rot_axes, frame):
     return weighted_torque
 #END
 
-def create_submatrix(i, j, data_i, data_j):
+def create_submatrix(i, j, data_i, data_j, number_frames):
     """
     Function for making covariance matrices.
+
+    Input
+    -----
+    i, j : indices for the two beads (can be the same)
+    data_i : values for bead i
+    data_j : valuees for bead j
+
+    Output
+    ------
+    submatrix : 3x3 matrix for the covariance between i and j
     """
+
+    # Start with 3 by 3 matrix of zeros
+    submatrix = nmp.zeros( (3,3) )
+
+    # For each frame calculate the outer product (cross product) of the data from the two beads and add the result to the submatrix
+    for frame in range(number_frames):
+        outer_product_matrix = nmp.outer(data_i[frame], data_j[frame])
+        submatrix = nmp.add(submatrix, outer_product_matrix)
+
+    # Divide by the number of frames to get the average 
+    submatrix /= number_frames
 
     return submatrix
