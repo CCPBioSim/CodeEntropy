@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from CodeEntropy.ClassCollection.PoseidonClass import Poseidon
-
+from importlib.metadata import version
 try:
 	parser = argparse.ArgumentParser(description="""
 	CodeEntropy-POSEIDON is a tool to compute entropy using the multiscale-cell-correlation (MCC) theory and force/torque covariance methods with the ablity to compute solvent entropy. 
@@ -25,7 +25,7 @@ try:
 		*.pkl - Pickled reduced universe for further analysis,
 		*.out - detailed output such as matrix and spectra""")
 	
-	
+
 	# group = parser.add_mutually_exclusive_group(required=True)
 	# group.add_argument('-f', '--top_traj_file',
 	# 					dest="filePath",
@@ -488,4 +488,4 @@ if len(level_list) > 0:
 		weighting = None,
 		#forceUnits = "kJ"
 	)
-
+    
