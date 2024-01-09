@@ -134,7 +134,7 @@ class Poseidon():
 							dimensions, neighbour_coords,
 							startTime, verbosePrint)
 					#find nearest array for solute neighbours that are solvent
-					for nearDist in atom.nearest_all_atom_array[0:20]:
+					for nearDist in atom.nearest_all_atom_array[0:20]:         
 						neighbour = all_data[nearDist[0]]
 						if neighbour.resname in waterTuple and \
 								neighbour.nearest_all_atom_array == None:
