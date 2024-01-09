@@ -31,7 +31,8 @@ def new_U_select_frame(u, start=None, end=None, step=1):
 	forces = AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom).run().results['timeseries'][start:end:step]
 	dimensions = AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom).run().results['timeseries'][start:end:step]
 	u2 = mda.Merge(select_atom)
-	u2.load_new(coordinates, format=MemoryReader, forces=forces, dimensions=dimensions)
+	u2.load_new(coordinates, format=MemoryReader,
+	            forces=forces, dimensions=dimensions)
 	return u2
 
 def new_U_select_atom(u, select_string='all'):
