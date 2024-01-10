@@ -1,118 +1,106 @@
 #!/usr/bin/env python3
 
-from ast import arg
-import sys,os
-import numpy as np
-from numpy import linalg as la
-np.set_printoptions (threshold=sys.maxsize)
+import numpy as nmp
+import MDAnalysis as mds
 from CodeEntropy.ClassCollection import BeadClasses as BC
 from CodeEntropy.ClassCollection import ConformationEntity as CONF
 from CodeEntropy.ClassCollection import ModeClasses
 from CodeEntropy.ClassCollection import CustomDataTypes
+from CodeEntropy.FunctionCollection import EntropyFunctions as EF
 from CodeEntropy.FunctionCollection import CustomFunctions as CF
 from CodeEntropy.FunctionCollection import GeometricFunctions as GF
 from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
-from CodeEntropy.FunctionCollection import Utils #all things called in the original EntropyFunctions - to be cleaned up 
+from CodeEntropy.FunctionCollection import Utils
 from CodeEntropy.IO import Writer
-import multiprocessing as mp
-from functools import partial
-import pandas as pd
-import MDAnalysis as mda
-import matplotlib.pyplot as plt
-import math
+from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
 
-water={''}
 def frequency_calculation(lambdas,temp):
-    '''
-    
-    frequencies are calculated from eq. (3) in Higham, S.-Y. Chou, F. Gräter and 
-    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
-    
-    '''
+   """
+    Function to calculate an array of vibrational frequencies from the eigenvalues of the covariance matrix.
+    Calculated from eq. (3) in Higham, S.-Y. Chou, F. Gräter and  R. H. Henchman, Molecular Physics, 2018, 116, 
+    1965–1976//eq. (3) in A. Chakravorty, J. Higham and R. H. Henchman, 
+    J. Chem. Inf. Model., 2020, 60, 5540–5551
+    frequency=sqrt(λ/kT)/2π
+    Input
+    -----
+       lambdas : array of floats - eigenvalues of the covariance matrix
+       temp: float - temperature
+
+    Returns
+    -------
+       frequencies : array of floats - corresponding vibrational frequencies
+    """
     pi=np.pi
     kT=UAC.get_KT2(temp)
     frequencies=1/(2*pi)*np.sqrt(lambdas/kT)
     return frequencies
     
-def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque covariance matrix at a given level of entropy
-    '''
+def vibrational_entropies(matrix, matrix_type, temp,level): 
+    """
+    Function to calculate the vibrational entropy for each level calculated from eq. (4) in J. Higham, S.-Y. Chou, F. Gräter and 
+    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976/eq. (2) in A. Chakravorty, J. Higham and R. H. Henchman, 
+    J. Chem. Inf. Model., 2020, 60, 5540–5551.
     
-    vibrational entropy calculated from eq. (4) in Higham, S.-Y. Chou, F. Gräter and 
-    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
-    
-    '''
-    lambdas=la.eigvals(matrix)
+        Input
+    -----
+       matrix : matrix - force/torque covariance matrix
+       matrix_type: string
+       temp: float - temperature
+       level: string  - level of hierarchy - can be "polymer", "residue" or "united_atom"
+    Returns
+    -------
+       S_vib_total : float - transvibrational/rovibrational entropy
+    """
+    lambdas=la.eigvals(matrix) #eigenvalues
     frequencies=frequency_calculation(lambdas,temp)
     frequencies=frequencies.sort()
     kT=UAC.get_KT2J(temp)
     exponent=UAC.PLANCK_CONST*frequencies/kT
     power_positive= np.power(np.e,exponent)
     power_negative=np.power (np.e,-exponent)
-    S_components=exponent/(power_positive-1)-np.ln(1-power_negative)
+    S_components=exponent/(power_positive-1)-np.ln(1-power_negative) 
     S_components=S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-    if matrix_type=='FF':
-        if level =='polymer': #polymer
-            S_vib_total=sum(S_components) # 3x3 force covariance matrix => 6 eigenvalues
+    if matrix_type=='force': #force covariance matrix 
+        if level =='polymer': #polymer level - we take all frequencies into account
+            S_vib_total=sum(S_components) # 3x3 force covariance matrix => 3 eigenvalues
         else:
-            S_vib_total=sum(S_components[6:])  #for the 'monomer' and 'united_atom' levels we discard the 6 lowest frequencies
-    else: #for the torque covariance matrix, we take all values into account
+            S_vib_total=sum(S_components[6:])  #we discard the 6 lowest frequencies to discard translation and rotation at the upper level
+    else: #torque covariance matrix - we always take all values into account
         S_vib_total=sum(S_components)
     return S_vib_total
         
-'''
 
 def conformational_entropies(arg_hostDataContainer, level):
-    '''
-    conformational entropies are calculated using eq (7) in Higham, S.-Y. Chou, F. Gräter and 
-    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
-    -used the Adaptive Enumeration Method (AEM) from previous EntropyFunctions script
-    '''
+    """
+    Function to calculate conformational entropies are calculated using eq. (7) in Higham, S.-Y. Chou, F. Gräter and 
+    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976/ eq. (4) in A. Chakravorty, J. Higham and R. H. Henchman, 
+    J. Chem. Inf. Model., 2020, 60, 5540–5551.
+    Uses the adaptive enumeration method (AEM).
+            Input
+    -----
+    arg_hostDataContainer : system information
+    level : string - level of the hierarchy - should be "polymer" or "residue" here
+    Returns
+    -------
+       S_conf_total : float - conformational entropy
+    """
+    
     S_conf_total=0       
     allSel = arg_hostDataContainer.universe.select_atoms('all') #we select all atoms to go through
-    #we browse through all residues in the system to get their dihedrals 
-    for resindices in allSel.residues.resindices:
-        resid = arg_hostDataContainer.universe.residues.resids[resindices]
-        #we build a binary tree that hold unique dihedrals
-        diheds_in_rid = CustomDataTypes.BinaryTree() #create the tree
-        iAtom_in_rid = np.flip(allSel.select_atoms(f"resid {resid}").atoms.indices) 
-        for idx in iAtom_in_rid: #we go trough atoms in the residue
-            for iDih in arg_hostDataContainer.dihedralTable[idx]: #we go through each dihedral in the residue
-                if iDih.is_from_same_residue() == resid and iDih.is_heavy(): 
-                    diheds_in_rid.add_node(dihNode) #if a dihedral is unique - we add it to the tree
-        #we create an object of Class ConformationEntity for the dihedrals in each residue
-        newEntity = CONF.ConformationEntity(arg_order = len(diheds_in_rid),arg_numFrames = numFrames)
-        #we initialize a string array that will store the state in each frame as a distinct string - made from a coalesced character cast of numeric arrays
-        ridDecimalReprArray = []
-        #for each dihedral identified we get the state vector
-        for i, iDih in enumerate(diheds_in_rid.list_in_order()): #need to defide this
-            stateTS = iDih.get_states_ts() #define function
-            new_entity.timeSeries[i,:] = stateTS
-    #now we coalesce the integer labels of the constituent dihedrals in each point to get an expression of the conformation at that time
-        for iFrame  in range(numFrames): #we go through all the frames
-            ridDecimalReprArray.append(Utils.coalesce_numeric_array(newEntity.timeSeries[:,iFrame])) #we get all the states
-        #for each unique state we get the count and compute the topographical entropy for that residue
-        setOfstates =set (ridDecimalReprArray) #get a set of all states
-        rid_conf_entropy=0 #conformational entropy for residue
-        for iState in setOfstates:
-            iCount = ridDecimalReprArray.count(iState) #we look at the degeneracy of states
-            iPlogP = iCount * (np.log(iCount) - logNumFrames) #we calculate plog p for each state
-            rid_conf_entropy += iPlogP
-        rid_conf_entropy /=numFrames
-        rid_conf_entropy *= -UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-        S_conf_total += rid_conf_entropy
+    dihedrals = get_dihedrals(arg_hostDataContainer, level) #array of dihedrals 
+    numFrames = len(arg_hostDataContainer.trajSnapshots) #number of frames
+    logNumFrames = nmp.log(numFrames) #natural logarith of the number of frames
     return S_conf_total
-    #need to modify this to include MDAnalysis functions
+    
    
 def orientational_entropy():
-'''
-'''
+
     omega Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,3 1965–1976
-    σ = 2 for water + divide by 4 OR 1 for other molecules = ligands we're concerned with
+    σ = 2 for water + divide by 4 OR 1 for other molecules = ligands we re concerned with
     -might need to add another case for molecules with high symmetry about 1 axis - e.g. methanol, ethane
     orientational entropies are calculated using eq. (10) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 for molecules other than water
-'''      
-'''
+
     # assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y} - identified using RAD for each orientation
     S_or_total=0
     neighbours_dict= RAD() #could do a separate function for identifying neighbours 
@@ -131,7 +119,7 @@ def orientational_entropy():
         S_or_total+=S_molecule 
     return S_or_total     
 
-   ''' 
+   
 #conformational and orientational entropy still need updating
 #to do: add comments with the input and output
 
