@@ -71,6 +71,7 @@ def vibrational_entropies(matrix, matrix_type, temp,level):
         
 
 def conformational_entropies(arg_hostDataContainer, level):
+    
     """
     Function to calculate conformational entropies are calculated using eq. (7) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976/ eq. (4) in A. Chakravorty, J. Higham and R. H. Henchman, 
@@ -78,23 +79,70 @@ def conformational_entropies(arg_hostDataContainer, level):
     Uses the adaptive enumeration method (AEM).
             Input
     -----
-    arg_hostDataContainer : system information
+    arg_hostDataContainer : MDAnalysis Universe object - system information
     level : string - level of the hierarchy - should be "polymer" or "residue" here
     Returns
     -------
        S_conf_total : float - conformational entropy
     """
     
-    S_conf_total=0       
+    S_conf_total=0     
     allSel = arg_hostDataContainer.universe.select_atoms('all') #we select all atoms to go through
     dihedrals = get_dihedrals(arg_hostDataContainer, level) #array of dihedrals 
-    numFrames = len(arg_hostDataContainer.trajSnapshots) #number of frames
-    logNumFrames = nmp.log(numFrames) #natural logarith of the number of frames
-    for dihedral in dihedrals: #we go through the dihedrals
-        
-    return S_conf_total
+
     
+    if level == 'polymer': #we don't need to go through residues
+        diheds_in_polymer=BinaryTree() #we have one tree for the whole polymer
+        for dihedral in dihedrals: #we go through dihedrals at polymer level
+            dih_node= TreeNode (None, None, dihedral) 
+            diheds_in_polymer.add_node(dih_node) #we add the dihedrals to the tree
+        newEntity = CONF.ConformationEntity(arg_order, arg_numFrames, kwargs)ConformationEntity(arg_order = len(diheds_in_polymer),arg_numFrames = numFrames) #change based on class collection
+        #we initialize a string array that stores the state as a distinct string for each frame- made from a coalesced character cast of numeric arrays
+        DecimalReprArray = []
+        #we go through the dihedrals and find the corresponding state vectors
+        for i, Dihedral in enumerate (diheds_in_polymer.list_in_order()):
+            stateTS = iDih.get_state_ts()
+            newEntity.timeSeries[i,:] = stateTS
+        for iFrame in range (numFrames):
+            DecimalReprArray.append (Utils.coalesce_numeric_array(newEntity.timeSeries[:,iFrame]))
+        setOfstates = set(DecimalReprArray) #we get the unique states - we get the count and compute the topographical entropy
+        for istate in setOfstates:
+            icount = DecimalReprArray.count(istate) #we get the count of the state
+            iPlogP = icount * (nmp.log(icount) - logNumFrames)
+            S_conf_total+=iPlogP
+        S_conf_total/= numFrames
+        S_conf_total*= UAC.GAS_CONST 
+            
+    if level == 'residue':
+        for residue in arg_hostDataContainer.universe.residues: #we are going through the residues
+            diheds_in_residue=BinaryTree() #we build a tree for each residue
+            for dihedral in dihedrals: #we go through the dihedrals
+                if dihedral.is_from_same_residue() == residue.resid and dihedral.is_heavy(): #we check if dihedral is from that residue - if yes, add to tree
+                    dih_node= TreeNode (None, None, dihedral) 
+                    diheds_in_residue.add_node() #we add the dihedrals in that residue to the tree
+            newEntity = CONF.ConformationEntity(arg_order, arg_numFrames, kwargs)ConformationEntity(arg_order = len(diheds_in_residue),arg_numFrames = numFrames) #change based on ClassCollection
+            #we initialize a string array that stores the state as a distinct string for each frame- made from a coalesced character cast of numeric arrays
+            DecimalReprArray = []
+            for i, Dihedral in enumerate (diheds_in_residue.list_in_order()):
+                stateTS = iDih.get_state_ts()
+                newEntity.timeSeries[i,:] = stateTS
+            for iFrame in range (numFrames):
+                DecimalReprArray.append (Utils.coalesce_numeric_array(newEntity.timrSeries[:,iFrame]))
+            setOfstates = set(DecimalReprArray) #we get the unique states - we get the count and compute the topographical entropy
+            S_conf_residue = 0
+            for istate in setOfstates:
+                icount = DecimalReprArray.count(istate) #we get the count of the state
+                iPlogP = icount * (nmp.log(icount) - logNumFrames)
+                S_conf_residue+=iPlogP
+            S_conf_residue/=numFrames
+            S_conf_residue*=UAC.GAS_CONST 
+            S_conf_total+=S_conf_residue
+     
+    return S_conf_total
    
+#TODO orientational entropy function
+    
+'''
 def orientational_entropy():
 
     omega Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,3 1965–1976
@@ -120,10 +168,9 @@ def orientational_entropy():
         S_molecule = probabilities_dict[molecule]* np.log(omega)*UAC.GAS_CONST
         S_or_total+=S_molecule 
     return S_or_total     
-
+'''
    
-#conformational and orientational entropy still need updating
-#to do: add comments with the input and output
+
 
 
         
