@@ -90,6 +90,8 @@ def conformational_entropies(arg_hostDataContainer, level):
     dihedrals = get_dihedrals(arg_hostDataContainer, level) #array of dihedrals 
     numFrames = len(arg_hostDataContainer.trajSnapshots) #number of frames
     logNumFrames = nmp.log(numFrames) #natural logarith of the number of frames
+    for dihedral in dihedrals: #we go through the dihedrals
+        
     return S_conf_total
     
    
