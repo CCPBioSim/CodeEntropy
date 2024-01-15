@@ -1,15 +1,6 @@
 #! /usr/share/python
 import argparse
-import MDAnalysis as mda
-from CodeEntropy.FunctionCollection import EntropyFunctions as EF
-from CodeEntropy.FunctionCollection import LevelFunctions as LF
-from CodeEntropy.FunctionCollection import Utils
-from CodeEntropy.ClassCollection import DataContainer as DC
-from CodeEntropy.IO import MDAUniverseHelper as MDAHelper
-import pandas as pd
-import numpy as np
 from datetime import datetime
-from CodeEntropy.ClassCollection.PoseidonClass import Poseidon
 
 try:
 	parser = argparse.ArgumentParser(description="""
@@ -131,7 +122,7 @@ try:
 						type=int,
 						help='Reference molecule resid for system of pure liquid. Default to 1')
 	parser.add_argument('-x', '--excludedResnames', 
-						dest="excludedResnanes",
+						dest="excludedResnames",
 						action='store', 
 						nargs='+',
 						default=None, 
@@ -166,106 +157,31 @@ for arg in vars(args):
     print(' {} {}'.format(arg, getattr(args, arg) or ''))
 
 startTime = datetime.now()
-filePath = args.filePath
 
-outfile = args.outFile
-tScale = 1.0
-fScale = 1.0
-temper = args.temp
-selection_string = args.selectionString
-start = args.start
-end = args.end
-step = args.step
-thread = args.thread
-axis_list = args.rotationalAxis
-moutFile = args.moutFile
-nmdFile = args.nmdFile
-rescsvOutFile = args.rescsvOutFile
-csvOutFile = args.csvOutFile
+# create dictonary of inputs to be passed to the main function
+arg_dict = {}
 
-cutShell = args.cutShell
-puteAtomNum = args.puteAtomNum
-excludedResnanes = args.excludedResnanes
-waterResnames = args.waterResnames
-solventResnames = args.solventResnames
+arg_dict[outfile] = args.outFile
+arg_dict[temper] = args.temp
+arg_dict[selection_string] = args.selectionString
+arg_dict[start] = args.start
+arg_dict[end] = args.end
+arg_dict[step] = args.step
+arg_dict[thread] = args.thread
+arg_dict[axis_list] = args.rotationalAxis
+arg_dict[moutFile] = args.moutFile
+arg_dict[nmdFile] = args.nmdFile
+arg_dict[rescsvOutFile] = args.rescsvOutFile
+arg_dict[csvOutFile] = args.csvOutFile
 
-# Create MDAnalysis universe object from the given topology and trajectory files
-tprfile = filePath[0]
-trrfile = filePath[1:]
-u = mda.Universe(tprfile, trrfile)
+arg_dict[cutShell] = args.cutShell
+arg_dict[puteAtomNum] = args.puteAtomNum
+arg_dict[excludedResnames] = args.excludedResnames
+arg_dict[waterResnames] = args.waterResnames
+arg_dict[solventResnames] = args.solventResnames
 
-# Create pandas data frame for results
-results_df = pd.DataFrame(columns=['Molecule ID', 'Level','Type', 'Result'])
+# Get topology and trajectory file names
+arg_dict[tprfile] = args.filePath[0]
+arg_dict[trrfile] = args.filePath[1:]
 
-# Reduce time frames in MDA universe using start/end/step args (default all frames included)
-reduced_frame = MDAHelper.new_U_select_frame(u,  start, end, step)
-reduced_frame_name = f"{(len(reduced_frame.trajectory))}_frame_dump"
-reduced_frame_filename = MDAHelper.write_universe(reduced_frame, reduced_frame_name)
-
-# Reduce number of atoms in MDA universe to selection_string arg (default all atoms included)
-reduced_atom = MDAHelper.new_U_select_atom(reduced_frame, selection_string)
-reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
-reduced_atom_filename = MDAHelper.write_universe(reduced_atom, reduced_atom_name)
-
-# system data container needed for orientational entropy
-
-# Scan system for molecules and select levels (united atom, residue, polymer) for each
-number_molecules, levels = LF.select_levels(reduced_atom)
-
-# Loop over molecules
-for molecule in range(number_molecules):
-    # molecule data container for internal degrees of freedom
-    molecule_dataContainer = reduced_atom.fragment[molecule]
-
-    # Calculate entropy for each relevent level
-    for level in levels[molecule]:
-
-        # Vibrational entropy at every level
-        # Get the force and torque matrices for the beads at the relevant level
-        force_matrix, torque_matrix = LF.get_matrices(molecule_dataContainer, level)
-
-        # Calculate the entropy from the diagonalisation of the matrices
-        S_trans_{level} = vibrational_entropy(force_matrix)
-	    print(f"S_trans = {S_trans_{level}}")
-        newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-							'Type':['Transvibrational Entropy (J/mol/K)'],
-							'Result': [S_trans_{level}],})
-	    results_df = pd.concat([results_df, newRow], ignore_index=True)
-
-        S_rot_{level} = vibrational_entropy(torque_matrix)
-	    print(f"S_rot = {S_rot_{level}}")
-        newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-							'Type':['Rovibrational Entropy (J/mol/K)'],
-							'Result': [S_rot_{level}],})
-	    results_df = pd.concat([results_df, newRow], ignore_index=True)
-
-        # Conformational entropy for residues and polymers based on distributions of dihedral angles (not applicable for united atoms which don't have internal conformations)
-        if level != "united_atom": 
-            # Get dihedral angle distribution
-            dihedrals = LF.get_dihedrals(molecule_dataContainer, level)
-
-            # Calculate conformational entropy
-            S_conf_{level} = conformational_entropy(dihedrals)
-	        print(f"S_conf = {S_conf_{level}}")
-            newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-							'Type':['Conformational Entropy (J/mol/K)'],
-							'Result': [S_conf_{level}],})
-	        results_df = pd.concat([results_df, newRow], ignore_index=True)
-
-    # Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
-    level = levels[molecule][-1]
-    S_orient = orientational_entropy(neighbours)
-	print(f"S_orient = {S_orient_{level}}")
-    newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-							'Type':['Orientational Entropy (J/mol/K)'],
-							'Result': [S_orient_{level}],})
-	results_df = pd.concat([results_df, newRow], ignore_index=True)
-
-    # Report total entropy for the molecule
-    molecule_data = results_df[results_df["Molecule ID"] == molecule]
-    S_molecule = molecule_data["Result"].sum
-	print(f"S_molecule = {S_molecule}")
-    newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['Molecule Total'],
-							'Type':['Molecule Total Entropy (J/mol/K)'],
-							'Result': [S_molecule],})
-	results_df = pd.concat([results_df, newRow], ignore_index=True)
+main(arg_dict)

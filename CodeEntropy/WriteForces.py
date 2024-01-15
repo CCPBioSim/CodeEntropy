@@ -1,7 +1,7 @@
 import numpy as nmp
 import sys
 
-from CodeEntropy.FunctionCollection import CustomFunctions as CF
+from CodeEntropy import CustomFunctions as CF
 
 # output Forces
 def write_atomic_forces( arg_baseMolecule, arg_hostDataContainer, arg_outFile ):
