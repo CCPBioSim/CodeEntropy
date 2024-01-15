@@ -1,19 +1,13 @@
-#!/usr/bin/env python3
-
 from ast import arg
 import sys,os
 import numpy as np
 from numpy import linalg as la
 np.set_printoptions (threshold=sys.maxsize)
-from CodeEntropy.ClassCollection import BeadClasses as BC
-from CodeEntropy.ClassCollection import ConformationEntity as CONF
-from CodeEntropy.ClassCollection import ModeClasses
-from CodeEntropy.ClassCollection import CustomDataTypes
-from CodeEntropy.FunctionCollection import CustomFunctions as CF
-from CodeEntropy.FunctionCollection import GeometricFunctions as GF
-from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
-from CodeEntropy.FunctionCollection import Utils
-from CodeEntropy.IO import Writer
+from CodeEntropy import CustomFunctions as CF
+from CodeEntropy import GeometricFunctions as GF
+from CodeEntropy import UnitsAndConversions as UAC
+from CodeEntropy import Utils
+from CodeEntropy import Writer
 import multiprocessing as mp
 from functools import partial
 import pandas as pd
@@ -50,13 +44,14 @@ def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque cov
     power_negative=np.power (np.e,-exponent)
     S_components=exponent/(power_positive-1)-np.ln(1-power_negative)
     S_components=S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-    if matrix_type=='FF':
-        if level =='P': #polymer
+    if matrix_type=='force':
+        if level =='polymer': #polymer
             S_vib_total=sum(S_components) # 3x3 force covariance matrix => 6 eigenvalues
         else:
             S_vib_total=sum(S_components[6:])  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
     else: #for the torque covariance matrix, we take all values into account
         S_vib_total=sum(S_components)
+    
     return S_vib_total
         
 def conformational_entropies(arg_hostDataContainer, arg_selector='all'):

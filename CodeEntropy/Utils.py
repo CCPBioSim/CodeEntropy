@@ -9,7 +9,7 @@ import numpy as nmp
 import re
 from datetime import datetime, timedelta
 
-from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
+from CodeEntropy import UnitsAndConversions as UAC
 
 def printflush(arg_string, end = '\n'):
 	""" Modified print statement with flush = True in the end """

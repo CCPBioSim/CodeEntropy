@@ -1,16 +1,11 @@
 import numpy as nmp
-import MDAnalysis as mds
-from CodeEntropy.ClassCollection import BeadClasses as BC
-from CodeEntropy.ClassCollection import ConformationEntity as CONF
-from CodeEntropy.ClassCollection import ModeClasses
-from CodeEntropy.ClassCollection import CustomDataTypes
-from CodeEntropy.FunctionCollection import EntropyFunctions as EF
-from CodeEntropy.FunctionCollection import CustomFunctions as CF
-from CodeEntropy.FunctionCollection import GeometricFunctions as GF
-from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
-from CodeEntropy.FunctionCollection import Utils
-from CodeEntropy.IO import Writer
-from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
+import MDAnalysis as mda
+from CodeEntropy import EntropyFunctions as EF
+from CodeEntropy import CustomFunctions as CF
+from CodeEntropy import GeometricFunctions as GF
+from CodeEntropy import UnitsAndConversions as UAC
+from CodeEntropy import Utils
+from CodeEntropy import Writer
 
 def select_levels(arg_DataContainer):
     """
@@ -71,6 +66,10 @@ def get_matrices(arg_DataContainer, level):
     ## Make beads
     list_of_beads = GF.get_beads(arg_DataContainer, level)
 
+    # initialize force and torque arrays
+    weighted_forces = []
+    weighted_torques = []
+
     ## Calculate forces/torques for each bead
     for bead in list_of_beads:
         for frame in range(number_frames):
@@ -89,6 +88,9 @@ def get_matrices(arg_DataContainer, level):
     # list of pairs of indices
     indexPairList = [(i,j) for i in range(num_beads) for j in range(num_beads)]
 
+    force_submatrix = []
+    torque_submatrix = []
+
     for i, j in indexPairList:
         # for each pair of beads (but reducing effort because the matrix for [i][j] is the transpose of the one for [j][i])
         if i <= j:
@@ -102,9 +104,9 @@ def get_matrices(arg_DataContainer, level):
     
     ## Tidy up
     # use nmp.block to make submatrices into one matrix
-    force_matrix = nmp.block([   [  force_submatrix[i,j] for j in range(num_beads)  ] for i in range(num_beads)   ] )
+    force_matrix = nmp.block([   [  force_submatrix[i][j] for j in range(num_beads)  ] for i in range(num_beads)   ] )
 
-    torque_matrix = nmp.block([   [  torque_submatrix[i,j] for j in range(num_beads)  ] for i in range(num_beads)   ] )
+    torque_matrix = nmp.block([   [  torque_submatrix[i][j] for j in range(num_beads)  ] for i in range(num_beads)   ] )
 
     # fliter zeros to remove any rows/columns that are all zero
     force_matrix = CF.filter_zero_rows_columns(force_matrix)

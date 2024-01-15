@@ -1,5 +1,5 @@
 import numpy as nmp
-from CodeEntropy.FunctionCollection import CustomFunctions as CF 
+from CodeEntropy import CustomFunctions as CF 
 
 def get_beads(arg_dataContainer, level):
     """
@@ -25,7 +25,7 @@ def get_beads(arg_dataContainer, level):
         list_of_beads = []
         heavy_atoms = arg_dataContainer.select("name not H*")
         for atom in heavy_atoms:
-            list_of_beads.append(arg_dataContainer.select(f"index {atom} or (name H* and bonded index {iheavy})")
+            list_of_beads.append(arg_dataContainer.select(f"index {atom} or (name H* and bonded index {atom})"))
 
     return list_of_beads
 #END
@@ -123,7 +123,7 @@ def get_avg_pos(atom_set, arg_frame, center):
 
     if number_atoms != 0:
         # sum positions for all atoms in the given set
-        for atom_index in atoms.indices:
+        for atom_index in atom_set.atoms.indices:
             atom_position = atom_set.atoms.positions[arg_frame, atom_index]
             avg_position = nmp.add(avg_position, atom_position)
 
@@ -235,10 +235,10 @@ def get_weighted_torques(arg_dataContainer, bead, rot_axes, frame):
     for atom in bead.atoms:
 
         # update local coordinates in rotational axes
-        coords_rot = arg_DataContiner.trajectory[frame].atom[atom].positions - bead.center_of_mass()
+        coords_rot = arg_dataContainer.trajectory[frame].atom[atom].positions - bead.center_of_mass()
         coords_rot = rot_axes @ coords_rot
         # update local forces in rotational frame
-        forces_rot = rot_axes @ arg_DataContainer.trajectory[frame].atoms[atom].velocities[3:5]
+        forces_rot = rot_axes @ arg_dataContainer.trajectory[frame].atoms[atom].velocities[3:5]
         
         # define torques (cross product of coordinates and forces) in rotational axes
         torques += nmp.cross(coords_rot, forces_rot)
