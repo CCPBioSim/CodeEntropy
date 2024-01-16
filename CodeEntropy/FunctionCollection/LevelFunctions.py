@@ -1,4 +1,3 @@
-import numpy as nmp
 import MDAnalysis as mds
 from CodeEntropy.ClassCollection import BeadClasses as BC
 from CodeEntropy.ClassCollection import ConformationEntity as CONF
