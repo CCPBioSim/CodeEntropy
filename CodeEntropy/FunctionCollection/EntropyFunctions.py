@@ -70,7 +70,7 @@ def vibrational_entropies(matrix, matrix_type, temp,level):
     return S_vib_total
         
 
-def conformational_entropies(arg_hostDataContainer, level):
+def conformational_entropies(dihedrals, level):
     
     """
     Function to calculate conformational entropies are calculated using eq. (7) in Higham, S.-Y. Chou, F. Gräter and 
@@ -87,8 +87,6 @@ def conformational_entropies(arg_hostDataContainer, level):
     """
     
     S_conf_total=0     
-    allSel = arg_hostDataContainer.universe.select_atoms('all') #we select all atoms to go through
-    dihedrals = get_dihedrals(arg_hostDataContainer, level) #array of dihedrals 
 
     
     if level == 'polymer': #we don't need to go through residues
