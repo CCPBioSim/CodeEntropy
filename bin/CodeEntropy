@@ -1,6 +1,7 @@
 #! /usr/share/python
 import argparse
 from datetime import datetime
+import CodeEntropy
 
 try:
 	parser = argparse.ArgumentParser(description="""
@@ -161,27 +162,27 @@ startTime = datetime.now()
 # create dictonary of inputs to be passed to the main function
 arg_dict = {}
 
-arg_dict[outfile] = args.outFile
-arg_dict[temper] = args.temp
-arg_dict[selection_string] = args.selectionString
-arg_dict[start] = args.start
-arg_dict[end] = args.end
-arg_dict[step] = args.step
-arg_dict[thread] = args.thread
-arg_dict[axis_list] = args.rotationalAxis
-arg_dict[moutFile] = args.moutFile
-arg_dict[nmdFile] = args.nmdFile
-arg_dict[rescsvOutFile] = args.rescsvOutFile
-arg_dict[csvOutFile] = args.csvOutFile
+arg_dict['outfile'] = args.outFile
+arg_dict['temper'] = args.temp
+arg_dict['selection_string'] = args.selectionString
+arg_dict['start'] = args.start
+arg_dict['end'] = args.end
+arg_dict['step'] = args.step
+arg_dict['thread'] = args.thread
+arg_dict['axis_list'] = args.rotationalAxis
+arg_dict['moutFile'] = args.moutFile
+arg_dict['nmdFile'] = args.nmdFile
+arg_dict['rescsvOutFile'] = args.rescsvOutFile
+arg_dict['csvOutFile'] = args.csvOutFile
 
-arg_dict[cutShell] = args.cutShell
-arg_dict[puteAtomNum] = args.puteAtomNum
-arg_dict[excludedResnames] = args.excludedResnames
-arg_dict[waterResnames] = args.waterResnames
-arg_dict[solventResnames] = args.solventResnames
+arg_dict['cutShell'] = args.cutShell
+arg_dict['puteAtomNum'] = args.puteAtomNum
+arg_dict['excludedResnames'] = args.excludedResnames
+arg_dict['waterResnames'] = args.waterResnames
+arg_dict['solventResnames'] = args.solventResnames
 
 # Get topology and trajectory file names
-arg_dict[tprfile] = args.filePath[0]
-arg_dict[trrfile] = args.filePath[1:]
+arg_dict['tprfile'] = args.filePath[0]
+arg_dict['trrfile'] = args.filePath[1:]
 
-main(arg_dict)
+CodeEntropy.main(arg_dict)

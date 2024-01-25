@@ -97,20 +97,20 @@ def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
     return S_conf_total
         
 def orientational_entropy():
-''' Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,3' 1965–1976
+    """ Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,3, 1965–1976
     σ = 2 for water + divide by 4 OR 1 for other molecules = ligands we're concerned with
     -might need to add another case for molecules with high symmetry about 1 axis - e.g. methanol, ethane
     orientational entropies are calculated using eq. (10) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 for molecules other than water
-'''    
-# assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y} - identified using RAD for each orientation
+    """   
+    # assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y} - identified using RAD for each orientation
     S_or_total=0
     neighbours_dict= RAD() #could do a separate function for identifying neighbours 
     for molecule in neighbours_dict: #we are going through neighbo
     #get the probabilities from somewhere - TBD
         if molecule in [] : #water flag'
             
-             omega= np.sqrt((neighbours_dict[molecule]**3)*math.pi)*0.125 - #multiply by (HBav)/σ - HBav =0.25 as each water molecule is equally likely 
+             omega= np.sqrt((neighbours_dict[molecule]**3)*math.pi)*0.125  #multiply by (HBav)/σ - HBav =0.25 as each water molecule is equally likely 
                                                                              #to donate and accept H bonds  
             
             
@@ -118,16 +118,5 @@ def orientational_entropy():
             omega= np.sqrt((neighbours_dict[molecule]**3)*math.pi) #always going to be larger than 1 as σ = 1
         S_molecule = probabilities_dict[molecule]* np.log(omega)*UAC.GAS_CONST
         S_or_total+=S_molecule 
+    
     return S_or_total
-                
-
-    
-
-
-
-
-
-        
-    
-
-        
