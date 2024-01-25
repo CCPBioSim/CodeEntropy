@@ -16,16 +16,16 @@ def get_beads(arg_dataContainer, level):
     """
 
     if level == "polymer":
-        list_of_beads = arg_dataContainer.fragments
+        list_of_beads = arg_dataContainer.atoms.fragments
 
     if level == "residue":
         list_of_beads = arg_dataContainer.residues
 
     if level == "united_atom":
         list_of_beads = []
-        heavy_atoms = arg_dataContainer.select("name not H*")
+        heavy_atoms = arg_dataContainer.select_atoms("not name H*")
         for atom in heavy_atoms:
-            list_of_beads.append(arg_dataContainer.select(f"index {atom} or (name H* and bonded index {atom})"))
+            list_of_beads.append(arg_dataContainer.select_atoms(f"index {atom} or (name H* and bonded index {atom})"))
 
     return list_of_beads
 #END
@@ -63,7 +63,7 @@ def get_axes(arg_dataContainer, level, index=0, frame=0):
         # find bonds between atoms in residue of interest and other residues
         # we are assuming bonds only exist between adjacent residues (linear chains of residues)
         # TODO refine selection so that it will work for branched polymers
-        atom_set = arg_dataContainer.select(f"(resid {index}-1 or resid {index}+1) and bonded resid {index}")
+        atom_set = arg_dataContainer.select_atoms(f"(resid {index}-1 or resid {index}+1) and bonded resid {index}")
 
         if len(atom_set) == 0:
             # if no bonds to other residues use pricipal axes of residue

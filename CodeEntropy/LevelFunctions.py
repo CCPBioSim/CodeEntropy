@@ -10,6 +10,7 @@ from CodeEntropy import Writer
 def select_levels(arg_DataContainer):
     """
     Function to read input system and identify the number of molecules and the levels (i.e. united atom, residue and/or polymer) that should be used.
+    The level refers to the size of the bead (atom or collection of atoms) that will be used in the entropy calculations.
 
     Input
     -----
@@ -22,7 +23,7 @@ def select_levels(arg_DataContainer):
     """
 
     # fragments is MDAnalysis terminology for what chemists would call molecules
-    number_molecules = arg_DataContainer.n_fragments
+    number_molecules = len(arg_DataContainer.atoms.fragments)
     print("The number of molecules is {}.".format(number_molecules))
     fragments = arg_DataContainer.atoms.fragments
     levels = [[] for _ in range(number_molecules)]
@@ -45,7 +46,7 @@ def select_levels(arg_DataContainer):
 
     return number_molecules, levels
 
-def get_matrices(arg_DataContainer, level):
+def get_matrices(arg_DataContainer, level, number_frames):
     """
     Function to create the force matrix needed for the transvibrational entropy calculation and the torque matrix for the rovibrational entropy calculation.
 
@@ -53,15 +54,13 @@ def get_matrices(arg_DataContainer, level):
     -----
         arg_DataContainer : CodeEntropy.ClassCollection.DataContainer DataContainer type with the information on the molecule of interest.
         level : string, which of the polymer, residue, or united atom levels are the matrices for.
+        number_frames : number of frames in the trajectory
 
     Returns
     -------
-        force_matrix :
-        torque_matrix :
+        force_matrix : force covariance matrix for transvibrational entropy
+        torque_matrix : torque convariance matrix for rovibrational entropy
     """
-
-    # number of frames
-    number_frames = len(arg_DataContainer.trajSnapshots)
    
     ## Make beads
     list_of_beads = GF.get_beads(arg_DataContainer, level)
@@ -135,14 +134,14 @@ def get_dihedrals(arg_hostDataContainer, level):
     dihedrals = []
 
     # if residue level, read dihedrals from MDAnalysis universe
-    if level == "residue":
+    if level == "united_atom":
         dihedrals.append(arg_hostDataContainer.dihedrals)
 
     # if polymer level, looking for dihedrals involving residues
-    if level == "polymer":
+    if level == "residue":
         num_residues = len(arg_hostDataContainer.residues)
         if num_residues < 4:
-            print("no polymer level dihedrals")
+            print("no residue level dihedrals")
 
         else:
         # find bonds between residues N-3:N-2 and N-1:N
