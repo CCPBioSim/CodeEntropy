@@ -30,9 +30,9 @@ def frequency_calculation(lambdas,temp):
     -------
        frequencies : array of floats - corresponding vibrational frequencies
     """
-    pi=np.pi
+    pi=nmp.pi
     kT=UAC.get_KT2(temp)
-    frequencies=1/(2*pi)*np.sqrt(lambdas/kT)
+    frequencies=1/(2*pi)*nmp.sqrt(lambdas/kT)
     return frequencies
     
 def vibrational_entropies(matrix, matrix_type, temp,level): 
@@ -73,7 +73,7 @@ def vibrational_entropies(matrix, matrix_type, temp,level):
 def conformational_entropies(dihedrals, level):
     
     """
-    Function to calculate conformational entropies are calculated using eq. (7) in Higham, S.-Y. Chou, F. Gräter and 
+    Function to calculate conformational entropies using eq. (7) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976/ eq. (4) in A. Chakravorty, J. Higham and R. H. Henchman, 
     J. Chem. Inf. Model., 2020, 60, 5540–5551.
     Uses the adaptive enumeration method (AEM).
@@ -94,8 +94,7 @@ def conformational_entropies(dihedrals, level):
         for dihedral in dihedrals: #we go through dihedrals at polymer level
             dih_node= TreeNode (None, None, dihedral) 
             diheds_in_polymer.add_node(dih_node) #we add the dihedrals to the tree
-        newEntity = CONF.ConformationEntity(arg_order, arg_numFrames, kwargs)ConformationEntity(arg_order = len(diheds_in_polymer),arg_numFrames = numFrames) #change based on class collection
-        #we initialize a string array that stores the state as a distinct string for each frame- made from a coalesced character cast of numeric arrays
+        newEntity = CONF.ConformationEntity(arg_order, arg_numFrames, kwargs)ConformationEntity(arg_order = len(diheds_in_polymer),arg_numFrames = numFrames)      #we initialize a string array that stores the state as a distinct string for each frame- made from a coalesced character cast of numeric arrays
         DecimalReprArray = []
         #we go through the dihedrals and find the corresponding state vectors
         for i, Dihedral in enumerate (diheds_in_polymer.list_in_order()):
@@ -118,7 +117,7 @@ def conformational_entropies(dihedrals, level):
                 if dihedral.is_from_same_residue() == residue.resid and dihedral.is_heavy(): #we check if dihedral is from that residue - if yes, add to tree
                     dih_node= TreeNode (None, None, dihedral) 
                     diheds_in_residue.add_node() #we add the dihedrals in that residue to the tree
-            newEntity = CONF.ConformationEntity(arg_order, arg_numFrames, kwargs)ConformationEntity(arg_order = len(diheds_in_residue),arg_numFrames = numFrames) #change based on ClassCollection
+            newEntity = CONF.ConformationEntity(arg_order, arg_numFrames, kwargs)ConformationEntity(arg_order = len(diheds_in_residue),arg_numFrames = numFrames) 
             #we initialize a string array that stores the state as a distinct string for each frame- made from a coalesced character cast of numeric arrays
             DecimalReprArray = []
             for i, Dihedral in enumerate (diheds_in_residue.list_in_order()):
@@ -138,17 +137,15 @@ def conformational_entropies(dihedrals, level):
      
     return S_conf_total
    
-#TODO orientational entropy function
+
     
-'''
+
 def orientational_entropy():
-
-    omega Ω calculated from eq. (8) in Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,3 1965–1976
-    σ = 2 for water + divide by 4 OR 1 for other molecules = ligands we re concerned with
-    -might need to add another case for molecules with high symmetry about 1 axis - e.g. methanol, ethane
-    orientational entropies are calculated using eq. (10) in Higham, S.-Y. Chou, F. Gräter and 
-    R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 for molecules other than water
-
+    '''
+    Function to calculate orientational entropies from eq. (10) in J. Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, 
+    Molecular Physics, 2018, 116,3 1965–1976. Number of orientations, Ω, is calculated using eq. (8) in  J. Higham, 
+    S.-Y. Chou, F. Gräter and R. H. Henchman,  Molecular Physics, 2018, 116,3 1965–1976. 
+   '''
     # assuming we identify neighbours before and could have a dictionary of neighbours or similar structure - e.g. neighbours= {'SOL': x, 'LIG': y} - identified using RAD for each orientation
     S_or_total=0
     neighbours_dict= RAD() #could do a separate function for identifying neighbours 
@@ -166,7 +163,6 @@ def orientational_entropy():
         S_molecule = probabilities_dict[molecule]* np.log(omega)*UAC.GAS_CONST
         S_or_total+=S_molecule 
     return S_or_total     
-'''
    
 
 
