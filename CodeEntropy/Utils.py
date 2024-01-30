@@ -9,7 +9,7 @@ import numpy as nmp
 import re
 from datetime import datetime, timedelta
 
-from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
+from CodeEntropy import UnitsAndConversions as UAC
 
 def printflush(arg_string, end = '\n'):
 	""" Modified print statement with flush = True in the end """
@@ -128,7 +128,7 @@ def binary_to_dec_repr(arg_byteArray):
 #END
 
 def coalesce_numeric_array(arg_numArray):
-	""" Take the elements in a given input array with integer elements and coalesce them to returna string whose characters
+	""" Take the elements in a given input array with integer elements and coalesce them to return a string whose characters
 	are string cast of teh elements """
 	charList = [str(char) for char in arg_numArray.astype(int)]
 	return ''.join(charList)
@@ -156,7 +156,7 @@ def get_frequencies_from_nmd(arg_nmdfile, wnum2freq = True):
 			if re.match("^# \*\*\*", line):
 				freq = float(line.split()[-1])
 				if wnum2freq:
-					freq *= CONST.C_LIGHT
+					freq *= UAC.C_LIGHT
 				freqList.append(freq)
 	return freqList
 #END

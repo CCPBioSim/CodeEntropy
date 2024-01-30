@@ -2,8 +2,7 @@ import numpy as nmp
 import sys
 
 from bitarray import bitarray
-from CodeEntropy import ClassCollection as CC 
-from CodeEntropy.FunctionCollection import Utils
+from CodeEntropy import Utils
 
 def euler_vector(arg_r, arg_theta):
 	"""
