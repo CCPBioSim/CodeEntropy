@@ -1,7 +1,7 @@
 import numpy as nmp
 import sys
 
-from CodeEntropy.FunctionCollection import CustomFunctions, Utils
+from CodeEntropy import CustomFunctions, Utils
 
 def write_file(arg_filename):
 	"""
