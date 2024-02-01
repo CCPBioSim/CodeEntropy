@@ -146,6 +146,7 @@ def main(arg_dict):
                 
         ## Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
         level = levels[molecule][-1]
+        neighbours = NF.get_neighbours (molecule_dataContainer, reduced_atom)
         S_orient = orientational_entropy(neighbours)
         print(f"S_orient_{level} = {S_orient}")
         newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
