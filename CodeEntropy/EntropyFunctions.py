@@ -82,8 +82,8 @@ def conformational_entropy(dihedrals, level):
     Uses the adaptive enumeration method (AEM).
             Input
     -----
-    arg_hostDataContainer : MDAnalysis Universe object - system information
-    level : string - level of the hierarchy - should be "polymer" or "residue" here
+    dihedrals : array - array of dihedrals in the molecule
+    level : string - level of the hierarchy - should be "residue" or "united_atom" here
     Returns
     -------
        S_conf_total : float - conformational entropy
@@ -144,23 +144,21 @@ def conformational_entropy(dihedrals, level):
     
 
 def orientational_entropy(neighbours): 
-    '''
+    """
     Function to calculate orientational entropies from eq. (10) in J. Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, 
     Molecular Physics, 2018, 116,3 1965–1976. Number of orientations, Ω, is calculated using eq. (8) in  J. Higham, 
-    S.-Y. Chou, F. Gräter and R. H. Henchman,  Molecular Physics, 2018, 116,3 1965–1976. Neighbours are identified u
+    S.-Y. Chou, F. Gräter and R. H. Henchman,  Molecular Physics, 2018, 116,3 1965–1976. Neighbours are identified in 
     Input
     -----
-      neighbours :  
+      neighbours :  dictionary - dictionary of neighbours for the molecule - should contain the type of neighbour molecule and the number of neighbour
+                                molecules of that species
     Returns
     -------
        S_or_total : float - orientational entropy
-    '''
-    # 
-    S_or_total=0
-    neighbours_dict= RAD() #could do a separate function for identifying neighbours 
-    for molecule in neighbours_dict: #we are going through neighbo
-    #get the probabilities from somewhere - TBD
-        if molecule in [] : #water molecules - we will call the POSEIDON functions          
+    """
+    S_or_total=0 
+    for neighbour in neighbours: #we are going through neighbours
+        if molecule in [] : #water molecules - call POSEIDON functions          
         
         else:
             omega= np.sqrt((neighbours_dict[molecule]**3)*math.pi) #always going to be larger than 1 as σ = 1
