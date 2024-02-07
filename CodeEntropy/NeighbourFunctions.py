@@ -3,16 +3,17 @@ import sys,os
 import numpy as np
 from numpy import linalg as la
 np.set_printoptions (threshold=sys.maxsize)
-from CodeEntropy import CustomFunctions as CF
-from CodeEntropy import GeometricFunctions as GF
-from CodeEntropy import UnitsAndConversions as UAC
-from CodeEntropy import LevelFunctions as LF
-from CodeEntropy import Utils
-from CodeEntropy import Writer
+#from CodeEntropy import CustomFunctions as CF
+#from CodeEntropy import GeometricFunctions as GF
+#from CodeEntropy import UnitsAndConversions as UAC
+#from CodeEntropy import LevelFunctions as LF
+#from CodeEntropy import Utils
+#from CodeEntropy import Writer
 import multiprocessing as mp
 from functools import partial
 import pandas as pd
 import MDAnalysis as mda
+from MDAnalysis.analysis import distances
 import matplotlib.pyplot as plt
 import math
 
@@ -51,6 +52,8 @@ def get_neighbours(molecule_i, reduced_atom):
                           else:
                               neighbours_dict[molecule_j.atoms.resnames[0]] =1
               else: #first neighbour
+                  r_ij = mda.analysis.distances.dist(molecule_i, molecule_j)
+                  print(r_ij)
                   neighbours_array.append(molecule_j.atoms.resids[0]) 
                   neighbours_dict[molecule_j.atoms.resnames[0]] =1
   return neighbours_dict, neighbours_array

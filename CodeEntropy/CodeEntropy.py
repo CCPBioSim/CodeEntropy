@@ -2,7 +2,7 @@ import MDAnalysis as mda
 import numpy as nmp
 import pandas as pd
 from CodeEntropy import LevelFunctions as LF
-from CodeEntropy import EntropyFunctions as EF
+#from CodeEntropy import EntropyFunctions as EF
 from CodeEntropy import MDAUniverseHelper as MDAHelper
 from CodeEntropy import poseidon
 
@@ -40,9 +40,10 @@ def main(arg_dict):
     # Loop over molecules
     for molecule in range(number_molecules):
         # molecule data container for internal degrees of freedom
+        print(molecule)
         molecule_dataContainer = reduced_atom.atoms.fragments[molecule]
         # molecule_dataContainer = MDAHelper.new_U_select_atom(reduced_atom, f"group group_name, group_name={group_name}")
-
+        
         # Calculate entropy for each relevent level
         for level in levels[molecule]:
 
