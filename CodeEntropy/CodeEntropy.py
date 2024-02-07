@@ -69,7 +69,7 @@ def main(arg_dict):
 
                 # Note: conformational entropy is not calculated at the polymer level, because there is at most one polymer bead per molecule so no dihedral angles.
 
-           if level == 'residue':     
+            if level == 'residue':     
                 ## Conformational entropy based on distributions of dihedral angles of residues
                 ## Gives conformational entropy of secondary structure
 
@@ -147,8 +147,8 @@ def main(arg_dict):
                 
         ## Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
         level = levels[molecule][-1]
-        neighbours = NF.get_neighbours (molecule_dataContainer, reduced_atom)
-        S_orient = orientational_entropy(neighbours)
+        neighbours_dict, neighbours_array = NF.get_neighbours (molecule_dataContainer, reduced_atom)
+        S_orient = orientational_entropy(neighbours_dict)
         print(f"S_orient_{level} = {S_orient}")
         newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
                             'Type':['Orientational Entropy (J/mol/K)'],
