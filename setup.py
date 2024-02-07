@@ -63,7 +63,7 @@ setup(
 	zip_safe = False,
 
     install_requires=[
-        'numpy==1.22.4', #updated from 1.22.3 for the MDAnalysis update
+        'numpy==1.23.2', #updated from 1.22.4 for the pandas update
         'bitarray==2.5.0',
         'mdanalysis==2.6.1', #updated from MDAnalysis 2.1.0 
         'pandas==2.1.0', #updated from 1.4.2 for the MDAnalysis update
@@ -72,5 +72,5 @@ setup(
         'pathos==0.2.9',
     ],
 
-    scripts=['scripts/CodeEntropyPoseidon']
+    scripts=['scripts/CodeEntropyPoseidon', 'CodeEntropy/cli/runWaterEntropy.py']
 )
