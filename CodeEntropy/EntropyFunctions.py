@@ -4,9 +4,12 @@ import numpy as np
 from numpy import linalg as la
 np.set_printoptions (threshold=sys.maxsize)
 from CodeEntropy import CustomFunctions as CF
+from CodeEntropy import CustomDataTypes
+from CodeEntropy import ConformationEntity as CONF
 from CodeEntropy import GeometricFunctions as GF
 from CodeEntropy import UnitsAndConversions as UAC
 from CodeEntropy import Utils
+from CodeEntropy import poseidon
 from CodeEntropy import Writer
 import multiprocessing as mp
 from functools import partial
@@ -24,12 +27,13 @@ def frequency_calculation(lambdas,temp):
     
     '''
     pi=np.pi
-    kT=UAC.get_KT2(temp)
+    kT=UAC.get_KT2J(temp)
     frequencies=1/(2*pi)*np.sqrt(lambdas/kT)
     return frequencies
     
-def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque covariance matrix at a given level of entropy
+def vibrational_entropy(matrix, matrix_type, temp,level): 
     '''
+    Using force or torque covariance matrix at a given level of entropy
     
     vibrational entropy calculated from eq. (4) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
@@ -54,7 +58,7 @@ def vibrational_entropies(matrix, matrix_type, temp,level): #force or torque cov
     
     return S_vib_total
         
-def conformational_entropies(arg_hostDataContainer, arg_selector='all'):
+def conformational_entropy(arg_hostDataContainer, numFrames, arg_selector='all'):
     '''
     conformational entropies are calculated using eq (7) in Higham, S.-Y. Chou, F. Gräter and 
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976

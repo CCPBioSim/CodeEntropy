@@ -7,7 +7,7 @@ from CodeEntropy import UnitsAndConversions as UAC
 from CodeEntropy import Utils
 from CodeEntropy import Writer
 
-def select_levels(arg_DataContainer):
+def select_levels(data_container):
     """
     Function to read input system and identify the number of molecules and the levels (i.e. united atom, residue and/or polymer) that should be used.
     The level refers to the size of the bead (atom or collection of atoms) that will be used in the entropy calculations.
@@ -23,9 +23,9 @@ def select_levels(arg_DataContainer):
     """
 
     # fragments is MDAnalysis terminology for what chemists would call molecules
-    number_molecules = len(arg_DataContainer.atoms.fragments)
+    number_molecules = len(data_container.atoms.fragments)
     print("The number of molecules is {}.".format(number_molecules))
-    fragments = arg_DataContainer.atoms.fragments
+    fragments = data_container.atoms.fragments
     levels = [[] for _ in range(number_molecules)]
 
     for molecule in range(number_molecules):
@@ -46,15 +46,14 @@ def select_levels(arg_DataContainer):
 
     return number_molecules, levels
 
-def get_matrices(arg_DataContainer, level, number_frames):
+def get_matrices(data_container, level):
     """
     Function to create the force matrix needed for the transvibrational entropy calculation and the torque matrix for the rovibrational entropy calculation.
 
     Input
     -----
-        arg_DataContainer : CodeEntropy.ClassCollection.DataContainer DataContainer type with the information on the molecule of interest.
+        data_container : MDAnalysis universe type with the information on the molecule of interest.
         level : string, which of the polymer, residue, or united atom levels are the matrices for.
-        number_frames : number of frames in the trajectory
 
     Returns
     -------
@@ -63,32 +62,34 @@ def get_matrices(arg_DataContainer, level, number_frames):
     """
    
     ## Make beads
-    list_of_beads = GF.get_beads(arg_DataContainer, level)
+    list_of_beads = GF.get_beads(data_container, level)
+    
+    # number of beads and frames in trajectory
+    number_beads = len(list_of_beads)
+    number_frames = len(data_container.trajectory)
 
     # initialize force and torque arrays
-    weighted_forces = []
-    weighted_torques = []
+    weighted_forces = [[0 for x in range(number_frames)] for y in range(number_beads)]
+    weighted_torques = [[0 for x in range(number_frames)] for y in range(number_beads)]
 
     ## Calculate forces/torques for each bead
-    for bead in list_of_beads:
-        for frame in range(number_frames):
+    for bead_index in range(number_beads):
+        for timestep in data_container.trajectory:
             ## Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
-            trans_axes, rot_axes = GF.get_axes(arg_DataContainer, level, bead.residue.ix, frame)
-        
+            trans_axes, rot_axes = GF.get_axes(data_container, level, bead_index)
+       
             ## Sort out coordinates, forces, and torques for each atom in the bead
-            weighted_forces[bead][frame] = GF.get_weighted_forces(arg_DataContainer, bead, trans_axes, frame)
-            weighted_torques[bead][frame] = GF.get_weighted_torques(arg_DataContainer, bead, rot_axes, frame)
+            weighted_forces[bead_index][timestep.frame] = GF.get_weighted_forces(data_container, list_of_beads[bead_index], trans_axes)
+            weighted_torques[bead_index][timestep.frame] = GF.get_weighted_torques(data_container, list_of_beads[bead_index], rot_axes)
 
     ## Make covariance matrices - looping over pairs of beads
-    # number of beads
-    num_beads = len(list_of_beads)
     # list of pairs of indices
-    indexPairList = [(i,j) for i in range(num_beads) for j in range(num_beads)]
+    indexPairList = [(i,j) for i in range(number_beads) for j in range(number_beads)]
 
-    force_submatrix = []
-    torque_submatrix = []
+    force_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
+    torque_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
 
     for i, j in indexPairList:
         # for each pair of beads (but reducing effort because the matrix for [i][j] is the transpose of the one for [j][i])
@@ -103,18 +104,25 @@ def get_matrices(arg_DataContainer, level, number_frames):
     
     ## Tidy up
     # use nmp.block to make submatrices into one matrix
-    force_matrix = nmp.block([   [  force_submatrix[i][j] for j in range(num_beads)  ] for i in range(num_beads)   ] )
+    force_matrix = nmp.block([   [  force_submatrix[i][j] for j in range(number_beads)  ] for i in range(number_beads)   ] )
 
-    torque_matrix = nmp.block([   [  torque_submatrix[i][j] for j in range(num_beads)  ] for i in range(num_beads)   ] )
+    torque_matrix = nmp.block([   [  torque_submatrix[i][j] for j in range(number_beads)  ] for i in range(number_beads)   ] )
 
     # fliter zeros to remove any rows/columns that are all zero
     force_matrix = CF.filter_zero_rows_columns(force_matrix)
     torque_maxtrix = CF.filter_zero_rows_columns(torque_matrix)
 
+    ### TODO temporary print for testing matrices
+    with open("matrix.out", "a") as f:
+        print("force_matrix \n", file=f)
+        print(force_matrix, file=f)
+        print("torque_matrix \n", file=f)
+        print(torque_matrix, file=f)
+
     return force_matrix, torque_matrix
 # END
 
-def get_dihedrals(arg_hostDataContainer, level):
+def get_dihedrals(data_container, level):
     """
     Define the set of dihedrals for use in the conformational entropy function.
     If residue level, the dihedrals are defined from the atoms (4 bonded atoms for 1 dihedral).
@@ -123,7 +131,7 @@ def get_dihedrals(arg_hostDataContainer, level):
 
     Input
     -----
-    arg_hostDataContainer : system information
+    data_container : system information
     level : level of the hierarchy (should be residue or polymer)
 
     Output
@@ -133,13 +141,15 @@ def get_dihedrals(arg_hostDataContainer, level):
     # Start with empty array
     dihedrals = []
 
-    # if residue level, read dihedrals from MDAnalysis universe
+    # if united atom level, read dihedrals from MDAnalysis universe
     if level == "united_atom":
-        dihedrals.append(arg_hostDataContainer.dihedrals)
+        # only use dihedrals made of heavy atoms
+        heavy_atom_group = data_container.select_atoms('not name H*')
+        dihedrals = heavy_atom_group.dihedrals
 
-    # if polymer level, looking for dihedrals involving residues
+    # if residue level, looking for dihedrals involving residues
     if level == "residue":
-        num_residues = len(arg_hostDataContainer.residues)
+        num_residues = len(data_container.residues)
         if num_residues < 4:
             print("no residue level dihedrals")
 
@@ -149,10 +159,10 @@ def get_dihedrals(arg_hostDataContainer, level):
                 # Using MDAnalysis selection, assuming only one covalent bond between neighbouring residues
                 # TODO test selection syntax
                 # TODO not written for branched polymers
-                atom1 = arg_hostDataContainer.select(f"residue {residue}-3 bonded residue {residue}-2" )
-                atom2 = arg_hostDataContainer.select(f"residue {residue}-2 bonded residue {residue}-3" )
-                atom3 = arg_hostDataContainer.select(f"residue {residue}-1 bonded residue {residue}" )
-                atom4 = arg_hostDataContainer.select(f"residue {residue} bonded residue {residue}-1" )
+                atom1 = data_container.select(f"residue {residue}-3 bonded residue {residue}-2" )
+                atom2 = data_container.select(f"residue {residue}-2 bonded residue {residue}-3" )
+                atom3 = data_container.select(f"residue {residue}-1 bonded residue {residue}" )
+                atom4 = data_container.select(f"residue {residue} bonded residue {residue}-1" )
                 atom_group = atom1 + atom2 + atom3 + atom4
                 dihedrals.append(atom_group.dihedral)
 
