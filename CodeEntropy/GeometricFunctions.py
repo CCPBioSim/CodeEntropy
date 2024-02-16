@@ -1,5 +1,4 @@
 import numpy as nmp
-from CodeEntropy import CustomFunctions as CF 
 
 def get_beads(data_container, level):
     """
@@ -85,7 +84,7 @@ def get_axes(data_container, level, index=0):
         ## Translation
         # for united atoms use principal axes of residue for translation
         trans_axes = data_container.residues.principal_axes()
-        
+ 
         ## Rotation
         # for united atoms use heavy atoms bonded to the heavy atom
         atom_set = data_container.select_atoms(f"not name H* and bonded index {index}")
@@ -127,11 +126,11 @@ def get_avg_pos(atom_set, center):
         # sum positions for all atoms in the given set
         for atom_index in range(number_atoms):
             atom_position = atom_set.atoms[atom_index].position
-        
+ 
             avg_position += atom_position
 
         avg_position /= number_atoms # divide by number of atoms to get average
-        
+ 
     else:
         # if no atoms in set the unit has no bonds to restrict its rotational motion, so we can
         # use a random vector to get the spherical coordinates axes
@@ -152,12 +151,12 @@ def get_sphCoord_axes(arg_r):
     r2 = x2y2 + arg_r[2]**2
 
     if x2y2 != 0.:
-        sinTheta = nmp.sqrt(x2y2/r2)    
+        sinTheta = nmp.sqrt(x2y2/r2)
         cosTheta = arg_r[2]/nmp.sqrt(r2)
 
         sinPhi = arg_r[1]/nmp.sqrt(x2y2)
         cosPhi = arg_r[0]/nmp.sqrt(x2y2)
-        
+
     else:
         sinTheta = 0.
         cosTheta = 1
@@ -170,23 +169,23 @@ def get_sphCoord_axes(arg_r):
 
     # cosTheta = nmp.sqrt(1 - sinTheta*sinTheta)
     # cosPhi = nmp.sqrt(1 - sinPhi*sinPhi)
-    
+
     # print('{} {} {}'.format(*arg_r))
     # print('Sin T : {}, cos T : {}'.format(sinTheta, cosTheta))
     # print('Sin P : {}, cos P : {}'.format(sinPhi, cosPhi))
 
     sphericalBasis = nmp.zeros((3,3))
-    
+
     # r^
     sphericalBasis[0,:] = nmp.asarray([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta])
-    
+
     # Theta^
     sphericalBasis[1,:] = nmp.asarray([cosTheta*cosPhi, cosTheta*sinPhi, -sinTheta])
-    
+ 
     # Phi^
     sphericalBasis[2,:] = nmp.asarray([-sinPhi, cosPhi, 0.])
-    
-    return sphericalBasis    
+
+    return sphericalBasis
 # END
 
 def get_weighted_forces(data_container, bead, trans_axes):
@@ -213,7 +212,7 @@ def get_weighted_forces(data_container, bead, trans_axes):
 
     # divide the sum of forces by the mass of the bead to get the weighted forces
     mass = bead.total_mass()
-    
+ 
     weighted_force = forces_trans / nmp.sqrt(mass)
 
     return weighted_force
@@ -244,7 +243,7 @@ def get_weighted_torques(data_container, bead, rot_axes):
         coords_rot = nmp.matmul(rot_axes, coords_rot)
         # update local forces in rotational frame
         forces_rot = nmp.matmul(rot_axes, data_container.atoms[atom.index].force)
-        
+ 
         # define torques (cross product of coordinates and forces) in rotational axes
         torques_local = nmp.cross(coords_rot, forces_rot)
         torques += torques_local
@@ -264,13 +263,12 @@ def get_weighted_torques(data_container, bead, rot_axes):
     return weighted_torque
 #END
 
-def create_submatrix(i, j, data_i, data_j, number_frames):
+def create_submatrix(data_i, data_j, number_frames):
     """
     Function for making covariance matrices.
 
     Input
     -----
-    i, j : indices for the two beads (can be the same)
     data_i : values for bead i
     data_j : valuees for bead j
 
@@ -287,7 +285,43 @@ def create_submatrix(i, j, data_i, data_j, number_frames):
         outer_product_matrix = nmp.outer(data_i[frame], data_j[frame])
         submatrix = nmp.add(submatrix, outer_product_matrix)
 
-    # Divide by the number of frames to get the average 
+    # Divide by the number of frames to get the average
     submatrix /= number_frames
 
     return submatrix
+#END
+
+def filter_zero_rows_columns(arg_matrix):
+    """
+    function for removing rows and columns that contain only zeros from a matrix
+
+    Input
+    -----
+    arg_matrix : matrix
+
+    Output
+    ------
+    arg_matrix : the reduced size matrix
+    """
+
+    #record the initial size
+    initShape = nmp.shape(arg_matrix)
+
+    zeroIdx = list(filter(lambda row : nmp.all(nmp.isclose(arg_matrix[row,:] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[0])))
+    allIdx = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
+    allIdx[zeroIdx] = False
+    arg_matrix = arg_matrix[allIdx,:]
+
+    allIdx = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
+    zeroIdx = list(filter(lambda col : nmp.all(nmp.isclose(arg_matrix[:,col] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[1])))
+    allIdx[zeroIdx] = False
+    arg_matrix = arg_matrix[:,allIdx]
+
+    # get the final shape
+    finalShape = nmp.shape(arg_matrix)
+
+    if initShape != finalShape:
+        print('A shape change has occured ({},{}) -> ({}, {})'.format(*initShape, *finalShape))
+
+    return arg_matrix
+#END
