@@ -1,11 +1,6 @@
 import numpy as nmp
 import MDAnalysis as mda
-from CodeEntropy import EntropyFunctions as EF
-from CodeEntropy import CustomFunctions as CF
 from CodeEntropy import GeometricFunctions as GF
-from CodeEntropy import UnitsAndConversions as UAC
-from CodeEntropy import Utils
-from CodeEntropy import Writer
 
 def select_levels(data_container):
     """
@@ -60,10 +55,10 @@ def get_matrices(data_container, level):
         force_matrix : force covariance matrix for transvibrational entropy
         torque_matrix : torque convariance matrix for rovibrational entropy
     """
-   
+
     ## Make beads
     list_of_beads = GF.get_beads(data_container, level)
-    
+
     # number of beads and frames in trajectory
     number_beads = len(list_of_beads)
     number_frames = len(data_container.trajectory)
@@ -79,29 +74,29 @@ def get_matrices(data_container, level):
             # translation and rotation use different axes
             # how the axes are defined depends on the level
             trans_axes, rot_axes = GF.get_axes(data_container, level, bead_index)
-       
+
             ## Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index][timestep.frame] = GF.get_weighted_forces(data_container, list_of_beads[bead_index], trans_axes)
             weighted_torques[bead_index][timestep.frame] = GF.get_weighted_torques(data_container, list_of_beads[bead_index], rot_axes)
 
     ## Make covariance matrices - looping over pairs of beads
     # list of pairs of indices
-    indexPairList = [(i,j) for i in range(number_beads) for j in range(number_beads)]
+    pair_list = [(i,j) for i in range(number_beads) for j in range(number_beads)]
 
     force_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
     torque_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
 
-    for i, j in indexPairList:
+    for i, j in pair_list:
         # for each pair of beads (but reducing effort because the matrix for [i][j] is the transpose of the one for [j][i])
         if i <= j:
             # calculate the force covariance segment of the matrix
-            force_submatrix[i][j] = GF.create_submatrix(i, j, weighted_forces[i], weighted_forces[j], number_frames)
+            force_submatrix[i][j] = GF.create_submatrix(weighted_forces[i], weighted_forces[j], number_frames)
             force_submatrix[j][i] = nmp.transpose(force_submatrix[i][j])
 
             # calculate the torque covariance segment of the matrix
-            torque_submatrix[i][j] = GF.create_submatrix(i, j, weighted_torques[i], weighted_torques[j], number_frames)
+            torque_submatrix[i][j] = GF.create_submatrix(weighted_torques[i], weighted_torques[j], number_frames)
             torque_submatrix[j][i] = nmp.transpose(torque_submatrix[i][j])
-    
+
     ## Tidy up
     # use nmp.block to make submatrices into one matrix
     force_matrix = nmp.block([   [  force_submatrix[i][j] for j in range(number_beads)  ] for i in range(number_beads)   ] )
@@ -109,8 +104,8 @@ def get_matrices(data_container, level):
     torque_matrix = nmp.block([   [  torque_submatrix[i][j] for j in range(number_beads)  ] for i in range(number_beads)   ] )
 
     # fliter zeros to remove any rows/columns that are all zero
-    force_matrix = CF.filter_zero_rows_columns(force_matrix)
-    torque_maxtrix = CF.filter_zero_rows_columns(torque_matrix)
+    force_matrix = GF.filter_zero_rows_columns(force_matrix)
+    torque_matrix = GF.filter_zero_rows_columns(torque_matrix)
 
     ### TODO temporary print for testing matrices
     with open("matrix.out", "a") as f:
