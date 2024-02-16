@@ -39,63 +39,39 @@ def main(arg_dict):
 
     # Loop over molecules
     for molecule in range(number_molecules):
-        # molecule data container for internal degrees of freedom
-        molecule_dataContainer = reduced_atom.atoms.fragments[molecule]
-        # molecule_dataContainer = MDAHelper.new_U_select_atom(reduced_atom, f"group group_name, group_name={group_name}")
+        # molecule data container of MDAnalysis Universe type for internal degrees of freedom
+        # getting indices of first and last atoms in the molecule
+        # assuming atoms are numbered consecutively and all atoms in a given molecule are together
+        index1 = reduced_atom.atoms.fragments[molecule].indices[0]
+        index2 = reduced_atom.atoms.fragments[molecule].indices[-1]
+        selection_string = f"index {index1}:{index2}"
+        molecule_container = MDAHelper.new_U_select_atom(reduced_atom, selection_string)
 
         # Calculate entropy for each relevent level
         for level in levels[molecule]:
 
-            if level == 'polymer' or 'residue':
-                ## Vibrational entropy at every level
-                # Get the force and torque matrices for the beads at the relevant level
-                force_matrix, torque_matrix = LF.get_matrices(molecule_dataContainer, level, number_frames)
-
-                # Calculate the entropy from the diagonalisation of the matrices
-                S_trans = vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
-                print(f"S_trans_{level} = {S_trans}")
-                newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Transvibrational Entropy (J/mol/K)'],
-                            'Result': [S_trans],})
-                results_df = pd.concat([results_df, newRow], ignore_index=True)
-
-                S_rot = vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], level)
-                print(f"S_rot_{level} = {S_rot}")
-                newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Rovibrational Entropy (J/mol/K)'],
-                            'Result': [S_rot],})
-                results_df = pd.concat([results_df, newRow], ignore_index=True)
-
-                # Note: conformational entropy is not calculated at the polymer level, because there is at most one polymer bead per molecule so no dihedral angles.
-
-           if level == 'residue':     
-                ## Conformational entropy based on distributions of dihedral angles of residues
-                ## Gives conformational entropy of secondary structure
-
-                # Get dihedral angle distribution
-                dihedrals = LF.get_dihedrals(molecule_dataContainer, level)
-
-                # Calculate conformational entropy
-                S_conf = conformational_entropy(dihedrals)
-                print(f"S_conf_{level} = {S_conf}")
-                newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Conformational Entropy (J/mol/K)'],
-                            'Result': [S_conf],})
-                results_df = pd.concat([results_df, newRow], ignore_index=True)
-            
-            elif level == 'united_atom':
+            if level == 'united_atom':
                 # loop over residues, report results per residue + total united atom level
-                num_residues = len(molecule_dataContainer.residues)
+                # This is done per residue to reduce the size of the matrices - amino acid resiudes have tens of united atoms but a whole protein could have thousands
+                # Doing the calculation per residue also allows for comparisons of contributions from different residues
+                num_residues = len(molecule_container.residues)
                 S_trans = 0
                 S_rot = 0
                 for residue in range(num_residues):
-                    residue_dataContainer = molecule_dataContainer.residue[residue]
+                    # molecule data container of MDAnalysis Universe type for internal degrees of freedom
+                    # getting indices of first and last atoms in the molecule
+                    # assuming atoms are numbered consecutively and all atoms in a given molecule are together
+                    index1 = molecule_container.residues[residue].atoms.indices[0]
+                    index2 = molecule_container.residues[residue].atoms.indices[-1]
+                    selection_string = f"index {index1}:{index2}"
+                    residue_container = MDAHelper.new_U_select_atom(molecule_container, selection_string)
+
                     ## Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant level
-                    force_matrix, torque_matrix = LF.get_matrices(residue_dataContainer, level)
+                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level)
 
                     # Calculate the entropy from the diagonalisation of the matrices
-                    S_trans_residue = vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
+                    S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
                     S_trans += S_trans_residue
                     print(f"S_trans_{level}_{residue} = {S_trans_residue}")
                     newRow = pd.DataFrame({'Molecule ID': [molecule], 'Residue': ['{residue}'],
@@ -103,7 +79,7 @@ def main(arg_dict):
                             'Result': [S_trans_residue],})
                     residue_results_df = pd.concat([residue_results_df, newRow], ignore_index=True)
 
-                    S_rot_residue = vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], level)
+                    S_rot_residue = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], level)
                     S_rot += S_rot_residue
                     print(f"S_rot_{level}_{residue} = {S_rot_residue}")
                     newRow = pd.DataFrame({'Molecule ID': [molecule], 'Residue': ['{residue}'],
@@ -114,10 +90,10 @@ def main(arg_dict):
                     ## Gives entropy of conformations within each residue
                 
                     # Get dihedral angle distribution
-                    dihedrals = LF.get_dihedrals(molecule_dataContainer, level)
+                    dihedrals = LF.get_dihedrals(molecule_container, level)
 
                     # Calculate conformational entropy
-                    S_conf_residue = conformational_entropy(dihedrals)
+                    S_conf_residue = EF.conformational_entropy(dihedrals)
                     S_conf += S_conf_residue
                     print(f"S_conf_{level}_{residue} = {S_conf_residue}")
                     newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
@@ -144,9 +120,49 @@ def main(arg_dict):
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, newRow], ignore_index=True)
                 
+                ## End united atom vibrational and conformational calculations ##
+
+            if level == 'residue':     
+                ## Conformational entropy based on distributions of dihedral angles of residues
+                ## Gives conformational entropy of secondary structure
+
+                # Get dihedral angle distribution
+                dihedrals = LF.get_dihedrals(molecule_container, level)
+
+                # Calculate conformational entropy
+                S_conf = EF.conformational_entropy(dihedrals, number_frames)
+                print(f"S_conf_{level} = {S_conf}")
+                newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+                            'Type':['Conformational Entropy (J/mol/K)'],
+                            'Result': [S_conf],})
+                results_df = pd.concat([results_df, newRow], ignore_index=True)
+            
+            if level == 'polymer' or 'residue':
+                ## Vibrational entropy at every level
+                # Get the force and torque matrices for the beads at the relevant level
+                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level)
+  
+                # Calculate the entropy from the diagonalisation of the matrices
+                S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
+                print(f"S_trans_{level} = {S_trans}")
+                newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+                            'Type':['Transvibrational Entropy (J/mol/K)'],
+                            'Result': [S_trans],})
+                results_df = pd.concat([results_df, newRow], ignore_index=True)
+
+                S_rot = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], level)
+                print(f"S_rot_{level} = {S_rot}")
+                newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+                            'Type':['Rovibrational Entropy (J/mol/K)'],
+                            'Result': [S_rot],})
+                results_df = pd.concat([results_df, newRow], ignore_index=True)
+
+                # Note: conformational entropy is not calculated at the polymer level, because there is at most one polymer bead per molecule so no dihedral angles.
+            
         ## Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
         level = levels[molecule][-1]
-        S_orient = orientational_entropy(neighbours)
+        neigbours = LF.get_neighbours(reduced_atom, molecule)
+        S_orient = EF.orientational_entropy(neighbours)
         print(f"S_orient_{level} = {S_orient}")
         newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
                             'Type':['Orientational Entropy (J/mol/K)'],
@@ -162,5 +178,11 @@ def main(arg_dict):
                             'Result': [S_molecule],})
         results_df = pd.concat([results_df, newRow], ignore_index=True)
 
-# END main function
+    ## Print results to files
+    with open(arg_dict['outfile'], "w") as f1:
+        print(results_df, file=f1)
 
+    with open(arg_dict['resfile'], "w") as f2:
+        print(residue_results_df, file=f2)
+
+# END main function

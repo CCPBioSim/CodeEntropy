@@ -26,7 +26,7 @@ def new_U_select_frame(u, start=None, end=None, step=1):
 		start = 0
 	if end == None:
 		end = len(u.trajectory)
-	select_atom = u.select_atoms('all')
+	select_atom = u.select_atoms('all', updating=True)
 	coordinates = AnalysisFromFunction(lambda ag: ag.positions.copy(), select_atom).run().results['timeseries'][start:end:step]
 	forces = AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom).run().results['timeseries'][start:end:step]
 	dimensions = AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom).run().results['timeseries'][start:end:step]
@@ -51,7 +51,7 @@ def new_U_select_atom(u, select_string='all'):
 			reduced universe
 
 	"""
-	select_atom = u.select_atoms(select_string)
+	select_atom = u.select_atoms(select_string, updating=True)
 	coordinates = AnalysisFromFunction(lambda ag: ag.positions.copy(), select_atom).run().results['timeseries']
 	forces = AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom).run().results['timeseries']
 	dimensions = AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom).run().results['timeseries']
