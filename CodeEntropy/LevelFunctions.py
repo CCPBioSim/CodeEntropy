@@ -40,6 +40,7 @@ def select_levels(data_container):
     print(levels)
 
     return number_molecules, levels
+#END get_levels
 
 def get_matrices(data_container, level):
     """
@@ -115,7 +116,7 @@ def get_matrices(data_container, level):
         print(torque_matrix, file=f)
 
     return force_matrix, torque_matrix
-# END
+# END get_matrices
 
 def get_dihedrals(data_container, level):
     """
@@ -150,16 +151,24 @@ def get_dihedrals(data_container, level):
 
         else:
         # find bonds between residues N-3:N-2 and N-1:N
-            for residue in range(3, num_residues):
+            for residue in range(4, num_residues+1):
                 # Using MDAnalysis selection, assuming only one covalent bond between neighbouring residues
                 # TODO test selection syntax
                 # TODO not written for branched polymers
-                atom1 = data_container.select(f"residue {residue}-3 bonded residue {residue}-2" )
-                atom2 = data_container.select(f"residue {residue}-2 bonded residue {residue}-3" )
-                atom3 = data_container.select(f"residue {residue}-1 bonded residue {residue}" )
-                atom4 = data_container.select(f"residue {residue} bonded residue {residue}-1" )
+                atom_string = "resid " + str(residue - 3) + " and bonded resid " + str(residue - 2)
+                atom1 = data_container.select_atoms(atom_string)
+
+                atom_string = "resid " + str(residue - 2) + " and bonded resid " + str(residue - 3)
+                atom2 = data_container.select_atoms(atom_string)
+                
+                atom_string = "resid " + str(residue - 1) + " and bonded resid " + str(residue)
+                atom3 = data_container.select_atoms(atom_string)
+                
+                atom_string = "resid " + str(residue) + " and bonded resid " + str(residue - 1)
+                atom4 = data_container.select_atoms(atom_string)
+                
                 atom_group = atom1 + atom2 + atom3 + atom4
                 dihedrals.append(atom_group.dihedral)
 
     return dihedrals
-#END
+#END get_dihedrals

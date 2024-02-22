@@ -1,3 +1,4 @@
+import sys, os
 import MDAnalysis as mda
 import numpy as nmp
 import pandas as pd
@@ -5,7 +6,6 @@ from CodeEntropy import LevelFunctions as LF
 from CodeEntropy import EntropyFunctions as EF
 from CodeEntropy import MDAUniverseHelper as MDAHelper
 from CodeEntropy import poseidon
-
 
 def main(arg_dict):
     """
@@ -86,6 +86,7 @@ def main(arg_dict):
                             'Type':['Rovibrational Entropy (J/mol/K)'],
                             'Result': [S_rot_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
+
                     ## Conformational entropy based on atom dihedral angle distributions
                     ## Gives entropy of conformations within each residue
 
@@ -128,7 +129,6 @@ def main(arg_dict):
 
                 # Get dihedral angle distribution
                 dihedrals = LF.get_dihedrals(molecule_container, level)
-
                 # Calculate conformational entropy
                 S_conf = EF.conformational_entropy(dihedrals, number_frames)
                 print(f"S_conf_{level} = {S_conf}")
