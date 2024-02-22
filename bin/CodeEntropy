@@ -1,7 +1,7 @@
 #! /usr/share/python
 import argparse
 from datetime import datetime
-from CodeEntropy import main
+from CodeEntropy.main_mcc import main
 
 try:
 	parser = argparse.ArgumentParser(description="""

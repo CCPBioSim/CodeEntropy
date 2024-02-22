@@ -39,22 +39,26 @@ def vibrational_entropy(matrix, matrix_type, temp,level):
     R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976
     
     '''
-    lambdas=la.eigvals(matrix)
-    frequencies=frequency_calculation(lambdas,temp)
-    frequencies=frequencies.sort()
-    kT=UAC.get_KT2J(temp)
-    exponent=UAC.PLANCK_CONST*frequencies/kT
-    power_positive= np.power(np.e,exponent)
-    power_negative=np.power (np.e,-exponent)
-    S_components=exponent/(power_positive-1)-np.ln(1-power_negative)
-    S_components=S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-    if matrix_type=='force':
-        if level =='polymer': #polymer
-            S_vib_total=sum(S_components) # 3x3 force covariance matrix => 6 eigenvalues
+    # Calculate eigenvalues of the matrix
+    lambdas = la.eigvals(matrix)
+    # Determine a frequency for each lambda value
+    frequencies = frequency_calculation(lambdas,temp)
+    # Sort the frequencies (lowest to highest)
+    frequencies = np.sort(frequencies)
+    # Get kT in joules from given temperature
+    kT = UAC.get_KT2J(temp)
+    exponent = UAC.PLANCK_CONST*frequencies/kT
+    power_positive = np.power(np.e,exponent)
+    power_negative = np.power(np.e,-exponent)
+    S_components = exponent/(power_positive-1)-np.log(1-power_negative)
+    S_components = S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
+    if matrix_type == 'force':
+        if level == 'polymer': #polymer
+            S_vib_total = sum(S_components) # 3x3 force covariance matrix => 6 eigenvalues
         else:
-            S_vib_total=sum(S_components[6:])  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
+            S_vib_total = sum(S_components[6:])  #for the 'M' and 'UA' levels we discard the 6 lowest frequencies
     else: #for the torque covariance matrix, we take all values into account
-        S_vib_total=sum(S_components)
+        S_vib_total = sum(S_components)
     
     return S_vib_total
         
