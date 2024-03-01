@@ -73,7 +73,7 @@ def vibrational_entropy(matrix, matrix_type, temp,level):
     return S_vib_total
         
 
-def conformational_entropy(dihedrals, level):
+def conformational_entropy(molecule_dataContainer, level):
     
     """
     Function to calculate conformational entropies using eq. (7) in Higham, S.-Y. Chou, F. Gräter and 
@@ -82,21 +82,23 @@ def conformational_entropy(dihedrals, level):
     Uses the adaptive enumeration method (AEM).
             Input
     -----
-    dihedrals : array - array of dihedrals in the molecule
+    molecule_dataContainer : DataContainer type with the information on the molecule of interest for which are finding the neighbours
     level : string - level of the hierarchy - should be "residue" or "united_atom" here
     Returns
     -------
        S_conf_total : float - conformational entropy
     """
     
-    S_conf_total=0     
+    S_conf_total=0
+    numFrames = len(molecule_dataContainer.trajectory)    
+    dihedrals = LF.get_dihedrals(molecule_dataContainer, level) 
 
-    
     if level == 'residue': #we don't need to go through residues - we take the dihedrals between four residues with bonds between them
         diheds_in_polymer=BinaryTree() #we have one tree for the whole polymer
         for dihedral in dihedrals: #we go through dihedrals at polymer level
             dih_node= TreeNode (None, None, dihedral) 
             diheds_in_polymer.add_node(dih_node) #we add the dihedrals to the tree
+        numFrames = len()
         newEntity = CONF.ConformationEntity(arg_order = len(diheds_in_polymer),arg_numFrames = numFrames) #we initialize a string array that stores the state as a distinct string for each frame- made from a coalesced character cast of numeric arrays
         DecimalReprArray = []
         #we go through the dihedrals and find the corresponding state vectors
