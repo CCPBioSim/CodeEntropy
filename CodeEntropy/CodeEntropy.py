@@ -77,7 +77,7 @@ def main(arg_dict):
                 dihedrals = LF.get_dihedrals(molecule_dataContainer, level)
 
                 # Calculate conformational entropy
-                S_conf = conformational_entropy(dihedrals)
+                S_conf = conformational_entropy(dihedrals,level)
                 print(f"S_conf_{level} = {S_conf}")
                 newRow = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
                             'Type':['Conformational Entropy (J/mol/K)'],
