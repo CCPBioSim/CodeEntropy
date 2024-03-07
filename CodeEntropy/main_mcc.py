@@ -1,4 +1,3 @@
-import sys, os
 import MDAnalysis as mda
 import numpy as nmp
 import pandas as pd
@@ -57,6 +56,7 @@ def main(arg_dict):
                 num_residues = len(molecule_container.residues)
                 S_trans = 0
                 S_rot = 0
+                S_conf = 0
                 for residue in range(num_residues):
                     # molecule data container of MDAnalysis Universe type for internal degrees of freedom
                     # getting indices of first and last atoms in the molecule
@@ -91,10 +91,10 @@ def main(arg_dict):
                     ## Gives entropy of conformations within each residue
 
                     # Get dihedral angle distribution
-                    dihedrals = LF.get_dihedrals(molecule_container, level)
+                    dihedrals = LF.get_dihedrals(residue_container, level)
 
                     # Calculate conformational entropy
-                    S_conf_residue = EF.conformational_entropy(dihedrals, number_frames)
+                    S_conf_residue = EF.conformational_entropy(residue_container, dihedrals, number_frames)
                     S_conf += S_conf_residue
                     print(f"S_conf_{level}_{residue} = {S_conf_residue}")
                     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
@@ -120,7 +120,7 @@ def main(arg_dict):
                             'Type':['Conformational Entropy (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
- 
+
                 ## End united atom vibrational and conformational calculations ##
 
             if level == 'residue':
@@ -130,13 +130,13 @@ def main(arg_dict):
                 # Get dihedral angle distribution
                 dihedrals = LF.get_dihedrals(molecule_container, level)
                 # Calculate conformational entropy
-                S_conf = EF.conformational_entropy(dihedrals, number_frames)
+                S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames)
                 print(f"S_conf_{level} = {S_conf}")
                 new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
                             'Type':['Conformational Entropy (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
- 
+
             if level in ('polymer', 'residue'):
                 ## Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
@@ -160,18 +160,18 @@ def main(arg_dict):
                 # Note: conformational entropy is not calculated at the polymer level, because there is at most one polymer bead per molecule so no dihedral angles.
 
         ## Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
-        level = levels[molecule][-1]
-        neigbours = LF.get_neighbours(reduced_atom, molecule)
-        S_orient = EF.orientational_entropy(neighbours)
-        print(f"S_orient_{level} = {S_orient}")
-        new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Orientational Entropy (J/mol/K)'],
-                            'Result': [S_orient],})
-        results_df = pd.concat([results_df, new_row], ignore_index=True)
+   #     level = levels[molecule][-1]
+   #     neigbours = LF.get_neighbours(reduced_atom, molecule)
+   #     S_orient = EF.orientational_entropy(neighbours)
+   #     print(f"S_orient_{level} = {S_orient}")
+   #     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
+   #                         'Type':['Orientational Entropy (J/mol/K)'],
+   #                         'Result': [S_orient],})
+   #     results_df = pd.concat([results_df, new_row], ignore_index=True)
 
         # Report total entropy for the molecule
         molecule_data = results_df[results_df["Molecule ID"] == molecule]
-        S_molecule = molecule_data["Result"].sum
+        S_molecule = molecule_data['Result'].sum
         print(f"S_molecule = {S_molecule}")
         new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['Molecule Total'],
                             'Type':['Molecule Total Entropy (J/mol/K)'],

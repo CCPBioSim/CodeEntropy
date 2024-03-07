@@ -29,7 +29,7 @@ def select_levels(data_container):
         atoms_in_fragment = fragments[molecule].select_atoms("not name H*")
         number_residues = len(atoms_in_fragment.residues)
 
-        # if a fragment has more than one atom assign residue level
+        # if a fragment has more than one heavy atom assign residue level
         if len(atoms_in_fragment) > 1:
             levels[molecule].append("residue")
 
@@ -153,20 +153,19 @@ def get_dihedrals(data_container, level):
         # find bonds between residues N-3:N-2 and N-1:N
             for residue in range(4, num_residues+1):
                 # Using MDAnalysis selection, assuming only one covalent bond between neighbouring residues
-                # TODO test selection syntax
                 # TODO not written for branched polymers
-                atom_string = "resid " + str(residue - 3) + " and bonded resid " + str(residue - 2)
+                atom_string = "resindex " + str(residue - 4) + " and bonded resindex " + str(residue - 3)
                 atom1 = data_container.select_atoms(atom_string)
 
-                atom_string = "resid " + str(residue - 2) + " and bonded resid " + str(residue - 3)
+                atom_string = "resindex " + str(residue - 3) + " and bonded resindex " + str(residue - 4)
                 atom2 = data_container.select_atoms(atom_string)
-                
-                atom_string = "resid " + str(residue - 1) + " and bonded resid " + str(residue)
+
+                atom_string = "resindex " + str(residue - 2) + " and bonded resindex " + str(residue - 1)
                 atom3 = data_container.select_atoms(atom_string)
-                
-                atom_string = "resid " + str(residue) + " and bonded resid " + str(residue - 1)
+
+                atom_string = "resindex " + str(residue - 1) + " and bonded resindex " + str(residue - 2)
                 atom4 = data_container.select_atoms(atom_string)
-                
+
                 atom_group = atom1 + atom2 + atom3 + atom4
                 dihedrals.append(atom_group.dihedral)
 
