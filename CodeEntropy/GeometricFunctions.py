@@ -15,10 +15,16 @@ def get_beads(data_container, level):
     """
 
     if level == "polymer":
-        list_of_beads = data_container.atoms.fragments
+        list_of_beads = []
+        atom_group = "all"
+        list_of_beads.append(data_container.select_atoms(atom_group))
 
     if level == "residue":
-        list_of_beads = data_container.residues
+        list_of_beads = []
+        num_residues = len(data_container.residues)
+        for residue in range(num_residues):
+            atom_group = "resindex " + str(residue)
+            list_of_beads.append(data_container.select_atoms(atom_group))
 
     if level == "united_atom":
         list_of_beads = []
@@ -47,32 +53,34 @@ def get_axes(data_container, level, index=0):
     trans_axes : translational axes
     rot_axes : rotational axes
     """
-
     index = int(index)
 
     if level == "polymer":
         # for polymer use principle axis for both translation and rotation
-        trans_axes = data_container.principal_axes()
-        rot_axes = data_container.principal_axes()
+        trans_axes = data_container.atoms.principal_axes()
+        rot_axes = data_container.atoms.principal_axes()
 
     if level == "residue":
         ## Translation
         # for residues use principal axes of whole molecule for translation
-        trans_axes = data_container.principal_axes()
+        trans_axes = data_container.atoms.principal_axes()
 
         ## Rotation
         # find bonds between atoms in residue of interest and other residues
         # we are assuming bonds only exist between adjacent residues (linear chains of residues)
         # TODO refine selection so that it will work for branched polymers
-        atom_set = data_container.select_atoms(f"(resid {index}-1 or resid {index}+1) and bonded resid {index}")
+        index_prev = index - 1
+        index_next = index + 1
+        atom_set = data_container.select_atoms(f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}")
+        residue = data_container.select_atoms(f"resindex {index}")
 
         if len(atom_set) == 0:
             # if no bonds to other residues use pricipal axes of residue
-            rot_axes = data_container.residues[index].principal_axes()
+            rot_axes = residue.atoms.principal_axes()
 
         else:
             # set center of rotation to center of mass of the residue
-            center = data_container.residues[index].center_of_mass()
+            center = residue.atoms.center_of_mass()
 
             # get vector for average position of bonded atoms
             vector = get_avg_pos(atom_set, center)
@@ -84,7 +92,7 @@ def get_axes(data_container, level, index=0):
         ## Translation
         # for united atoms use principal axes of residue for translation
         trans_axes = data_container.residues.principal_axes()
- 
+
         ## Rotation
         # for united atoms use heavy atoms bonded to the heavy atom
         atom_set = data_container.select_atoms(f"not name H* and bonded index {index}")
@@ -126,11 +134,11 @@ def get_avg_pos(atom_set, center):
         # sum positions for all atoms in the given set
         for atom_index in range(number_atoms):
             atom_position = atom_set.atoms[atom_index].position
- 
+
             avg_position += atom_position
 
         avg_position /= number_atoms # divide by number of atoms to get average
- 
+
     else:
         # if no atoms in set the unit has no bonds to restrict its rotational motion, so we can
         # use a random vector to get the spherical coordinates axes
@@ -181,7 +189,7 @@ def get_sphCoord_axes(arg_r):
 
     # Theta^
     sphericalBasis[1,:] = nmp.asarray([cosTheta*cosPhi, cosTheta*sinPhi, -sinTheta])
- 
+
     # Phi^
     sphericalBasis[2,:] = nmp.asarray([-sinPhi, cosPhi, 0.])
 
@@ -212,7 +220,7 @@ def get_weighted_forces(data_container, bead, trans_axes):
 
     # divide the sum of forces by the mass of the bead to get the weighted forces
     mass = bead.total_mass()
- 
+
     weighted_force = forces_trans / nmp.sqrt(mass)
 
     return weighted_force
@@ -243,7 +251,7 @@ def get_weighted_torques(data_container, bead, rot_axes):
         coords_rot = nmp.matmul(rot_axes, coords_rot)
         # update local forces in rotational frame
         forces_rot = nmp.matmul(rot_axes, data_container.atoms[atom.index].force)
- 
+
         # define torques (cross product of coordinates and forces) in rotational axes
         torques_local = nmp.cross(coords_rot, forces_rot)
         torques += torques_local
