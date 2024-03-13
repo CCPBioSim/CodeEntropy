@@ -15,7 +15,7 @@ def main(arg_dict):
     arg_dict : the input arguments
     """
 
-    u = mda.Universe(arg_dict['tprfile'], arg_dict['trrfile'])
+    u = arg_dict['universe']
 
     # Create pandas data frame for results
     results_df = pd.DataFrame(columns=['Molecule ID', 'Level','Type', 'Result'])
@@ -74,16 +74,16 @@ def main(arg_dict):
                     S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
                     S_trans += S_trans_residue
                     print(f"S_trans_{level}_{residue} = {S_trans_residue}")
-                    new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': ['{residue}'],
-                            'Type':['Transvibrational Entropy (J/mol/K)'],
+                    new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
+                            'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
 
                     S_rot_residue = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], level)
                     S_rot += S_rot_residue
                     print(f"S_rot_{level}_{residue} = {S_rot_residue}")
-                    new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': ['{residue}'],
-                            'Type':['Rovibrational Entropy (J/mol/K)'],
+                    new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
+                            'Type':['Rovibrational (J/mol/K)'],
                             'Result': [S_rot_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
 
@@ -97,27 +97,27 @@ def main(arg_dict):
                     S_conf_residue = EF.conformational_entropy(residue_container, dihedrals, number_frames)
                     S_conf += S_conf_residue
                     print(f"S_conf_{level}_{residue} = {S_conf_residue}")
-                    new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Conformational Entropy (J/mol/K)'],
+                    new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
+                            'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
 
                 # Print united atom level results summed over all residues
                 print(f"S_trans_{level} = {S_trans}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Transvibrational Entropy (J/mol/K)'],
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
                 print(f"S_rot_{level} = {S_rot}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Rovibrational Entropy (J/mol/K)'],
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Rovibrational (J/mol/K)'],
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
                 print(f"S_conf_{level} = {S_conf}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Conformational Entropy (J/mol/K)'],
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
@@ -132,8 +132,8 @@ def main(arg_dict):
                 # Calculate conformational entropy
                 S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames)
                 print(f"S_conf_{level} = {S_conf}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Conformational Entropy (J/mol/K)'],
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
@@ -145,15 +145,15 @@ def main(arg_dict):
                 # Calculate the entropy from the diagonalisation of the matrices
                 S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
                 print(f"S_trans_{level} = {S_trans}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Transvibrational Entropy (J/mol/K)'],
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
                 S_rot = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], level)
                 print(f"S_rot_{level} = {S_rot}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-                            'Type':['Rovibrational Entropy (J/mol/K)'],
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Rovibrational (J/mol/K)'],
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
@@ -164,14 +164,13 @@ def main(arg_dict):
    #     neigbours = LF.get_neighbours(reduced_atom, molecule)
    #     S_orient = EF.orientational_entropy(neighbours)
    #     print(f"S_orient_{level} = {S_orient}")
-   #     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['{level}'],
-   #                         'Type':['Orientational Entropy (J/mol/K)'],
+   #     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+   #                         'Type':['Orientational (J/mol/K)'],
    #                         'Result': [S_orient],})
    #     results_df = pd.concat([results_df, new_row], ignore_index=True)
 
         # Report total entropy for the molecule
-        molecule_data = results_df[results_df["Molecule ID"] == molecule]
-        S_molecule = molecule_data['Result'].sum
+        S_molecule = results_df[results_df["Molecule ID"] == molecule]['Result'].sum()
         print(f"S_molecule = {S_molecule}")
         new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['Molecule Total'],
                             'Type':['Molecule Total Entropy (J/mol/K)'],
