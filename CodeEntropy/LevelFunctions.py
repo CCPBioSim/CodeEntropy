@@ -16,10 +16,12 @@ import numpy as nmp
 import MDAnalysis as mda
 from CodeEntropy import GeometricFunctions as GF
 
-def select_levels(data_container):
+def select_levels(data_container, verbose):
     """
-    Function to read input system and identify the number of molecules and the levels (i.e. united atom, residue and/or polymer) that should be used.
-    The level refers to the size of the bead (atom or collection of atoms) that will be used in the entropy calculations.
+    Function to read input system and identify the number of molecules and the levels
+    (i.e. united atom, residue and/or polymer) that should be used.
+    The level refers to the size of the bead (atom or collection of atoms) that will be
+    used in the entropy calculations.
 
     Input
     -----
@@ -51,14 +53,16 @@ def select_levels(data_container):
             if number_residues > 1:
                 levels[molecule].append("polymer")
 
-    print(levels)
+    if verbose:
+        print(levels)
 
     return number_molecules, levels
 #END get_levels
 
-def get_matrices(data_container, level):
+def get_matrices(data_container, level, verbose):
     """
-    Function to create the force matrix needed for the transvibrational entropy calculation and the torque matrix for the rovibrational entropy calculation.
+    Function to create the force matrix needed for the transvibrational entropy calculation
+    and the torque matrix for the rovibrational entropy calculation.
 
     Input
     -----
@@ -102,7 +106,8 @@ def get_matrices(data_container, level):
     torque_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
 
     for i, j in pair_list:
-        # for each pair of beads (but reducing effort because the matrix for [i][j] is the transpose of the one for [j][i])
+        # for each pair of beads
+        # reducing effort because the matrix for [i][j] is the transpose of the one for [j][i]
         if i <= j:
             # calculate the force covariance segment of the matrix
             force_submatrix[i][j] = GF.create_submatrix(weighted_forces[i], weighted_forces[j], number_frames)
@@ -119,15 +124,15 @@ def get_matrices(data_container, level):
     torque_matrix = nmp.block([   [  torque_submatrix[i][j] for j in range(number_beads)  ] for i in range(number_beads)   ] )
 
     # fliter zeros to remove any rows/columns that are all zero
-    force_matrix = GF.filter_zero_rows_columns(force_matrix)
-    torque_matrix = GF.filter_zero_rows_columns(torque_matrix)
+    force_matrix = GF.filter_zero_rows_columns(force_matrix, verbose)
+    torque_matrix = GF.filter_zero_rows_columns(torque_matrix, verbose)
 
-    ### TODO temporary print for testing matrices
-    with open("matrix.out", "a") as f:
-        print("force_matrix \n", file=f)
-        print(force_matrix, file=f)
-        print("torque_matrix \n", file=f)
-        print(torque_matrix, file=f)
+    if verbose:
+        with open("matrix.out", "a") as f:
+            print("force_matrix \n", file=f)
+            print(force_matrix, file=f)
+            print("torque_matrix \n", file=f)
+            print(torque_matrix, file=f)
 
     return force_matrix, torque_matrix
 # END get_matrices
@@ -166,7 +171,8 @@ def get_dihedrals(data_container, level):
         else:
         # find bonds between residues N-3:N-2 and N-1:N
             for residue in range(4, num_residues+1):
-                # Using MDAnalysis selection, assuming only one covalent bond between neighbouring residues
+                # Using MDAnalysis selection,
+                # assuming only one covalent bond between neighbouring residues
                 # TODO not written for branched polymers
                 atom_string = "resindex " + str(residue - 4) + " and bonded resindex " + str(residue - 3)
                 atom1 = data_container.select_atoms(atom_string)

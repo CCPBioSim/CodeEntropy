@@ -39,8 +39,11 @@ def get_beads(data_container, level):
 def get_axes(data_container, level, index=0):
     """
     Function to set the translational and rotational axes.
-    The translational axes are based on the principal axes of the unit one level larger than the level we are interested in (except for the polymer level where there is no larger unit).
-    The rotational axes use the covalent links between residues or atoms where possible to define the axes, or if the unit is not bonded to others of the same level the prinicpal axes of the unit are used.
+    The translational axes are based on the principal axes of the unit one level larger than
+    the level we are interested in (except for the polymer level where there is no larger unit).
+    The rotational axes use the covalent links between residues or atoms where possible to 
+    define the axes, or if the unit is not bonded to others of the same level the prinicpal 
+    axes of the unit are used.
 
     Input
     -----
@@ -151,49 +154,51 @@ def get_avg_pos(atom_set, center):
 #END
 
 def get_sphCoord_axes(arg_r):
-    """ For a given vector in space, treat it is a radial vector rooted at 0,0,0 and 
+    """ 
+    For a given vector in space, treat it is a radial vector rooted at 0,0,0 and 
     derive a curvilinear coordinate system according to the rules of polar spherical 
-    coordinates"""
+    coordinates
+    """
 
     x2y2 = arg_r[0]**2 + arg_r[1]**2
     r2 = x2y2 + arg_r[2]**2
 
     if x2y2 != 0.:
-        sinTheta = nmp.sqrt(x2y2/r2)
-        cosTheta = arg_r[2]/nmp.sqrt(r2)
+        sin_theta = nmp.sqrt(x2y2/r2)
+        cos_theta = arg_r[2]/nmp.sqrt(r2)
 
-        sinPhi = arg_r[1]/nmp.sqrt(x2y2)
-        cosPhi = arg_r[0]/nmp.sqrt(x2y2)
+        sin_phi = arg_r[1]/nmp.sqrt(x2y2)
+        cos_phi = arg_r[0]/nmp.sqrt(x2y2)
 
     else:
-        sinTheta = 0.
-        cosTheta = 1
+        sin_theta = 0.
+        cos_theta = 1
 
-        sinPhi = 0.
-        cosPhi = 1
+        sin_phi = 0.
+        cos_phi = 1
 
-    # if abs(sinTheta) > 1 or abs(sinPhi) > 1:
-    #     print('Bad sine : T {} , P {}'.format(sinTheta, sinPhi))
+    # if abs(sin_theta) > 1 or abs(sin_phi) > 1:
+    #     print('Bad sine : T {} , P {}'.format(sin_theta, sin_phi))
 
-    # cosTheta = nmp.sqrt(1 - sinTheta*sinTheta)
-    # cosPhi = nmp.sqrt(1 - sinPhi*sinPhi)
+    # cos_theta = nmp.sqrt(1 - sin_theta*sin_theta)
+    # cos_phi = nmp.sqrt(1 - sin_phi*sin_phi)
 
     # print('{} {} {}'.format(*arg_r))
-    # print('Sin T : {}, cos T : {}'.format(sinTheta, cosTheta))
-    # print('Sin P : {}, cos P : {}'.format(sinPhi, cosPhi))
+    # print('Sin T : {}, cos T : {}'.format(sin_theta, cos_theta))
+    # print('Sin P : {}, cos P : {}'.format(sin_phi, cos_phi))
 
-    sphericalBasis = nmp.zeros((3,3))
+    spherical_basis = nmp.zeros((3,3))
 
     # r^
-    sphericalBasis[0,:] = nmp.asarray([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta])
+    spherical_basis[0,:] = nmp.asarray([sin_theta*cos_phi, sin_theta*sin_phi, cos_theta])
 
     # Theta^
-    sphericalBasis[1,:] = nmp.asarray([cosTheta*cosPhi, cosTheta*sinPhi, -sinTheta])
+    spherical_basis[1,:] = nmp.asarray([cos_theta*cos_phi, cos_theta*sin_phi, -sin_theta])
 
     # Phi^
-    sphericalBasis[2,:] = nmp.asarray([-sinPhi, cosPhi, 0.])
+    spherical_basis[2,:] = nmp.asarray([-sin_phi, cos_phi, 0.])
 
-    return sphericalBasis
+    return spherical_basis
 # END
 
 def get_weighted_forces(data_container, bead, trans_axes):
@@ -258,7 +263,8 @@ def get_weighted_torques(data_container, bead, rot_axes):
 
     # divide by moment of inertia to get weighted torques
     # moment of inertia is a 3x3 tensor
-    # the weighting is done in each dimension (x,y,z) using the diagonal elements of the moment of inertia tensor
+    # the weighting is done in each dimension (x,y,z) using the diagonal elements of
+    # the moment of inertia tensor
     moment_of_inertia = bead.moment_of_inertia()
 
     for dimension in range(3):
@@ -288,7 +294,8 @@ def create_submatrix(data_i, data_j, number_frames):
     # Start with 3 by 3 matrix of zeros
     submatrix = nmp.zeros( (3,3) )
 
-    # For each frame calculate the outer product (cross product) of the data from the two beads and add the result to the submatrix
+    # For each frame calculate the outer product (cross product) of the data from the two beads
+    # and add the result to the submatrix
     for frame in range(number_frames):
         outer_product_matrix = nmp.outer(data_i[frame], data_j[frame])
         submatrix = nmp.add(submatrix, outer_product_matrix)
@@ -299,7 +306,7 @@ def create_submatrix(data_i, data_j, number_frames):
     return submatrix
 #END
 
-def filter_zero_rows_columns(arg_matrix):
+def filter_zero_rows_columns(arg_matrix, verbose):
     """
     function for removing rows and columns that contain only zeros from a matrix
 
@@ -313,23 +320,23 @@ def filter_zero_rows_columns(arg_matrix):
     """
 
     #record the initial size
-    initShape = nmp.shape(arg_matrix)
+    init_shape = nmp.shape(arg_matrix)
 
-    zeroIdx = list(filter(lambda row : nmp.all(nmp.isclose(arg_matrix[row,:] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[0])))
-    allIdx = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
-    allIdx[zeroIdx] = False
-    arg_matrix = arg_matrix[allIdx,:]
+    zero_indices = list(filter(lambda row : nmp.all(nmp.isclose(arg_matrix[row,:] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[0])))
+    all_indices = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
+    all_indices[zero_indices] = False
+    arg_matrix = arg_matrix[all_indices,:]
 
-    allIdx = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
-    zeroIdx = list(filter(lambda col : nmp.all(nmp.isclose(arg_matrix[:,col] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[1])))
-    allIdx[zeroIdx] = False
-    arg_matrix = arg_matrix[:,allIdx]
+    all_indices = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
+    zero_indices = list(filter(lambda col : nmp.all(nmp.isclose(arg_matrix[:,col] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[1])))
+    all_indices[zero_indices] = False
+    arg_matrix = arg_matrix[:,all_indices]
 
     # get the final shape
-    finalShape = nmp.shape(arg_matrix)
+    final_shape = nmp.shape(arg_matrix)
 
-    if initShape != finalShape:
-        print('A shape change has occured ({},{}) -> ({}, {})'.format(*initShape, *finalShape))
+    if verbose and init_shape != final_shape:
+        print('A shape change has occured ({},{}) -> ({}, {})'.format(*init_shape, *final_shape))
 
     return arg_matrix
 #END

@@ -32,7 +32,7 @@ def main(arg_dict):
     MDAHelper.write_universe(reduced_atom, reduced_atom_name)
 
     # Scan system for molecules and select levels (united atom, residue, polymer) for each
-    number_molecules, levels = LF.select_levels(reduced_atom)
+    number_molecules, levels = LF.select_levels(reduced_atom, arg_dict['verbose'])
 
     number_frames = len(reduced_atom.trajectory)
 
@@ -51,8 +51,9 @@ def main(arg_dict):
 
             if level == 'united_atom':
                 # loop over residues, report results per residue + total united atom level
-                # This is done per residue to reduce the size of the matrices - amino acid resiudes have tens of united atoms but a whole protein could have thousands
-                # Doing the calculation per residue also allows for comparisons of contributions from different residues
+                # This is done per residue to reduce the size of the matrices -
+                # amino acid resiudes have tens of united atoms but a whole protein could have thousands
+                # Doing the calculation per residue allows for comparisons of contributions from different residues
                 num_residues = len(molecule_container.residues)
                 S_trans = 0
                 S_rot = 0
@@ -68,7 +69,7 @@ def main(arg_dict):
 
                     ## Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant level
-                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level)
+                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'])
 
                     # Calculate the entropy from the diagonalisation of the matrices
                     S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
@@ -123,24 +124,10 @@ def main(arg_dict):
 
                 ## End united atom vibrational and conformational calculations ##
 
-            if level == 'residue':
-                ## Conformational entropy based on distributions of dihedral angles of residues
-                ## Gives conformational entropy of secondary structure
-
-                # Get dihedral angle distribution
-                dihedrals = LF.get_dihedrals(molecule_container, level)
-                # Calculate conformational entropy
-                S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames)
-                print(f"S_conf_{level} = {S_conf}")
-                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
-                            'Type':['Conformational (J/mol/K)'],
-                            'Result': [S_conf],})
-                results_df = pd.concat([results_df, new_row], ignore_index=True)
-
             if level in ('polymer', 'residue'):
                 ## Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
-                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level)
+                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'])
 
                 # Calculate the entropy from the diagonalisation of the matrices
                 S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],level)
@@ -157,9 +144,25 @@ def main(arg_dict):
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
-                # Note: conformational entropy is not calculated at the polymer level, because there is at most one polymer bead per molecule so no dihedral angles.
+                # Note: conformational entropy is not calculated at the polymer level,
+                # because there is at most one polymer bead per molecule so no dihedral angles.
 
-        ## Orientational entropy based on network of neighbouring molecules, only calculated at the highest level (whole molecule)
+            if level == 'residue':
+                ## Conformational entropy based on distributions of dihedral angles of residues
+                ## Gives conformational entropy of secondary structure
+
+                # Get dihedral angle distribution
+                dihedrals = LF.get_dihedrals(molecule_container, level)
+                # Calculate conformational entropy
+                S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames)
+                print(f"S_conf_{level} = {S_conf}")
+                new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
+                            'Type':['Conformational (J/mol/K)'],
+                            'Result': [S_conf],})
+                results_df = pd.concat([results_df, new_row], ignore_index=True)
+
+        ## Orientational entropy based on network of neighbouring molecules,
+        #  only calculated at the highest level (whole molecule)
    #     level = levels[molecule][-1]
    #     neigbours = LF.get_neighbours(reduced_atom, molecule)
    #     S_orient = EF.orientational_entropy(neighbours)
