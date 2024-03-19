@@ -1,17 +1,3 @@
-<<<<<<< HEAD:CodeEntropy/FunctionCollection/LevelFunctions.py
-import MDAnalysis as mds
-from CodeEntropy.ClassCollection import BeadClasses as BC
-from CodeEntropy.ClassCollection import ConformationEntity as CONF
-from CodeEntropy.ClassCollection import ModeClasses
-from CodeEntropy.ClassCollection import CustomDataTypes
-from CodeEntropy.FunctionCollection import EntropyFunctions as EF
-from CodeEntropy.FunctionCollection import CustomFunctions as CF
-from CodeEntropy.FunctionCollection import GeometricFunctions as GF
-from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
-from CodeEntropy.FunctionCollection import Utils
-from CodeEntropy.IO import Writer
-from CodeEntropy.FunctionCollection import UnitsAndConversions as CONST
-=======
 import numpy as nmp
 import MDAnalysis as mda
 from CodeEntropy import GeometricFunctions as GF
