@@ -88,12 +88,6 @@ try:
                         default=None,
                         help   ="Name of the file where certain matrices will be written (default: None).")
 
-    parser.add_argument('-a', '--rotationalaxis', 
-                        dest = "rotationalAxis",
-                        action='store', 
-                        nargs='+',
-                        default=None, 
-                                                help="Optional: The 3 atom name in each residue for rotational axis. Default none.")
     parser.add_argument('-c', '--cutShell', 
                         action='store',
                         dest="cutShell",
@@ -154,7 +148,6 @@ arg_dict['end'] = args.end
 arg_dict['step'] = args.step
 arg_dict['thread'] = args.thread
 arg_dict['verbose'] = args.verbose
-arg_dict['axis_list'] = args.rotationalAxis
 arg_dict['moutFile'] = args.moutFile
 arg_dict['resfile'] = args.resOutFile
 
