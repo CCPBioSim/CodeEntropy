@@ -37,7 +37,7 @@ def frequency_calculation(lambdas,temp):
     return frequencies
 #END frequency_calculation
 
-def vibrational_entropy(matrix, matrix_type, temp, level):
+def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     """
     Function to calculate the vibrational entropy for each level calculated from eq. (4) in
     J. Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 
@@ -49,7 +49,7 @@ def vibrational_entropy(matrix, matrix_type, temp, level):
        matrix : matrix - force/torque covariance matrix
        matrix_type: string
        temp: float - temperature
-       level: string  - level of hierarchy - can be "polymer", "residue" or "united_atom"
+       highest_level - we check if we are at the highest level of hierarchy 
     Returns
     -------
        S_vib_total : float - transvibrational/rovibrational entropy
@@ -70,10 +70,10 @@ def vibrational_entropy(matrix, matrix_type, temp, level):
     power_negative = nmp.power(nmp.e,-exponent)
     S_components = exponent/(power_positive-1) - nmp.log(1-power_negative)
     S_components = S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-
+    # N beads at a level => 3N x 3N covariance matrix => 3N eigenvalues
     if matrix_type == 'force': #force covariance matrix
-        if level == 'polymer': #polymer level - we take all frequencies into account
-            S_vib_total = sum(S_components) # 3x3 force covariance matrix => 3 eigenvalues
+        if highest_level:  #highest level - we take all values into account
+            S_vib_total = sum(S_components) 
        
         # discard the 6 lowest frequencies to discard translation and rotation at the upper level
         else:
