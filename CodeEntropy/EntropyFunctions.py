@@ -34,26 +34,29 @@ def frequency_calculation(lambdas,temp):
     # get kT in Joules from given temperature
     kT = UAC.get_KT2J(temp)
     frequencies = 1/(2*pi)*nmp.sqrt(lambdas/kT)
+
     return frequencies
 #END frequency_calculation
 
-def vibrational_entropy(matrix, matrix_type, temp, level):
+def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     """
     Function to calculate the vibrational entropy for each level calculated from eq. (4) in
     J. Higham, S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 
     1965–1976 / eq. (2) in A. Chakravorty, J. Higham and R. H. Henchman,
     J. Chem. Inf. Model., 2020, 60, 5540–5551.
     
-        Input
+    Input
     -----
        matrix : matrix - force/torque covariance matrix
        matrix_type: string
        temp: float - temperature
-       level: string  - level of hierarchy - can be "polymer", "residue" or "united_atom"
+       highest_level: bool - is this the highest level of the heirarchy (whole molecule)
+
     Returns
     -------
        S_vib_total : float - transvibrational/rovibrational entropy
     """
+    # N beads at a level => 3N x 3N covariance matrix => 3N eigenvalues
     # Get eigenvalues of the given matrix and change units to SI units
     lambdas = la.eigvals(matrix)
     lambdas = UAC.change_lambda_units(lambdas)
@@ -72,10 +75,11 @@ def vibrational_entropy(matrix, matrix_type, temp, level):
     S_components = S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
 
     if matrix_type == 'force': #force covariance matrix
-        if level == 'polymer': #polymer level - we take all frequencies into account
-            S_vib_total = sum(S_components) # 3x3 force covariance matrix => 3 eigenvalues
+        if highest_level: # whole molecule level - we take all frequencies into account
+            S_vib_total = sum(S_components)
        
-        # discard the 6 lowest frequencies to discard translation and rotation at the upper level
+        # discard the 6 lowest frequencies to discard translation and rotation of the whole unit
+        # the overall translation and rotation of a unit is an internal motion of the level above
         else:
             S_vib_total = sum(S_components[6:])
     
