@@ -1,7 +1,7 @@
 import numpy as nmp
 from MDAnalysis.analysis.dihedrals import Dihedral
 
-def assign_conformation(data_container, dihedral, num_frames, bin_width = 30):
+def assign_conformation(data_container, dihedral, num_frames, bin_width, start, end, step):
     """
     Create a state vector, showing the state in which the input dihedral is
     as a function of time. The function creates a histogram from the timeseries of the 
@@ -14,6 +14,9 @@ def assign_conformation(data_container, dihedral, num_frames, bin_width = 30):
     dihedral_atom_group : the group of 4 atoms defining the dihedral
     num_frames : number of frames in the trajectory
     bin_width : the width of the histogram bit, default 30 degrees
+    start : int, starting frame, will default to 0
+    end : int, ending frame, will default to -1 (last frame in trajectory)
+    step : int, spacing between frames, will default to 1
 
     Return
     ------
@@ -25,7 +28,7 @@ def assign_conformation(data_container, dihedral, num_frames, bin_width = 30):
 
     # get the values of the angle for the dihedral
     # dihedral angle values have a range from -180 to 180
-    for timestep in data_container.trajectory:
+    for timestep in data_container.trajectory[start:end:step]:
         value = dihedral.value()
         # we want postive values in range 0 to 360 to make the peak assignment work
         # using the fact that dihedrals have circular symetry (i.e. -15 degrees = +345 degrees)

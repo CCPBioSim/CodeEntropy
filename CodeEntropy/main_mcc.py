@@ -16,6 +16,10 @@ def main(arg_dict):
     """
 
     u = arg_dict['universe']
+    bin_width = arg_dict['bin_width']
+    start = arg_dict['start']
+    end = arg_dict['end']
+    step = arg_dict['step']
 
     # Create pandas data frame for results
     results_df = pd.DataFrame(columns=['Molecule ID', 'Level','Type', 'Result'])
@@ -23,20 +27,18 @@ def main(arg_dict):
 
     # printing headings for output files
     with open(arg_dict['outfile'], "a") as out:
-        print("Molecule ID\tLevel\tType\tResult\n", file=out)
+        print("Molecule\tLevel\tType\tResult (J/mol/K)\n", file=out)
 
     with open(arg_dict['resfile'], "a") as res:
-        print("Molecule ID\tResidue\tType\tResult\n", file=res)
-
-    # Reduce time frames in MDA universe using start/end/step args (default all frames included)
-    reduced_frame = MDAHelper.new_U_select_frame(u, arg_dict['start'], arg_dict['end'], arg_dict['step'])
-    reduced_frame_name = f"{(len(reduced_frame.trajectory))}_frame_dump"
-    MDAHelper.write_universe(reduced_frame, reduced_frame_name)
+        print("Molecule\tResidue\tType\tResult (J/mol/K)\n", file=res)
 
     # Reduce number of atoms in MDA universe to selection_string arg (default all atoms included)
-    reduced_atom = MDAHelper.new_U_select_atom(reduced_frame, arg_dict['selection_string'])
-    reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
-    MDAHelper.write_universe(reduced_atom, reduced_atom_name)
+    if arg_dict['selection_string'] == 'all':
+        reduced_atom = u
+    else:
+        reduced_atom = MDAHelper.new_U_select_atom(u, arg_dict['selection_string'])
+        reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
+        MDAHelper.write_universe(reduced_atom, reduced_atom_name)
 
     # Scan system for molecules and select levels (united atom, residue, polymer) for each
     number_molecules, levels = LF.select_levels(reduced_atom, arg_dict['verbose'])
@@ -80,7 +82,7 @@ def main(arg_dict):
 
                     ## Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant level
-                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'])
+                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'], start, end, step)
 
                     # Calculate the entropy from the diagonalisation of the matrices
                     S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
@@ -91,7 +93,7 @@ def main(arg_dict):
                             'Result': [S_trans_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
                     with open(arg_dict['resfile'], "a") as res:
-                        print(new_row, file=res)
+                        print(molecule,"\t",residue,"\tTransvibration\t",S_trans_residue, file=res)
 
 
                     S_rot_residue = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], highest_level)
@@ -102,7 +104,8 @@ def main(arg_dict):
                             'Result': [S_rot_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
                     with open(arg_dict['resfile'], "a") as res:
-                        print(new_row, file=res)
+                      #  print(new_row, file=res)
+                        print(molecule,"\t",residue,"\tRovibrational \t",S_rot_residue, file=res)
 
 
                     ## Conformational entropy based on atom dihedral angle distributions
@@ -112,7 +115,7 @@ def main(arg_dict):
                     dihedrals = LF.get_dihedrals(residue_container, level)
 
                     # Calculate conformational entropy
-                    S_conf_residue = EF.conformational_entropy(residue_container, dihedrals, number_frames)
+                    S_conf_residue = EF.conformational_entropy(residue_container, dihedrals, number_frames, bin_width, start, end, step)
                     S_conf += S_conf_residue
                     print(f"S_conf_{level}_{residue} = {S_conf_residue}")
                     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
@@ -120,7 +123,7 @@ def main(arg_dict):
                             'Result': [S_conf_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
                     with open(arg_dict['resfile'], "a") as res:
-                        print(new_row, file=res)
+                        print(molecule,"\t",residue,"\tConformational\t",S_conf_residue, file=res)
 
 
                 # Print united atom level results summed over all residues
@@ -129,7 +132,7 @@ def main(arg_dict):
                             'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans],})
                 with open(arg_dict['outfile'], "a") as out:
-                    print(new_row, file=out)
+                    print(molecule,"\t",level,"\tTransvibration\t",S_trans, file=out)
 
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
@@ -139,7 +142,7 @@ def main(arg_dict):
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
                 with open(arg_dict['outfile'], "a") as out:
-                    print(new_row, file=out)
+                    print(molecule,"\t",level,"\tRovibrational \t",S_rot, file=out)
 
 
                 print(f"S_conf_{level} = {S_conf}")
@@ -148,7 +151,7 @@ def main(arg_dict):
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
                 with open(arg_dict['outfile'], "a") as out:
-                    print(new_row, file=out)
+                    print(molecule,"\t",level,"\tConformational\t",S_conf, file=out)
 
 
                 ## End united atom vibrational and conformational calculations ##
@@ -156,7 +159,7 @@ def main(arg_dict):
             if level in ('polymer', 'residue'):
                 ## Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
-                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'])
+                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'], start, end, step)
 
                 # Calculate the entropy from the diagonalisation of the matrices
                 S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
@@ -166,7 +169,8 @@ def main(arg_dict):
                             'Result': [S_trans],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
                 with open(arg_dict['outfile'], "a") as out:
-                    print(new_row, file=out)
+                    print(molecule,"\t",level,"\tTransvibrational\t",S_trans, file=out)
+
 
 
                 S_rot = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], highest_level)
@@ -176,7 +180,7 @@ def main(arg_dict):
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
                 with open(arg_dict['outfile'], "a") as out:
-                    print(new_row, file=out)
+                    print(molecule,"\t",level,"\tRovibrational \t",S_rot, file=out)
 
 
                 # Note: conformational entropy is not calculated at the polymer level,
@@ -189,14 +193,14 @@ def main(arg_dict):
                 # Get dihedral angle distribution
                 dihedrals = LF.get_dihedrals(molecule_container, level)
                 # Calculate conformational entropy
-                S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames)
+                S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames, bin_width, start, end, step)
                 print(f"S_conf_{level} = {S_conf}")
                 new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
                             'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
                 with open(arg_dict['outfile'], "a") as out:
-                    print(new_row, file=out)
+                    print(molecule,"\t",level,"\tConformational\t",S_conf, file=out)
 
 
             ## Orientational entropy based on network of neighbouring molecules,
@@ -210,17 +214,17 @@ def main(arg_dict):
    #                         'Result': [S_orient],})
    #            results_df = pd.concat([results_df, new_row], ignore_index=True)
    #            with open(arg_dict['outfile'], "a") as out:
-   #                print(new_row, file=out)
+   #                print(molecule,"\t",level,"\tOrientational\t",S_orient, file=out)
 
         # Report total entropy for the molecule
         S_molecule = results_df[results_df["Molecule ID"] == molecule]['Result'].sum()
         print(f"S_molecule = {S_molecule}")
         new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': ['Molecule Total'],
-                            'Type':['Molecule Total Entropy (J/mol/K)'],
+                            'Type':['Molecule Total Entropy '],
                             'Result': [S_molecule],})
         results_df = pd.concat([results_df, new_row], ignore_index=True)
         with open(arg_dict['outfile'], "a") as out:
-            print(new_row, file=out)
+            print(molecule,"\t Molecule\tTotal Entropy\t",S_molecule, file=out)
 
 
 # END main function
