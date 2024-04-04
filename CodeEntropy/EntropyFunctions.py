@@ -34,6 +34,7 @@ def frequency_calculation(lambdas,temp):
     # get kT in Joules from given temperature
     kT = UAC.get_KT2J(temp)
     frequencies = 1/(2*pi)*nmp.sqrt(lambdas/kT)
+
     return frequencies
 #END frequency_calculation
 
@@ -44,16 +45,18 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     1965–1976 / eq. (2) in A. Chakravorty, J. Higham and R. H. Henchman,
     J. Chem. Inf. Model., 2020, 60, 5540–5551.
     
-        Input
+    Input
     -----
        matrix : matrix - force/torque covariance matrix
        matrix_type: string
        temp: float - temperature
-       highest_level - we check if we are at the highest level of hierarchy 
+       highest_level: bool - is this the highest level of the heirarchy (whole molecule)
+
     Returns
     -------
        S_vib_total : float - transvibrational/rovibrational entropy
     """
+    # N beads at a level => 3N x 3N covariance matrix => 3N eigenvalues
     # Get eigenvalues of the given matrix and change units to SI units
     lambdas = la.eigvals(matrix)
     lambdas = UAC.change_lambda_units(lambdas)
@@ -72,10 +75,11 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     S_components = S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
     # N beads at a level => 3N x 3N covariance matrix => 3N eigenvalues
     if matrix_type == 'force': #force covariance matrix
-        if highest_level:  #highest level - we take all values into account
-            S_vib_total = sum(S_components) 
+        if highest_level: # whole molecule level - we take all frequencies into account
+            S_vib_total = sum(S_components)
        
-        # discard the 6 lowest frequencies to discard translation and rotation at the upper level
+        # discard the 6 lowest frequencies to discard translation and rotation of the whole unit
+        # the overall translation and rotation of a unit is an internal motion of the level above
         else:
             S_vib_total = sum(S_components[6:])
     
@@ -85,7 +89,7 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     return S_vib_total
 #END vibrational_entropy
 
-def conformational_entropy(data_container, dihedrals, num_frames):
+def conformational_entropy(data_container, dihedrals, num_frames, bin_width, start, end, step):
     """
     Function to calculate conformational entropies using eq. (7) in Higham, S.-Y. Chou,
     F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 / eq. (4) in
@@ -108,7 +112,7 @@ def conformational_entropy(data_container, dihedrals, num_frames):
     conformation = nmp.zeros((num_dihedrals, num_frames))
     index = 0
     for dihedral in dihedrals:
-        conformation[index] = CONF.assign_conformation(data_container, dihedral, num_frames)
+        conformation[index] = CONF.assign_conformation(data_container, dihedral, num_frames, bin_width, start, end, step)
         index += 1
 
     # For each frame, convert the conformation of all dihedrals into a state string

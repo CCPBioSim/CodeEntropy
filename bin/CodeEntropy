@@ -53,12 +53,24 @@ try:
                         help="interval between two consecutive frames to be read index. Defaults to 1", 
                         default=1,
                         type=int)
+    parser.add_argument("-n","--bin_width",
+                        action="store",
+                        dest="bin_width",
+                        default=30,
+                        type=int,
+                        help="Bin width in degrees for making the histogram of the dihedral angles for the conformational entropy. Default: 30")
     parser.add_argument('-k', '--tempra', 
                         action="store", 
                         dest="temp", 
                         help="Temperature for entropy calculation (K). Default to 298.0 K", 
                         default=298.0, 
                         type=float)
+    parser.add_argument("-v","--verbose",
+                        action="store",
+                        dest="verbose",
+                        default=False,
+                        type=bool,
+                        help="True/False flag for noisy or quiet output. Default: False")
     parser.add_argument('-t', '--thread', 
                         action="store", 
                         dest="thread", 
@@ -70,18 +82,11 @@ try:
                         dest  ="outFile",
                         default="outfile.out",
                         help   ="Name of the file where the output will be written. Default: outfile.out")
-    parser.add_argument("--verbose",
-                        action="store",
-                        dest="verbose",
-                        default=False,
-                        type=bool,
-                        help="True/False flag for noisy or quiet output. Default: False")
     parser.add_argument("-r","--resout",
                         action="store",
                         dest  ="resOutFile",
                         default="res_outfile.out",
                         help   ="Name of the file where the residue entropy output will be written. Default: res_outfile.out")
-
     parser.add_argument("-m", "--mout",
                         action="store",
                         dest  ="moutFile",
@@ -146,8 +151,9 @@ arg_dict['selection_string'] = args.selectionString
 arg_dict['start'] = args.start
 arg_dict['end'] = args.end
 arg_dict['step'] = args.step
-arg_dict['thread'] = args.thread
+arg_dict['bin_width'] = args.bin_width
 arg_dict['verbose'] = args.verbose
+arg_dict['thread'] = args.thread
 arg_dict['moutFile'] = args.moutFile
 arg_dict['resfile'] = args.resOutFile
 
