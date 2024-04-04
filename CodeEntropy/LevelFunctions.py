@@ -45,7 +45,7 @@ def select_levels(data_container, verbose):
     return number_molecules, levels
 #END get_levels
 
-def get_matrices(data_container, level, verbose):
+def get_matrices(data_container, level, verbose, start, end, step):
     """
     Function to create the force matrix needed for the transvibrational entropy calculation
     and the torque matrix for the rovibrational entropy calculation.
@@ -54,6 +54,10 @@ def get_matrices(data_container, level, verbose):
     -----
         data_container : MDAnalysis universe type with the information on the molecule of interest.
         level : string, which of the polymer, residue, or united atom levels are the matrices for.
+        verbose : true/false, controlls how much is printed
+        start : int, starting frame, default 0 (first frame)
+        end : int, ending frame, default -1 (last frame)
+        step : int, step for going through trajectories, default 1
 
     Returns
     -------
@@ -74,7 +78,7 @@ def get_matrices(data_container, level, verbose):
 
     ## Calculate forces/torques for each bead
     for bead_index in range(number_beads):
-        for timestep in data_container.trajectory:
+        for timestep in data_container.trajectory[start:end:step]:
             ## Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level

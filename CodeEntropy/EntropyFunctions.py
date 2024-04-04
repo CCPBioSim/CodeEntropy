@@ -89,7 +89,7 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     return S_vib_total
 #END vibrational_entropy
 
-def conformational_entropy(data_container, dihedrals, num_frames):
+def conformational_entropy(data_container, dihedrals, num_frames, bin_width, start, end, step):
     """
     Function to calculate conformational entropies using eq. (7) in Higham, S.-Y. Chou,
     F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 / eq. (4) in
@@ -112,7 +112,7 @@ def conformational_entropy(data_container, dihedrals, num_frames):
     conformation = nmp.zeros((num_dihedrals, num_frames))
     index = 0
     for dihedral in dihedrals:
-        conformation[index] = CONF.assign_conformation(data_container, dihedral, num_frames)
+        conformation[index] = CONF.assign_conformation(data_container, dihedral, num_frames, bin_width, start, end, step)
         index += 1
 
     # For each frame, convert the conformation of all dihedrals into a state string
