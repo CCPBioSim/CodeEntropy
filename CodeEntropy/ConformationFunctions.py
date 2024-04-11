@@ -1,7 +1,7 @@
 import numpy as nmp
 from MDAnalysis.analysis.dihedrals import Dihedral
 
-def assign_conformation(data_container, dihedral, num_frames, bin_width, start, end, step):
+def assign_conformation(data_container, dihedral, number_frames, bin_width, start, end, step):
     """
     Create a state vector, showing the state in which the input dihedral is
     as a function of time. The function creates a histogram from the timeseries of the 
@@ -12,7 +12,7 @@ def assign_conformation(data_container, dihedral, num_frames, bin_width, start, 
     Input
     -----
     dihedral_atom_group : the group of 4 atoms defining the dihedral
-    num_frames : number of frames in the trajectory
+    number_frames : number of frames in the trajectory
     bin_width : the width of the histogram bit, default 30 degrees
     start : int, starting frame, will default to 0
     end : int, ending frame, will default to -1 (last frame in trajectory)
@@ -23,8 +23,8 @@ def assign_conformation(data_container, dihedral, num_frames, bin_width, start, 
     A timeseries with integer labels describing the state at each point in time.
     
     """
-    conformations = nmp.zeros(num_frames)
-    phi = nmp.zeros(num_frames)
+    conformations = nmp.zeros(number_frames)
+    phi = nmp.zeros(number_frames)
 
     # get the values of the angle for the dihedral
     # dihedral angle values have a range from -180 to 180
@@ -59,7 +59,7 @@ def assign_conformation(data_container, dihedral, num_frames, bin_width, start, 
                 peak_values.append(bin_value[bin_index])
 
     # go through each frame again and assign conformation state
-    for frame in range(num_frames):
+    for frame in range(number_frames):
         # find the TP that the snapshot is least distant from
         distances = [abs(phi[frame] - peak) for peak in peak_values]
         conformations[frame] = nmp.argmin(distances)

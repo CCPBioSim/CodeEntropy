@@ -15,11 +15,31 @@ def main(arg_dict):
     arg_dict : the input arguments
     """
 
+    # Define MDAnalysis Universe from inputs
     u = arg_dict['universe']
+
+    # Define bin_width for histogram from inputs
     bin_width = arg_dict['bin_width']
+
+    # Define trajectory slicing from inputs
     start = arg_dict['start']
+    if start == None:
+        start = 0
     end = arg_dict['end']
+    if end == None:
+        end = -1
     step = arg_dict['step']
+    if step == None:
+        step = 1
+    # Count number of frames, easy if not slicing
+    if start == 0 and end == -1 and step == 1:
+        number_frames = len(u.trajectory)
+    elif end == -1:
+        end = len(u.trajectory)
+        number_frames = math.floor((end - start)/step)
+    else:
+        number_frames = math.floor((end - start)/step)
+    print(number_frames)
 
     # Create pandas data frame for results
     results_df = pd.DataFrame(columns=['Molecule ID', 'Level','Type', 'Result'])
@@ -42,8 +62,6 @@ def main(arg_dict):
 
     # Scan system for molecules and select levels (united atom, residue, polymer) for each
     number_molecules, levels = LF.select_levels(reduced_atom, arg_dict['verbose'])
-
-    number_frames = len(reduced_atom.trajectory)
 
     # Loop over molecules
     for molecule in range(number_molecules):
@@ -82,7 +100,7 @@ def main(arg_dict):
 
                     ## Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant level
-                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'], start, end, step)
+                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'], start, end, step, number_frames)
 
                     # Calculate the entropy from the diagonalisation of the matrices
                     S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
@@ -115,7 +133,7 @@ def main(arg_dict):
                     dihedrals = LF.get_dihedrals(residue_container, level)
 
                     # Calculate conformational entropy
-                    S_conf_residue = EF.conformational_entropy(residue_container, dihedrals, number_frames, bin_width, start, end, step)
+                    S_conf_residue = EF.conformational_entropy(residue_container, dihedrals, bin_width, start, end, step, number_frames)
                     S_conf += S_conf_residue
                     print(f"S_conf_{level}_{residue} = {S_conf_residue}")
                     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
@@ -159,7 +177,7 @@ def main(arg_dict):
             if level in ('polymer', 'residue'):
                 ## Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
-                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'], start, end, step)
+                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'], start, end, step, number_frames)
 
                 # Calculate the entropy from the diagonalisation of the matrices
                 S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
@@ -193,7 +211,7 @@ def main(arg_dict):
                 # Get dihedral angle distribution
                 dihedrals = LF.get_dihedrals(molecule_container, level)
                 # Calculate conformational entropy
-                S_conf = EF.conformational_entropy(molecule_container, dihedrals, number_frames, bin_width, start, end, step)
+                S_conf = EF.conformational_entropy(molecule_container, dihedrals, bin_width, start, end, step, number_frames)
                 print(f"S_conf_{level} = {S_conf}")
                 new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
                             'Type':['Conformational (J/mol/K)'],

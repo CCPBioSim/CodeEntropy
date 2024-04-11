@@ -89,7 +89,7 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     return S_vib_total
 #END vibrational_entropy
 
-def conformational_entropy(data_container, dihedrals, num_frames, bin_width, start, end, step):
+def conformational_entropy(data_container, dihedrals, bin_width, start, end, step, number_frames):
     """
     Function to calculate conformational entropies using eq. (7) in Higham, S.-Y. Chou,
     F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116, 1965–1976 / eq. (4) in
@@ -109,15 +109,15 @@ def conformational_entropy(data_container, dihedrals, num_frames, bin_width, sta
 
     # For each dihedral, identify the conformation in each frame
     num_dihedrals = len(dihedrals)
-    conformation = nmp.zeros((num_dihedrals, num_frames))
+    conformation = nmp.zeros((num_dihedrals, number_frames))
     index = 0
     for dihedral in dihedrals:
-        conformation[index] = CONF.assign_conformation(data_container, dihedral, num_frames, bin_width, start, end, step)
+        conformation[index] = CONF.assign_conformation(data_container, dihedral, number_frames, bin_width, start, end, step)
         index += 1
 
     # For each frame, convert the conformation of all dihedrals into a state string
-    states = ['' for x in range(num_frames)]
-    for frame_index in range (num_frames):
+    states = ['' for x in range(number_frames)]
+    for frame_index in range (number_frames):
         for index in range(num_dihedrals):
             states[frame_index] += str(conformation[index][frame_index])
 
@@ -126,7 +126,7 @@ def conformational_entropy(data_container, dihedrals, num_frames, bin_width, sta
     values, counts = nmp.unique(states, return_counts=True)
     for state in range(len(values)):
         count = counts[state]
-        probability = count / num_frames
+        probability = count / number_frames
         entropy = probability * nmp.log(probability)
         S_conf_total += entropy
 

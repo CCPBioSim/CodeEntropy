@@ -45,7 +45,7 @@ def select_levels(data_container, verbose):
     return number_molecules, levels
 #END get_levels
 
-def get_matrices(data_container, level, verbose, start, end, step):
+def get_matrices(data_container, level, verbose, start, end, step, number_frames):
     """
     Function to create the force matrix needed for the transvibrational entropy calculation
     and the torque matrix for the rovibrational entropy calculation.
@@ -70,7 +70,6 @@ def get_matrices(data_container, level, verbose, start, end, step):
 
     # number of beads and frames in trajectory
     number_beads = len(list_of_beads)
-    number_frames = len(data_container.trajectory)
 
     # initialize force and torque arrays
     weighted_forces = [[0 for x in range(number_frames)] for y in range(number_beads)]
