@@ -73,7 +73,7 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     power_negative = nmp.power(nmp.e,-exponent)
     S_components = exponent/(power_positive-1) - nmp.log(1-power_negative)
     S_components = S_components*UAC.GAS_CONST #multiply by R - get entropy in J mol^{-1} K^{-1}
-
+    # N beads at a level => 3N x 3N covariance matrix => 3N eigenvalues
     if matrix_type == 'force': #force covariance matrix
         if highest_level: # whole molecule level - we take all frequencies into account
             S_vib_total = sum(S_components)
