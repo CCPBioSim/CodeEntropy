@@ -36,9 +36,9 @@ def main(arg_dict):
         number_frames = len(u.trajectory)
     elif end == -1:
         end = len(u.trajectory)
-        number_frames = math.floor((end - start)/step)
+        number_frames = math.floor((end - start)/step) + 1
     else:
-        number_frames = math.floor((end - start)/step)
+        number_frames = math.floor((end - start)/step) + 1
     print(number_frames)
 
     # Create pandas data frame for results
