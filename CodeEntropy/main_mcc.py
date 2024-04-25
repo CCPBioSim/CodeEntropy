@@ -61,13 +61,14 @@ def main(arg_dict):
                 highest_level = True
             else:
                 highest_level = False
-
+        
             if level == 'united_atom':
                 # loop over residues, report results per residue + total united atom level
                 # This is done per residue to reduce the size of the matrices -
                 # amino acid resiudes have tens of united atoms but a whole protein could have thousands
                 # Doing the calculation per residue allows for comparisons of contributions from different residues
                 num_residues = len(molecule_container.residues)
+                print(num_residues)
                 S_trans = 0
                 S_rot = 0
                 S_conf = 0
@@ -104,7 +105,7 @@ def main(arg_dict):
                             'Result': [S_rot_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
                     with open(arg_dict['resfile'], "a") as res:
-                      #  print(new_row, file=res)
+                        print(new_row, file=res)
                         print(molecule,"\t",residue,"\tRovibrational \t",S_rot_residue, file=res)
 
 

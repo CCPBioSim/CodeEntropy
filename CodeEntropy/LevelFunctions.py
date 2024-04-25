@@ -16,7 +16,7 @@ def select_levels(data_container, verbose):
     Returns
     -------
        number_molecules : integer
-       levels : array of strings for each molecule
+       levels : array of strings for each molecules
     """
 
     # fragments is MDAnalysis terminology for what chemists would call molecules
@@ -36,8 +36,8 @@ def select_levels(data_container, verbose):
             levels[molecule].append("residue")
 
             #if assigned residue level and there is more than one residue assign polymer level
-            if number_residues > 1:
-                levels[molecule].append("polymer")
+        if number_residues > 1:
+            levels[molecule].append("polymer")
 
     if verbose:
         print(levels)
