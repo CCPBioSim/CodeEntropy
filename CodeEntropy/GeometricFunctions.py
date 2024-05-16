@@ -33,6 +33,11 @@ def get_beads(data_container, level):
             atom_group = "index " + str(atom.index) + " or (name H* and bonded index " + str(atom.index) +")"
             list_of_beads.append(data_container.select_atoms(atom_group))
 
+    #TODO temporary print
+    print("list of beads")
+    print(level)
+    print(list_of_beads)
+
     return list_of_beads
 #END
 
