@@ -33,11 +33,6 @@ def get_beads(data_container, level):
             atom_group = "index " + str(atom.index) + " or (name H* and bonded index " + str(atom.index) +")"
             list_of_beads.append(data_container.select_atoms(atom_group))
 
-    #TODO temporary print
-    print("list of beads")
-    print(level)
-    print(list_of_beads)
-
     return list_of_beads
 #END
 
@@ -206,14 +201,16 @@ def get_sphCoord_axes(arg_r):
     return spherical_basis
 # END
 
-def get_weighted_forces(data_container, bead, trans_axes):
+def get_weighted_forces(data_container, bead, trans_axes, highest_level):
     """
     Function to calculate the mass weighted forces for a given bead.
 
     Input
     -----
+    data_container : information about the system
     bead : the part of the system to be considered
     trans_axes : the axes relative to which the forces are located
+    highest_level : true/false, true if whole molecule level
 
     Output
     ------
@@ -232,6 +229,11 @@ def get_weighted_forces(data_container, bead, trans_axes):
     mass = bead.total_mass()
 
     weighted_force = forces_trans / nmp.sqrt(mass)
+
+    # if whole molecule level, divide by 2 to divide the independend forces
+    # between the atoms involved
+    if highest_level:
+        weighted_force = 0.5 * weighted_force
 
     return weighted_force
 #END
@@ -261,6 +263,9 @@ def get_weighted_torques(data_container, bead, rot_axes):
         coords_rot = nmp.matmul(rot_axes, coords_rot)
         # update local forces in rotational frame
         forces_rot = nmp.matmul(rot_axes, data_container.atoms[atom.index].force)
+ 
+        # Divide forces by 2 to avoid double counting of independent motions
+        forces_rot = 0.5 * forces_rot
 
         # define torques (cross product of coordinates and forces) in rotational axes
         torques_local = nmp.cross(coords_rot, forces_rot)

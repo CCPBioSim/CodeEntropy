@@ -100,7 +100,7 @@ def main(arg_dict):
 
                     ## Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant level
-                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'], start, end, step, number_frames)
+                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'], start, end, step, number_frames, highest_level)
 
                     # Calculate the entropy from the diagonalisation of the matrices
                     S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
@@ -177,7 +177,7 @@ def main(arg_dict):
             if level in ('polymer', 'residue'):
                 ## Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
-                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'], start, end, step, number_frames)
+                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'], start, end, step, number_frames, highest_level)
 
                 # Calculate the entropy from the diagonalisation of the matrices
                 S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
