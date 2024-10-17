@@ -33,11 +33,6 @@ def get_beads(data_container, level):
             atom_group = "index " + str(atom.index) + " or (name H* and bonded index " + str(atom.index) +")"
             list_of_beads.append(data_container.select_atoms(atom_group))
 
-    #TODO temporary print
-    print("list of beads")
-    print(level)
-    print(list_of_beads)
-
     return list_of_beads
 #END
 
@@ -125,7 +120,6 @@ def get_avg_pos(atom_set, center):
     Input
     -----
     atoms : MDAnalysis atom group
-    arg_frame : frame index (integer)
     center : position for center of rotation
 
     Output
