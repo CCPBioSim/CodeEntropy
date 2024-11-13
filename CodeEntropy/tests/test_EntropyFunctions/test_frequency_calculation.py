@@ -15,6 +15,7 @@ def test_frequency_calculation_0():
     assert frequencies == 0
 
 # test when lambdas are positive 
+# the data for this test came from running CodeEntropy0.3 at the whole molecule level with 1AKI_ws.tpr and 1AKI_ws.trr from the CodeEntropy0.3/Examples
 def test_frequency_calculation_pos():
     lambdas = numpy.array([585495.0917897299, 658074.5130064893, 782425.305888707])
     temp = 298
