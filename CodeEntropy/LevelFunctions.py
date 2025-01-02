@@ -91,7 +91,6 @@ def get_matrices(data_container, level, verbose, start, end, step, number_frames
     # list of pairs of indices
     pair_list = [(i,j) for i in range(number_beads) for j in range(number_beads)]
 
-    # initialize force and torque submatrices
     force_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
     torque_submatrix = [[0 for x in range(number_beads)] for y in range(number_beads)]
 

@@ -39,7 +39,7 @@ def get_beads(data_container, level):
 def get_axes(data_container, level, index=0):
     """
     Function to set the translational and rotational axes.
-    The translational axes are based on the rotational axes of the unit one level larger than
+    The translational axes are based on the principal axes of the unit one level larger than
     the level we are interested in (except for the polymer level where there is no larger unit).
     The rotational axes use the covalent links between residues or atoms where possible to 
     define the axes, or if the unit is not bonded to others of the same level the prinicpal 
@@ -93,46 +93,22 @@ def get_axes(data_container, level, index=0):
 
     if level == "united_atom":
         ## Translation
-        # The translational axes for the united atom level should be the same as the rotational axes of the residue level.
-        index_prev = index - 1
-        index_next = index + 1
-        atom_set = data_container.select_atoms(f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}")
-        residue = data_container.select_atoms(f"resindex {index}")
-
-        if len(atom_set) == 0:
-            # if no bonds to other residues use pricipal axes of residue
-            trans_axes = residue.atoms.principal_axes()
-
-        else:
-            # set center of rotation to center of mass of the residue
-            center = residue.atoms.center_of_mass()
-
-            # get vector for average position of bonded atoms
-            vector = get_avg_pos(atom_set, center)
-
-            # use spherical coordinates function to get rotational axes
-            trans_axes = get_sphCoord_axes(vector)
+        # for united atoms use principal axes of residue for translation
+        trans_axes = data_container.residues.principal_axes()
 
         ## Rotation
         # for united atoms use heavy atoms bonded to the heavy atom
         atom_set = data_container.select_atoms(f"not name H* and bonded index {index}")
 
-        if len(atom_set) == 0:
-            # if no bonds to other heavy atoms use pricipal axes of residue
-            # this is the case where there is only one united atom in the residue, so the principal axes of the residue are the same as the principal axes of the united atom
-            # NOTE if you have argon or helium that is spherically symmetric you use random axes, but we should check that the prinicipal_axes function does that and doesn't cause an error when the residue/united atom has only one atom.
-            trans_axes = residue.atoms.principal_axes()
+        # center at position of heavy atom
+        atom_group = data_container.select_atoms(f"index {index}")
+        center = atom_group.positions[0]
 
-        else:    
-            # center at position of heavy atom
-            atom_group = data_container.select_atoms(f"index {index}")
-            center = atom_group.positions[0]
+        # get vector for average position of hydrogens
+        vector = get_avg_pos(atom_set, center)
 
-            # get vector for average position of hydrogens
-            vector = get_avg_pos(atom_set, center)
-
-            # use spherical coordinates function to get rotational axes
-            rot_axes = get_sphCoord_axes(vector)
+        # use spherical coordinates function to get rotational axes
+        rot_axes = get_sphCoord_axes(vector)
 
     return trans_axes, rot_axes
 # END
