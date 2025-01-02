@@ -6,7 +6,6 @@ from CodeEntropy import EntropyFunctions as EF
 # Given a matrix does the code calculate the correct entropy value
 
 # test for matrix_type force, highest level=yes
-# the data for this test came from running CodeEntropy0.3 at the whole molecule level with 1AKI_ws.tpr and 1AKI_ws.trr from the CodeEntropy0.3/Examples
 def test_vibrational_entropy_polymer_force():
     matrix = numpy.array([[4.67476, -0.04069, -0.19714],[-0.04069, 3.86300, -0.17922],[-0.19714, -0.17922, 3.66307]])
     matrix_type = "force"
@@ -20,7 +19,6 @@ def test_vibrational_entropy_polymer_force():
 # test for matrix_type force, highest level=no
 
 # test for matrix_type torque
-# the data for this test came from running CodeEntropy0.3 at the whole molecule level with 1AKI_ws.tpr and 1AKI_ws.trr from the CodeEntropy0.3/Examples
 def test_vibrational_entropy_polymer_torque():
     matrix = numpy.array([[6.69611, 0.39754, 0.57763],[0.39754, 4.63265, 0.38648],[0.57763, 0.38648, 6.34589]])
     matrix_type = "torque"
