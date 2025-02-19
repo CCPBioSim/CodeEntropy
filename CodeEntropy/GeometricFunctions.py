@@ -200,7 +200,7 @@ def get_sphCoord_axes(arg_r):
     return spherical_basis
 # END
 
-def get_weighted_forces(data_container, bead, trans_axes):
+def get_weighted_forces(data_container, bead, trans_axes, highest_level, force_partitioning=0.5):
     """
     Function to calculate the mass weighted forces for a given bead.
 
@@ -222,6 +222,12 @@ def get_weighted_forces(data_container, bead, trans_axes):
         forces_local = nmp.matmul(trans_axes, data_container.atoms[atom.index].force)
         forces_trans += forces_local
 
+    if highest_level:
+        # multiply by the force_partitioning parameter to avoid double counting
+        # of the forces on weakly correlated atoms
+        # the default value of force_partitioning is 0.5 (dividing by two)
+        forces_trans = force_partitioning * forces_trans
+
     # divide the sum of forces by the mass of the bead to get the weighted forces
     mass = bead.total_mass()
 
@@ -230,7 +236,7 @@ def get_weighted_forces(data_container, bead, trans_axes):
     return weighted_force
 #END
 
-def get_weighted_torques(data_container, bead, rot_axes):
+def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5):
     """
     Function to calculate the moment of inertia weighted torques for a given bead.
 
@@ -255,6 +261,11 @@ def get_weighted_torques(data_container, bead, rot_axes):
         coords_rot = nmp.matmul(rot_axes, coords_rot)
         # update local forces in rotational frame
         forces_rot = nmp.matmul(rot_axes, data_container.atoms[atom.index].force)
+
+        # multiply by the force_partitioning parameter to avoid double counting
+        # of the forces on weakly correlated atoms
+        # the default value of force_partitioning is 0.5 (dividing by two)
+        forces_rot = force_partitioning * forces_rot
 
         # define torques (cross product of coordinates and forces) in rotational axes
         torques_local = nmp.cross(coords_rot, forces_rot)
