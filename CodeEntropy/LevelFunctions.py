@@ -45,7 +45,7 @@ def select_levels(data_container, verbose):
     return number_molecules, levels
 #END get_levels
 
-def get_matrices(data_container, level, verbose, start, end, step, number_frames):
+def get_matrices(data_container, level, verbose, start, end, step, number_frames, highest_level):
     """
     Function to create the force matrix needed for the transvibrational entropy calculation
     and the torque matrix for the rovibrational entropy calculation.
@@ -84,7 +84,7 @@ def get_matrices(data_container, level, verbose, start, end, step, number_frames
             trans_axes, rot_axes = GF.get_axes(data_container, level, bead_index)
 
             ## Sort out coordinates, forces, and torques for each atom in the bead
-            weighted_forces[bead_index][timestep.frame] = GF.get_weighted_forces(data_container, list_of_beads[bead_index], trans_axes)
+            weighted_forces[bead_index][timestep.frame] = GF.get_weighted_forces(data_container, list_of_beads[bead_index], trans_axes, highest_level)
             weighted_torques[bead_index][timestep.frame] = GF.get_weighted_torques(data_container, list_of_beads[bead_index], rot_axes)
 
     ## Make covariance matrices - looping over pairs of beads
