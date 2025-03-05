@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.2
+    hooks:
+      - id: flake8
+      
+  - repo: https://github.com/pycqa/isort/
+    rev: 6.0.1
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/PyCQA/pylint
+    rev: v3.3.4
+    hooks:
+      - id: pylint
+        additional_dependencies: ['pylint>=2.16.0']
