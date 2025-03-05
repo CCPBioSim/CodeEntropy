@@ -31,36 +31,36 @@ def main():
             *.csv = results from different calculateion,
             *.pkl - Pickled reduced universe for further analysis,
             *.out - detailed output such as matrix and spectra""")
-        
-        
+
+
         parser.add_argument('-f', '--top_traj_file',
                             required=True,
                             dest="filePath",
                             action='store',
                             nargs='+',
                             help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which contains topology and dihedral information) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) you will need to output the coordinates and forces to the same file. Required.")
-        parser.add_argument('-l', '--selectString', 
+        parser.add_argument('-l', '--selectString',
                             action='store',
-                            dest="selectionString",  
+                            dest="selection_string",
                             type=str,
                             default='all',
                             help='Selection string for CodeEntropy such as protein or resid, refer to MDAnalysis.select_atoms for more information.')
-        parser.add_argument('-b', '--begin', 
-                            action="store", 
-                            dest="start", 
-                            help="Start analysing the trajectory from this frame index. Defaults to 0", 
-                            default=0, 
+        parser.add_argument('-b', '--begin',
+                            action="store",
+                            dest="start",
+                            help="Start analysing the trajectory from this frame index. Defaults to 0",
+                            default=0,
                             type= int)
-        parser.add_argument('-e', '--end', 
-                            action="store", 
-                            dest="end", 
-                            help="Stop analysing the trajectory at this frame index. Defaults to -1 (end of trajectory file)", 
+        parser.add_argument('-e', '--end',
+                            action="store",
+                            dest="end",
+                            help="Stop analysing the trajectory at this frame index. Defaults to -1 (end of trajectory file)",
                             default=-1,
                             type=int)
-        parser.add_argument('-d', '--step', 
-                            action="store", 
-                            dest="step", 
-                            help="interval between two consecutive frames to be read index. Defaults to 1", 
+        parser.add_argument('-d', '--step',
+                            action="store",
+                            dest="step",
+                            help="interval between two consecutive frames to be read index. Defaults to 1",
                             default=1,
                             type=int)
         parser.add_argument("-n","--bin_width",
@@ -69,11 +69,11 @@ def main():
                             default=30,
                             type=int,
                             help="Bin width in degrees for making the histogram of the dihedral angles for the conformational entropy. Default: 30")
-        parser.add_argument('-k', '--tempra', 
-                            action="store", 
-                            dest="temp", 
-                            help="Temperature for entropy calculation (K). Default to 298.0 K", 
-                            default=298.0, 
+        parser.add_argument('-k', '--tempra',
+                            action="store",
+                            dest="temp",
+                            help="Temperature for entropy calculation (K). Default to 298.0 K",
+                            default=298.0,
                             type=float)
         parser.add_argument("-v","--verbose",
                             action="store",
@@ -81,57 +81,57 @@ def main():
                             default=False,
                             type=bool,
                             help="True/False flag for noisy or quiet output. Default: False")
-        parser.add_argument('-t', '--thread', 
-                            action="store", 
-                            dest="thread", 
-                            help="How many multiprocess to use. Default 1 for single core execution.", 
-                            default=1, 
+        parser.add_argument('-t', '--thread',
+                            action="store",
+                            dest="thread",
+                            help="How many multiprocess to use. Default 1 for single core execution.",
+                            default=1,
                             type=int)
         parser.add_argument("-o","--out",
                             action="store",
-                            dest  ="outFile",
+                            dest  ="outfile",
                             default="outfile.out",
                             help   ="Name of the file where the output will be written. Default: outfile.out")
         parser.add_argument("-r","--resout",
                             action="store",
-                            dest  ="resOutFile",
+                            dest  ="resfile",
                             default="res_outfile.out",
                             help   ="Name of the file where the residue entropy output will be written. Default: res_outfile.out")
         parser.add_argument("-m", "--mout",
                             action="store",
-                            dest  ="moutFile",
+                            dest  ="moutfile",
                             default=None,
                             help   ="Name of the file where certain matrices will be written (default: None).")
 
-        parser.add_argument('-c', '--cutShell', 
+        parser.add_argument('-c', '--cutShell',
                             action='store',
                             dest="cutShell",
-                            default=None, 
+                            default=None,
                             type=float,
                             help='include cutoff shell analysis, add cutoff distance in angstrom Default None will ust the RAD Algorithm')
-        parser.add_argument('-p', '--pureAtomNum', 
+        parser.add_argument('-p', '--pureAtomNum',
                             action='store',
-                            dest="puteAtomNum", 
-                            default=1, 
+                            dest="puteAtomNum",
+                            default=1,
                             type=int,
                             help='Reference molecule resid for system of pure liquid. Default to 1')
-        parser.add_argument('-x', '--excludedResnames', 
+        parser.add_argument('-x', '--excludedResnames',
                             dest="excludedResnames",
-                            action='store', 
+                            action='store',
                             nargs='+',
-                            default=None, 
+                            default=None,
                             help='exclude a list of molecule names from nearest non-like analysis. Default: None. Multiples are gathered into list.')
         parser.add_argument('-w', '--water',
                             dest = "waterResnames",
-                            action='store', 
+                            action='store',
                             default='WAT',
-                            nargs='+', 
+                            nargs='+',
                             help='resname for water molecules. Default: WAT. Multiples are gathered into list.')
         parser.add_argument('-s', '--solvent',
-                            dest="solventResnames", 
-                            action='store', 
+                            dest="solventResnames",
+                            action='store',
                             nargs='+',
-                            default=None, 
+                            default=None,
                             help='include resname of solvent molecules (case-sensitive) Default: None. Multiples are gathered into list.')
         parser.add_argument("--solContact",
                             action="store_true",
@@ -144,7 +144,7 @@ def main():
         print('Command line arguments are ill-defined, please check the arguments')
         raise
 
-                            
+
     ############## REPLACE INPUTS ##############
     print("printing all input")
     for arg in vars(args):
@@ -152,47 +152,22 @@ def main():
 
     startTime = datetime.now()
 
-    # create dictonary of inputs to be passed to the main function
-    arg_dict = {}
-
-    arg_dict['outfile'] = args.outFile
-    arg_dict['temper'] = args.temp
-    arg_dict['selection_string'] = args.selectionString
-    arg_dict['start'] = args.start
-    arg_dict['end'] = args.end
-    arg_dict['step'] = args.step
-    arg_dict['bin_width'] = args.bin_width
-    arg_dict['verbose'] = args.verbose
-    arg_dict['thread'] = args.thread
-    arg_dict['moutFile'] = args.moutFile
-    arg_dict['resfile'] = args.resOutFile
-
-    arg_dict['cutShell'] = args.cutShell
-    arg_dict['puteAtomNum'] = args.puteAtomNum
-    arg_dict['excludedResnames'] = args.excludedResnames
-    arg_dict['waterResnames'] = args.waterResnames
-    arg_dict['solventResnames'] = args.solventResnames
-
     # Get topology and trajectory file names and make universe
     tprfile = args.filePath[0]
     trrfile = args.filePath[1:]
     u = mda.Universe(tprfile, trrfile)
-    arg_dict['universe'] = u
-
-    # Define MDAnalysis Universe from inputs
-    u = arg_dict['universe']
 
     # Define bin_width for histogram from inputs
-    bin_width = arg_dict['bin_width']
+    bin_width = args.bin_width
 
     # Define trajectory slicing from inputs
-    start = arg_dict['start']
+    start = args.start
     if start is None:
         start = 0
-    end = arg_dict['end']
+    end = args.end
     if end is None:
         end = -1
-    step = arg_dict['step']
+    step = args.step
     if step is None:
         step = 1
     # Count number of frames, easy if not slicing
@@ -210,22 +185,22 @@ def main():
     residue_results_df = pd.DataFrame(columns=['Molecule ID', 'Residue','Type', 'Result'])
 
     # printing headings for output files
-    with open(arg_dict['outfile'], "a") as out:
+    with open(args.outfile, "a") as out:
         print("Molecule\tLevel\tType\tResult (J/mol/K)\n", file=out)
 
-    with open(arg_dict['resfile'], "a") as res:
+    with open(args.resfile, "a") as res:
         print("Molecule\tResidue\tType\tResult (J/mol/K)\n", file=res)
 
     # Reduce number of atoms in MDA universe to selection_string arg (default all atoms included)
-    if arg_dict['selection_string'] == 'all':
+    if args.selection_string == 'all':
         reduced_atom = u
     else:
-        reduced_atom = MDAHelper.new_U_select_atom(u, arg_dict['selection_string'])
+        reduced_atom = MDAHelper.new_U_select_atom(u, args.selection_string)
         reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
         MDAHelper.write_universe(reduced_atom, reduced_atom_name)
 
     # Scan system for molecules and select levels (united atom, residue, polymer) for each
-    number_molecules, levels = LF.select_levels(reduced_atom, arg_dict['verbose'])
+    number_molecules, levels = LF.select_levels(reduced_atom, args.verbose)
 
     # Loop over molecules
     for molecule in range(number_molecules):
@@ -264,28 +239,28 @@ def main():
 
                     ## Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant level
-                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, arg_dict['verbose'], start, end, step, number_frames, highest_level)
+                    force_matrix, torque_matrix = LF.get_matrices(residue_container, level, args.verbose, start, end, step, number_frames, highest_level)
 
                     # Calculate the entropy from the diagonalisation of the matrices
-                    S_trans_residue = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
+                    S_trans_residue = EF.vibrational_entropy(force_matrix, "force", args.temp,highest_level)
                     S_trans += S_trans_residue
                     print(f"S_trans_{level}_{residue} = {S_trans_residue}")
                     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
                             'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
-                    with open(arg_dict['resfile'], "a") as res:
+                    with open(args.resfile, "a") as res:
                         print(molecule,"\t",residue,"\tTransvibration\t",S_trans_residue, file=res)
 
 
-                    S_rot_residue = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], highest_level)
+                    S_rot_residue = EF.vibrational_entropy(torque_matrix, "torque", args.temp, highest_level)
                     S_rot += S_rot_residue
                     print(f"S_rot_{level}_{residue} = {S_rot_residue}")
                     new_row = pd.DataFrame({'Molecule ID': [molecule], 'Residue': [residue],
                             'Type':['Rovibrational (J/mol/K)'],
                             'Result': [S_rot_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
-                    with open(arg_dict['resfile'], "a") as res:
+                    with open(args.resfile, "a") as res:
                       #  print(new_row, file=res)
                         print(molecule,"\t",residue,"\tRovibrational \t",S_rot_residue, file=res)
 
@@ -304,7 +279,7 @@ def main():
                             'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf_residue],})
                     residue_results_df = pd.concat([residue_results_df, new_row], ignore_index=True)
-                    with open(arg_dict['resfile'], "a") as res:
+                    with open(args.resfile, "a") as res:
                         print(molecule,"\t",residue,"\tConformational\t",S_conf_residue, file=res)
 
 
@@ -313,7 +288,7 @@ def main():
                 new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
                             'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans],})
-                with open(arg_dict['outfile'], "a") as out:
+                with open(args.outfile, "a") as out:
                     print(molecule,"\t",level,"\tTransvibration\t",S_trans, file=out)
 
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
@@ -323,7 +298,7 @@ def main():
                             'Type':['Rovibrational (J/mol/K)'],
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(arg_dict['outfile'], "a") as out:
+                with open(args.outfile, "a") as out:
                     print(molecule,"\t",level,"\tRovibrational \t",S_rot, file=out)
 
 
@@ -332,7 +307,7 @@ def main():
                             'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(arg_dict['outfile'], "a") as out:
+                with open(args.outfile, "a") as out:
                     print(molecule,"\t",level,"\tConformational\t",S_conf, file=out)
 
 
@@ -341,27 +316,27 @@ def main():
             if level in ('polymer', 'residue'):
                 ## Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
-                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, arg_dict['verbose'], start, end, step, number_frames, highest_level)
+                force_matrix, torque_matrix = LF.get_matrices(molecule_container, level, args.verbose, start, end, step, number_frames, highest_level)
 
                 # Calculate the entropy from the diagonalisation of the matrices
-                S_trans = EF.vibrational_entropy(force_matrix, "force", arg_dict['temper'],highest_level)
+                S_trans = EF.vibrational_entropy(force_matrix, "force", args.temp,highest_level)
                 print(f"S_trans_{level} = {S_trans}")
                 new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
                             'Type':['Transvibrational (J/mol/K)'],
                             'Result': [S_trans],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(arg_dict['outfile'], "a") as out:
+                with open(args.outfile, "a") as out:
                     print(molecule,"\t",level,"\tTransvibrational\t",S_trans, file=out)
 
 
 
-                S_rot = EF.vibrational_entropy(torque_matrix, "torque", arg_dict['temper'], highest_level)
+                S_rot = EF.vibrational_entropy(torque_matrix, "torque", args.temp, highest_level)
                 print(f"S_rot_{level} = {S_rot}")
                 new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
                             'Type':['Rovibrational (J/mol/K)'],
                             'Result': [S_rot],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(arg_dict['outfile'], "a") as out:
+                with open(args.outfile, "a") as out:
                     print(molecule,"\t",level,"\tRovibrational \t",S_rot, file=out)
 
 
@@ -381,7 +356,7 @@ def main():
                             'Type':['Conformational (J/mol/K)'],
                             'Result': [S_conf],})
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(arg_dict['outfile'], "a") as out:
+                with open(args.outfile, "a") as out:
                     print(molecule,"\t",level,"\tConformational\t",S_conf, file=out)
 
 
@@ -395,7 +370,7 @@ def main():
    #                         'Type':['Orientational (J/mol/K)'],
    #                         'Result': [S_orient],})
    #            results_df = pd.concat([results_df, new_row], ignore_index=True)
-   #            with open(arg_dict['outfile'], "a") as out:
+   #            with open(args.outfile, "a") as out:
    #                print(molecule,"\t",level,"\tOrientational\t",S_orient, file=out)
 
         # Report total entropy for the molecule
@@ -405,12 +380,12 @@ def main():
                             'Type':['Molecule Total Entropy '],
                             'Result': [S_molecule],})
         results_df = pd.concat([results_df, new_row], ignore_index=True)
-        with open(arg_dict['outfile'], "a") as out:
+        with open(args.outfile, "a") as out:
             print(molecule,"\t Molecule\tTotal Entropy\t",S_molecule, file=out)
 
 
 # END main function
 
 if __name__ == "__main__":
-    
+
     main()
