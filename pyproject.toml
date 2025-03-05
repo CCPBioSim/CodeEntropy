@@ -1,0 +1,75 @@
+[build-system]
+# Build the package with [flit](https://flit.readthedocs.io)
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+# See https://www.python.org/dev/peps/pep-0621/
+name = "CodeEntropy"
+dynamic = ["version"]
+description = "CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for computing entropy of macromolecular systems from the forces sampled in a MD simulation."
+authors = [
+    {name = "Arghya 'Argo' Chakravorty", email = "arghyac@umich.edu"},
+    {name = "Jas Kalayan", email = "jas.kalayan@stfc.ac.uk"},
+    {name = "Donald Chung-HK", email = "donald.chung@stfc.ac.uk"},
+    {name = "Sarah Fegan", email = "sarah.fegan@stfc.ac.uk"},
+    {name = "Ioana Papa", email = "iapapa1@SHEFFIELD.AC.UK"},
+    {name = "Harry Swift", email = "harry.swift@stfc.ac.uk"}
+]
+maintainers = [
+    {name = "Sarah Fegan", email = "sarah.fegan@stfc.ac.uk"},
+    {name = "Harry Swift", email = "harry.swift@stfc.ac.uk"}
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Development Status :: 4 - Beta"
+]
+keywords = ["entropy", "macromolecular systems", "MD simulation"]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy==1.26.4",
+    "bitarray==2.5.0",
+    "mdanalysis==2.7.0",
+    "pandas==2.2.3",
+    "psutil==5.9.5",
+    "dill==0.3.5.1",
+    "pathos==0.2.9"
+]
+
+[project.optional-dependencies]
+testing = [
+    "pytest==8.2.2",
+    "pytest-cov==5.0.0",
+    "pytest-sugar==1.0.0"
+]
+
+[project.urls]
+Source = "https://github.com/CCPBioSim/CodeEntropy"
+
+pre-commit = [
+    "pre-commit==3.7.1",
+    "pylint==3.2.5"
+]
+docs = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "sphinxcontrib-contentui",
+    "sphinxcontrib-details-directive",
+    "sphinx_copybutton",
+    "furo",
+    "markupsafe<2.1"
+]
+
+# [project.scripts]
+# CodeEntropy = "main_mcc:main"
+
+# [project.scripts.entry-points]
+
+[tool.flit.module]
+name = "CodeEntropy"
+
