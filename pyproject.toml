@@ -70,6 +70,4 @@ docs = [
 
 # [project.scripts.entry-points]
 
-[tool.flit.module]
-name = "CodeEntropy"
 
