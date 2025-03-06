@@ -1,5 +1,6 @@
 import numpy as nmp
 
+
 def get_beads(data_container, level):
     """
     Function to define beads depending on the level in the hierarchy.
@@ -30,19 +31,28 @@ def get_beads(data_container, level):
         list_of_beads = []
         heavy_atoms = data_container.select_atoms("not name H*")
         for atom in heavy_atoms:
-            atom_group = "index " + str(atom.index) + " or (name H* and bonded index " + str(atom.index) +")"
+            atom_group = (
+                "index "
+                + str(atom.index)
+                + " or (name H* and bonded index "
+                + str(atom.index)
+                + ")"
+            )
             list_of_beads.append(data_container.select_atoms(atom_group))
 
     return list_of_beads
-#END
+
+
+# END
+
 
 def get_axes(data_container, level, index=0):
     """
     Function to set the translational and rotational axes.
     The translational axes are based on the principal axes of the unit one level larger than
     the level we are interested in (except for the polymer level where there is no larger unit).
-    The rotational axes use the covalent links between residues or atoms where possible to 
-    define the axes, or if the unit is not bonded to others of the same level the prinicpal 
+    The rotational axes use the covalent links between residues or atoms where possible to
+    define the axes, or if the unit is not bonded to others of the same level the prinicpal
     axes of the unit are used.
 
     Input
@@ -74,7 +84,9 @@ def get_axes(data_container, level, index=0):
         # TODO refine selection so that it will work for branched polymers
         index_prev = index - 1
         index_next = index + 1
-        atom_set = data_container.select_atoms(f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}")
+        atom_set = data_container.select_atoms(
+            f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}"
+        )
         residue = data_container.select_atoms(f"resindex {index}")
 
         if len(atom_set) == 0:
@@ -111,12 +123,15 @@ def get_axes(data_container, level, index=0):
         rot_axes = get_sphCoord_axes(vector)
 
     return trans_axes, rot_axes
+
+
 # END
+
 
 def get_avg_pos(atom_set, center):
     """
-    Function to get the average position of a set of atoms. 
-    
+    Function to get the average position of a set of atoms.
+
     Input
     -----
     atoms : MDAnalysis atom group
@@ -139,7 +154,7 @@ def get_avg_pos(atom_set, center):
 
             avg_position += atom_position
 
-        avg_position /= number_atoms # divide by number of atoms to get average
+        avg_position /= number_atoms  # divide by number of atoms to get average
 
     else:
         # if no atoms in set the unit has no bonds to restrict its rotational motion, so we can
@@ -150,30 +165,33 @@ def get_avg_pos(atom_set, center):
     avg_position = avg_position - center
 
     return avg_position
-#END
+
+
+# END
+
 
 def get_sphCoord_axes(arg_r):
-    """ 
-    For a given vector in space, treat it is a radial vector rooted at 0,0,0 and 
-    derive a curvilinear coordinate system according to the rules of polar spherical 
+    """
+    For a given vector in space, treat it is a radial vector rooted at 0,0,0 and
+    derive a curvilinear coordinate system according to the rules of polar spherical
     coordinates
     """
 
-    x2y2 = arg_r[0]**2 + arg_r[1]**2
-    r2 = x2y2 + arg_r[2]**2
+    x2y2 = arg_r[0] ** 2 + arg_r[1] ** 2
+    r2 = x2y2 + arg_r[2] ** 2
 
-    if x2y2 != 0.:
-        sin_theta = nmp.sqrt(x2y2/r2)
-        cos_theta = arg_r[2]/nmp.sqrt(r2)
+    if x2y2 != 0.0:
+        sin_theta = nmp.sqrt(x2y2 / r2)
+        cos_theta = arg_r[2] / nmp.sqrt(r2)
 
-        sin_phi = arg_r[1]/nmp.sqrt(x2y2)
-        cos_phi = arg_r[0]/nmp.sqrt(x2y2)
+        sin_phi = arg_r[1] / nmp.sqrt(x2y2)
+        cos_phi = arg_r[0] / nmp.sqrt(x2y2)
 
     else:
-        sin_theta = 0.
+        sin_theta = 0.0
         cos_theta = 1
 
-        sin_phi = 0.
+        sin_phi = 0.0
         cos_phi = 1
 
     # if abs(sin_theta) > 1 or abs(sin_phi) > 1:
@@ -186,21 +204,30 @@ def get_sphCoord_axes(arg_r):
     # print('Sin T : {}, cos T : {}'.format(sin_theta, cos_theta))
     # print('Sin P : {}, cos P : {}'.format(sin_phi, cos_phi))
 
-    spherical_basis = nmp.zeros((3,3))
+    spherical_basis = nmp.zeros((3, 3))
 
     # r^
-    spherical_basis[0,:] = nmp.asarray([sin_theta*cos_phi, sin_theta*sin_phi, cos_theta])
+    spherical_basis[0, :] = nmp.asarray(
+        [sin_theta * cos_phi, sin_theta * sin_phi, cos_theta]
+    )
 
     # Theta^
-    spherical_basis[1,:] = nmp.asarray([cos_theta*cos_phi, cos_theta*sin_phi, -sin_theta])
+    spherical_basis[1, :] = nmp.asarray(
+        [cos_theta * cos_phi, cos_theta * sin_phi, -sin_theta]
+    )
 
     # Phi^
-    spherical_basis[2,:] = nmp.asarray([-sin_phi, cos_phi, 0.])
+    spherical_basis[2, :] = nmp.asarray([-sin_phi, cos_phi, 0.0])
 
     return spherical_basis
+
+
 # END
 
-def get_weighted_forces(data_container, bead, trans_axes, highest_level, force_partitioning=0.5):
+
+def get_weighted_forces(
+    data_container, bead, trans_axes, highest_level, force_partitioning=0.5
+):
     """
     Function to calculate the mass weighted forces for a given bead.
 
@@ -234,7 +261,10 @@ def get_weighted_forces(data_container, bead, trans_axes, highest_level, force_p
     weighted_force = forces_trans / nmp.sqrt(mass)
 
     return weighted_force
-#END
+
+
+# END
+
 
 def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5):
     """
@@ -279,13 +309,18 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
 
     for dimension in range(3):
         # cannot divide by zero
-        if nmp.isclose(moment_of_inertia[dimension,dimension],0):
+        if nmp.isclose(moment_of_inertia[dimension, dimension], 0):
             weighted_torque[dimension] = torques[dimension]
         else:
-            weighted_torque[dimension] = torques[dimension] / nmp.sqrt(moment_of_inertia[dimension,dimension])
+            weighted_torque[dimension] = torques[dimension] / nmp.sqrt(
+                moment_of_inertia[dimension, dimension]
+            )
 
     return weighted_torque
-#END
+
+
+# END
+
 
 def create_submatrix(data_i, data_j, number_frames):
     """
@@ -302,7 +337,7 @@ def create_submatrix(data_i, data_j, number_frames):
     """
 
     # Start with 3 by 3 matrix of zeros
-    submatrix = nmp.zeros( (3,3) )
+    submatrix = nmp.zeros((3, 3))
 
     # For each frame calculate the outer product (cross product) of the data from the two beads
     # and add the result to the submatrix
@@ -314,7 +349,10 @@ def create_submatrix(data_i, data_j, number_frames):
     submatrix /= number_frames
 
     return submatrix
-#END
+
+
+# END
+
 
 def filter_zero_rows_columns(arg_matrix, verbose):
     """
@@ -329,24 +367,40 @@ def filter_zero_rows_columns(arg_matrix, verbose):
     arg_matrix : the reduced size matrix
     """
 
-    #record the initial size
+    # record the initial size
     init_shape = nmp.shape(arg_matrix)
 
-    zero_indices = list(filter(lambda row : nmp.all(nmp.isclose(arg_matrix[row,:] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[0])))
+    zero_indices = list(
+        filter(
+            lambda row: nmp.all(nmp.isclose(arg_matrix[row, :], 0.0)),
+            nmp.arange(nmp.shape(arg_matrix)[0]),
+        )
+    )
     all_indices = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
     all_indices[zero_indices] = False
-    arg_matrix = arg_matrix[all_indices,:]
+    arg_matrix = arg_matrix[all_indices, :]
 
     all_indices = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
-    zero_indices = list(filter(lambda col : nmp.all(nmp.isclose(arg_matrix[:,col] , 0.0)) , nmp.arange(nmp.shape(arg_matrix)[1])))
+    zero_indices = list(
+        filter(
+            lambda col: nmp.all(nmp.isclose(arg_matrix[:, col], 0.0)),
+            nmp.arange(nmp.shape(arg_matrix)[1]),
+        )
+    )
     all_indices[zero_indices] = False
-    arg_matrix = arg_matrix[:,all_indices]
+    arg_matrix = arg_matrix[:, all_indices]
 
     # get the final shape
     final_shape = nmp.shape(arg_matrix)
 
     if verbose and init_shape != final_shape:
-        print('A shape change has occured ({},{}) -> ({}, {})'.format(*init_shape, *final_shape))
+        print(
+            "A shape change has occured ({},{}) -> ({}, {})".format(
+                *init_shape, *final_shape
+            )
+        )
 
     return arg_matrix
-#END
+
+
+# END

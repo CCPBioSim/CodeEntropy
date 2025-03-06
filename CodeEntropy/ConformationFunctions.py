@@ -1,14 +1,17 @@
 import numpy as nmp
 from MDAnalysis.analysis.dihedrals import Dihedral
 
-def assign_conformation(data_container, dihedral, number_frames, bin_width, start, end, step):
+
+def assign_conformation(
+    data_container, dihedral, number_frames, bin_width, start, end, step
+):
     """
     Create a state vector, showing the state in which the input dihedral is
-    as a function of time. The function creates a histogram from the timeseries of the 
-    dihedral angle values and identifies points of dominant occupancy 
+    as a function of time. The function creates a histogram from the timeseries of the
+    dihedral angle values and identifies points of dominant occupancy
     (called CONVEX TURNING POINTS).
     Based on the identified TPs, states are assigned to each configuration of the dihedral.
-    
+
     Input
     -----
     dihedral_atom_group : the group of 4 atoms defining the dihedral
@@ -21,7 +24,7 @@ def assign_conformation(data_container, dihedral, number_frames, bin_width, star
     Return
     ------
     A timeseries with integer labels describing the state at each point in time.
-    
+
     """
     conformations = nmp.zeros(number_frames)
     phi = nmp.zeros(number_frames)
@@ -37,9 +40,9 @@ def assign_conformation(data_container, dihedral, number_frames, bin_width, star
         phi[timestep.frame] = value
 
     # create a histogram using numpy
-    number_bins = int(360/bin_width)
-    popul, bin_edges = nmp.histogram(a=phi, bins=number_bins, range=(0,360))
-    bin_value = [0.5 * (bin_edges[i] + bin_edges[i+1]) for i in range(0,len(popul))]
+    number_bins = int(360 / bin_width)
+    popul, bin_edges = nmp.histogram(a=phi, bins=number_bins, range=(0, 360))
+    bin_value = [0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(0, len(popul))]
 
     # identify "convex turning-points" and populate a list of peaks
     # peak : a bin whose neighboring bins have smaller population
@@ -51,11 +54,19 @@ def assign_conformation(data_container, dihedral, number_frames, bin_width, star
         if popul[bin_index] == 0:
             pass
         # being careful of the last bin (dihedrals have circular symmetry, the histogram does not)
-        elif bin_index == number_bins-1: # the -1 is because the index starts with 0 not 1
-            if popul[bin_index] >= popul[bin_index-1] and popul[bin_index] >= popul[0]:
+        elif (
+            bin_index == number_bins - 1
+        ):  # the -1 is because the index starts with 0 not 1
+            if (
+                popul[bin_index] >= popul[bin_index - 1]
+                and popul[bin_index] >= popul[0]
+            ):
                 peak_values.append(bin_value[bin_index])
         else:
-            if popul[bin_index] >= popul[bin_index-1] and popul[bin_index] >= popul[bin_index+1]:
+            if (
+                popul[bin_index] >= popul[bin_index - 1]
+                and popul[bin_index] >= popul[bin_index + 1]
+            ):
                 peak_values.append(bin_value[bin_index])
 
     # go through each frame again and assign conformation state
@@ -65,4 +76,6 @@ def assign_conformation(data_container, dihedral, number_frames, bin_width, star
         conformations[frame] = nmp.argmin(distances)
 
     return conformations
-#END assign_conformation
+
+
+# END assign_conformation

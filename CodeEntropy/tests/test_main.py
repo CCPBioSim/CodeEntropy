@@ -13,5 +13,3 @@ import CodeEntropy
 def test_CodeEntropy_imported():
     """Sample test, will always pass so long as import statement worked."""
     assert "CodeEntropy" in sys.modules
-
-
