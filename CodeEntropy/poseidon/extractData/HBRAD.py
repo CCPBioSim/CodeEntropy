@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-import logging
+# import logging
 import math
-import sys
-from datetime import datetime
 
 import numpy as np
 
 from CodeEntropy.poseidon.extractData.generalFunctions import angle
+
+# import sys
+# from datetime import datetime
 
 
 def UALevelRAD(all_data, dimensions):
@@ -22,7 +23,7 @@ def UALevelRAD(all_data, dimensions):
         if i.mass > 1.1:
             RAD = []
             RAD_dist = []
-            if i.nearest_sorted_array != None:
+            if i.nearest_sorted_array is not None:
                 range_limit = len(i.nearest_sorted_array)
                 if len(i.nearest_sorted_array) > 30:
                     range_limit = 30
@@ -45,7 +46,7 @@ def UALevelRAD(all_data, dimensions):
                             blocked = True
                             break
 
-                    if blocked == False:
+                    if blocked is False:
                         RAD.append(j)
                         RAD_dist.append((j, rij))
 
@@ -75,8 +76,8 @@ def UALevelRAD(all_data, dimensions):
                         continue
 
                 if len(RAD) != 0:
-                    ##when RAD shell contains one resid only
-                    if all(n == RAD_resids[0] for n in RAD_resids) == True:
+                    # when RAD shell contains one resid only
+                    if all(n == RAD_resids[0] for n in RAD_resids) is True:
                         # make sure atom is not surrounded just by itself
                         if RAD_resids[0] == atom.resid:
                             atom.RAD = []
@@ -100,7 +101,7 @@ def distCutoffNc(all_data, dimensions, cutoff):
 
     for x in range(0, len(all_data)):
         i = all_data[x]
-        if i.mass > 1.1 and i.nearest_sorted_array != None:
+        if i.mass > 1.1 and i.nearest_sorted_array is not None:
             range_limit = len(i.nearest_sorted_array)
             if len(i.nearest_sorted_array) > 30:
                 range_limit = 30
@@ -128,7 +129,7 @@ def HBCalc(all_data, waterTuple, dimensions):
     for water) and finding most closest and most negative
     atom to donate to - (QA*QD)/r^2 approach)
 
-    ***addition = H's can only HB to UAs that are in the RAD
+    ***addition = hydrogen's can only HB to UAs that are in the RAD
     shell of their bonded heavy atom.
     """
 
@@ -136,20 +137,20 @@ def HBCalc(all_data, waterTuple, dimensions):
         atom = all_data[x]
         if atom.mass < 1.1 and atom.mass >= 1 and atom.charge > 0.1:
             acceptor_charge = 99
-            H = atom
-            O = None
-            for bonded in H.bonded_to_atom_num:
+            hydrogen = atom
+            oxygen = None
+            for bonded in hydrogen.bonded_to_atom_num:
                 b = all_data[bonded]
                 if b.mass > 1.1:
-                    O = b
+                    oxygen = b
                 else:
                     continue
 
-            ##Needed for RAD shell HB ranking, HBing inside RAD
-            # RAD_atom_nums = [neighbour.atom_num for neighbour in O.RAD]
+            # Needed for RAD shell HB ranking, HBing inside RAD
+            # RAD_atom_nums = [neighbour.atom_num for neighbour in oxygen.RAD]
             RAD_atom_nums = []
-            if O != None:
-                for neighbour in O.RAD:
+            if oxygen is not None:
+                for neighbour in oxygen.RAD:
                     RAD_atom_nums.append(neighbour.atom_num)
                     for bonded in neighbour.bonded_to_atom_num:
                         b = all_data[bonded]
@@ -158,37 +159,39 @@ def HBCalc(all_data, waterTuple, dimensions):
                         else:
                             continue
 
-            if H.nearest_all_atom_array != None:
-                range_limit = len(H.nearest_all_atom_array)
+            if hydrogen.nearest_all_atom_array is not None:
+                range_limit = len(hydrogen.nearest_all_atom_array)
                 if len(atom.nearest_all_atom_array) > 50:
                     range_limit = 50
-                for atom_dist in H.nearest_all_atom_array[:range_limit]:
+                for atom_dist in hydrogen.nearest_all_atom_array[:range_limit]:
                     near = all_data[atom_dist[0]]
                     HX_dist = atom_dist[1]
 
                     if (
-                        near.atom_num not in H.bonded_to_atom_num
-                        and near.atom_num != H.atom_num
+                        near.atom_num not in hydrogen.bonded_to_atom_num
+                        and near.atom_num != hydrogen.atom_num
                         and near.charge != 0
                         and HX_dist != 0
-                        and O != None
+                        and oxygen is not None
                         and near.atom_num in RAD_atom_nums
                     ):
 
                         X = near
-                        QD = H.charge
+                        QD = hydrogen.charge
                         QA = X.charge
 
                         r2 = HX_dist**2
                         relative_charge = (float(QD) * float(QA)) / float(r2)
-                        cosine_angle = angle(O.coords, H.coords, X.coords, dimensions)
+                        cosine_angle = angle(
+                            oxygen.coords, hydrogen.coords, X.coords, dimensions
+                        )
                         angle1 = np.arccos(cosine_angle)
                         OHX_angle = np.degrees(angle1)
 
                         if relative_charge < acceptor_charge and float(OHX_angle) > 90:
                             acceptor_charge = relative_charge
-                            H.nearest_atom = X
-                            H.dist = HX_dist
+                            hydrogen.nearest_atom = X
+                            hydrogen.dist = HX_dist
 
                         else:
                             continue
@@ -204,24 +207,24 @@ def HBCalc(all_data, waterTuple, dimensions):
     # find hydrogens with neighbouring eneg atoms and append those
     # hydrogens to the nearest_Hs of those eneg atoms
     for x in range(0, len(all_data)):
-        H = all_data[x]
-        if H.nearest_atom != None:
-            nearest_eneg = H.nearest_atom.atom_num
-            all_data[nearest_eneg].nearest_Hs.append(H)
+        hydrogen = all_data[x]
+        if hydrogen.nearest_atom is not None:
+            nearest_eneg = hydrogen.nearest_atom.atom_num
+            all_data[nearest_eneg].nearest_Hs.append(hydrogen)
 
         if broken_HBs:
-            ####Dealing with broken HBs - ND, bifurcated and cyclic
-            ####Hard-coded for water resnames only for now
+            # Dealing with broken HBs - ND, bifurcated and cyclic
+            # Hard-coded for water resnames only for now
             atom = all_data[x]
             HHX = False
             for b in atom.bonded_to_atom_num:
                 bonded = all_data[b]
                 if atom.mass < 1.1 and bonded.mass > 1.1:
-                    if bonded.bondedUA_H != None:
+                    if bonded.bondedUA_H is not None:
                         if bonded.bondedUA_H[0] == 0 and bonded.bondedUA_H[1] == 2:
                             HHX = True
 
-            if atom.mass < 1.1 and atom.nearest_all_atom_array != None and HHX:
+            if atom.mass < 1.1 and atom.nearest_all_atom_array is not None and HHX:
                 for atom_dist in atom.nearest_all_atom_array[:30]:
                     atom2 = all_data[atom_dist[0]]
                     bonded_overlap = bool(
@@ -231,9 +234,9 @@ def HBCalc(all_data, waterTuple, dimensions):
                     if (
                         atom2.atom_num != atom.atom_num
                         and atom2.resid == atom.resid
-                        and atom.nearest_atom != None
-                        and atom2.nearest_atom != None
-                        and bonded_overlap == True
+                        and atom.nearest_atom is not None
+                        and atom2.nearest_atom is not None
+                        and bonded_overlap is True
                     ):
                         if (
                             atom2.nearest_atom.atom_num == atom.nearest_atom.atom_num
@@ -246,12 +249,12 @@ def HBCalc(all_data, waterTuple, dimensions):
                                 atom.atom_name,
                                 atom.nearest_atom.atom_num,
                                 atom.nearest_atom.atom_name,
-                            ]  #####
+                            ]  #
 
                             """
                             print ('Bifurcated', atom.atom_num,
                                     atom.atom_name,
-                                    atom.nearest_atom.atom_num, 
+                                    atom.nearest_atom.atom_num,
                                     atom.nearest_atom.atom_name)
                             """
 
@@ -263,13 +266,13 @@ def HBCalc(all_data, waterTuple, dimensions):
                                     atom.atom_name,
                                     atom.nearest_atom.atom_num,
                                     atom.nearest_atom.atom_name,
-                                ]  #####
+                                ]  #
 
                             # remove this broken donor from acceptor
                             new_Hlist = []
-                            for H in atom.nearest_atom.nearest_Hs:
-                                if H != atom:
-                                    new_Hlist.append(H)
+                            for hydrogen in atom.nearest_atom.nearest_Hs:
+                                if hydrogen != atom:
+                                    new_Hlist.append(hydrogen)
                                 else:
                                     continue
 
@@ -279,7 +282,7 @@ def HBCalc(all_data, waterTuple, dimensions):
                                 bonded2 = all_data[b2]
                                 if bonded2.mass < 1.1:
                                     if (
-                                        bonded2.nearest_atom != None
+                                        bonded2.nearest_atom is not None
                                         and bonded2.nearest_atom.resid == atom2.resid
                                         and bonded2.dist < atom.dist
                                     ):
@@ -291,12 +294,12 @@ def HBCalc(all_data, waterTuple, dimensions):
                                             atom.nearest_atom.atom_num,
                                             atom.nearest_atom.atom_name,
                                         ]
-                                        #####
+                                        #
 
                                         """
-                                        print ('ND', atom.atom_num, 
-                                                atom.atom_name, 
-                                                atom.nearest_atom.atom_num, 
+                                        print ('ND', atom.atom_num,
+                                                atom.atom_name,
+                                                atom.nearest_atom.atom_num,
                                                 atom.nearest_atom.atom_name)
                                         """
 
@@ -309,13 +312,13 @@ def HBCalc(all_data, waterTuple, dimensions):
                                                 atom.nearest_atom.atom_num,
                                                 atom.nearest_atom.atom_name,
                                             ]
-                                            #####
+                                            #
 
                                         # remove this broken donor from acceptor
                                         new_Hlist = []
-                                        for H in atom.nearest_atom.nearest_Hs:
-                                            if H != atom:
-                                                new_Hlist.append(H)
+                                        for hydrogen in atom.nearest_atom.nearest_Hs:
+                                            if hydrogen != atom:
+                                                new_Hlist.append(hydrogen)
                                             else:
                                                 continue
 
@@ -332,23 +335,23 @@ def HBCalc(all_data, waterTuple, dimensions):
                     if (
                         atom2.atom_num != atom.atom_num
                         and atom2.resid == atom.resid
-                        and bonded_overlap == True
+                        and bonded_overlap is True
                         and len(atom2.nearest_Hs) != 0
                     ):
-                        for H in atom2.nearest_Hs:
+                        for hydrogen in atom2.nearest_Hs:
                             if (
-                                atom.nearest_atom != None
-                                and H.resid == atom.nearest_atom.resid
-                                and H.dist < atom.dist
+                                atom.nearest_atom is not None
+                                and hydrogen.resid == atom.nearest_atom.resid
+                                and hydrogen.dist < atom.dist
                             ):
 
                                 bonded_overlap2 = bool(
                                     set(atom.nearest_atom.bonded_to_atom_num)
-                                    & set(H.bonded_to_atom_num)
+                                    & set(hydrogen.bonded_to_atom_num)
                                 )
                                 # check if both bonded to same atom
 
-                                if bonded_overlap2 == True:
+                                if bonded_overlap2 is True:
 
                                     atom.broken = [
                                         "Cyclic",
@@ -356,12 +359,12 @@ def HBCalc(all_data, waterTuple, dimensions):
                                         atom.atom_name,
                                         atom.nearest_atom.atom_num,
                                         atom.nearest_atom.atom_name,
-                                    ]  #####
+                                    ]  #
 
                                     """
-                                    print ('Cyclic', atom.atom_num, 
-                                            atom.atom_name, 
-                                            atom.nearest_atom.atom_num, 
+                                    print ('Cyclic', atom.atom_num,
+                                            atom.atom_name,
+                                            atom.nearest_atom.atom_num,
                                             atom.nearest_atom.atom_name)
                                     """
 
@@ -373,13 +376,13 @@ def HBCalc(all_data, waterTuple, dimensions):
                                             atom.atom_name,
                                             atom.nearest_atom.atom_num,
                                             atom.nearest_atom.atom_name,
-                                        ]  #####
+                                        ]  #
 
                                     # remove this broken donor from acceptor
                                     new_Hlist = []
-                                    for H in atom.nearest_atom.nearest_Hs:
-                                        if H != atom:
-                                            new_Hlist.append(H)
+                                    for hydrogen in atom.nearest_atom.nearest_Hs:
+                                        if hydrogen != atom:
+                                            new_Hlist.append(hydrogen)
                                         else:
                                             continue
 

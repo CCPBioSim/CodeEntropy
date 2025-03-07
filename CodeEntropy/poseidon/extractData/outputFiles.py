@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import math
-import sys
+# import math
+# import sys
 
-import numpy as np
+# import numpy as np
 
-from CodeEntropy.poseidon.extractData.generalFunctions import (
-    calcAngleWithNearestNonlike,
-)
+# from CodeEntropy.poseidon.extractData.generalFunctions import (
+#     calcAngleWithNearestNonlike,
+# )
 
 
 def moleculeObjectPopulation(all_data, allMoleculeList, frame, dimensions):
@@ -20,7 +20,7 @@ def moleculeObjectPopulation(all_data, allMoleculeList, frame, dimensions):
         atom = all_data[x]
         if atom.mass > 1.1:
             nearestInfo = []
-            if atom.nearestAnyNonlike != None:
+            if atom.nearestAnyNonlike is not None:
                 nearestInfo = [
                     atom.nearestAnyNonlike[0].atom_name,
                     atom.nearestAnyNonlike[0].resname,

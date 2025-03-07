@@ -11,7 +11,7 @@ def new_U_select_frame(u, start=None, end=None, step=1):
     Parameters
     ----------
     u : MDAnalyse.Universe
-        A Universe object will all topology, dihedrals,coordinates and force information.
+        A Universe object will all topology, dihedrals,coordinates and force information
     start : int or None, Optional, default: None
         Frame id to start analysis. Default None will start from frame 0
     end : int or None, Optional, default: None
@@ -24,9 +24,9 @@ def new_U_select_frame(u, start=None, end=None, step=1):
         u2 : MDAnalysis.Universe
             reduced universe
     """
-    if start == None:
+    if start is None:
         start = 0
-    if end == None:
+    if end is None:
         end = len(u.trajectory)
     select_atom = u.select_atoms("all", updating=True)
     coordinates = (
@@ -55,7 +55,7 @@ def new_U_select_atom(u, select_string="all"):
     Parameters
     ----------
     u : MDAnalyse.Universe
-        A Universe object will all topology, dihedrals,coordinates and force information.
+        A Universe object will all topology, dihedrals,coordinates and force information
     select_string : str, Optional, default: 'all'
         MDAnalysis.select_atoms selection string.
 
@@ -92,7 +92,7 @@ def write_universe(u, name="default"):
     Parameters
     ----------
     u : MDAnalyse.Universe
-        A Universe object will all topology, dihedrals,coordinates and force information.
+        A Universe object will all topology, dihedrals,coordinates and force information
     name : str, Optional. default: 'default'
         The name of file with sub file name .pkl
 
@@ -117,7 +117,8 @@ def read_universe(path):
     Returns
     -------
         u : MDAnalysis.Universe
-            A Universe object will all topology, dihedrals,coordinates and force information.
+            A Universe object will all topology, dihedrals,coordinates and force
+            information.
     """
     u = pickle.load(open(path, "rb"))
     return u

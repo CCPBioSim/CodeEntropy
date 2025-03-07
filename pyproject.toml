@@ -67,3 +67,14 @@ docs = [
 
 [project.scripts]
 CodeEntropy = "main_mcc:main"
+
+[tool.isort]
+profile = "black"
+
+[tool.flake8]
+max-line-length = 88
+extend-select = "B950"
+extend-ignore = [
+    "E203", # whitespace before `:`
+    "F841" # local variable is assigned but never used
+]

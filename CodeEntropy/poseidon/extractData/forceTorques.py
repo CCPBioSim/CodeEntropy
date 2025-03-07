@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import logging
-import math
-import sys
+# import logging
+# import math
+# import sys
 from collections import defaultdict
 
 import numpy as np
@@ -10,8 +10,10 @@ from numpy import linalg as LA
 
 from CodeEntropy.poseidon.extractData.generalFunctions import MOI, com, distance, vector
 
-nested_dict = lambda: defaultdict(nested_dict)
+
 # create nested dict in one go
+def nested_dict():
+    return defaultdict(nested_dict)
 
 
 def calculateFTMatrix(all_data, dimensions):
@@ -57,7 +59,7 @@ def calculateFTMatrix(all_data, dimensions):
                     molecule_masses.append(a.mass)
                 molecule_COM = com(molecule_coords, molecule_masses)
 
-                #####****** MOLECULE LEVEL ******
+                # ****** MOLECULE LEVEL ******
                 # if molecule is only one UA with bonded Hs,
                 # this works for one UA molecules
                 if (
@@ -79,21 +81,21 @@ def calculateFTMatrix(all_data, dimensions):
                         Hs=True,
                     )
 
-                    #'''
+                    #
                     WM_force = np.outer(WM_force, WM_force)
                     WM_torque = np.outer(WM_torque, WM_torque)
                     atom.MweightedForces = np.round(np.divide(WM_force, 4), 3)
                     atom.MweightedTorques = np.round(np.divide(WM_torque, 4), 3)
                     atom.WMprincipalAxis = WM_principal_axes, WM_MI_axis, molecule_COM
 
-                    ###check this with Richard, do you not halve here?
-                    ###For Jon's code, you do halve here
-                    ###even though molecule == UA level
+                    # check this with Richard, do you not halve here?
+                    # For Jon's code, you do halve here
+                    # even though molecule == UA level
                     atom.UAweightedForces = np.round(np.divide(WM_force, 4), 3)
                     atom.UAweightedTorques = np.round(np.divide(WM_torque, 4), 3)
                     atom.molecule_UA_Fs = np.round(np.divide(WM_force, 4), 3)
                     atom.molecule_UA_Ts = np.round(np.divide(WM_torque, 4), 3)
-                    #'''
+                    #
 
                     """
                     atom.MweightedForces = WM_force
@@ -124,7 +126,7 @@ def calculateFTMatrix(all_data, dimensions):
                         Hs=True,
                     )
 
-                    #'''
+                    #
                     # WM_FT = np.concatenate((WM_force, WM_torque), axis=None)
                     # WM_FT = np.outer(WM_FT, WM_FT)
                     WM_force = np.outer(WM_force, WM_force)
@@ -135,13 +137,13 @@ def calculateFTMatrix(all_data, dimensions):
 
                     atom.molecule_UA_Fs = np.round(np.divide(WM_force, 4), 3)
                     atom.molecule_UA_Ts = np.round(np.divide(WM_torque, 4), 3)
-                    #'''
+                    #
 
                     # atom.MweightedForces = WM_force
                     # atom.MweightedTorques = WM_torque
 
-                    ##### ****** UNITED-ATOM LEVEL ******
-                    ## works!
+                    # ****** UNITED-ATOM LEVEL ******
+                    #  works!
                     UA_F_list = []
                     UA_T_list = []
                     for UA in UAs_list:
@@ -301,14 +303,14 @@ def calculateFTMatrix(all_data, dimensions):
                         UA_F_list += [UA_force]
                         UA_T_list += [UA_torque]
 
-                        #'''
+                        #
                         UA_force = np.outer(UA_force, UA_force)
                         UA_torque = np.outer(UA_torque, UA_torque)
                         UA[0].UAweightedForces = np.round(np.divide(UA_force, 4), 3)
-                        ##UA[0].UAweightedForces = UA_force
+                        # UA[0].UAweightedForces = UA_force
                         # 2019 paper, dont halve forces
                         UA[0].UAweightedTorques = np.round(np.divide(UA_torque, 4), 3)
-                        #'''
+                        #
 
                         # UA[0].UAweightedForces = UA_force
                         # UA[0].UAweightedTorques = UA_torque
@@ -338,7 +340,7 @@ def calculateFTMatrix(all_data, dimensions):
                     ]
                     forces_sqrt = np.sort(forces_sqrt)
 
-                    #'''
+                    #
                     UA_force = np.outer(forces_sqrt, forces_sqrt)
                     UA_torque = np.outer([0, 0, 0], [0, 0, 0])
                     atom.UAweightedForces = np.round(np.divide(UA_force, 4), 3)
@@ -353,7 +355,7 @@ def calculateFTMatrix(all_data, dimensions):
 
                     atom.molecule_UA_Fs = np.round(np.divide(UA_force, 4), 3)
                     atom.molecule_UA_Ts = np.round(np.divide(UA_torque, 4), 3)
-                    #'''
+                    #
 
                     """
                     atom.UAweightedForces = forces_sqrt
@@ -373,11 +375,11 @@ def UA_MOI(all_data, bonded_atoms_list, COM, PIaxes, dimensions, Hs):
     mass_list = []
 
     for atom in bonded_atoms_list:
-        if Hs == True:
+        if Hs is True:
             # print (atom.atom_name)
             coord_list.append(atom.coords)
             mass_list.append(atom.mass)
-        elif Hs == False:
+        elif Hs is False:
             if atom.mass > 1.1:
                 UA_mass = 0  # add mass of HA and bonded Hs
                 # print (atom.atom_name)
@@ -394,7 +396,7 @@ def UA_MOI(all_data, bonded_atoms_list, COM, PIaxes, dimensions, Hs):
         else:
             continue
 
-        ###### sorting out PIaxes for MoI for UA fragment
+        #  sorting out PIaxes for MoI for UA fragment
 
         modPIx = PIaxes[0][0] ** 2 + PIaxes[0][1] ** 2 + PIaxes[0][2] ** 2
         modPIy = PIaxes[1][0] ** 2 + PIaxes[1][1] ** 2 + PIaxes[1][2] ** 2
@@ -438,7 +440,7 @@ def UA_MOI(all_data, bonded_atoms_list, COM, PIaxes, dimensions, Hs):
     axis1MI = 0  # x
     axis2MI = 0  # y
     axis3MI = 0  # z
-    #'''
+    #
 
     for coord, mass in zip(coord_list, mass_list):
         dx = coord[0] - COM[0]
@@ -482,11 +484,11 @@ def principalAxesMOI(all_data, bonded_atoms_list, COM, Hs):
     mass_list = []
 
     for atom in bonded_atoms_list:
-        if Hs == True:
+        if Hs is True:
             # print (atom.atom_name)
             coord_list.append(atom.coords)
             mass_list.append(atom.mass)
-        elif Hs == False:
+        elif Hs is False:
             if atom.mass > 1.1:
                 UA_mass = 0  # add mass of HA and bonded Hs
                 # print (atom.atom_name)
@@ -533,7 +535,7 @@ def principalAxesMOI(all_data, bonded_atoms_list, COM, Hs):
     # print (min_eigenvalue * const, max_eigenvalue * const)
     # same as Jons
 
-    #'''
+    #
     # PA = principal axes
     axis1PA = [0, 0, 0]  # [x,y,z]
     axis2PA = [0, 0, 0]  # [x,y,z]
@@ -543,7 +545,7 @@ def principalAxesMOI(all_data, bonded_atoms_list, COM, Hs):
     axis1MI = 0  # x
     axis2MI = 0  # y
     axis3MI = 0  # z
-    #'''
+    #
 
     for i in range(0, 3):
         if eigenvalues[i] == max_eigenvalue:
@@ -576,19 +578,19 @@ def rotateFT(
 ):
     """ """
 
-    ###lists used for torque calcs
+    # lists used for torque calcs
     coord_list = []
     mass_list = []
     force_list = []
     forces_summed = np.zeros(3)
 
     for atom in bonded_atoms_list:
-        if Hs == True:
+        if Hs is True:
             coord_list.append(atom.coords)
             mass_list.append(atom.mass)
             force_list.append(atom.forces)
             forces_summed += atom.forces
-        elif Hs == False:
+        elif Hs is False:
             if atom.mass > 1.1:
                 # print (atom.atom_name)
                 UA_mass = 0  # add mass of HA and bonded Hs
@@ -611,18 +613,18 @@ def rotateFT(
             continue
 
     torque = [0, 0, 0]  # default is no torque
-    ### calc torques here with COM and PA of molecule or UA
-    if UA_principal_axes != None and MI_axis != None:
-        if Hs == True:
+    #  calc torques here with COM and PA of molecule or UA
+    if UA_principal_axes is not None and MI_axis is not None:
+        if Hs is True:
             torque = calcTorque(
                 UA_COM, coord_list, UA_principal_axes, force_list, MI_axis
             )
-        if Hs == False:
+        if Hs is False:
             torque = calcTorque(
                 molecule_COM, coord_list, WM_principal_axes, force_list, MI_axis
             )
 
-    ### Rotate forces here
+    #  Rotate forces here
     F1 = np.dot(forces_summed, WM_principal_axes[0])
     F2 = np.dot(forces_summed, WM_principal_axes[1])
     F3 = np.dot(forces_summed, WM_principal_axes[2])

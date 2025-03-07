@@ -3,7 +3,7 @@ import pytest
 
 from CodeEntropy import EntropyFunctions as EF
 
-## Test vibrational_entropy
+# Test vibrational_entropy
 # Given a matrix does the code calculate the correct entropy value
 
 

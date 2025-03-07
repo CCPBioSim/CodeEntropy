@@ -5,7 +5,8 @@ Created on Tue Apr  5 14:13:07 2022
 @author: bmm66251
 """
 import os
-import sys
+
+# import sys
 from datetime import datetime
 
 import MDAnalysis as mda
@@ -15,7 +16,7 @@ from CodeEntropy.FunctionCollection import EntropyFunctions
 
 if __name__ == "__main__":
     startTime = datetime.now()
-    ############## REPLACE INPUTS ##############
+    # REPLACE INPUTS #
     wd = os.path.dirname(os.path.abspath(__file__))
     tprfile = os.path.join(wd, "data/1AKI_ws.tpr")
     trrfile = os.path.join(wd, "data/1AKI_ws.trr")

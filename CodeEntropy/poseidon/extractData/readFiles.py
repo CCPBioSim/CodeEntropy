@@ -1,21 +1,25 @@
 #!/usr/bin/env python
 
 import logging
-import math
-import operator
+
+# import math
+# import operator
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict  # Counter,
 from datetime import datetime
 
 import MDAnalysis
 import numpy as np
-from numpy import linalg as LA
 
-from CodeEntropy.poseidon.extractData.generalFunctions import *
-from CodeEntropy.poseidon.extractData.mainClass import *
+# from CodeEntropy.poseidon.extractData.generalFunctions import *
+from CodeEntropy.poseidon.extractData.mainClass import atom_info
 
-nested_dict = lambda: defaultdict(nested_dict)
+# from numpy import linalg as LA
+
+
 # create nested dict in one go
+def nested_dict():
+    return defaultdict(nested_dict)
 
 
 def populateTopology(container, all_data, waterTuple):
@@ -69,7 +73,7 @@ def populateTopology(container, all_data, waterTuple):
 
         all_data.append(inf)
 
-    ### Get and populate UA and molecule level information
+    # Get and populate UA and molecule level information
     molecule_dict = nested_dict()
     molecule_resids_dict = nested_dict()
     for x in range(0, len(all_data)):

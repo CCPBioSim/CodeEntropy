@@ -1,4 +1,4 @@
-import numpy as nmp
+import numpy as np
 
 
 def get_beads(data_container, level):
@@ -49,11 +49,11 @@ def get_beads(data_container, level):
 def get_axes(data_container, level, index=0):
     """
     Function to set the translational and rotational axes.
-    The translational axes are based on the principal axes of the unit one level larger than
-    the level we are interested in (except for the polymer level where there is no larger unit).
-    The rotational axes use the covalent links between residues or atoms where possible to
-    define the axes, or if the unit is not bonded to others of the same level the prinicpal
-    axes of the unit are used.
+    The translational axes are based on the principal axes of the unit one level larger
+    than the level we are interested in (except for the polymer level where there is no
+    larger unit). The rotational axes use the covalent links between residues or atoms
+    where possible to define the axes, or if the unit is not bonded to others of the
+    same level the prinicpal axes of the unit are used.
 
     Input
     -----
@@ -74,13 +74,14 @@ def get_axes(data_container, level, index=0):
         rot_axes = data_container.atoms.principal_axes()
 
     if level == "residue":
-        ## Translation
+        # Translation
         # for residues use principal axes of whole molecule for translation
         trans_axes = data_container.atoms.principal_axes()
 
-        ## Rotation
+        # Rotation
         # find bonds between atoms in residue of interest and other residues
-        # we are assuming bonds only exist between adjacent residues (linear chains of residues)
+        # we are assuming bonds only exist between adjacent residues
+        # (linear chains of residues)
         # TODO refine selection so that it will work for branched polymers
         index_prev = index - 1
         index_next = index + 1
@@ -104,11 +105,11 @@ def get_axes(data_container, level, index=0):
             rot_axes = get_sphCoord_axes(vector)
 
     if level == "united_atom":
-        ## Translation
+        # Translation
         # for united atoms use principal axes of residue for translation
         trans_axes = data_container.residues.principal_axes()
 
-        ## Rotation
+        # Rotation
         # for united atoms use heavy atoms bonded to the heavy atom
         atom_set = data_container.select_atoms(f"not name H* and bonded index {index}")
 
@@ -142,7 +143,7 @@ def get_avg_pos(atom_set, center):
     avg_position : three dimensional vector
     """
     # start with an empty vector
-    avg_position = nmp.zeros((3))
+    avg_position = np.zeros((3))
 
     # get number of atoms
     number_atoms = len(atom_set.names)
@@ -157,9 +158,9 @@ def get_avg_pos(atom_set, center):
         avg_position /= number_atoms  # divide by number of atoms to get average
 
     else:
-        # if no atoms in set the unit has no bonds to restrict its rotational motion, so we can
-        # use a random vector to get the spherical coordinates axes
-        avg_position = nmp.random.random(3)
+        # if no atoms in set the unit has no bonds to restrict its rotational motion,
+        # so we can use a random vector to get the spherical coordinates axes
+        avg_position = np.random.random(3)
 
     # transform the average position to a coordinate system with the origin at center
     avg_position = avg_position - center
@@ -181,11 +182,11 @@ def get_sphCoord_axes(arg_r):
     r2 = x2y2 + arg_r[2] ** 2
 
     if x2y2 != 0.0:
-        sin_theta = nmp.sqrt(x2y2 / r2)
-        cos_theta = arg_r[2] / nmp.sqrt(r2)
+        sin_theta = np.sqrt(x2y2 / r2)
+        cos_theta = arg_r[2] / np.sqrt(r2)
 
-        sin_phi = arg_r[1] / nmp.sqrt(x2y2)
-        cos_phi = arg_r[0] / nmp.sqrt(x2y2)
+        sin_phi = arg_r[1] / np.sqrt(x2y2)
+        cos_phi = arg_r[0] / np.sqrt(x2y2)
 
     else:
         sin_theta = 0.0
@@ -197,27 +198,27 @@ def get_sphCoord_axes(arg_r):
     # if abs(sin_theta) > 1 or abs(sin_phi) > 1:
     #     print('Bad sine : T {} , P {}'.format(sin_theta, sin_phi))
 
-    # cos_theta = nmp.sqrt(1 - sin_theta*sin_theta)
-    # cos_phi = nmp.sqrt(1 - sin_phi*sin_phi)
+    # cos_theta = np.sqrt(1 - sin_theta*sin_theta)
+    # cos_phi = np.sqrt(1 - sin_phi*sin_phi)
 
     # print('{} {} {}'.format(*arg_r))
     # print('Sin T : {}, cos T : {}'.format(sin_theta, cos_theta))
     # print('Sin P : {}, cos P : {}'.format(sin_phi, cos_phi))
 
-    spherical_basis = nmp.zeros((3, 3))
+    spherical_basis = np.zeros((3, 3))
 
     # r^
-    spherical_basis[0, :] = nmp.asarray(
+    spherical_basis[0, :] = np.asarray(
         [sin_theta * cos_phi, sin_theta * sin_phi, cos_theta]
     )
 
     # Theta^
-    spherical_basis[1, :] = nmp.asarray(
+    spherical_basis[1, :] = np.asarray(
         [cos_theta * cos_phi, cos_theta * sin_phi, -sin_theta]
     )
 
     # Phi^
-    spherical_basis[2, :] = nmp.asarray([-sin_phi, cos_phi, 0.0])
+    spherical_basis[2, :] = np.asarray([-sin_phi, cos_phi, 0.0])
 
     return spherical_basis
 
@@ -241,12 +242,12 @@ def get_weighted_forces(
     weighted_force : the mass weighted sum of the forces in the bead
     """
 
-    forces_trans = nmp.zeros((3,))
+    forces_trans = np.zeros((3,))
 
     # Sum forces from all atoms in the bead
     for atom in bead.atoms:
         # update local forces in translational axes
-        forces_local = nmp.matmul(trans_axes, data_container.atoms[atom.index].force)
+        forces_local = np.matmul(trans_axes, data_container.atoms[atom.index].force)
         forces_trans += forces_local
 
     if highest_level:
@@ -258,7 +259,7 @@ def get_weighted_forces(
     # divide the sum of forces by the mass of the bead to get the weighted forces
     mass = bead.total_mass()
 
-    weighted_force = forces_trans / nmp.sqrt(mass)
+    weighted_force = forces_trans / np.sqrt(mass)
 
     return weighted_force
 
@@ -281,16 +282,16 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     weighted_torque : the mass weighted sum of the torques in the bead
     """
 
-    torques = nmp.zeros((3,))
-    weighted_torque = nmp.zeros((3,))
+    torques = np.zeros((3,))
+    weighted_torque = np.zeros((3,))
 
     for atom in bead.atoms:
 
         # update local coordinates in rotational axes
         coords_rot = data_container.atoms[atom.index].position - bead.center_of_mass()
-        coords_rot = nmp.matmul(rot_axes, coords_rot)
+        coords_rot = np.matmul(rot_axes, coords_rot)
         # update local forces in rotational frame
-        forces_rot = nmp.matmul(rot_axes, data_container.atoms[atom.index].force)
+        forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
 
         # multiply by the force_partitioning parameter to avoid double counting
         # of the forces on weakly correlated atoms
@@ -298,7 +299,7 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
         forces_rot = force_partitioning * forces_rot
 
         # define torques (cross product of coordinates and forces) in rotational axes
-        torques_local = nmp.cross(coords_rot, forces_rot)
+        torques_local = np.cross(coords_rot, forces_rot)
         torques += torques_local
 
     # divide by moment of inertia to get weighted torques
@@ -309,10 +310,10 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
 
     for dimension in range(3):
         # cannot divide by zero
-        if nmp.isclose(moment_of_inertia[dimension, dimension], 0):
+        if np.isclose(moment_of_inertia[dimension, dimension], 0):
             weighted_torque[dimension] = torques[dimension]
         else:
-            weighted_torque[dimension] = torques[dimension] / nmp.sqrt(
+            weighted_torque[dimension] = torques[dimension] / np.sqrt(
                 moment_of_inertia[dimension, dimension]
             )
 
@@ -337,13 +338,13 @@ def create_submatrix(data_i, data_j, number_frames):
     """
 
     # Start with 3 by 3 matrix of zeros
-    submatrix = nmp.zeros((3, 3))
+    submatrix = np.zeros((3, 3))
 
-    # For each frame calculate the outer product (cross product) of the data from the two beads
-    # and add the result to the submatrix
+    # For each frame calculate the outer product (cross product) of the data from the
+    # two beads and add the result to the submatrix
     for frame in range(number_frames):
-        outer_product_matrix = nmp.outer(data_i[frame], data_j[frame])
-        submatrix = nmp.add(submatrix, outer_product_matrix)
+        outer_product_matrix = np.outer(data_i[frame], data_j[frame])
+        submatrix = np.add(submatrix, outer_product_matrix)
 
     # Divide by the number of frames to get the average
     submatrix /= number_frames
@@ -368,30 +369,30 @@ def filter_zero_rows_columns(arg_matrix, verbose):
     """
 
     # record the initial size
-    init_shape = nmp.shape(arg_matrix)
+    init_shape = np.shape(arg_matrix)
 
     zero_indices = list(
         filter(
-            lambda row: nmp.all(nmp.isclose(arg_matrix[row, :], 0.0)),
-            nmp.arange(nmp.shape(arg_matrix)[0]),
+            lambda row: np.all(np.isclose(arg_matrix[row, :], 0.0)),
+            np.arange(np.shape(arg_matrix)[0]),
         )
     )
-    all_indices = nmp.ones((nmp.shape(arg_matrix)[0]), dtype=bool)
+    all_indices = np.ones((np.shape(arg_matrix)[0]), dtype=bool)
     all_indices[zero_indices] = False
     arg_matrix = arg_matrix[all_indices, :]
 
-    all_indices = nmp.ones((nmp.shape(arg_matrix)[1]), dtype=bool)
+    all_indices = np.ones((np.shape(arg_matrix)[1]), dtype=bool)
     zero_indices = list(
         filter(
-            lambda col: nmp.all(nmp.isclose(arg_matrix[:, col], 0.0)),
-            nmp.arange(nmp.shape(arg_matrix)[1]),
+            lambda col: np.all(np.isclose(arg_matrix[:, col], 0.0)),
+            np.arange(np.shape(arg_matrix)[1]),
         )
     )
     all_indices[zero_indices] = False
     arg_matrix = arg_matrix[:, all_indices]
 
     # get the final shape
-    final_shape = nmp.shape(arg_matrix)
+    final_shape = np.shape(arg_matrix)
 
     if verbose and init_shape != final_shape:
         print(

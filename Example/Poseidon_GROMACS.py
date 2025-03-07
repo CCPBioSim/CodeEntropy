@@ -1,20 +1,21 @@
-##########################################################################################
+########################################################################################
 # !!!!!!!!!!!The 1AKI_prod.trr trajectory is too big and can't be included in the repo
-##########################################################################################
+########################################################################################
 
 import os
-import sys
 
 import MDAnalysis as mda
-import pandas as pd
-from MDAnalysis.analysis.base import AnalysisFromFunction
-from MDAnalysis.coordinates.memory import MemoryReader
 
-from CodeEntropy.ClassCollection.PoseidonClass import (
-    Poseidon,
+from CodeEntropy.ClassCollection.PoseidonClass import (  # Poseidon,; Poseidon_mp,
     Poseidon_dask,
-    Poseidon_mp,
 )
+
+# import pandas as pd
+# from MDAnalysis.analysis.base import AnalysisFromFunction
+# from MDAnalysis.coordinates.memory import MemoryReader
+
+
+# import sys
 
 
 def main():

@@ -7,12 +7,13 @@ Created on Thu Mar 31 12:36:57 2022
 
 import multiprocessing as mp
 import os
-import sys
+
+# import sys
 from datetime import datetime
 from functools import partial
 
 import MDAnalysis as mda
-import numpy as nmp
+import numpy as np
 
 from CodeEntropy.ClassCollection import BeadClasses as BC
 from CodeEntropy.ClassCollection import DataContainer as DC
@@ -27,8 +28,8 @@ from CodeEntropy.IO import Writer
 
 def rotational_axis(iBead, arg_dataContainer, arg_numFrames):
     for iFrame in range(arg_numFrames):
-        # define local basis as the rotationalAxes of the first atom in the atomList of iBead
-        # doesnt matter because they all have the same R and T axes
+        # define local basis as the rotationalAxes of the first atom in the atomList of
+        # iBead doesnt matter because they all have the same R and T axes
         iLocalBasis = arg_dataContainer.rotationAxesArray[iFrame][iBead.atomList[0]]
 
         # get the moment of inertia tensor for ibead in thid local basis
@@ -45,20 +46,20 @@ def rotational_axis(iBead, arg_dataContainer, arg_numFrames):
                 iFrame, iAtom
             ]
 
-        iBead.totalWeightedForces[iFrame] /= nmp.sqrt(iBead.get_total_mass())
+        iBead.totalWeightedForces[iFrame] /= np.sqrt(iBead.get_total_mass())
 
         for j in range(3):
             try:
-                if nmp.isclose(iBead.totalWeightedTorques[iFrame, j], 0.0):
+                if np.isclose(iBead.totalWeightedTorques[iFrame, j], 0.0):
                     # then the beadMOITensor[j,j] must be 0 as well
                     # ensure that
-                    assert nmp.isclose(beadMOITensor[j, j], 0.0)
+                    assert np.isclose(beadMOITensor[j, j], 0.0)
                 else:
                     # inertia weight the total torque component
-                    iBead.totalWeightedTorques[iFrame, j] /= nmp.sqrt(
+                    iBead.totalWeightedTorques[iFrame, j] /= np.sqrt(
                         beadMOITensor[j, j]
                     )
-            except:
+            except AssertionError:
                 raise AssertionError(
                     f"Moment of Intertia is non-zero for a bead lying on axis {j}"
                 )
@@ -86,12 +87,12 @@ def residue_UA(
 
     # add UA beads to it (a heavy atom and its bonded hydrogens make a bead)
     baseSel = allSel.select_atoms(f"resid {baseResi}")
-    baseC5Idx = baseSel.select_atoms(f"name C5'").indices[0]
-    baseC4Idx = baseSel.select_atoms(f"name C4'").indices[0]
-    baseC3Idx = baseSel.select_atoms(f"name C3'").indices[0]
+    baseC5Idx = baseSel.select_atoms("name C5'").indices[0]
+    baseC4Idx = baseSel.select_atoms("name C4'").indices[0]
+    baseC3Idx = baseSel.select_atoms("name C3'").indices[0]
 
     # get all the heavy atoms and make seaparate beads from them
-    heavySel = baseSel.select_atoms(f"not name H*")
+    heavySel = baseSel.select_atoms("not name H*")
 
     for iheavy in heavySel.indices:
         # select the atom itself and bonded hydrogen
@@ -115,7 +116,8 @@ def residue_UA(
 
         newBead.position = dataContainer._labCoords[0, iheavy]
         nidBeadCollection.listOfBeads.append(newBead)
-        # Utils.printflush(f"Created a bead for {iName} in {baseLabel}. Contains {newBead.get_num_atoms()} atom(s).")
+        # Utils.printflush(f"Created a bead for {iName} in {baseLabel}.
+        # Contains {newBead.get_num_atoms()} atom(s).")
 
     # reset weighted vectors for each bead and
     for iBead in nidBeadCollection.listOfBeads:
@@ -150,7 +152,7 @@ def residue_UA(
         try:
             assert len(iheavy) == 1
             iheavy = iheavy[0]
-        except:
+        except AssertionError:
             raise ValueError(
                 "More than one heavy atom in an united atom bead. That is incorrect."
             )
@@ -204,7 +206,7 @@ def residue_UA(
             )
     Utils.printflush("Done")
 
-    ################## COMMON OPERATIONS ######################
+    # COMMON OPERATIONS #
     # mass weighting the forces and torques
     Utils.printflush("Weighting forces and torques->", end=" ")
     for iBead in nidBeadCollection.listOfBeads:
@@ -213,8 +215,8 @@ def residue_UA(
         # inertia weighting the torques for each bead (iBead) in each direction (j)
 
         for iFrame in range(numFrames):
-            # define local basis as the rotationalAxes of the first atom in the atomList of iBead
-            # doesnt matter because they all have the same R and T axes
+            # define local basis as the rotationalAxes of the first atom in the atomList
+            # of iBead doesnt matter because they all have the same R and T axes
             iLocalBasis = dataContainer.rotationAxesArray[iFrame][iBead.atomList[0]]
 
             # get the moment of inertia tensor for ibead in thid local basis
@@ -231,20 +233,20 @@ def residue_UA(
                     iFrame, iAtom
                 ]
 
-            iBead.totalWeightedForces[iFrame] /= nmp.sqrt(iBead.get_total_mass())
+            iBead.totalWeightedForces[iFrame] /= np.sqrt(iBead.get_total_mass())
 
             for j in range(3):
                 try:
-                    if nmp.isclose(iBead.totalWeightedTorques[iFrame, j], 0.0):
+                    if np.isclose(iBead.totalWeightedTorques[iFrame, j], 0.0):
                         # then the beadMOITensor[j,j] must be 0 as well
                         # ensure that
-                        assert nmp.isclose(beadMOITensor[j, j], 0.0)
+                        assert np.isclose(beadMOITensor[j, j], 0.0)
                     else:
                         # inertia weight the total torque component
-                        iBead.totalWeightedTorques[iFrame, j] /= nmp.sqrt(
+                        iBead.totalWeightedTorques[iFrame, j] /= np.sqrt(
                             beadMOITensor[j, j]
                         )
-                except:
+                except AssertionError:
                     raise AssertionError(
                         f"Moment of Intertia is non-zero for a bead lying on axis {j}"
                     )
@@ -267,8 +269,8 @@ def residue_UA(
     Utils.printflush("Done")
 
     # scale forces/torques of these quadrants
-    ffQuadrant = nmp.multiply(fScale**2, ffQuadrant)
-    ttQuadrant = nmp.multiply(tScale**2, ttQuadrant)
+    ffQuadrant = np.multiply(fScale**2, ffQuadrant)
+    ttQuadrant = np.multiply(tScale**2, ttQuadrant)
 
     # remove any row or column with zero axis
     # this could have been done while generating quadrants. Can be merged if wished for
@@ -339,8 +341,8 @@ def residue_UA(
         EF.calculate_entropy_per_dof(m.modeFreq, temper) for m in modeSpectraTT[0:]
     ]
 
-    nidTotalEntropyFF = nmp.sum(entropyFF)
-    nidTotalEntropyTT = nmp.sum(entropyTT)
+    nidTotalEntropyFF = np.sum(entropyFF)
+    nidTotalEntropyTT = np.sum(entropyTT)
 
     # print final outputspool.close()
     Utils.printflush("Entropy values:")
@@ -357,7 +359,10 @@ def residue_UA(
     )
     Utils.printOut(
         outfile,
-        f"UATOM {baseResn:<10}{baseResi:>5}{nidTotalEntropyFF:>12.3f}{nidTotalEntropyTT:>12.3f}",
+        (
+            f"UATOM {baseResn:<10}{baseResi:>5}"
+            f"{nidTotalEntropyFF:>12.3f}{nidTotalEntropyTT:>12.3f}"
+        ),
     )
 
     return (nidTotalEntropyFF, nidTotalEntropyTT)
@@ -365,7 +370,7 @@ def residue_UA(
 
 if __name__ == "__main__":
     startTime = datetime.now()
-    ############## REPLACE INPUTS ##############
+    # REPLACE INPUTS #
     wd = os.path.dirname(os.path.abspath(__file__))
     tprfile = os.path.join(wd, "data/md_A4_dna.tpr")
     trrfile = os.path.join(wd, "data/md_A4_dna_xf.trr")
@@ -401,7 +406,10 @@ if __name__ == "__main__":
     )
     Utils.printOut(
         outfile,
-        f"Total number of beads at the whole molecule level = {len(mlevel.listOfBeads)}",
+        (
+            f"Total number of beads at the whole molecule level = "
+            f"{len(mlevel.listOfBeads)}"
+        ),
     )
 
     # reset weighted vectors for each bead and
@@ -417,7 +425,8 @@ if __name__ == "__main__":
     Utils.printflush(
         "Assigning Translation and Rotation Axes @ whole molecule level->", end=" "
     )
-    # USE whole molecule's principal axes system (which changes every frame) for each atom
+    # USE whole molecule's principal axes system
+    # (which changes every frame) for each atom
     allAtoms = allSel.indices
     for iFrame in range(numFrames):
         selMOI, selAxes = dataContainer.get_principal_axes(
@@ -464,8 +473,8 @@ if __name__ == "__main__":
         # inertia weighting the torques for each bead (iBead) in each direction (j)
 
         for iFrame in range(numFrames):
-            # define local basis as the rotationalAxes of the first atom in the atomList of iBead
-            # doesnt matter because they all have the same R and T axes
+            # define local basis as the rotationalAxes of the first atom in the atomList
+            #  of iBead doesnt matter because they all have the same R and T axes
             iLocalBasis = dataContainer.rotationAxesArray[iFrame][iBead.atomList[0]]
 
             # get the moment of inertia tensor for ibead in thid local basis
@@ -482,10 +491,10 @@ if __name__ == "__main__":
                     iFrame, iAtom
                 ]
 
-            iBead.totalWeightedForces[iFrame] /= nmp.sqrt(iBead.get_total_mass())
+            iBead.totalWeightedForces[iFrame] /= np.sqrt(iBead.get_total_mass())
 
             for j in range(3):
-                iBead.totalWeightedTorques[iFrame, j] /= nmp.sqrt(beadMOITensor[j, j])
+                iBead.totalWeightedTorques[iFrame, j] /= np.sqrt(beadMOITensor[j, j])
 
     Utils.printflush("Done")
 
@@ -502,8 +511,8 @@ if __name__ == "__main__":
     ttQuadrant = mlevel.generate_quadrant(arg_pairString="TT", arg_filterZeros=1)
 
     # scale forces/torques of these quadrants
-    ffQuadrant = nmp.multiply(fScale**2, ffQuadrant)
-    ttQuadrant = nmp.multiply(tScale**2, ttQuadrant)
+    ffQuadrant = np.multiply(fScale**2, ffQuadrant)
+    ttQuadrant = np.multiply(tScale**2, ttQuadrant)
     Utils.printflush("Done")
 
     # diagnolaize
@@ -573,23 +582,19 @@ if __name__ == "__main__":
     ]
 
     Utils.printflush("Entropy values:")
-    Utils.printflush(
-        f"{'FF Entropy (M level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K"
-    )
+    Utils.printflush(f"{'FF Entropy (M level)':<40s} : {np.sum(entropyFF):.4f} J/mol/K")
     Utils.printOut(
-        outfile, f"{'FF Entropy (M level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K"
+        outfile, f"{'FF Entropy (M level)':<40s} : {np.sum(entropyFF):.4f} J/mol/K"
     )
 
-    Utils.printflush(
-        f"{'TT Entropy (M level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K"
-    )
+    Utils.printflush(f"{'TT Entropy (M level)':<40s} : {np.sum(entropyTT):.4f} J/mol/K")
     Utils.printOut(
-        outfile, f"{'TT Entropy (M level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K"
+        outfile, f"{'TT Entropy (M level)':<40s} : {np.sum(entropyTT):.4f} J/mol/K"
     )
 
-    ############### MOLECULE LEVEL ################
+    # MOLECULE LEVEL #
 
-    ############## NUCLEOTIDE LEVEL ###############
+    # NUCLEOTIDE LEVEL #
     Utils.hbar(60)
     Utils.printflush(f'{"Hierarchy level. --> Nucleotide molecule <--":^60}')
     Utils.hbar(60)
@@ -648,7 +653,8 @@ if __name__ == "__main__":
 
     # setup translational and rotational axes
     Utils.printflush("Assigning Translation Axes at Nucleotide level->", end=" ")
-    # USE whole molecule's principal axes system per atom per nucleotide for translational axes
+    # USE whole molecule's principal axes system per atom per nucleotide for
+    # translational axes
     allAtoms = allSel.indices
 
     for iFrame in range(numFrames):
@@ -665,16 +671,18 @@ if __name__ == "__main__":
         )
     Utils.printflush("Done")
 
-    # Use an orthogonal axes system made of  C5', C4', C3'  atoms per nucleotide for rotational axes
+    # Use an orthogonal axes system made of  C5', C4', C3'  atoms per nucleotide for
+    # rotational axes
     Utils.printflush("Assigning Rotational Axes at Nucleotide level->", end=" ")
     for resid in allSel.residues.resids:
         baseResi = resid
         baseSel = allSel.select_atoms(f"resid {baseResi}")
         baseAtoms = baseSel.indices
-        # Here you are selecting one atom so if you slice an array the shape will missmatch
-        baseC5Idx = baseSel.select_atoms(f"name C5'").indices[0]
-        baseC4Idx = baseSel.select_atoms(f"name C4'").indices[0]
-        baseC3Idx = baseSel.select_atoms(f"name C3'").indices[0]
+        # Here you are selecting one atom so if you slice an array the shape will
+        # missmatch
+        baseC5Idx = baseSel.select_atoms("name C5'").indices[0]
+        baseC4Idx = baseSel.select_atoms("name C4'").indices[0]
+        baseC3Idx = baseSel.select_atoms("name C3'").indices[0]
 
         for iFrame in range(numFrames):
             c5coor = dataContainer._labCoords[iFrame, baseC5Idx]
@@ -714,7 +722,7 @@ if __name__ == "__main__":
             )
     Utils.printflush("Done")
 
-    ################## COMMON OPERATIONS ######################
+    # COMMON OPERATIONS ###
     # mass weighting the forces and torques
     Utils.printflush("Weighting forces and torques->", end=" ")
     for iBead in nlevel.listOfBeads:
@@ -723,8 +731,8 @@ if __name__ == "__main__":
         # inertia weighting the torques for each bead (iBead) in each direction (j)
 
         for iFrame in range(numFrames):
-            # define local basis as the rotationalAxes of the first atom in the atomList of iBead
-            # doesnt matter because they all have the same R and T axes
+            # define local basis as the rotationalAxes of the first atom in the atomList
+            # of iBead doesnt matter because they all have the same R and T axes
             iLocalBasis = dataContainer.rotationAxesArray[iFrame][iBead.atomList[0]]
 
             # get the moment of inertia tensor for ibead in thid local basis
@@ -741,10 +749,10 @@ if __name__ == "__main__":
                     iFrame, iAtom
                 ]
 
-            iBead.totalWeightedForces[iFrame] /= nmp.sqrt(iBead.get_total_mass())
+            iBead.totalWeightedForces[iFrame] /= np.sqrt(iBead.get_total_mass())
 
             for j in range(3):
-                iBead.totalWeightedTorques[iFrame, j] /= nmp.sqrt(beadMOITensor[j, j])
+                iBead.totalWeightedTorques[iFrame, j] /= np.sqrt(beadMOITensor[j, j])
 
     Utils.printflush("Done")
 
@@ -761,8 +769,8 @@ if __name__ == "__main__":
     ttQuadrant = nlevel.generate_quadrant(arg_pairString="TT", arg_filterZeros=1)
 
     # scale forces/torques of these quadrants
-    ffQuadrant = nmp.multiply(fScale**2, ffQuadrant)
-    ttQuadrant = nmp.multiply(tScale**2, ttQuadrant)
+    ffQuadrant = np.multiply(fScale**2, ffQuadrant)
+    ttQuadrant = np.multiply(tScale**2, ttQuadrant)
     Utils.printflush("Done")
 
     # diagnolaize
@@ -834,23 +842,19 @@ if __name__ == "__main__":
     ]
 
     Utils.printflush("Entropy values:")
-    Utils.printflush(
-        f"{'FF Entropy (N level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K"
-    )
+    Utils.printflush(f"{'FF Entropy (N level)':<40s} : {np.sum(entropyFF):.4f} J/mol/K")
     Utils.printOut(
-        outfile, f"{'FF Entropy (N level)':<40s} : {nmp.sum(entropyFF):.4f} J/mol/K"
+        outfile, f"{'FF Entropy (N level)':<40s} : {np.sum(entropyFF):.4f} J/mol/K"
     )
 
-    Utils.printflush(
-        f"{'TT Entropy (N level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K"
-    )
+    Utils.printflush(f"{'TT Entropy (N level)':<40s} : {np.sum(entropyTT):.4f} J/mol/K")
     Utils.printOut(
-        outfile, f"{'TT Entropy (N level)':<40s} : {nmp.sum(entropyTT):.4f} J/mol/K"
+        outfile, f"{'TT Entropy (N level)':<40s} : {np.sum(entropyTT):.4f} J/mol/K"
     )
 
-    ############### NUCLEOTIDE LEVEL ##################
+    # NUCLEOTIDE LEVEL #
 
-    ############### UNITED ATOM LEVEL ##################
+    # UNITED ATOM LEVEL #
     Utils.hbar(60)
     Utils.printflush(f'{"Hierarchy level. --> United Atom <--":^60}')
     Utils.hbar(60)
@@ -874,7 +878,7 @@ if __name__ == "__main__":
     result = pool.map(f, items)
     pool.close()
     pool.join()
-    result = nmp.sum(nmp.array(result), axis=0)
+    result = np.sum(np.array(result), axis=0)
     totalUAEntropyFF = result[0]
     totalUAEntropyTT = result[1]
 
@@ -905,7 +909,9 @@ if __name__ == "__main__":
 
     #     for iheavy in heavySel.indices:
     #         # select the atom itself and bonded hydrogen
-    #         iua = allSel.select_atoms(f"index {iheavy} or (name H* and bonded index {iheavy})")
+    # iua = allSel.select_atoms(
+    #     f"index {iheavy} or (name H* and bonded index {iheavy})"
+    # )
 
     #         # heavy atom name
     #         iName = allSel.atoms.names[iheavy]
@@ -921,7 +927,10 @@ if __name__ == "__main__":
 
     #         newBead.position = dataContainer._labCoords[0, iheavy]
     #         nidBeadCollection.listOfBeads.append(newBead)
-    #         # Utils.printflush(f"Created a bead for {iName} in {baseLabel}. Contains {newBead.get_num_atoms()} atom(s).")
+    #        # Utils.printflush(
+    #        #     f"Created a bead for {iName} in {baseLabel}. "
+    #        #     f"Contains {newBead.get_num_atoms()} atom(s)."
+    #        # )
 
     #     # reset weighted vectors for each bead and
     #     for iBead in nidBeadCollection.listOfBeads:
@@ -938,11 +947,15 @@ if __name__ == "__main__":
     #         c4coor = dataContainer._labCoords[iFrame, baseC4Idx]
     #         c3coor = dataContainer._labCoords[iFrame, baseC3Idx]
 
-    #         tAxes, tOrigin = GF.generate_orthonormal_axes_system(c5coor, c4coor, c3coor)
-    #         dataContainer.update_translationAxesArray_at(arg_frame= iFrame, \
-    #                                                      arg_atomList= baseSel.indices, \
-    #                                                      arg_pAxes=tAxes, \
-    #                                                      arg_orig=tOrigin)
+    # tAxes, tOrigin = GF.generate_orthonormal_axes_system(c5coor,
+    #                                                      c4coor,
+    #                                                      c3coor)
+    # dataContainer.update_translationAxesArray_at(
+    #     arg_frame=iFrame,
+    #     arg_atomList=baseSel.indices,
+    #     arg_pAxes=tAxes,
+    #     arg_orig=tOrigin
+    # )
 
     #     Utils.printflush('Done')
     #     Utils.printflush("Assigning Rotational Axes at the UA level->", end = ' ')
@@ -955,7 +968,9 @@ if __name__ == "__main__":
     #             assert(len(iheavy) == 1)
     #             iheavy = iheavy[0]
     #         except:
-    #             raise ValueError("More than one heavy atom in an united atom bead. That is incorrect.")
+    # raise ValueError(
+    #     "More than one heavy atom in an united atom bead. That is incorrect."
+    # )
 
     #         for iFrame in range(numFrames):
     #             # Rotation axes :
@@ -977,12 +992,17 @@ if __name__ == "__main__":
     #             iBasis = GF.get_sphCoord_axes(arg_r=avgHydrogenPosition)
 
     #             # update rotation axes and local coords all atoms in the bead
-    #             dataContainer.update_rotationAxesArray_at(arg_atomList= iBead.atomList, \
-    #                                                       arg_frame= iFrame, \
-    #                                                       arg_orig = heavyOrigin, \
-    #                                                       arg_pAxes= iBasis)
+    # dataContainer.update_rotationAxesArray_at(
+    #     arg_atomList=iBead.atomList,
+    #     arg_frame=iFrame,
+    #     arg_orig=heavyOrigin,
+    #     arg_pAxes=iBasis
+    # )
 
-    #             dataContainer.update_localCoords(arg_atomList=iBead.atomList, arg_type="R")
+    # dataContainer.update_localCoords(
+    #     arg_atomList=iBead.atomList,
+    #     arg_type="R"
+    # )
 
     #     Utils.printflush('Done')
 
@@ -997,44 +1017,59 @@ if __name__ == "__main__":
     #         for iAtom in baseSel.indices:
     #             coords_i = dataContainer.localCoords[iFrame, iAtom]
     #             forces_i = dataContainer.localForces[iFrame, iAtom]
-    #             dataContainer.localTorques[iFrame,iAtom] = CF.cross_product(coords_i,forces_i)
+    # dataContainer.localTorques[iFrame,iAtom] = CF.cross_product(coords_i,
+    #                                                             forces_i)
     #     Utils.printflush('Done')
 
-    #     ################## COMMON OPERATIONS ######################
+    #     # COMMON OPERATIONS ###
     #     # mass weighting the forces and torques
     #     Utils.printflush("Weighting forces and torques->", end=' ')
     #     for iBead in nidBeadCollection.listOfBeads:
 
-    #         # mass weighting the forces for each bead (iBead) in each direction (j)
-    #         # inertia weighting the torques for each bead (iBead) in each direction (j)
+    #        # mass weighting the forces for each bead (iBead)
+    #        # in each direction (j)
+    #        # inertia weighting the torques for each bead (iBead)
+    #        # in each direction (j)
 
     #         for iFrame in range(numFrames):
-    #             # define local basis as the rotationalAxes of the first atom in the atomList of iBead
+    # define local basis as the rotationalAxes of the first atom in the
+    # atomList of iBead
     #             # doesnt matter because they all have the same R and T axes
-    #             iLocalBasis = dataContainer.rotationAxesArray[iFrame][iBead.atomList[0]]
+    # iLocalBasis = dataContainer.rotationAxesArray[iFrame][
+    #     iBead.atomList[0]
+    # ]
 
     #             #get the moment of inertia tensor for ibead in thid local basis
-    #             beadMOITensor = iBead.get_moment_of_inertia_tensor_local(arg_localBasis = iLocalBasis, \
-    #                                                                       arg_frame = iFrame)
+    # beadMOITensor = iBead.get_moment_of_inertia_tensor_local(
+    #     arg_localBasis = iLocalBasis, \
+    #     arg_frame = iFrame)
 
     #             # get total weighted force and torque and weigh them
     #             for iAtom in iBead.atomList:
-    #                 iBead.totalWeightedForces[iFrame,:] += dataContainer.localForces[iFrame, iAtom]
-    #                 iBead.totalWeightedTorques[iFrame,:] += dataContainer.localTorques[iFrame, iAtom]
+    # iBead.totalWeightedForces[iFrame, :] += (
+    #     dataContainer.localForces[iFrame, iAtom]
+    # )
+    # iBead.totalWeightedTorques[iFrame, :] += (
+    #     dataContainer.localTorques[iFrame, iAtom]
+    # )
 
-    #             iBead.totalWeightedForces[iFrame] /= nmp.sqrt(iBead.get_total_mass())
+    #             iBead.totalWeightedForces[iFrame] /= np.sqrt(iBead.get_total_mass())
 
     #             for j in range(3):
     #                 try:
-    #                     if nmp.isclose(iBead.totalWeightedTorques[iFrame,j] , 0.0):
+    #                     if np.isclose(iBead.totalWeightedTorques[iFrame,j] , 0.0):
     #                         # then the beadMOITensor[j,j] must be 0 as well
     #                         # ensure that
-    #                         assert(nmp.isclose(beadMOITensor[j,j] , 0.0))
+    #                         assert(np.isclose(beadMOITensor[j,j] , 0.0))
     #                     else:
     #                         # inertia weight the total torque component
-    #                         iBead.totalWeightedTorques[iFrame,j] /= nmp.sqrt(beadMOITensor[j,j])
+    # iBead.totalWeightedTorques[iFrame, j] /= np.sqrt(
+    #     beadMOITensor[j, j]
+    # )
     #                 except:
-    #                     raise AssertionError(f"Moment of Intertia is non-zero for a bead lying on axis {j}")
+    # raise AssertionError(
+    #     f"Moment of Intertia is non-zero for a bead lying on axis {j}"
+    # )
     #     Utils.printflush('Done')
 
     #     # now fill in the matrices
@@ -1045,16 +1080,23 @@ if __name__ == "__main__":
 
     #     #make quadrant from subMatrices
     #     Utils.printflush("Generating Quadrants->",end = ' ')
-    #     ffQuadrant = nidBeadCollection.generate_quadrant(arg_pairString="FF",arg_filterZeros=0)
-    #     ttQuadrant = nidBeadCollection.generate_quadrant(arg_pairString="TT",arg_filterZeros=0)
+    # ffQuadrant = nidBeadCollection.generate_quadrant(
+    #     arg_pairString="FF",
+    #     arg_filterZeros=0
+    # )
+    # ttQuadrant = nidBeadCollection.generate_quadrant(
+    #     arg_pairString="TT",
+    #     arg_filterZeros=0
+    # )
     #     Utils.printflush("Done")
 
     #     # scale forces/torques of these quadrants
-    #     ffQuadrant = nmp.multiply(fScale**2, ffQuadrant)
-    #     ttQuadrant = nmp.multiply(tScale**2, ttQuadrant)
+    #     ffQuadrant = np.multiply(fScale**2, ffQuadrant)
+    #     ttQuadrant = np.multiply(tScale**2, ttQuadrant)
 
     #     # remove any row or column with zero axis
-    #     # this could have been done while generating quadrants. Can be merged if wished for
+    #     # this could have been done while generating quadrants.
+    #     # Can be merged if wished for
     #     ffQuadrant = nidBeadCollection.filter_zero_rows_columns(ffQuadrant)
     #     ttQuadrant = nidBeadCollection.filter_zero_rows_columns(ttQuadrant)
 
@@ -1065,7 +1107,10 @@ if __name__ == "__main__":
     #     Utils.printflush('Done')
 
     #     # change to SI units
-    #     Utils.printflush('Changing the units of eigen values to SI units->', end = ' ')
+    # Utils.printflush(
+    #     'Changing the units of eigen values to SI units->',
+    #     end = ' '
+    # )
     #     lambdasFF = UAC.change_lambda_units(lambdasFF)
     #     lambdasTT = UAC.change_lambda_units(lambdasTT)
     #     Utils.printflush('Done')
@@ -1101,7 +1146,10 @@ if __name__ == "__main__":
     #         modeSpectraTT.append(newMode)
 
     #     # sorting the spectrum
-    #     Utils.printflush('Sorting spectrum in ascending order of frequencies->', end = ' ')
+    # Utils.printflush(
+    #     'Sorting spectrum in ascending order of frequencies->',
+    #     end = ' '
+    # )
     #     modeSpectraFF = MC.sort_modes(modeSpectraFF)
     #     modeSpectraTT = MC.sort_modes(modeSpectraTT)
     #     Utils.printflush('Done')
@@ -1111,19 +1159,34 @@ if __name__ == "__main__":
     #     #     because they may be overlapping with residue level motions
     #     # 2. DO NOT remove any freq from TT spectrum because
     #     #    they are uncoupled to any TT freq in any other hierarchy
-    #     entropyFF = [EF.calculate_entropy_per_dof(m.modeFreq, temper) for m in modeSpectraFF[6:]]
-    #     entropyTT = [EF.calculate_entropy_per_dof(m.modeFreq, temper) for m in modeSpectraTT[0:]]
+    # entropyFF = [
+    #     EF.calculate_entropy_per_dof(m.modeFreq, temper) for m in modeSpectraFF[6:]
+    # ]
+    # entropyTT = [
+    #     EF.calculate_entropy_per_dof(m.modeFreq, temper) for m in modeSpectraTT[0:]
+    # ]
 
-    #     nidTotalEntropyFF = nmp.sum(entropyFF)
-    #     nidTotalEntropyTT = nmp.sum(entropyTT)
+    #     nidTotalEntropyFF = np.sum(entropyFF)
+    #     nidTotalEntropyTT = np.sum(entropyTT)
 
     #     # print final outputs
     #     Utils.printflush("Entropy values:")
 
-    #     Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('FF Entropy (UA for {})'.format(baseLabel), nidTotalEntropyFF))
-    #     Utils.printflush('{:<40s} : {:.4f} J/mol/K'.format('TT Entropy (UA for {})'.format(baseLabel), nidTotalEntropyTT))
-    #     Utils.printOut(outfile,f'UATOM {baseResn:<10}{baseResi:>5}{nidTotalEntropyFF:>12.3f}{nidTotalEntropyTT:>12.3f}')
-
+    # Utils.printflush(
+    #     '{:<40s} : {:.4f} J/mol/K'.format(
+    #         'FF Entropy (UA for {})'.format(baseLabel), nidTotalEntropyFF
+    #     )
+    # )
+    # Utils.printflush(
+    #     '{:<40s} : {:.4f} J/mol/K'.format(
+    #         'TT Entropy (UA for {})'.format(baseLabel), nidTotalEntropyTT
+    #     )
+    # )
+    # Utils.printOut(
+    #     outfile,
+    #     f'UATOM {baseResn:<10}{baseResi:>5}'
+    #     f'{nidTotalEntropyFF:>12.3f}{nidTotalEntropyTT:>12.3f}'
+    # )
     #     totalUAEntropyFF += nidTotalEntropyFF
     #     totalUAEntropyTT += nidTotalEntropyTT
 
@@ -1148,5 +1211,5 @@ if __name__ == "__main__":
     )
     Utils.printOut(outfile, "-" * 60)
     print(datetime.now() - startTime)
-    ############### UNITED ATOM LEVEL ##################
+    # UNITED ATOM LEVEL #
 # END

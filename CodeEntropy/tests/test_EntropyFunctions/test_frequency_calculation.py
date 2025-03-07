@@ -3,7 +3,8 @@ import pytest
 
 from CodeEntropy import EntropyFunctions as EF
 
-## Test frequency_calculation (calculate vibrational frequencies from eigenvalues of covariance matrix)
+# Test frequency_calculation
+# (calculate vibrational frequencies from eigenvalues of covariance matrix)
 # Given lambda value(s) do you get the correct frequency
 
 

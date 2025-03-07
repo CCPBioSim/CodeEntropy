@@ -1,6 +1,6 @@
-import numpy
-import pytest
+# import numpy
+# import pytest
 
-from CodeEntropy import EntropyFunctions as EF
+# from CodeEntropy import EntropyFunctions as EF
 
-## Test orientational_entropy
+# Test orientational_entropy

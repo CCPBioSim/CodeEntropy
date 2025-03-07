@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-import logging
+# import logging
 import math
-import sys
+
+# import sys
 from collections import Counter, defaultdict
 
 import numpy as np
@@ -11,7 +12,11 @@ from numpy import linalg as LA
 
 from CodeEntropy.FunctionCollection import Utils
 
-nested_dict = lambda: defaultdict(nested_dict)
+
+def nested_dict():
+    return defaultdict(nested_dict)
+
+
 # create nested dict in one go
 
 
@@ -33,7 +38,7 @@ def processEE(
 
     verbosePrint("\n\n---ANALYSIS_TYPE_%s---\n" % (name))
     verbosePrint("\n\n---ORIENTATIONAL_ENTROPY_CALCULATIONS---\n")
-    if any(i in solvent for i in waterTuple) == True:
+    if any(i in solvent for i in waterTuple) is True:
         SorCalculation(Aclass, "Sor_test2", level, waterTuple, verbosePrint)
 
     verbosePrint("\n\n --UA_VIBRATIONAL_ENTROPY--\n")
@@ -45,8 +50,9 @@ def processEE(
     process_dihedrals(Aclass, verbosePrint)
 
     verbosePrint("\n\n--PRINT_ALL_VARIABLES--\n")
-    # solventData, soluteData = saveAllVariables(num_frames, Aclass, level, name, solvent,
-    #         waterTuple, verbosePrint)
+    # solventData, soluteData = saveAllVariables(
+    #     num_frames, Aclass, level, name, solvent, waterTuple, verbosePrint
+    # )
     solventData, soluteData = saveAllVariables(
         num_frames, Aclass, level, name, solvent, waterTuple, verbosePrint
     )
@@ -81,7 +87,13 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
         #         + '\n')
         Utils.printOut(
             contact_matrix_name,
-            "centre_resid,neighbour_resid,count,centre_resname,neighbour_resname,centre_atom,neighbour_atom",
+            "centre_resid,"
+            "neighbour_resid,"
+            "count,"
+            "centre_resname,"
+            "neighbour_resname,"
+            "centre_atom,"
+            "neighbour_atom",
         )
         contactMatrix = pd.DataFrame(
             columns=[
@@ -132,7 +144,11 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                     #         neighbour_atom)]) + '\n')
                     Utils.printOut(
                         contact_matrix_name,
-                        f"{centre_resid},{neighbour_resid},{count},{centre_resname},{neighbour_resname},{centre_atom},{neighbour_atom}",
+                        (
+                            f"{centre_resid},{neighbour_resid},{count},"
+                            f"{centre_resname},{neighbour_resname},"
+                            f"{centre_atom},{neighbour_atom}"
+                        ),
                     )
                     newRowContact = pd.DataFrame(
                         {
@@ -160,7 +176,11 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
                     #         neighbour_resname)]) + '\n')
                     Utils.printOut(
                         contact_matrix_name,
-                        f"{centre_resid},{neighbour_resid},{count},{centre_resname},{neighbour_resname}",
+                        (
+                            f"{centre_resid},{neighbour_resid},"
+                            f"{count},{centre_resname},"
+                            f"{neighbour_resname}"
+                        ),
                     )
                     newRowContact = pd.DataFrame(
                         {
@@ -185,7 +205,7 @@ def contactCalculation(Aclass, level, totFrames, verbosePrint):
 def SorCalculation(Aclass, methodType, level, waterTuple, verbosePrint):
     """ """
 
-    por_dict = nested_dict()
+    # por_dict = nested_dict()
     shells_ppD_ppA_dict = nested_dict()
     verbosePrint("\n\n__ORIENTATIONAL_ENTROPY_%s" % (methodType))
     num_molecules0 = sum(
@@ -230,7 +250,7 @@ def SorCalculation(Aclass, methodType, level, waterTuple, verbosePrint):
                 if AD == "D"
             )
 
-            assigned_resname = assigned[0].split("_")[0]
+            # assigned_resname = assigned[0].split("_")[0]
             verbosePrint(
                 "\tassigned:", assigned, "count:", num_molecules2, "/", num_molecules1
             )
@@ -269,7 +289,7 @@ def SorCalculation(Aclass, methodType, level, waterTuple, verbosePrint):
                         if AD == "D"
                     )
 
-                    ## dict for p(c) log p(c)
+                    # dict for p(c) log p(c)
                     if (
                         methodType == "Sor_test2"
                         and level == "moleculeLevel"
@@ -329,7 +349,7 @@ def SorCalculation(Aclass, methodType, level, waterTuple, verbosePrint):
                             verbosePrint,
                         )
 
-                        ### ppD_ppA_dict population
+                        # ppD_ppA_dict population
                         for c in range(0, int(num_molecules5)):
                             for i, pp in ppD_ppA_dict.items():
                                 ppD = pp[0]
@@ -386,7 +406,7 @@ def SorCalculation(Aclass, methodType, level, waterTuple, verbosePrint):
                             )
                         else:
                             verbosePrint("\t" * 4, round(s, 3), label)
-                    #### use smallest Sor as selected value
+                    # use smallest Sor as selected value
                     S6 += Sor_list[0][0] * float(num_molecules5) / float(num_molecules4)
                     S_shell += (
                         Sor_list[0][0] * float(num_molecules5) / float(num_molecules4)
@@ -471,7 +491,7 @@ def RAD_or_entropyCalc_test2(
     ***** S_or
     """
 
-    ####### get info about shell
+    # get info about shell
     shellCount = Counter([str(N) for N in shell])
     # count constituents in shell
     Nc = sum(shellCount.values())
@@ -493,7 +513,7 @@ def RAD_or_entropyCalc_test2(
     pA_degen_dict, pD_degen_dict = None, None
     for AD, shellDs in [["A", shellA], ["D", shellD]]:
         verbosePrint("\t" * 5, "__%s__" % (AD))
-        ####### get info about shell
+        # get info about shell
         shellCount = Counter([str(N) for N in shell])
         # count constituents in shell
         Dcount = Counter([tuple(Ds) for Ds in shellDs])
@@ -516,7 +536,7 @@ def RAD_or_entropyCalc_test2(
                     else:
                         solute_donor = True
 
-        ####### pi only, degeneracy info for each orientation type observed
+        # pi only, degeneracy info for each orientation type observed
         i_counts_dict = {}
         tot_i_count = 0
         for donors, count in Dcount.items():
@@ -569,22 +589,22 @@ def RAD_or_entropyCalc_test2(
                     ww_Ds += count
                 else:
                     solute_pi = True
-            if solute_pi == True:
+            if solute_pi is True:
                 solute_pis += pi * degeneracy
 
-        ####### calculate number of observed orientations
+        # calculate number of observed orientations
         # pi_max = max(map(lambda x: x[0], pi_degen_dict.values()))
         # verbosePrint('\t'*6, 'pi_max', round(pi_max, 5))
 
         # verbosePrint(ww_Ds, referenceCount)
-        per_w_Ds = ww_Ds / float(referenceCount)
+        # per_w_Ds = ww_Ds / float(referenceCount)
 
         if AD == "A":
             pA_degen_dict = pi_degen_dict
         if AD == "D":
             pD_degen_dict = pi_degen_dict
 
-        ####### pij, degeneracy info for each orientation type observed
+        # pij, degeneracy info for each orientation type observed
         verbosePrint("\t" * 5, "--ij--")
         pij_degen_dict = {}
         for donors, count in Dcount.items():
@@ -635,13 +655,13 @@ def RAD_or_entropyCalc_test2(
                         solvent_pij = True
                     else:
                         solute_pij = True
-            if solute_pij == True:
+            if solute_pij is True:
                 solute_pijs += pij[0] * pij[1]
 
             if pij[0] * pij[1] > largest_pij:
                 largest_pij = pij[0] * pij[1]
 
-        ####### calculate number of observed orientations
+        # calculate number of observed orientations
         pij_max = max(map(lambda x: x[0], pij_degen_dict.values()))
         verbosePrint("\t" * 6, "pij_max", round(pij_max, 5))
 
@@ -750,7 +770,7 @@ def forceUnitConversion(forceUnits):
     Gromacs = kJ / mol / nm / m^2
     """
 
-    ### for amber
+    # for amber
     force_half = 0.5**2
     cal_J = 4184**2
     pmol_pmolec = 6.02214086e23**2
@@ -758,25 +778,25 @@ def forceUnitConversion(forceUnits):
     A = 1e-10
     gmol_kg = 6.02214086e26
 
-    #'''
+    #
     if forceUnits != "kJ":
-        ###top = force_half*cal_J*gmol_kg
+        # top = force_half*cal_J*gmol_kg
         top = cal_J * gmol_kg
         bottom = pmol_pmolec * A_m
         constant = float(top) / float(bottom)
-    #'''
+    #
 
-    #'''
+    #
     if forceUnits == "kJ":
-        ### for gromacs
+        # for gromacs
         nm_m = 1e-9**2
         nm = 1e-9
-        kJ_J = 1000**2  ## sqrd as force is sqred
+        kJ_J = 1000**2  # sqrd as force is sqred
         top = kJ_J * gmol_kg
         bottom = pmol_pmolec * nm_m
         constant = float(top) / float(bottom)
         # constant = 1000
-    #'''
+    #
 
     return constant
 
@@ -821,7 +841,7 @@ def SvibCalculations(totFrames, Aclass, temperature, forceUnits, verbosePrint):
 
                 Strans_qm, Srot_qm, pe_mean, ke_mean, zpe, T = 0, 0, 0, 0, 0, None
 
-                ###setting temp here
+                # setting temp here
                 T = temperature
 
                 try:
@@ -863,13 +883,13 @@ def SvibCalculations(totFrames, Aclass, temperature, forceUnits, verbosePrint):
                 ke = ke * 4.184
                 verbosePrint("\n\t\t\tave ke: ", ke)
 
-                if Strans_qm != None:
+                if Strans_qm is not None:
                     Strans_qm = Strans_qm * 8.314
-                if Strans_qm == None:
+                if Strans_qm is None:
                     Strans_qm = 0
-                if Srot_qm != None:
+                if Srot_qm is not None:
                     Srot_qm = Srot_qm * 8.314
-                if Srot_qm == None:
+                if Srot_qm is None:
                     Srot_qm = 0
 
                 Aclass.allVariables_dict[nearest][assigned][RADshell_num]["Strans"] = (
@@ -906,7 +926,7 @@ def Svib_calc(matrix_SI, T, cov, out, *args, **kwargs):
     kB = 1.38064852e-23
     # if T == None:
     # T = 298 #over-write inputted T for now
-    T = float(T)  ##uses input T
+    T = float(T)  # uses input T
     h = 1.0545718e-34  # value of hbar
     # h = 6.62607004e-34
     c = 30000000000
@@ -915,21 +935,21 @@ def Svib_calc(matrix_SI, T, cov, out, *args, **kwargs):
 
     # verbosePrint(matrix_SI)
 
-    if eigenvalues == False:
-        if cov == True:
+    if eigenvalues is False:
+        if cov is True:
             eigenvalues, eigenvectors = LA.eig(matrix_SI)
-        if cov == False:
+        if cov is False:
             eigenvalues = matrix_SI.diagonal()  # do this for diagonal only
             # CHECK
 
-    if out == True:
-        if cov == True:
+    if out is True:
+        if cov is True:
             print(
                 "\n\t\t\teigenvectors:\n\t\t\t%s\n\t\t\t%s\n\t\t\t%s"
                 % (eigenvectors[0], eigenvectors[1], eigenvectors[2]),
                 "\n\t\t\teigenvalues:\n\t\t\t%s" % (eigenvalues),
             )
-        if cov == False:
+        if cov is False:
             print("\n\t\t\teigenvalues:\n\t\t\t%s" % (eigenvalues))
 
     frequencies = []
@@ -939,11 +959,12 @@ def Svib_calc(matrix_SI, T, cov, out, *args, **kwargs):
     for value in eigenvalues:
         w = value / (kB * T)
         # print('w = ', (w))
-        ## Need to avoid square root of negative number -> NaN results
+        # Need to avoid square root of negative number -> NaN results
         # If w is positive no problems
         if w > 0:
             w = w**0.5
-        # If w is very close to zero but on the negative side, we think this is noise and using zero should be fine.
+        # If w is very close to zero but on the negative side, we think this is noise
+        # and using zero should be fine.
         elif w > -0.0001:
             w = 0
         else:
@@ -975,7 +996,7 @@ def Svib_calc(matrix_SI, T, cov, out, *args, **kwargs):
     # Svib_qm = NA * kB * S_qm
     Svib_qm = S_qm
 
-    if outputEigenValues == True:
+    if outputEigenValues is True:
         return Svib_qm, ZPE_qm, eigenvalues
     else:
         return Svib_qm, ZPE_qm
@@ -1058,7 +1079,7 @@ def process_FT(
         e = ev + [resname]
         WM_eigenvalues.append(e)
 
-    if type(UAs_forces) != type(int) and type(UAs_torques) != type(int):
+    if not isinstance(UAs_forces, int) and not isinstance(UAs_torques, int):
         verbosePrint("\t\t--WM_UAs", resname)
         Strans_qm, Srot_qm, pe_mean, ke_mean, zpe, T_mean, eigenvalues = FT_S(
             UAs_forces,
@@ -1142,7 +1163,7 @@ def process_FT(
     force_eigenvalues = force_eigenvalues[6:]
     # remove 6 smallest eigenvals
     # these correspond to WM level evs
-    if Ndih != None:  # halve Ndih largest remaining eigenvals
+    if Ndih is not None:  # halve Ndih largest remaining eigenvals
         verbosePrint("\n\t\tNdih: %s" % (Ndih))
         N_ev = np.array(force_eigenvalues[0:Ndih])
         # lowest Ndih evs are 1/2
@@ -1175,7 +1196,7 @@ def process_FT(
 
     verbosePrint("\n\t\t\tSrot WM_UA", Srot_qm_UA)
 
-    #'''
+    #
 
     return Svib_qm, Strans_qm, Srot_qm, Strans_qm_UA, Srot_qm_UA, T_mean
 
@@ -1191,18 +1212,18 @@ def FT_S(forces, torques, pe, ke, forceUnits, temperature, verbosePrint, print_o
 
     Strans_qm, Srot_qm, pe_mean, ke_mean, zpe, T_mean = None, None, None, None, 0, None
 
-    ###setting temp here
+    # setting temp here
     T_mean = temperature
 
     DOF = 0
-    if type(forces) != type(int):
+    if not isinstance(forces, int):
         for f in forces[0]:
             if f != 0:
                 DOF += 1
             else:
                 continue
 
-    if type(torques) != type(int):
+    if not isinstance(torques, int):
         for t in torques[0]:
             if t != 0:
                 DOF += 1
@@ -1211,13 +1232,13 @@ def FT_S(forces, torques, pe, ke, forceUnits, temperature, verbosePrint, print_o
 
     eigenvalues_list = []
 
-    if type(forces) != type(int):
+    if not isinstance(forces, int):
         force_sqrd_SI = np.multiply(forces, constant)
         Strans_qm, zpe_trans, eigenvalues = Svib_calc(
             force_sqrd_SI, T_mean, cov=True, out=False, outputEigenValues=True
         )
         zpe = zpe_trans
-        if print_out == True:
+        if print_out is True:
             verbosePrint("\n\t\t\tave forces:")
             for FF in force_sqrd_SI:
                 verbosePrint("\n\t\t\t%s" % (FF))
@@ -1227,13 +1248,13 @@ def FT_S(forces, torques, pe, ke, forceUnits, temperature, verbosePrint, print_o
         for ev in eigenvalues:
             eigenvalues_list.append([ev, "force"])
 
-    if type(torques) != type(int):
+    if not isinstance(torques, int):
         torque_sqrd_SI = np.multiply(torques, constant)
         Srot_qm, zpe_rot, eigenvalues = Svib_calc(
             torque_sqrd_SI, T_mean, cov=True, out=False, outputEigenValues=True
         )
         zpe += zpe_rot
-        if print_out == True:
+        if print_out is True:
             verbosePrint("\n\t\t\tave torques:")
             for TT in torque_sqrd_SI:
                 verbosePrint("\n\t\t\t%s" % (TT))
@@ -1260,7 +1281,7 @@ def process_dihedrals(Aclass, verbosePrint):
 
     if len(Aclass.adaptive_dih_dict) != 0:
 
-        ###adaptive dihedrals
+        # adaptive dihedrals
         verbosePrint("\nAdaptive Dihedrals p ln p\n")
         for nearest, assigned_key in sorted(list(Aclass.adaptive_dih_dict.items())):
             for assigned, shell_num_key in sorted(list(assigned_key.items())):
@@ -1388,7 +1409,7 @@ def process_dihedrals(Aclass, verbosePrint):
                                         closest_phi = maxPhi
                                 refined_max_dict[closest_phi] += count
 
-                        ## p ln p calcs finally!
+                        # p ln p calcs finally!
                         sum_count = sum(
                             count for phi, count in refined_max_dict.items()
                         )
@@ -1415,7 +1436,7 @@ def saveAllVariables(
     """ """
 
     frames = ""
-    if num_frames != None:
+    if num_frames is not None:
         frames = num_frames
     solventDataName = f"solventVariables{frames}{name}_{level}.csv"
     # data = open('solventVariables%s%s_%s.csv' % (frames, name, level), 'w')
@@ -1464,7 +1485,7 @@ def saveAllVariables(
                             if (
                                 variable
                                 not in reduced_dict[nearest][assigned][shellNum]
-                                and value[0] != None
+                                and value[0] is not None
                             ):
                                 reduced_dict[nearest][assigned][shellNum][variable] = [
                                     0,
@@ -1483,14 +1504,22 @@ def saveAllVariables(
             for assigned, shellNum_key in sorted(list(assigned_key.items())):
                 for shellNum, variable_key in sorted(list(shellNum_key.items())):
                     for variable, value in variable_key.items():
-                        if value[0] != None and assigned in solvent and shellNum == 1:
+                        if (
+                            value[0] is not None
+                            and assigned in solvent
+                            and shellNum == 1
+                        ):
                             # data.write('\n'.join(['%s,%s,%s,%s,%s,%s' %
                             #         (nearest,
                             #         assigned, shellNum, variable, value[0],
                             #         value[1])]) + '\n')
                             Utils.printOut(
                                 solventDataName,
-                                f"{nearest},{assigned},{shellNum},{variable},{value[0]},{value[1]}",
+                                (
+                                    f"{nearest},{assigned},"
+                                    f"{shellNum},{variable},"
+                                    f"{value[0]},{value[1]}"
+                                ),
                             )
                             newRowSolvent = pd.DataFrame(
                                 {
@@ -1509,7 +1538,7 @@ def saveAllVariables(
                         else:
                             continue
 
-        ###for solute only
+        # for solute only
         PE_KE_dict = nested_dict()
         for nearest, assigned_key in sorted(list(Aclass.allVariables_dict.items())):
             for assigned, shellNum_key in sorted(list(assigned_key.items())):
@@ -1519,7 +1548,7 @@ def saveAllVariables(
                 for shellNum, variable_key in sorted(list(shellNum_key.items())):
                     for variable, value in variable_key.items():
                         if assigned[0] not in solvent and shellNum != 0:
-                            if variable in ["PE", "KE"] and value[0] != None:
+                            if variable in ["PE", "KE"] and value[0] is not None:
                                 new_var = "WM_%s" % (variable)
                                 if new_var not in PE_KE_dict[nearest][assigned[0]]:
                                     PE_KE_dict[nearest][assigned[0]][new_var] = [0, 0]
@@ -1533,7 +1562,10 @@ def saveAllVariables(
                                 #         int(round(value[1], 0)))]) + '\n')
                                 Utils.printOut(
                                     soluteDataName,
-                                    f"{assigned[0]},{variable},{value[0]},{int(round(value[1], 0))}",
+                                    (
+                                        f"{assigned[0]},{variable},{value[0]},"
+                                        f"{int(round(value[1], 0))}"
+                                    ),
                                 )
                                 newRowSolute = pd.DataFrame(
                                     {
@@ -1573,7 +1605,7 @@ def saveAllVariables(
                     soluteData = pd.concat(
                         [soluteData, newRowSolute], ignore_index=True
                     )
-        #'''
+        #
 
     else:
         for nearest, assigned_key in sorted(list(Aclass.allVariables_dict.items())):
@@ -1583,7 +1615,7 @@ def saveAllVariables(
                         if (
                             assigned[0] in solvent
                             and shellNum == 1
-                            and value[0] != None
+                            and value[0] is not None
                         ):
                             # data.write('\n'.join(['%s,%s,%s,%s,%s,%s' %
                             #         (nearest,
@@ -1592,7 +1624,11 @@ def saveAllVariables(
                             #         int(round(value[1], 0)))]) + '\n')
                             Utils.printOut(
                                 solventDataName,
-                                f"{nearest},{assigned[0]},{shellNum},{variable},{value[0]},{int(round(value[1], 0))}",
+                                (
+                                    f"{nearest},{assigned[0]},"
+                                    f"{shellNum},{variable},",
+                                    f"{value[0]},{int(round(value[1], 0))}",
+                                ),
                             )
                             newRowSolvent = pd.DataFrame(
                                 {
@@ -1611,15 +1647,15 @@ def saveAllVariables(
                         else:
                             continue
 
-        #'''
-        ###for solute only
+        #
+        # for solute only
         PE_KE_dict = nested_dict()
         for nearest, assigned_key in sorted(list(Aclass.allVariables_dict.items())):
             for assigned, shellNum_key in sorted(list(assigned_key.items())):
                 for shellNum, variable_key in sorted(list(shellNum_key.items())):
                     for variable, value in variable_key.items():
                         if assigned[0] not in solvent and shellNum != 0:
-                            if variable in ["PE", "KE"] and value[0] != None:
+                            if variable in ["PE", "KE"] and value[0] is not None:
                                 new_var = "WM_%s" % (variable)
                                 if new_var not in PE_KE_dict[nearest][assigned[0]]:
                                     PE_KE_dict[nearest][assigned[0]][new_var] = [0, 0]
@@ -1633,7 +1669,10 @@ def saveAllVariables(
                                 #         int(round(value[1], 0)))]) + '\n')
                                 Utils.printOut(
                                     soluteDataName,
-                                    f"{assigned[0]},{variable},{value[0]},{int(round(value[1], 0))}",
+                                    (
+                                        f"{assigned[0]},{variable},"
+                                        f"{value[0]},{int(round(value[1], 0))}"
+                                    ),
                                 )
                                 newRowSolute = pd.DataFrame(
                                     {
@@ -1673,7 +1712,7 @@ def saveAllVariables(
                     soluteData = pd.concat(
                         [soluteData, newRowSolute], ignore_index=True
                     )
-        #'''
+        #
 
     # data.close()
     # data2.close()

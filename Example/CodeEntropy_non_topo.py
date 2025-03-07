@@ -1,5 +1,6 @@
 import os
-import sys
+
+# import sys
 from datetime import datetime
 
 import MDAnalysis as mda
@@ -11,7 +12,7 @@ from CodeEntropy.FunctionCollection import EntropyFunctions as EF
 from CodeEntropy.IO import MDAUniverseHelper as MDAHelper
 
 if __name__ == "__main__":
-    ############## REPLACE INPUTS ##############
+    # REPLACE INPUTS #
     startTime = datetime.now()
     data_dir = os.path.dirname(os.path.abspath(__file__))
     tprfile = os.path.join(data_dir, "data/1AKI_prod_60.tpr")
@@ -28,9 +29,9 @@ if __name__ == "__main__":
     step = 2
     thread = 8
     axis_list = ["C", "CA", "N"]
-    if start == None:
+    if start is None:
         start = 0
-    if end == None:
+    if end is None:
         end = len(u.trajectory)
     results_df = pd.DataFrame(columns=["Method and Level", "Type", "result"])
     reduced_frame = MDAHelper.new_U_select_frame(u, start, end, step)
@@ -229,4 +230,4 @@ if __name__ == "__main__":
 
     print(f"total time {datetime.now() - startTime}")
     results_df = results_df.replace(np.nan, "nan")
-    results_df.to_csv(f"molecule_entropy_result.csv", index=False)
+    results_df.to_csv("molecule_entropy_result.csv", index=False)
