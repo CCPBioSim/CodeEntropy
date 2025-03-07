@@ -1,12 +1,20 @@
-## Description
-Provide a brief description of the PR's purpose here.
+### Summary
+<!-- Provide a brief description of the PR's purpose here. -->
 
-## Todos
-Notable points that this PR has either accomplished or will accomplish.
-  - [ ] TODO 1
+### Changes
+<!-- List all the changes introduced in this PR. -->
+Change 1 <!-- Rename Change 1 to reflect change title -->:
+- <!-- Bullet point the changes in update 1. -->
+-  
 
-## Questions
-- [ ] Question1
+Change 2 <!-- Rename Change 2 to reflect change title -->:
+- <!-- Bullet point the changes in update 2. -->
+-  
 
-## Status
-- [ ] Ready to go
+Change 3 <!-- Rename Change 3 to reflect change title -->:
+- <!-- Bullet point the changes in update 3. -->
+-  
+
+### Impact
+- <!-- Bullet point the expected impact this PR will have on the codebase. -->
+-  
