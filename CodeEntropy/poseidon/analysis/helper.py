@@ -4,7 +4,15 @@ import psutil
 
 
 def memoryInfo(verbosePrint):
-    """ """
+    """
+    Prints the current process's memory usage in gigabytes.
+
+    Args:
+        verbosePrint (bool): This parameter is unused in the function.
+
+    Returns:
+        None
+    """
     process = psutil.Process(os.getpid())
     bytes_info = float(process.memory_info().rss)
     gb = bytes_info * 1e-9

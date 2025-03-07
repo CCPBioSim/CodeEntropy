@@ -51,7 +51,6 @@ def frame_iteration(
     verbosePrint(datetime.now() - startTime)
     sys.stdout.flush()
 
-    #
     traj = container.trajectory[frame]
     neighbour_coords = None
     neighbour_coords = traj.positions
@@ -115,7 +114,6 @@ def frame_iteration(
     verbosePrint("NEAREST ARRAYS")
     verbosePrint(datetime.now() - startTime)
     sys.stdout.flush()
-    #
 
     if cutShell is not None:
         # Used for fixed cut-off coordination shells
