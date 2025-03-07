@@ -1,22 +1,26 @@
 #!/usr/bin/env python
 
 import logging
-import math
+
+# import math
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict  # Counter,
 from datetime import datetime
 
-import MDAnalysis
-import numpy as np
-from MDAnalysis import *
-from MDAnalysis.analysis import distances
+# import MDAnalysis
+# import numpy as np
+# from MDAnalysis import *
 
-from CodeEntropy.poseidon.extractData.generalFunctions import (
-    calcWaterSoluteAngle,
-    distance,
-)
+# from MDAnalysis.analysis import distances
 
-nested_dict = lambda: defaultdict(nested_dict)
+# from CodeEntropy.poseidon.extractData.generalFunctions import (
+#     calcWaterSoluteAngle,
+#     distance,
+# )
+
+
+def nested_dict():
+    return defaultdict(nested_dict)
 
 
 def getShellAssignment(all_data, excludedResnames, dimensions, startTime, verbosePrint):
@@ -27,17 +31,17 @@ def getShellAssignment(all_data, excludedResnames, dimensions, startTime, verbos
     nearestNonlike_dict = {}  # need a dictionary of all UAs that are
     # assigned as nearest non-likes with values as a list of UAs
 
-    if excludedResnames == None:
+    if excludedResnames is None:
         excludedResnames = []
 
     for x in range(0, len(all_data)):
         atom = all_data[x]
-        if atom.mass > 1.1 and atom.nearest_sorted_array != None:
+        if atom.mass > 1.1 and atom.nearest_sorted_array is not None:
             # and len(atom.RAD) != 0:
             nearestNonlike = None
             nearestNonlikeDist = None
             for atomDist in atom.nearest_sorted_array:
-                if nearestNonlikeDist == None:
+                if nearestNonlikeDist is None:
                     nonlike = all_data[atomDist[0]]
                     if (
                         nonlike.resid != atom.resid
@@ -52,8 +56,8 @@ def getShellAssignment(all_data, excludedResnames, dimensions, startTime, verbos
                 else:
                     break
 
-            #### When nearest nonlike solute is found
-            if nearestNonlikeDist != None:
+            # When nearest nonlike solute is found
+            if nearestNonlikeDist is not None:
                 atom.nearestAnyNonlike = (nearestNonlike, nearestNonlikeDist)
 
                 if nearestNonlike.resid not in nearestNonlike_dict:
@@ -71,16 +75,16 @@ def getShellAssignment(all_data, excludedResnames, dimensions, startTime, verbos
     verbosePrint(datetime.now() - startTime)
     sys.stdout.flush()
 
-    #### Part 2: For each nonlike UA with assigned molecules, get prox shell
-    #### This is the slow part of the code - prox shell assignment
+    # Part 2: For each nonlike UA with assigned molecules, get prox shell
+    # This is the slow part of the code - prox shell assignment
 
-    #### Find closest nonlike for each molecule, needed below
-    #### so only one atom per molecule is used in prox assignment, rest
-    #### of atoms in molecules are given the same prox as nearest atom
+    # Find closest nonlike for each molecule, needed below
+    # so only one atom per molecule is used in prox assignment, rest
+    # of atoms in molecules are given the same prox as nearest atom
     molecule_resid_nearest_dict = {}
     for x in range(0, len(all_data)):
         atom = all_data[x]
-        if atom.nearestAnyNonlike != None:
+        if atom.nearestAnyNonlike is not None:
             nearestNonlike = atom.nearestAnyNonlike[0]
             dist = atom.nearestAnyNonlike[1]
             if atom.resid not in molecule_resid_nearest_dict:
@@ -126,10 +130,10 @@ def getShellAssignment(all_data, excludedResnames, dimensions, startTime, verbos
             if len(nonlike.RAD) == 0:
                 logging.warning("no RAD nonlike:", nonlike)
 
-    ##Anything beyond the 1st shell is assigned to 2nd
+    # Anything beyond the 1st shell is assigned to 2nd
     for x in range(0, len(all_data)):
         atom = all_data[x]
-        if atom.hydrationShellRAD_solute == None and atom.mass > 1.1:
+        if atom.hydrationShellRAD_solute is None and atom.mass > 1.1:
             atom.hydrationShellRAD_solute = 2
         else:
             continue
@@ -165,13 +169,13 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
         atom = all_data[x]
         if atom.mass > 1.1:
 
-            #### part 1: get ranking of RAD Nc according to extended shells.
+            # part 1: get ranking of RAD Nc according to extended shells.
             shell_list_ranked = []
             shell_list_atom_nums = []
 
             for neighbour in atom.RAD:
                 shell_list_atom_nums.append(neighbour.atom_num)
-                ##include Hs in shell_list_atom_nums
+                # include Hs in shell_list_atom_nums
                 for bonded in neighbour.bonded_to_atom_num:
                     b = all_data[bonded]
                     if b.mass < 1.1:
@@ -179,10 +183,10 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                     else:
                         continue
 
-            if len(atom.RAD) != 0 and atom.nearestAnyNonlike != None:
+            if len(atom.RAD) != 0 and atom.nearestAnyNonlike is not None:
 
                 for neighbour in atom.RAD:
-                    if neighbour.nearestAnyNonlike != None:
+                    if neighbour.nearestAnyNonlike is not None:
                         if (
                             neighbour.nearestAnyNonlike[0].resid
                             == atom.nearestAnyNonlike[0].resid
@@ -231,7 +235,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                     else:
                         continue
 
-            #### part 2: get HBing info wrt RAD Nc ranking, only for water
+            # part 2: get HBing info wrt RAD Nc ranking, only for water
 
             acceptor_list = []
             donor_list = []
@@ -272,7 +276,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                 # what atoms are bonded Hs donating to:
                 for bonded_atom_num in atom.bonded_to_atom_num:
                     H = all_data[bonded_atom_num]
-                    if H.mass < 1.1 and H.nearest_atom != None:
+                    if H.mass < 1.1 and H.nearest_atom is not None:
                         X = H.nearest_atom
                         if X.mass > 1.1:
                             if X.atom_num in shell_list_atom_nums:
@@ -302,7 +306,7 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
                             else:
                                 continue
 
-                        #### dealing with H-H interactions.
+                        # dealing with H-H interactions.
                         elif X.mass < 1.1:
                             UA_X = None
                             for bonded_atom_num2 in X.bonded_to_atom_num:
@@ -344,8 +348,8 @@ def moleculePositionRankingRAD(all_data, waterTuple, dimensions):
 
             atom.RAD_shell_ranked = (shell, acceptors, donors)
 
-            ### create a list for RAD neighbours and relative
-            ### distances (QQ/r^2)
+            # create a list for RAD neighbours and relative
+            # distances (QQ/r^2)
 
             RAD_nAtoms = []
             for neighbour in atom.RAD:

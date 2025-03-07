@@ -1,5 +1,5 @@
-import MDAnalysis as mda
-import numpy as nmp
+# import MDAnalysis as mda
+import numpy as np
 
 from CodeEntropy import GeometricFunctions as GF
 
@@ -37,7 +37,8 @@ def select_levels(data_container, verbose):
         if len(atoms_in_fragment) > 1:
             levels[molecule].append("residue")
 
-            # if assigned residue level and there is more than one residue assign polymer level
+            # if assigned residue level and there is more than one residue assign
+            # polymer level
             if number_residues > 1:
                 levels[molecule].append("polymer")
 
@@ -54,13 +55,15 @@ def get_matrices(
     data_container, level, verbose, start, end, step, number_frames, highest_level
 ):
     """
-    Function to create the force matrix needed for the transvibrational entropy calculation
-    and the torque matrix for the rovibrational entropy calculation.
+    Function to create the force matrix needed for the transvibrational entropy
+    calculation and the torque matrix for the rovibrational entropy calculation.
 
     Input
     -----
-        data_container : MDAnalysis universe type with the information on the molecule of interest.
-        level : string, which of the polymer, residue, or united atom levels are the matrices for.
+        data_container : MDAnalysis universe type with the information on the
+        molecule of interest.
+        level : string, which of the polymer, residue, or united atom levels
+        are the matrices for.
         verbose : true/false, controlls how much is printed
         start : int, starting frame, default 0 (first frame)
         end : int, ending frame, default -1 (last frame)
@@ -72,7 +75,7 @@ def get_matrices(
         torque_matrix : torque convariance matrix for rovibrational entropy
     """
 
-    ## Make beads
+    # Make beads
     list_of_beads = GF.get_beads(data_container, level)
 
     # number of beads and frames in trajectory
@@ -82,15 +85,15 @@ def get_matrices(
     weighted_forces = [[0 for x in range(number_frames)] for y in range(number_beads)]
     weighted_torques = [[0 for x in range(number_frames)] for y in range(number_beads)]
 
-    ## Calculate forces/torques for each bead
+    # Calculate forces/torques for each bead
     for bead_index in range(number_beads):
         for timestep in data_container.trajectory[start:end:step]:
-            ## Set up axes
+            # Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
             trans_axes, rot_axes = GF.get_axes(data_container, level, bead_index)
 
-            ## Sort out coordinates, forces, and torques for each atom in the bead
+            # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index][timestep.frame] = GF.get_weighted_forces(
                 data_container, list_of_beads[bead_index], trans_axes, highest_level
             )
@@ -98,7 +101,7 @@ def get_matrices(
                 data_container, list_of_beads[bead_index], rot_axes
             )
 
-    ## Make covariance matrices - looping over pairs of beads
+    # Make covariance matrices - looping over pairs of beads
     # list of pairs of indices
     pair_list = [(i, j) for i in range(number_beads) for j in range(number_beads)]
 
@@ -107,30 +110,31 @@ def get_matrices(
 
     for i, j in pair_list:
         # for each pair of beads
-        # reducing effort because the matrix for [i][j] is the transpose of the one for [j][i]
+        # reducing effort because the matrix for [i][j] is the transpose of the one for
+        # [j][i]
         if i <= j:
             # calculate the force covariance segment of the matrix
             force_submatrix[i][j] = GF.create_submatrix(
                 weighted_forces[i], weighted_forces[j], number_frames
             )
-            force_submatrix[j][i] = nmp.transpose(force_submatrix[i][j])
+            force_submatrix[j][i] = np.transpose(force_submatrix[i][j])
 
             # calculate the torque covariance segment of the matrix
             torque_submatrix[i][j] = GF.create_submatrix(
                 weighted_torques[i], weighted_torques[j], number_frames
             )
-            torque_submatrix[j][i] = nmp.transpose(torque_submatrix[i][j])
+            torque_submatrix[j][i] = np.transpose(torque_submatrix[i][j])
 
-    ## Tidy up
-    # use nmp.block to make submatrices into one matrix
-    force_matrix = nmp.block(
+    # Tidy up
+    # use np.block to make submatrices into one matrix
+    force_matrix = np.block(
         [
             [force_submatrix[i][j] for j in range(number_beads)]
             for i in range(number_beads)
         ]
     )
 
-    torque_matrix = nmp.block(
+    torque_matrix = np.block(
         [
             [torque_submatrix[i][j] for j in range(number_beads)]
             for i in range(number_beads)
@@ -157,9 +161,11 @@ def get_matrices(
 def get_dihedrals(data_container, level):
     """
     Define the set of dihedrals for use in the conformational entropy function.
-    If residue level, the dihedrals are defined from the atoms (4 bonded atoms for 1 dihedral).
+    If residue level, the dihedrals are defined from the atoms
+    (4 bonded atoms for 1 dihedral).
     If polymer level, use the bonds between residues to cast dihedrals.
-    Note: not using improper dihedrals only ones with 4 atoms/residues in a linear arrangement.
+    Note: not using improper dihedrals only ones with 4 atoms/residues
+    in a linear arrangement.
 
     Input
     -----

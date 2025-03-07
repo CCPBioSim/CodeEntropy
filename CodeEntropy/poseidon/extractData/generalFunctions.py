@@ -2,10 +2,11 @@
 
 import logging
 import math
-import sys
 
 import numpy as np
 from numpy import linalg as LA
+
+# import sys
 
 
 def distance(x0, x1, dimensions):
@@ -245,8 +246,10 @@ def MOI(cm, coord_list, mass_list):
         I_yz += (coord[1] - y_cm) * (coord[2] - z_cm) * mass
         I_zy += (coord[1] - y_cm) * (coord[2] - z_cm) * mass
 
-    I = np.array([[I_xx, -I_xy, -I_xz], [-I_yx, I_yy, -I_yz], [-I_zx, -I_zy, I_zz]])
-    return I
+    inertia_tensor = np.array(
+        [[I_xx, -I_xy, -I_xz], [-I_yx, I_yy, -I_yz], [-I_zx, -I_zy, I_zz]]
+    )
+    return inertia_tensor
 
 
 def UAforceTorque(bonded_atoms_list, F_axes, Fmoi_axes, MI_axes):
@@ -425,7 +428,7 @@ def calcAngleWithNearestNonlike(neighbour, nearest, dimensions):
     projected_OSolute = projectVectorToPlane(OSolute_vector, plane_normal)
     projected_orthog_OSolute = projectVectorToPlane(OSolute_vector, plane_normal2)
 
-    # print ('OM', OM_vector, O.atom_num)
+    # print ('OM', OM_vector, oxygen.atom_num)
 
     soluteOMangle = angleBetweenVectors(OM_vector, projected_OSolute)
     soluteOorthogAngle = angleBetweenVectors(OM_vector, projected_orthog_OSolute)
@@ -454,7 +457,7 @@ def calcAngleWithNearestNonlike(neighbour, nearest, dimensions):
     ):
         soluteOorthogAngle = (90 - soluteOorthogAngle) + 270
 
-    # cosAngle = angle(closest_H.coords, O.coords, solute.coords, dimensions)
+    # cosAngle = angle(closest_H.coords, oxygen.coords, solute.coords, dimensions)
     # arccosAngle = np.arccos(cosAngle)
     # angleDegrees = np.degrees(arccosAngle)
     # if math.isnan(angleDegrees) is False:
@@ -464,7 +467,7 @@ def calcAngleWithNearestNonlike(neighbour, nearest, dimensions):
         soluteOMangle = int(round(soluteOMangle, 0))
     # else:
     # print ('Error1: NaN for solute resid: %s, '\
-    #'water resid %s and angle %s.'\
+    # 'water resid %s and angle %s.'\
     # % (nearest.resid, neighbour.resid, soluteOMangle))
     # continue
 
@@ -472,14 +475,14 @@ def calcAngleWithNearestNonlike(neighbour, nearest, dimensions):
         soluteOorthogAngle = int(round(soluteOorthogAngle, 0))
     # else:
     # print ('Error1: NaN for solute resid: %s, '\
-    #'water resid %s and angle %s.'\
+    # 'water resid %s and angle %s.'\
     # % (nearest.resid, neighbour.resid, soluteOorthogAngle))
     # continue
 
     return soluteOMangle, soluteOorthogAngle
 
 
-def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
+def calcWaterSoluteAngle(solute, oxygen, H1, H2, dimensions):
     """
     Calc angle in plane and orthog to plane between any water
     and any solute atom.
@@ -495,9 +498,9 @@ def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
         else:
             continue
 
-    if dist_solute_H1 == None:
+    if dist_solute_H1 is None:
         dist_solute_H1 = distance(solute.coords, H1.coords, dimensions)
-    if dist_solute_H2 == None:
+    if dist_solute_H2 is None:
         dist_solute_H2 = distance(solute.coords, H2.coords, dimensions)
     closest_H = None
     if dist_solute_H1 < dist_solute_H2:
@@ -507,17 +510,17 @@ def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
     else:
         closest_H = H1
 
-    H1O_vector = vector(O.coords, H1.coords, dimensions)
-    H2O_vector = vector(O.coords, H2.coords, dimensions)
+    H1O_vector = vector(oxygen.coords, H1.coords, dimensions)
+    H2O_vector = vector(oxygen.coords, H2.coords, dimensions)
     plane_normal = np.cross(H1O_vector, H2O_vector)
     M_coords = getMcoords(H1.coords, H2.coords, dimensions)
-    OM_vector = vector(M_coords, O.coords, dimensions)
+    OM_vector = vector(M_coords, oxygen.coords, dimensions)
     plane_normal2 = np.cross(OM_vector, plane_normal)
-    OSolute_vector = vector(solute.coords, O.coords, dimensions)
+    OSolute_vector = vector(solute.coords, oxygen.coords, dimensions)
     projected_OSolute = projectVectorToPlane(OSolute_vector, plane_normal)
     projected_orthog_OSolute = projectVectorToPlane(OSolute_vector, plane_normal2)
 
-    # print ('OM', OM_vector, O.atom_num)
+    # print ('OM', OM_vector, oxygen.atom_num)
 
     soluteOMangle = angleBetweenVectors(OM_vector, projected_OSolute)
     soluteOorthogAngle = angleBetweenVectors(OM_vector, projected_orthog_OSolute)
@@ -527,7 +530,7 @@ def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
         and np.dot(plane_normal2, projected_OSolute) > 0
     ):
         soluteOMangle = (90 - soluteOMangle) + 270
-        ### only go up to 180 degrees rather than 360 as above
+        # only go up to 180 degrees rather than 360 as above
         # if soluteOMangle > 180:
         # soluteOMangle =
 
@@ -549,7 +552,7 @@ def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
     ):
         soluteOorthogAngle = (90 - soluteOorthogAngle) + 270
 
-    cosAngle = angle(closest_H.coords, O.coords, solute.coords, dimensions)
+    cosAngle = angle(closest_H.coords, oxygen.coords, solute.coords, dimensions)
     arccosAngle = np.arccos(cosAngle)
     angleDegrees = np.degrees(arccosAngle)
     if math.isnan(angleDegrees) is False:
@@ -559,7 +562,7 @@ def calcWaterSoluteAngle(solute, O, H1, H2, dimensions):
     else:
         logging.error(
             "NaN for solute resid: %s, water resid %s and angle %s."
-            % (solute.resid, O.resid, angleDegrees)
+            % (solute.resid, oxygen.resid, angleDegrees)
         )
 
     return soluteOMangle, soluteOorthogAngle

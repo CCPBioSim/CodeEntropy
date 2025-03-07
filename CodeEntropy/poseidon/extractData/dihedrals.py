@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-import math
-import sys
+# import math
+# import sys
 
 import numpy as np
 
-from CodeEntropy.poseidon.extractData.generalFunctions import *
+from CodeEntropy.poseidon.extractData.generalFunctions import distance, vector
 
 
 def calculateDihedrals(all_data, dimensions):
@@ -74,7 +74,7 @@ def calculateDihedrals(all_data, dimensions):
                         if all_data[d].resid != atom.resid:
                             inside_resid = False
 
-                    if dih not in dihedrals and inside_resid == True:
+                    if dih not in dihedrals and inside_resid is True:
                         # only analyse dihedral once
                         dihedrals.append(dih)
 
@@ -91,7 +91,7 @@ def calculateDihedrals(all_data, dimensions):
                             renumbered = (num - lowest_atom_num) + 1
                             renumbered_atom_nums.append(renumbered)
 
-                        ##get vectors
+                        # get vectors
                         b1_vector = vector(
                             d_atoms[0].coords, d_atoms[1].coords, dimensions
                         )
@@ -116,7 +116,7 @@ def calculateDihedrals(all_data, dimensions):
                         )
                         b3_norm = np.divide(b3_vector, b3_dist)
 
-                        ## get normals
+                        # get normals
                         n1 = np.cross(b1_norm, b2_norm)
                         n2 = np.cross(b2_norm, b3_norm)
                         m = np.cross(n1, b2_norm)
@@ -128,7 +128,7 @@ def calculateDihedrals(all_data, dimensions):
                         phi = rad2deg * np.arctan2(y, x)
                         dih_type = None
 
-                        ## only needed for fixed-dihedrals
+                        # only needed for fixed-dihedrals
                         if phi >= 120 or phi < -120:
                             dih_type = [0, "trans"]
 

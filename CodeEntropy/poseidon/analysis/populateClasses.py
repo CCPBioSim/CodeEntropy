@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
 import math
-import os
+
+# import os
 import sys
-from collections import Counter
 
-import numpy as np
-import psutil
-
-from CodeEntropy.poseidon.analysis.classes import *
+from CodeEntropy.poseidon.analysis.classes import variables_dicts
 from CodeEntropy.poseidon.analysis.populateEE import (
     SconfPopulation,
     SorPopulation,
@@ -16,6 +13,11 @@ from CodeEntropy.poseidon.analysis.populateEE import (
     contactPopulation,
     contactPopulationUA,
 )
+
+# from collections import Counter
+
+# import numpy as np
+# import psutil
 
 
 def classPopulation(
@@ -40,10 +42,10 @@ def classPopulation(
     The objects read in are used for this.
     """
 
-    ##### Smix_methods
+    # Smix_methods
     step_list = None
 
-    #'''
+    #
     if count == 1:
 
         # initiate classes for each flag
@@ -54,21 +56,21 @@ def classPopulation(
             EEclass_soluteContacts = variables_dicts(True)
             EEclass_atomLevel = variables_dicts(True)
 
-        if weighting_info != None:
-            if EEclass == None:
+        if weighting_info is not None:
+            if EEclass is None:
                 EEclass = variables_dicts(True)
             EEclass.weighting_list = weighting_info[0]
             EEclass.weighting_chunks = weighting_info[1]
 
-    #'''
+    #
 
     for i in atomList:  # iterate through each atom
-        ####### only need to change this if list order changes (and below)
+        # only need to change this if list order changes (and below)
         atom_count += 1
         globalFrame = math.ceil(atom_count / float(num_atoms))  # round UP
         frame = i[0]  # not used
         cumulative_steps = ["All"]
-        if step_list != None:
+        if step_list is not None:
             for n in range(1, len(step_list)):
                 step = step_list[n]
                 if int(globalFrame) <= step:
@@ -95,23 +97,23 @@ def classPopulation(
             nearest_resid = 0
             # dist = 0
         RADshell_num = i[8]
-        if RADshell_num == None:
+        if RADshell_num is not None:
             RADshell_num = "0"  # unassigned to a nearest
         RAD_list = sorted(i[9][0])
         As = i[9][1]
         Ds = i[9][2]
-        ### Svib_Ecalcs
+        # Svib_Ecalcs
         MweightedForces = i[10]  # array
         MweightedTorques = i[11]  # array
         PE = None
         KE = None
-        if i[12] != None:
+        if i[12] is not None:
             PE = i[12][0]
             KE = i[12][1]
 
         UAweightedForces = i[13]
         UAweightedTorques = i[14]
-        #### FT POPULATION
+        # FT POPULATION
         try:
             dihedral_phi_list = i[15]
             Ndih = len(i[15])
@@ -129,18 +131,18 @@ def classPopulation(
 
         RAD_str = tuple(sorted(RAD_list))
 
-        ### toggle between shells or distances as x variable
+        # toggle between shells or distances as x variable
         RADshell_num_dist = str(RADshell_num)
 
-        #### group all solute types together for easier analysis
+        # group all solute types together for easier analysis
         if atom_resname not in solvent and RADshell_num != "0":
             nearest_resname = "Any"
             RADshell_num_dist = "1"
 
-        #### find out weighting of each frame if simulation is biased
+        # find out weighting of each frame if simulation is biased
         weight = 1
-        if weighting_info != None:
-            if EEclass.weighting_list != None:
+        if weighting_info is not None:
+            if EEclass.weighting_list is not None:
                 weight = getWeight(EEclass, globalFrame)
 
         for level in level_list:
@@ -456,14 +458,14 @@ def levelSelection(
     in a RAD shell as a list of nearest molecules.
     """
 
-    ###keep as molecule
-    if level == "moleculeLevel" or level == None:
+    # keep as molecule
+    if level == "moleculeLevel" or level is None:
         atom_resname = atom_resname
         nearest_resname_list = [nearest_resname]
 
-    ###use resname_atomName for both nearest and assigned
+    # use resname_atomName for both nearest and assigned
     if level == "atomLevel":  # res_atomLevel
-        #'''
+        #
         water = False
         if atom_resname in waterTuple:
             water = True
@@ -472,17 +474,17 @@ def levelSelection(
             waterTuple.append(atom_resname)
         nearest_resname_list = [stripNumbers(nearest_atomName, nearest_resname)]
 
-        #'''
+        #
 
     """
     ###Inclusion of atom names, no edits
     if level == 'atomLevel':
         atom_resname = ('%s_%s' % (atom_resname, atom_name))
-        nearest_resname_list = [('%s_%s' % (nearest_resname, 
+        nearest_resname_list = [('%s_%s' % (nearest_resname,
                 nearest_atomName))]
     """
 
-    ###Inclusion of molecule resid
+    # Inclusion of molecule resid
     if level == "residLevel_resname":
         atom_resname = atom_resname
         if atom_resname not in waterTuple:
@@ -490,7 +492,7 @@ def levelSelection(
         nearest_resname_list = ["%s_%s" % (nearest_resname, nearest_resid)]
         # print(atom_resname, nearest_resname_list)
 
-    ###Inclusion of molecule resid
+    # Inclusion of molecule resid
     if level == "residLevel_atom":
         atom_resname = "%s_%s" % (atom_resname, atom_name)
         nearest_resname_list = ["%s_%s" % (nearest_resname, nearest_resid)]
@@ -498,7 +500,7 @@ def levelSelection(
     if level == "soluteContacts":
         atom_resname = atom_resname
         if atom_resname in waterTuple:
-            if RAD_nAtoms != None:
+            if RAD_nAtoms is not None:
                 name_id_list = []
                 for nInfo in RAD_nAtoms:
                     nResid = nInfo[1]

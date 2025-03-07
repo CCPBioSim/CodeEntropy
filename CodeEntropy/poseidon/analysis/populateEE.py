@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from itertools import combinations
+# from itertools import combinations
 
 import numpy as np
 
@@ -8,10 +8,10 @@ import numpy as np
 def contactPopulation(Aclass, RAD_nAtoms, atom_resname, atom_resid, waterTuple, weight):
     """ """
 
-    ####### RESID CONTACT MATRIX POP
-    ### contacts defined using QcQn/r^2 between any atoms
-    ### (H or heavy atoms) here!
-    if RAD_nAtoms != None:
+    # RESID CONTACT MATRIX POP
+    # contacts defined using QcQn/r^2 between any atoms
+    # (H or heavy atoms) here!
+    if RAD_nAtoms is not None:
         # RAD_closestRanked = []
         # nRAD_closestRanked_separated = {}
         for nInfo in RAD_nAtoms:
@@ -44,11 +44,11 @@ def contactPopulationUA(
 ):
     """ """
 
-    ####### RESID CONTACT MATRIX POP
-    ### contacts defined using QcQn/r^2 between any atoms
-    ### (H or heavy atoms) here!
+    # RESID CONTACT MATRIX POP
+    # contacts defined using QcQn/r^2 between any atoms
+    # (H or heavy atoms) here!
     atom_resname = atom_resname.split("_")[0]
-    if RAD_nAtoms != None:
+    if RAD_nAtoms is not None:
         # RAD_closestRanked = []
         # nRAD_closestRanked_separated = {}
         for nInfo in RAD_nAtoms:
@@ -103,7 +103,7 @@ def SorPopulation(
         RADshell_num_dist2 = RR[0]
         RADshell_num2 = RR[1]
 
-        #### As and Ds as they are for pijs
+        # As and Ds as they are for pijs
         for ADs in [["A", As], ["D", Ds]]:
             if (
                 ADs[1]
@@ -145,8 +145,8 @@ def runningWeightedAverageFT(
 
     try:
         if (
-            any(elem is None for elem in force) == False
-            and any(elem is None for elem in torque) == False
+            any(elem is None for elem in force) is False
+            and any(elem is None for elem in torque) is False
         ):
             try:
                 if torques_stored == 0 and forces_stored == 0:
@@ -166,7 +166,7 @@ def runningWeightedAverageFT(
                     torques_stored * weight_stored + torque * weight
                 ) / float(weight_stored + weight)
 
-                if KE != None:
+                if KE is not None:
                     try:
                         DOF, T = 0, 0
                         for f in force[0]:
@@ -217,19 +217,19 @@ def SvibPopulation(
     weight,
 ):
 
-    #### DICTS FOR SVIB_ECALC
+    # DICTS FOR SVIB_ECALC
 
-    ###switch level for solutes only to get WM Svib
+    # switch level for solutes only to get WM Svib
     if level == "res_atomLevel" and atom_resname not in waterTuple:
-        level == None
+        level is None
         atom_resname = atom_resname.split("_")[0]
     if level == "residLevel_resname" and atom_resname not in waterTuple:
-        level == None
+        level is None
         nearest_resname = nearest_resname.split("_")[0]
     atom_info = (atom_resname, N_H, atom_name)
 
     # print(nearest_resname, atom_resname)
-    ###running weighted average of X
+    # running weighted average of X
 
     if RADshell_num_dist not in Aclass.RADshell_dict[nearest_resname][atom_info]:
         Aclass.RADshell_dict[nearest_resname][atom_info][RADshell_num_dist] = [
@@ -296,7 +296,7 @@ def SvibPopulation(
         PE_add = PE_stored
         KE_add = KE_stored
 
-        if count_add != count_stored and PE != None:
+        if count_add != count_stored and PE is not None:
             # PE_add = (PE + PE_stored * count_stored) / float(count_add)
             # KE_add = (KE + KE_stored * count_stored) / float(count_add)
 
@@ -325,9 +325,9 @@ def SvibPopulation(
 
     atom_info = (atom_info, Ndih)
 
-    ##### PROX SHELL FT ASSIGNMENT
+    # PROX SHELL FT ASSIGNMENT
 
-    if type(MweightedForces) != type(None):  # and \
+    if type(MweightedForces) is not type(None):  # and \
         # atom_resname in waterTuple: #water only for now
 
         if RADshell_num_dist not in Aclass.WM_FT_shell_dict[nearest_resname][atom_info]:
@@ -421,7 +421,7 @@ def SvibPopulation(
         PE_add = PE_stored
         KE_add = KE_stored
 
-        if count_add != count_stored and PE != None:
+        if count_add != count_stored and PE is not None:
             # PE_add = (PE + PE_stored * count_stored) / float(count_add)
             # KE_add = (KE + KE_stored * count_stored) / float(count_add)
 
@@ -480,7 +480,7 @@ def SconfPopulation(
         """
         return round(value / resolution) * resolution
 
-    if nearest_resname != None and dihedral_phi_list != None:
+    if nearest_resname is not None and dihedral_phi_list is not None:
 
         assigned = (atom_resname, len(dihedral_phi_list), molecule_size, N_H, atom_name)
 
@@ -495,7 +495,7 @@ def SconfPopulation(
             # dih_index = dihedral_phi_type[2][0] #0, 1, 2
             # dih_type = dihedral_phi_type[2][1] #trans, g-, g+
 
-            ##adaptive method
+            # adaptive method
             rounded_phi = roundPartial(phi, 30)
             # print (phi, rounded_phi)
             all_bins = list(range(-180, 181, 30))

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import os
+# import os
 import sys
-from ast import arg
 
 import numpy as np
 from numpy import linalg as la
+
+# from ast import arg
+
 
 np.set_printoptions(threshold=sys.maxsize)
 # from CodeEntropy.ClassCollection import BeadClasses as BC
@@ -17,12 +19,12 @@ np.set_printoptions(threshold=sys.maxsize)
 # from CodeEntropy.FunctionCollection import UnitsAndConversions as UAC
 # from CodeEntropy.FunctionCollection import Utils
 # from CodeEntropy.IO import Writer
-import multiprocessing as mp
-from functools import partial
+# import multiprocessing as mp
+# from functools import partial
 
 # import MDAnalysis as mda
-import matplotlib.pyplot as plt
-import pandas as pd
+# import matplotlib.pyplot as plt
+# import pandas as pd
 
 # def frequencies(lambdas): - to add!!!
 

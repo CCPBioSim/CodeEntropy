@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
-import CodeEntropy
+# import CodeEntropy
 
 # -- Project information -----------------------------------------------------
 
@@ -173,7 +173,8 @@ texinfo_documents = [
         "CodeEntropy Documentation",
         author,
         "CodeEntropy",
-        "CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy",
+        "CodeEntropy tool with POSEIDON code integrated to form a complete and "
+        "generally applicable set of tools for calculating entropy",
         "Miscellaneous",
     ),
 ]

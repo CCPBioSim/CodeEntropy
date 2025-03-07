@@ -1,29 +1,34 @@
 import argparse
 import math
-from datetime import datetime
 
 import MDAnalysis as mda
-import numpy as nmp
+
+# import numpy as np
 import pandas as pd
 
 from CodeEntropy import EntropyFunctions as EF
 from CodeEntropy import LevelFunctions as LF
 from CodeEntropy import MDAUniverseHelper as MDAHelper
 
+# from datetime import datetime
+
 
 def main():
     """
-    Main function for calculating the entropy of a system using the multiscale cell correlation method.
+    Main function for calculating the entropy of a system using the multiscale cell
+    correlation method.
     """
 
     try:
         parser = argparse.ArgumentParser(
             description="""
-        CodeEntropy-POSEIDON is a tool to compute entropy using the multiscale-cell-correlation (MCC) theory and force/torque covariance methods with the ablity to compute solvent entropy. 
+        CodeEntropy-POSEIDON is a tool to compute entropy using the
+        multiscale-cell-correlation (MCC) theory and force/torque covariance
+        methods with the ablity to compute solvent entropy.
         Version:
             0.3.1;
 
-        Authors: 
+        Authors:
             Arghya Chakravorty (arghya90),
             Jas Kalayan (jkalayan),
             Donald Chang,
@@ -43,7 +48,10 @@ def main():
             dest="filePath",
             action="store",
             nargs="+",
-            help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which contains topology and dihedral information) followed by Trajectory file(s) (AMBER NETCDF or GROMACS TRR) you will need to output the coordinates and forces to the same file. Required.",
+            help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which "
+            "contains topology and dihedral information) followed by Trajectory "
+            "file(s) (AMBER NETCDF or GROMACS TRR) you will need to output the "
+            "coordinates and forces to the same file. Required.",
         )
         parser.add_argument(
             "-l",
@@ -52,7 +60,8 @@ def main():
             dest="selection_string",
             type=str,
             default="all",
-            help="Selection string for CodeEntropy such as protein or resid, refer to MDAnalysis.select_atoms for more information.",
+            help="Selection string for CodeEntropy such as protein or resid, refer to "
+            "MDAnalysis.select_atoms for more information.",
         )
         parser.add_argument(
             "-b",
@@ -68,7 +77,8 @@ def main():
             "--end",
             action="store",
             dest="end",
-            help="Stop analysing the trajectory at this frame index. Defaults to -1 (end of trajectory file)",
+            help="Stop analysing the trajectory at this frame index. Defaults to -1 "
+            "(end of trajectory file)",
             default=-1,
             type=int,
         )
@@ -77,7 +87,8 @@ def main():
             "--step",
             action="store",
             dest="step",
-            help="interval between two consecutive frames to be read index. Defaults to 1",
+            help="interval between two consecutive frames to be read index. "
+            "Defaults to 1",
             default=1,
             type=int,
         )
@@ -88,7 +99,8 @@ def main():
             dest="bin_width",
             default=30,
             type=int,
-            help="Bin width in degrees for making the histogram of the dihedral angles for the conformational entropy. Default: 30",
+            help="Bin width in degrees for making the histogram of the dihedral angles "
+            "for the conformational entropy. Default: 30",
         )
         parser.add_argument(
             "-k",
@@ -123,7 +135,8 @@ def main():
             action="store",
             dest="outfile",
             default="outfile.out",
-            help="Name of the file where the output will be written. Default: outfile.out",
+            help="Name of the file where the output will be written. "
+            "Default: outfile.out",
         )
         parser.add_argument(
             "-r",
@@ -131,7 +144,8 @@ def main():
             action="store",
             dest="resfile",
             default="res_outfile.out",
-            help="Name of the file where the residue entropy output will be written. Default: res_outfile.out",
+            help="Name of the file where the residue entropy output will be written. "
+            "Default: res_outfile.out",
         )
         parser.add_argument(
             "-m",
@@ -139,7 +153,8 @@ def main():
             action="store",
             dest="moutfile",
             default=None,
-            help="Name of the file where certain matrices will be written (default: None).",
+            help="Name of the file where certain matrices will be written "
+            "(default: None).",
         )
 
         parser.add_argument(
@@ -149,7 +164,8 @@ def main():
             dest="cutShell",
             default=None,
             type=float,
-            help="include cutoff shell analysis, add cutoff distance in angstrom Default None will ust the RAD Algorithm",
+            help="include cutoff shell analysis, add cutoff distance in angstrom "
+            "Default None will ust the RAD Algorithm",
         )
         parser.add_argument(
             "-p",
@@ -158,7 +174,7 @@ def main():
             dest="puteAtomNum",
             default=1,
             type=int,
-            help="Reference molecule resid for system of pure liquid. Default to 1",
+            help="Reference molecule resid for system of pure liquid. " "Default to 1",
         )
         parser.add_argument(
             "-x",
@@ -167,7 +183,8 @@ def main():
             action="store",
             nargs="+",
             default=None,
-            help="exclude a list of molecule names from nearest non-like analysis. Default: None. Multiples are gathered into list.",
+            help="exclude a list of molecule names from nearest non-like analysis. "
+            "Default: None. Multiples are gathered into list.",
         )
         parser.add_argument(
             "-w",
@@ -176,7 +193,8 @@ def main():
             action="store",
             default="WAT",
             nargs="+",
-            help="resname for water molecules. Default: WAT. Multiples are gathered into list.",
+            help="resname for water molecules. "
+            "Default: WAT. Multiples are gathered into list.",
         )
         parser.add_argument(
             "-s",
@@ -185,7 +203,8 @@ def main():
             action="store",
             nargs="+",
             default=None,
-            help="include resname of solvent molecules (case-sensitive) Default: None. Multiples are gathered into list.",
+            help="include resname of solvent molecules (case-sensitive) "
+            "Default: None. Multiples are gathered into list.",
         )
         parser.add_argument(
             "--solContact",
@@ -200,12 +219,12 @@ def main():
         print("Command line arguments are ill-defined, please check the arguments")
         raise
 
-    ############## REPLACE INPUTS ##############
+    # REPLACE INPUTS
     print("printing all input")
     for arg in vars(args):
         print(" {} {}".format(arg, getattr(args, arg) or ""))
 
-    startTime = datetime.now()
+    # startTime = datetime.now()
 
     # Get topology and trajectory file names and make universe
     tprfile = args.filePath[0]
@@ -248,7 +267,8 @@ def main():
     with open(args.resfile, "a") as res:
         print("Molecule\tResidue\tType\tResult (J/mol/K)\n", file=res)
 
-    # Reduce number of atoms in MDA universe to selection_string arg (default all atoms included)
+    # Reduce number of atoms in MDA universe to selection_string arg
+    # (default all atoms included)
     if args.selection_string == "all":
         reduced_atom = u
     else:
@@ -256,14 +276,16 @@ def main():
         reduced_atom_name = f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
         MDAHelper.write_universe(reduced_atom, reduced_atom_name)
 
-    # Scan system for molecules and select levels (united atom, residue, polymer) for each
+    # Scan system for molecules and select levels (united atom, residue, polymer)
+    # for each
     number_molecules, levels = LF.select_levels(reduced_atom, args.verbose)
 
     # Loop over molecules
     for molecule in range(number_molecules):
-        # molecule data container of MDAnalysis Universe type for internal degrees of freedom
-        # getting indices of first and last atoms in the molecule
-        # assuming atoms are numbered consecutively and all atoms in a given molecule are together
+        # molecule data container of MDAnalysis Universe type for internal degrees
+        # of freedom getting indices of first and last atoms in the molecule
+        # assuming atoms are numbered consecutively and all atoms in a given
+        # molecule are together
         index1 = reduced_atom.atoms.fragments[molecule].indices[0]
         index2 = reduced_atom.atoms.fragments[molecule].indices[-1]
         selection_string = f"index {index1}:{index2}"
@@ -277,18 +299,20 @@ def main():
                 highest_level = False
 
             if level == "united_atom":
-                # loop over residues, report results per residue + total united atom level
-                # This is done per residue to reduce the size of the matrices -
-                # amino acid resiudes have tens of united atoms but a whole protein could have thousands
-                # Doing the calculation per residue allows for comparisons of contributions from different residues
+                # loop over residues, report results per residue + total united atom
+                # level. This is done per residue to reduce the size of the matrices -
+                # amino acid resiudes have tens of united atoms but a whole protein
+                # could have thousands. Doing the calculation per residue allows for
+                # comparisons of contributions from different residues
                 num_residues = len(molecule_container.residues)
                 S_trans = 0
                 S_rot = 0
                 S_conf = 0
                 for residue in range(num_residues):
-                    # molecule data container of MDAnalysis Universe type for internal degrees of freedom
-                    # getting indices of first and last atoms in the molecule
-                    # assuming atoms are numbered consecutively and all atoms in a given molecule are together
+                    # molecule data container of MDAnalysis Universe type for internal
+                    # degrees of freedom getting indices of first and last atoms in the
+                    # molecule assuming atoms are numbered consecutively and all atoms
+                    # in a given molecule are together
                     index1 = molecule_container.residues[residue].atoms.indices[0]
                     index2 = molecule_container.residues[residue].atoms.indices[-1]
                     selection_string = f"index {index1}:{index2}"
@@ -296,8 +320,9 @@ def main():
                         molecule_container, selection_string
                     )
 
-                    ## Vibrational entropy at every level
-                    # Get the force and torque matrices for the beads at the relevant level
+                    # Vibrational entropy at every level
+                    # Get the force and torque matrices for the beads at the relevant
+                    # level
                     force_matrix, torque_matrix = LF.get_matrices(
                         residue_container,
                         level,
@@ -363,8 +388,8 @@ def main():
                             file=res,
                         )
 
-                    ## Conformational entropy based on atom dihedral angle distributions
-                    ## Gives entropy of conformations within each residue
+                    # Conformational entropy based on atom dihedral angle distributions
+                    # Gives entropy of conformations within each residue
 
                     # Get dihedral angle distribution
                     dihedrals = LF.get_dihedrals(residue_container, level)
@@ -445,10 +470,10 @@ def main():
                 with open(args.outfile, "a") as out:
                     print(molecule, "\t", level, "\tConformational\t", S_conf, file=out)
 
-                ## End united atom vibrational and conformational calculations ##
+                # End united atom vibrational and conformational calculations #
 
             if level in ("polymer", "residue"):
-                ## Vibrational entropy at every level
+                # Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
                 force_matrix, torque_matrix = LF.get_matrices(
                     molecule_container,
@@ -497,11 +522,12 @@ def main():
                     print(molecule, "\t", level, "\tRovibrational \t", S_rot, file=out)
 
                 # Note: conformational entropy is not calculated at the polymer level,
-                # because there is at most one polymer bead per molecule so no dihedral angles.
+                # because there is at most one polymer bead per molecule so no dihedral
+                # angles.
 
             if level == "residue":
-                ## Conformational entropy based on distributions of dihedral angles of residues
-                ## Gives conformational entropy of secondary structure
+                # Conformational entropy based on distributions of dihedral angles
+                # of residues. Gives conformational entropy of secondary structure
 
                 # Get dihedral angle distribution
                 dihedrals = LF.get_dihedrals(molecule_container, level)
@@ -528,18 +554,25 @@ def main():
                 with open(args.outfile, "a") as out:
                     print(molecule, "\t", level, "\tConformational\t", S_conf, file=out)
 
-            ## Orientational entropy based on network of neighbouring molecules,
+            # Orientational entropy based on network of neighbouring molecules,
             #  only calculated at the highest level (whole molecule)
-        #        if highest_level:
-        #            neigbours = LF.get_neighbours(reduced_atom, molecule)
-        #            S_orient = EF.orientational_entropy(neighbours)
-        #            print(f"S_orient_{level} = {S_orient}")
-        #            new_row = pd.DataFrame({'Molecule ID': [molecule], 'Level': [level],
-        #                         'Type':['Orientational (J/mol/K)'],
-        #                         'Result': [S_orient],})
-        #            results_df = pd.concat([results_df, new_row], ignore_index=True)
-        #            with open(args.outfile, "a") as out:
-        #                print(molecule,"\t",level,"\tOrientational\t",S_orient, file=out)
+            #    if highest_level:
+            #        neigbours = LF.get_neighbours(reduced_atom, molecule)
+            #        S_orient = EF.orientational_entropy(neighbours)
+            #        print(f"S_orient_{level} = {S_orient}")
+            #        new_row = pd.DataFrame({
+            #            'Molecule ID': [molecule],
+            #            'Level': [level],
+            #            'Type':['Orientational (J/mol/K)'],
+            #            'Result': [S_orient],})
+            #        results_df = pd.concat([results_df, new_row], ignore_index=True)
+            #        with open(args.outfile, "a") as out:
+            #    print(molecule,
+            #          "\t",
+            #          level,
+            #          "\tOrientational\t",
+            #          S_orient,
+            #          file=out)
 
         # Report total entropy for the molecule
         S_molecule = results_df[results_df["Molecule ID"] == molecule]["Result"].sum()

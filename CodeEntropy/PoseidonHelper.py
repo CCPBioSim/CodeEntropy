@@ -2,9 +2,9 @@ import logging
 import sys
 from datetime import datetime
 
-from CodeEntropy.poseidon.analysis.EECalculation import processEE
-from CodeEntropy.poseidon.analysis.helper import memoryInfo, weightingPopulation
-from CodeEntropy.poseidon.analysis.populateClasses import classPopulation
+# from CodeEntropy.poseidon.analysis.EECalculation import processEE
+# from CodeEntropy.poseidon.analysis.helper import memoryInfo, weightingPopulation
+# from CodeEntropy.poseidon.analysis.populateClasses import classPopulation
 from CodeEntropy.poseidon.extractData.dihedrals import calculateDihedrals
 from CodeEntropy.poseidon.extractData.forceTorques import calculateFTMatrix
 
@@ -16,11 +16,11 @@ from CodeEntropy.poseidon.extractData.nearestNonlike2 import (
     getShellAssignment,
     moleculePositionRankingRAD,
 )
-from CodeEntropy.poseidon.extractData.outputFiles import moleculeObjectPopulation
-from CodeEntropy.poseidon.extractData.readFiles import (
+
+# from CodeEntropy.poseidon.extractData.outputFiles import moleculeObjectPopulation
+from CodeEntropy.poseidon.extractData.readFiles import (  # populateTopology,
     getCoordsForces,
     getDistArray,
-    populateTopology,
 )
 
 
@@ -51,7 +51,7 @@ def frame_iteration(
     verbosePrint(datetime.now() - startTime)
     sys.stdout.flush()
 
-    #'''
+    #
     traj = container.trajectory[frame]
     neighbour_coords = None
     neighbour_coords = traj.positions
@@ -76,7 +76,7 @@ def frame_iteration(
                 neighbour = all_data[nearDist[0]]
                 if (
                     neighbour.resname in waterTuple
-                    and neighbour.nearest_all_atom_array == None
+                    and neighbour.nearest_all_atom_array is None
                 ):
                     getDistArray(
                         neighbour,
@@ -89,12 +89,12 @@ def frame_iteration(
                         verbosePrint,
                     )
                 # find solvent neighbours neighbours nearest array
-                if neighbour.nearest_all_atom_array != None:
+                if neighbour.nearest_all_atom_array is not None:
                     for nearDist2 in neighbour.nearest_all_atom_array[0:20]:
                         neighbour2 = all_data[nearDist2[0]]
                         if (
                             neighbour2.resname in waterTuple
-                            and neighbour2.nearest_all_atom_array == None
+                            and neighbour2.nearest_all_atom_array is None
                         ):
                             getDistArray(
                                 neighbour2,
@@ -115,9 +115,9 @@ def frame_iteration(
     verbosePrint("NEAREST ARRAYS")
     verbosePrint(datetime.now() - startTime)
     sys.stdout.flush()
-    #'''
+    #
 
-    if cutShell != None:
+    if cutShell is not None:
         # Used for fixed cut-off coordination shells
         try:
             cutoff_dist = float(cutShell)
@@ -130,7 +130,7 @@ def frame_iteration(
         except ValueError:
             logging.error("Cutoff distance needs to be a float")
 
-    if cutShell == None:
+    if cutShell is None:
         UALevelRAD(all_data, dimensions)
         verbosePrint("RAD")
         verbosePrint(datetime.now() - startTime)
@@ -146,7 +146,7 @@ def frame_iteration(
     verbosePrint(datetime.now() - startTime)
     sys.stdout.flush()
 
-    # if (force != None):
+    # if (force is not None):
     calculateFTMatrix(all_data, dimensions)
     verbosePrint("FTMATRIX")
     verbosePrint(datetime.now() - startTime)
