@@ -18,6 +18,16 @@ def distance(x0, x1, dimensions):
     x1 = np.array(x1)
     delta = np.abs(x1 - x0)
     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
+
+    if np.any(delta < 0):
+        negative_indices = np.where(delta < 0)
+        negative_values = delta[negative_indices]
+        raise ValueError(
+            f"Negative values encountered in 'delta' at indices {negative_indices} "
+            f"with values {negative_values}. "
+            f"Cannot take square root of negative values."
+        )
+
     dist = np.sqrt((delta**2).sum(axis=-1))
     return dist
 
@@ -173,8 +183,38 @@ def angle(a, b, c, dimensions):
     ba = np.where(ba > 0.5 * dimensions, ba - dimensions, ba)
     bc = np.where(bc > 0.5 * dimensions, bc - dimensions, bc)
     ac = np.where(ac > 0.5 * dimensions, ac - dimensions, ac)
+
+    if np.any(ba < 0):
+        negative_indices = np.where(ba < 0)
+        negative_values = ba[negative_indices]
+        raise ValueError(
+            f"Negative values encountered in 'ba' at indices {negative_indices} "
+            f"with values {negative_values}. "
+            f"Cannot take square root of negative values."
+        )
+
     dist_ba = np.sqrt((ba**2).sum(axis=-1))
+
+    if np.any(bc < 0):
+        negative_indices = np.where(bc < 0)
+        negative_values = bc[negative_indices]
+        raise ValueError(
+            f"Negative values encountered in 'bc' at indices {negative_indices} "
+            f"with values {negative_values}. "
+            f"Cannot take square root of negative values."
+        )
+
     dist_bc = np.sqrt((bc**2).sum(axis=-1))
+
+    if np.any(ac < 0):
+        negative_indices = np.where(ac < 0)
+        negative_values = ac[negative_indices]
+        raise ValueError(
+            f"Negative values encountered in 'ac' at indices {negative_indices} "
+            f"with values {negative_values}. "
+            f"Cannot take square root of negative values."
+        )
+
     dist_ac = np.sqrt((ac**2).sum(axis=-1))
 
     cosine_angle = (dist_ac**2 - dist_bc**2 - dist_ba**2) / (-2 * dist_bc * dist_ba)

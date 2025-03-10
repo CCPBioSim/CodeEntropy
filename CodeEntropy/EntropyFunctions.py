@@ -40,6 +40,14 @@ def frequency_calculation(lambdas, temp):
     pi = np.pi
     # get kT in Joules from given temperature
     kT = UAC.get_KT2J(temp)
+
+    lambdas = np.array(lambdas)  # Ensure input is a NumPy array
+
+    # Check for negatives and raise an error if any are found
+    if np.any(lambdas < 0):
+        raise ValueError(f"Negative eigenvalues encountered: {lambdas[lambdas < 0]}")
+
+    # Compute frequencies safely
     frequencies = 1 / (2 * pi) * np.sqrt(lambdas / kT)
 
     return frequencies
