@@ -181,6 +181,26 @@ def get_sphCoord_axes(arg_r):
     x2y2 = arg_r[0] ** 2 + arg_r[1] ** 2
     r2 = x2y2 + arg_r[2] ** 2
 
+    # Check for division by zero
+    if r2 == 0.0:
+        raise ValueError("r2 is zero, cannot compute spherical coordinates.")
+
+    if x2y2 == 0.0:
+        raise ValueError("x2y2 is zero, cannot compute sin_phi and cos_phi.")
+
+    # Check for non-negative values inside the square root
+    if x2y2 / r2 < 0:
+        raise ValueError(
+            f"Negative value encountered for sin_theta calculation: {x2y2 / r2}. "
+            f"Cannot take square root."
+        )
+
+    if x2y2 < 0:
+        raise ValueError(
+            f"Negative value encountered for sin_phi and cos_phi calculation: {x2y2}. "
+            f"Cannot take square root."
+        )
+
     if x2y2 != 0.0:
         sin_theta = np.sqrt(x2y2 / r2)
         cos_theta = arg_r[2] / np.sqrt(r2)
@@ -259,6 +279,13 @@ def get_weighted_forces(
     # divide the sum of forces by the mass of the bead to get the weighted forces
     mass = bead.total_mass()
 
+    # Check that mass is positive to avoid division by 0 or negative values inside sqrt
+    if mass <= 0:
+        raise ValueError(
+            f"Invalid mass value: {mass}. Mass must be positive to compute the square "
+            f"root."
+        )
+
     weighted_force = forces_trans / np.sqrt(mass)
 
     return weighted_force
@@ -309,13 +336,17 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     moment_of_inertia = bead.moment_of_inertia()
 
     for dimension in range(3):
-        # cannot divide by zero
-        if np.isclose(moment_of_inertia[dimension, dimension], 0):
-            weighted_torque[dimension] = torques[dimension]
-        else:
-            weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia[dimension, dimension]
+        # Check if the moment of inertia is valid for square root calculation
+        inertia_value = moment_of_inertia[dimension, dimension]
+
+        if np.isclose(inertia_value, 0):
+            raise ValueError(
+                f"Invalid moment of inertia value: {inertia_value}. "
+                f"Cannot compute weighted torque."
             )
+
+        # compute weighted torque if moment of inertia is valid
+        weighted_torque[dimension] = torques[dimension] / np.sqrt(inertia_value)
 
     return weighted_torque
 
