@@ -304,6 +304,9 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     (since values below machine precision are effectively zero). This avoids
     unnecessary use of extended precision (e.g., float128).
 
+    Additionally, if the computed torque is already zero, the function skips
+    the division step, reducing unnecessary computations and potential errors.
+
     Parameters
     ----------
     data_container : object
@@ -348,6 +351,11 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     moment_of_inertia = bead.moment_of_inertia()
 
     for dimension in range(3):
+        # Skip calculation if torque is already zero
+        if np.isclose(torques[dimension], 0):
+            weighted_torque[dimension] = 0
+            continue
+
         if np.isclose(moment_of_inertia[dimension, dimension], 0):
             weighted_torque[dimension] = torques[dimension]
         else:
