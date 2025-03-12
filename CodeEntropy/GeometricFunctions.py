@@ -298,15 +298,27 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     """
     Function to calculate the moment of inertia weighted torques for a given bead.
 
-    Input
-    -----
-    bead : the part of the molecule to be considered
-    rot_axes : the axes relative to which the forces and coordinates are located
-    frame : the frame number from the trajectory
+    This function computes torques in a rotated frame and then weights them using
+    the moment of inertia tensor. To prevent numerical instability, it treats
+    extremely small diagonal elements of the moment of inertia tensor as zero
+    (since values below machine precision are effectively zero). This avoids
+    unnecessary use of extended precision (e.g., float128).
 
-    Output
-    ------
-    weighted_torque : the mass weighted sum of the torques in the bead
+    Parameters
+    ----------
+    data_container : object
+        Contains atomic positions and forces.
+    bead : object
+        The part of the molecule to be considered.
+    rot_axes : np.ndarray
+        The axes relative to which the forces and coordinates are located.
+    force_partitioning : float, optional
+        Factor to adjust force contributions, default is 0.5.
+
+    Returns
+    -------
+    np.ndarray
+        The mass-weighted sum of the torques in the bead.
     """
 
     torques = np.zeros((3,))
@@ -336,17 +348,18 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     moment_of_inertia = bead.moment_of_inertia()
 
     for dimension in range(3):
-        # Check if the moment of inertia is valid for square root calculation
-        inertia_value = moment_of_inertia[dimension, dimension]
-
-        if np.isclose(inertia_value, 0):
-            raise ValueError(
-                f"Invalid moment of inertia value: {inertia_value}. "
-                f"Cannot compute weighted torque."
+        if np.isclose(moment_of_inertia[dimension, dimension], 0):
+            weighted_torque[dimension] = torques[dimension]
+        else:
+            if moment_of_inertia[dimension, dimension] < 0:
+                raise ValueError(
+                    f"Negative value encountered for moment of inertia: "
+                    f"{moment_of_inertia[dimension, dimension]} "
+                    f"Cannot compute weighted torque."
+                )
+            weighted_torque[dimension] = torques[dimension] / np.sqrt(
+                moment_of_inertia[dimension, dimension]
             )
-
-        # compute weighted torque if moment of inertia is valid
-        weighted_torque[dimension] = torques[dimension] / np.sqrt(inertia_value)
 
     return weighted_torque
 
