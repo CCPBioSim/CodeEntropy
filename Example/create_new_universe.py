@@ -69,7 +69,7 @@ def main():
     #  you can also slice the trajectories
     select.write("data.trr", frames=u2.trajectory[::2])
     #  reading data
-    u_new = mda.Universe("molecules.prmtop", "data.trr")
+    # u_new = mda.Universe("molecules.prmtop", "data.trr")
 
 
 if __name__ == "__main__":
