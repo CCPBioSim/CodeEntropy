@@ -356,18 +356,25 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
             weighted_torque[dimension] = 0
             continue
 
+        # Check for zero moment of inertia
         if np.isclose(moment_of_inertia[dimension, dimension], 0):
-            weighted_torque[dimension] = torques[dimension]
-        else:
-            if moment_of_inertia[dimension, dimension] < 0:
-                raise ValueError(
-                    f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia[dimension, dimension]} "
-                    f"Cannot compute weighted torque."
-                )
-            weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia[dimension, dimension]
+            raise ZeroDivisionError(
+                f"Attempted to divide by zero moment of inertia in dimension "
+                f"{dimension}."
             )
+
+        # Check for negative moment of inertia
+        if moment_of_inertia[dimension, dimension] < 0:
+            raise ValueError(
+                f"Negative value encountered for moment of inertia: "
+                f"{moment_of_inertia[dimension, dimension]} "
+                f"Cannot compute weighted torque."
+            )
+
+        # Compute weighted torque
+        weighted_torque[dimension] = torques[dimension] / np.sqrt(
+            moment_of_inertia[dimension, dimension]
+        )
 
     return weighted_torque
 
