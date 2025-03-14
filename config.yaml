@@ -36,3 +36,9 @@ arguments:
       default: "res_outfile.out"
     mout:
       default: null
+    force_partitioning:
+      type: float
+      default: 0.5
+    waterEntropy:
+      type: bool
+      default: False

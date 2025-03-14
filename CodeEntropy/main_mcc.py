@@ -65,6 +65,10 @@ def setup_argparse():
     parser.add_argument(
         "--mout", help="Name of the file where certain matrices will be written"
     )
+    parser.add_argument(
+        "--force_partitioning",
+    )
+    parser.add_argument("--waterEntropy")
     return parser
 
 
