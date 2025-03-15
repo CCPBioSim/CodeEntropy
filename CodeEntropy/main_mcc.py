@@ -308,6 +308,7 @@ def main():
                 S_trans = 0
                 S_rot = 0
                 S_conf = 0
+
                 for residue in range(num_residues):
                     # molecule data container of MDAnalysis Universe type for internal
                     # degrees of freedom getting indices of first and last atoms in the
@@ -319,10 +320,14 @@ def main():
                     residue_container = MDAHelper.new_U_select_atom(
                         molecule_container, selection_string
                     )
+                    residue_heavy_atoms_container = MDAHelper.new_U_select_atom(
+                        residue_container, "not name H*"
+                    )  # only heavy atom dihedrals are relevant
 
                     # Vibrational entropy at every level
                     # Get the force and torque matrices for the beads at the relevant
                     # level
+
                     force_matrix, torque_matrix = LF.get_matrices(
                         residue_container,
                         level,
@@ -392,11 +397,11 @@ def main():
                     # Gives entropy of conformations within each residue
 
                     # Get dihedral angle distribution
-                    dihedrals = LF.get_dihedrals(residue_container, level)
+                    dihedrals = LF.get_dihedrals(residue_heavy_atoms_container, level)
 
                     # Calculate conformational entropy
                     S_conf_residue = EF.conformational_entropy(
-                        residue_container,
+                        residue_heavy_atoms_container,
                         dihedrals,
                         bin_width,
                         start,
