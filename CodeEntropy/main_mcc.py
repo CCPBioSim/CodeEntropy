@@ -1,5 +1,6 @@
 import argparse
 import math
+import os
 
 import MDAnalysis as mda
 
@@ -13,82 +14,122 @@ from CodeEntropy import MDAUniverseHelper as MDAHelper
 
 # from datetime import datetime
 
+arg_map = {
+    "top_traj_file": {
+        "type": str,
+        "nargs": "+",
+        "help": "Path to Structure/topology file followed by Trajectory file(s)",
+        "default": [],
+    },
+    "selection_string": {
+        "type": str,
+        "help": "Selection string for CodeEntropy",
+        "default": "all",
+    },
+    "start": {
+        "type": int,
+        "help": "Start analysing the trajectory from this frame index",
+        "default": 0,
+    },
+    "end": {
+        "type": int,
+        "help": "Stop analysing the trajectory at this frame index",
+        "default": -1,
+    },
+    "step": {
+        "type": int,
+        "help": "Interval between two consecutive frames to be read index",
+        "default": 1,
+    },
+    "bin_width": {
+        "type": int,
+        "help": "Bin width in degrees for making the histogram",
+        "default": 30,
+    },
+    "tempra": {
+        "type": float,
+        "help": "Temperature for entropy calculation (K)",
+        "default": 298.0,
+    },
+    "verbose": {
+        "type": bool,
+        "help": "True/False flag for noisy or quiet output",
+        "default": False,
+    },
+    "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
+    "outfile": {
+        "type": str,
+        "help": "Name of the file where the output will be written",
+        "default": "outfile.out",
+    },
+    "resfile": {
+        "type": str,
+        "help": "Name of the file where the residue entropy output will be written",
+        "default": "res_outfile.out",
+    },
+    "mout": {
+        "type": str,
+        "help": "Name of the file where certain matrices will be written",
+        "default": None,
+    },
+    "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
+    "waterEntropy": {"type": bool, "help": "Calculate water entropy", "default": False},
+}
+
 
 def load_config(file_path):
     """Load YAML configuration file."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Configuration file '{file_path}' not found.")
+
     with open(file_path, "r") as file:
-        return yaml.safe_load(file)["arguments"]["CodeEntropy"]
+        config = yaml.safe_load(file)
+
+        # If YAML content is empty, return an empty dictionary
+        if config is None:
+            config = {}
+
+    return config
 
 
 def setup_argparse():
-    """Set up argument parser with required arguments."""
+    """Setup argument parsing dynamically based on arg_map."""
     parser = argparse.ArgumentParser(
-        description="Override YAML defaults with CLI arguments"
+        description="CodeEntropy: Entropy calculation with MCC method."
     )
-    parser.add_argument(
-        "-f",
-        "--top_traj_file",
-        nargs="+",
-        help="Path to Structure/topology file followed by Trajectory file(s)",
-    )
-    parser.add_argument(
-        "--selection_string", type=str, help="Selection string for CodeEntropy"
-    )
-    parser.add_argument(
-        "--start", type=int, help="Start analysing the trajectory from this frame index"
-    )
-    parser.add_argument(
-        "--end", type=int, help="Stop analysing the trajectory at this frame index"
-    )
-    parser.add_argument(
-        "--step",
-        type=int,
-        help="Interval between two consecutive frames to be read index",
-    )
-    parser.add_argument(
-        "--bin_width", type=int, help="Bin width in degrees for making the histogram"
-    )
-    parser.add_argument(
-        "--tempra", type=float, help="Temperature for entropy calculation (K)"
-    )
-    parser.add_argument(
-        "--verbose", type=bool, help="True/False flag for noisy or quiet output"
-    )
-    parser.add_argument("--thread", type=int, help="How many multiprocess to use")
-    parser.add_argument(
-        "--outfile", help="Name of the file where the output will be written"
-    )
-    parser.add_argument(
-        "--resfile",
-        help="Name of the file where the residue entropy output will be written",
-    )
-    parser.add_argument(
-        "--mout", help="Name of the file where certain matrices will be written"
-    )
-    parser.add_argument(
-        "--force_partitioning",
-    )
-    parser.add_argument("--waterEntropy")
+
+    for arg, properties in arg_map.items():
+        kwargs = {key: properties[key] for key in properties if key != "help"}
+        parser.add_argument(f"--{arg}", **kwargs, help=properties.get("help"))
+
     return parser
 
 
-def merge_configs(args, config):
+def merge_configs(args, run_config):
     """Merge CLI arguments with YAML configuration."""
-    for key, value in config.items():
-        if getattr(args, key) is None:
-            setattr(
-                args,
-                key,
-                (
-                    value["default"]
-                    if isinstance(value, dict) and "default" in value
-                    else value
-                ),
-            )
-    for key, value in vars(args).items():
-        if value is not None:
-            config[key] = value
-    return config
+    if run_config is None:
+        run_config = {}
+
+    if not isinstance(run_config, dict):
+        raise TypeError("run_config must be a dictionary or None.")
+
+    # Step 1: Merge YAML configuration into args
+    for key, value in run_config.items():
+        if getattr(args, key, None) is None:
+            setattr(args, key, value)
+
+    # Step 2: Set default values for any missing arguments from `arg_map`
+    for key, params in arg_map.items():
+        if getattr(args, key, None) is None:
+            setattr(args, key, params.get("default"))
+
+    # Step 3: Override with CLI values if provided
+    for key in arg_map.keys():
+        cli_value = getattr(args, key, None)
+        if cli_value is not None:
+            run_config[key] = cli_value
+
+    return args
 
 
 def main():
@@ -96,34 +137,42 @@ def main():
     Main function for calculating the entropy of a system using the multiscale cell
     correlation method.
     """
-
     try:
         config = load_config("config.yaml")
+
+        if config is None:
+            raise ValueError(
+                "No configuration file found, and no CLI arguments were provided."
+            )
+
         parser = setup_argparse()
-        args = parser.parse_args()
-        config = merge_configs(args, config)
+        args, unknown = parser.parse_known_args()
 
-        # Check for required arguments
-        if not config.get("top_traj_file"):
-            raise ValueError(
-                "The 'top_traj_file' argument is required but not provided."
-            )
-        if not config.get("selection_string"):
-            raise ValueError(
-                "The 'selection_string' argument is required but not provided."
-            )
+        # Process each run in the YAML configuration
+        for run_name, run_config in config.items():
+            if isinstance(run_config, dict):
+                # Merging CLI arguments with YAML configuration
+                args = merge_configs(args, run_config)
 
-    except argparse.ArgumentError:
-        print("Command line arguments are ill-defined, please check the arguments")
-        raise
+                # Ensure necessary arguments are provided
+                if not getattr(args, "top_traj_file"):
+                    raise ValueError(
+                        "The 'top_traj_file' argument is required but not provided."
+                    )
+                if not getattr(args, "selection_string"):
+                    raise ValueError(
+                        "The 'selection_string' argument is required but not provided."
+                    )
+
+                # REPLACE INPUTS
+                print(f"Printing all input for {run_name}")
+                for arg in vars(args):
+                    print(f" {arg}: {getattr(args, arg) or ''}")
+            else:
+                print(f"Run configuration for {run_name} is not a dictionary.")
     except ValueError as e:
         print(e)
         raise
-
-    # REPLACE INPUTS
-    print("Printing all input")
-    for arg in vars(args):
-        print(" {}: {}".format(arg, getattr(args, arg) or ""))
 
     # startTime = datetime.now()
 

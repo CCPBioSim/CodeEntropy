@@ -1,44 +1,17 @@
 ---
 
-arguments:
-  CodeEntropy:
-    top_traj_file:
-      required: True
-      default: []
-    selection_string:
-      type: str
-      default: "all"
-    start:
-      type: int
-      default: 0
-    end:
-      type: int
-      default: -1
-    step:
-      type: int
-      default: 1
-    bin_width:
-      type: int
-      default: 30
-    tempra:
-      type: float
-      default: 298.0
-    verbose:
-      type: bool
-      default: False
-    thread:
-      type: int
-      default: 1
-    outfile:
-      type: str
-      default: "outfile.out"
-    resfile:
-      default: "res_outfile.out"
-    mout:
-      default: null
-    force_partitioning:
-      type: float
-      default: 0.5
-    waterEntropy:
-      type: bool
-      default: False
+run1:
+  top_traj_file:
+  selection_string: 
+  start:
+  end: 
+  step:
+  bin_width:
+  tempra:
+  verbose:
+  thread: 
+  outfile:
+  resfile:
+  mout: 
+  force_partitioning:
+  waterEntropy: 
