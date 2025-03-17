@@ -1,10 +1,12 @@
 import argparse
 import math
+import os
 
 import MDAnalysis as mda
 
 # import numpy as np
 import pandas as pd
+import yaml
 
 from CodeEntropy import EntropyFunctions as EF
 from CodeEntropy import LevelFunctions as LF
@@ -12,223 +14,171 @@ from CodeEntropy import MDAUniverseHelper as MDAHelper
 
 # from datetime import datetime
 
+arg_map = {
+    "top_traj_file": {
+        "type": str,
+        "nargs": "+",
+        "help": "Path to Structure/topology file followed by Trajectory file(s)",
+        "default": [],
+    },
+    "selection_string": {
+        "type": str,
+        "help": "Selection string for CodeEntropy",
+        "default": "all",
+    },
+    "start": {
+        "type": int,
+        "help": "Start analysing the trajectory from this frame index",
+        "default": 0,
+    },
+    "end": {
+        "type": int,
+        "help": "Stop analysing the trajectory at this frame index",
+        "default": -1,
+    },
+    "step": {
+        "type": int,
+        "help": "Interval between two consecutive frames to be read index",
+        "default": 1,
+    },
+    "bin_width": {
+        "type": int,
+        "help": "Bin width in degrees for making the histogram",
+        "default": 30,
+    },
+    "tempra": {
+        "type": float,
+        "help": "Temperature for entropy calculation (K)",
+        "default": 298.0,
+    },
+    "verbose": {
+        "type": bool,
+        "help": "True/False flag for noisy or quiet output",
+        "default": False,
+    },
+    "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
+    "outfile": {
+        "type": str,
+        "help": "Name of the file where the output will be written",
+        "default": "outfile.out",
+    },
+    "resfile": {
+        "type": str,
+        "help": "Name of the file where the residue entropy output will be written",
+        "default": "res_outfile.out",
+    },
+    "mout": {
+        "type": str,
+        "help": "Name of the file where certain matrices will be written",
+        "default": None,
+    },
+    "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
+    "waterEntropy": {"type": bool, "help": "Calculate water entropy", "default": False},
+}
+
+
+def load_config(file_path):
+    """Load YAML configuration file."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Configuration file '{file_path}' not found.")
+
+    with open(file_path, "r") as file:
+        config = yaml.safe_load(file)
+
+        # If YAML content is empty, return an empty dictionary
+        if config is None:
+            config = {}
+
+    return config
+
+
+def setup_argparse():
+    """Setup argument parsing dynamically based on arg_map."""
+    parser = argparse.ArgumentParser(
+        description="CodeEntropy: Entropy calculation with MCC method."
+    )
+
+    for arg, properties in arg_map.items():
+        kwargs = {key: properties[key] for key in properties if key != "help"}
+        parser.add_argument(f"--{arg}", **kwargs, help=properties.get("help"))
+
+    return parser
+
+
+def merge_configs(args, run_config):
+    """Merge CLI arguments with YAML configuration."""
+    if run_config is None:
+        run_config = {}
+
+    if not isinstance(run_config, dict):
+        raise TypeError("run_config must be a dictionary or None.")
+
+    # Step 1: Merge YAML configuration into args
+    for key, value in run_config.items():
+        if getattr(args, key, None) is None:
+            setattr(args, key, value)
+
+    # Step 2: Set default values for any missing arguments from `arg_map`
+    for key, params in arg_map.items():
+        if getattr(args, key, None) is None:
+            setattr(args, key, params.get("default"))
+
+    # Step 3: Override with CLI values if provided
+    for key in arg_map.keys():
+        cli_value = getattr(args, key, None)
+        if cli_value is not None:
+            run_config[key] = cli_value
+
+    return args
+
 
 def main():
     """
     Main function for calculating the entropy of a system using the multiscale cell
     correlation method.
     """
-
     try:
-        parser = argparse.ArgumentParser(
-            description="""
-        CodeEntropy-POSEIDON is a tool to compute entropy using the
-        multiscale-cell-correlation (MCC) theory and force/torque covariance
-        methods with the ablity to compute solvent entropy.
-        Version:
-            0.3.1;
+        config = load_config("config.yaml")
 
-        Authors:
-            Arghya Chakravorty (arghya90),
-            Jas Kalayan (jkalayan),
-            Donald Chang,
-            Sarah Fegan
-            Ioana Papa;
+        if config is None:
+            raise ValueError(
+                "No configuration file found, and no CLI arguments were provided."
+            )
 
-        Output:
-            *.csv = results from different calculateion,
-            *.pkl - Pickled reduced universe for further analysis,
-            *.out - detailed output such as matrix and spectra"""
-        )
+        parser = setup_argparse()
+        args, unknown = parser.parse_known_args()
 
-        parser.add_argument(
-            "-f",
-            "--top_traj_file",
-            required=True,
-            dest="filePath",
-            action="store",
-            nargs="+",
-            help="Path to Structure/topology file (AMBER PRMTOP, GROMACS TPR which "
-            "contains topology and dihedral information) followed by Trajectory "
-            "file(s) (AMBER NETCDF or GROMACS TRR) you will need to output the "
-            "coordinates and forces to the same file. Required.",
-        )
-        parser.add_argument(
-            "-l",
-            "--selectString",
-            action="store",
-            dest="selection_string",
-            type=str,
-            default="all",
-            help="Selection string for CodeEntropy such as protein or resid, refer to "
-            "MDAnalysis.select_atoms for more information.",
-        )
-        parser.add_argument(
-            "-b",
-            "--begin",
-            action="store",
-            dest="start",
-            help="Start analysing the trajectory from this frame index. Defaults to 0",
-            default=0,
-            type=int,
-        )
-        parser.add_argument(
-            "-e",
-            "--end",
-            action="store",
-            dest="end",
-            help="Stop analysing the trajectory at this frame index. Defaults to -1 "
-            "(end of trajectory file)",
-            default=-1,
-            type=int,
-        )
-        parser.add_argument(
-            "-d",
-            "--step",
-            action="store",
-            dest="step",
-            help="interval between two consecutive frames to be read index. "
-            "Defaults to 1",
-            default=1,
-            type=int,
-        )
-        parser.add_argument(
-            "-n",
-            "--bin_width",
-            action="store",
-            dest="bin_width",
-            default=30,
-            type=int,
-            help="Bin width in degrees for making the histogram of the dihedral angles "
-            "for the conformational entropy. Default: 30",
-        )
-        parser.add_argument(
-            "-k",
-            "--tempra",
-            action="store",
-            dest="temp",
-            help="Temperature for entropy calculation (K). Default to 298.0 K",
-            default=298.0,
-            type=float,
-        )
-        parser.add_argument(
-            "-v",
-            "--verbose",
-            action="store",
-            dest="verbose",
-            default=False,
-            type=bool,
-            help="True/False flag for noisy or quiet output. Default: False",
-        )
-        parser.add_argument(
-            "-t",
-            "--thread",
-            action="store",
-            dest="thread",
-            help="How many multiprocess to use. Default 1 for single core execution.",
-            default=1,
-            type=int,
-        )
-        parser.add_argument(
-            "-o",
-            "--out",
-            action="store",
-            dest="outfile",
-            default="outfile.out",
-            help="Name of the file where the output will be written. "
-            "Default: outfile.out",
-        )
-        parser.add_argument(
-            "-r",
-            "--resout",
-            action="store",
-            dest="resfile",
-            default="res_outfile.out",
-            help="Name of the file where the residue entropy output will be written. "
-            "Default: res_outfile.out",
-        )
-        parser.add_argument(
-            "-m",
-            "--mout",
-            action="store",
-            dest="moutfile",
-            default=None,
-            help="Name of the file where certain matrices will be written "
-            "(default: None).",
-        )
+        # Process each run in the YAML configuration
+        for run_name, run_config in config.items():
+            if isinstance(run_config, dict):
+                # Merging CLI arguments with YAML configuration
+                args = merge_configs(args, run_config)
 
-        parser.add_argument(
-            "-c",
-            "--cutShell",
-            action="store",
-            dest="cutShell",
-            default=None,
-            type=float,
-            help="include cutoff shell analysis, add cutoff distance in angstrom "
-            "Default None will ust the RAD Algorithm",
-        )
-        parser.add_argument(
-            "-p",
-            "--pureAtomNum",
-            action="store",
-            dest="puteAtomNum",
-            default=1,
-            type=int,
-            help="Reference molecule resid for system of pure liquid. " "Default to 1",
-        )
-        parser.add_argument(
-            "-x",
-            "--excludedResnames",
-            dest="excludedResnames",
-            action="store",
-            nargs="+",
-            default=None,
-            help="exclude a list of molecule names from nearest non-like analysis. "
-            "Default: None. Multiples are gathered into list.",
-        )
-        parser.add_argument(
-            "-w",
-            "--water",
-            dest="waterResnames",
-            action="store",
-            default="WAT",
-            nargs="+",
-            help="resname for water molecules. "
-            "Default: WAT. Multiples are gathered into list.",
-        )
-        parser.add_argument(
-            "-s",
-            "--solvent",
-            dest="solventResnames",
-            action="store",
-            nargs="+",
-            default=None,
-            help="include resname of solvent molecules (case-sensitive) "
-            "Default: None. Multiples are gathered into list.",
-        )
-        parser.add_argument(
-            "--solContact",
-            action="store_true",
-            dest="doSolContact",
-            default=False,
-            help="Do solute contact calculation",
-        )
+                # Ensure necessary arguments are provided
+                if not getattr(args, "top_traj_file"):
+                    raise ValueError(
+                        "The 'top_traj_file' argument is required but not provided."
+                    )
+                if not getattr(args, "selection_string"):
+                    raise ValueError(
+                        "The 'selection_string' argument is required but not provided."
+                    )
 
-        args = parser.parse_args()
-    except argparse.ArgumentError:
-        print("Command line arguments are ill-defined, please check the arguments")
+                # REPLACE INPUTS
+                print(f"Printing all input for {run_name}")
+                for arg in vars(args):
+                    print(f" {arg}: {getattr(args, arg) or ''}")
+            else:
+                print(f"Run configuration for {run_name} is not a dictionary.")
+    except ValueError as e:
+        print(e)
         raise
-
-    # REPLACE INPUTS
-    print("printing all input")
-    for arg in vars(args):
-        print(" {} {}".format(arg, getattr(args, arg) or ""))
 
     # startTime = datetime.now()
 
     # Get topology and trajectory file names and make universe
-    tprfile = args.filePath[0]
-    trrfile = args.filePath[1:]
+    tprfile = args.top_traj_file[0]
+    trrfile = args.top_traj_file[1:]
     u = mda.Universe(tprfile, trrfile)
 
     # Define bin_width for histogram from inputs
