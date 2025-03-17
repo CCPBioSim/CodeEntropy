@@ -36,6 +36,7 @@ dependencies = [
     "mdanalysis==2.8.0",
     "pandas==2.2.3",
     "psutil==5.9.5",
+    "PyYAML==5.4",
 ]
 
 [project.urls]
