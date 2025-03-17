@@ -1,0 +1,17 @@
+---
+
+run1:
+  top_traj_file:
+  selection_string: 
+  start:
+  end: 
+  step:
+  bin_width:
+  tempra:
+  verbose:
+  thread: 
+  outfile:
+  resfile:
+  mout: 
+  force_partitioning:
+  waterEntropy: 
