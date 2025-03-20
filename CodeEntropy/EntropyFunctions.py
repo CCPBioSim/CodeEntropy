@@ -53,9 +53,6 @@ def frequency_calculation(lambdas, temp):
     return frequencies
 
 
-# END frequency_calculation
-
-
 def vibrational_entropy(matrix, matrix_type, temp, highest_level):
     """
     Function to calculate the vibrational entropy for each level calculated from eq. (4)
@@ -108,9 +105,6 @@ def vibrational_entropy(matrix, matrix_type, temp, highest_level):
         S_vib_total = sum(S_components)
 
     return S_vib_total
-
-
-# END vibrational_entropy
 
 
 def conformational_entropy(
@@ -166,9 +160,6 @@ def conformational_entropy(
     return S_conf_total
 
 
-# END conformational_entropy
-
-
 def orientational_entropy(neighbours_dict):
     """
     Function to calculate orientational entropies from eq. (10) in J. Higham, S.-Y.
@@ -211,6 +202,3 @@ def orientational_entropy(neighbours_dict):
     # implement a case for molecules with hydrogen bonds but to a lesser
     # extent than water
     return S_or_total
-
-
-# END orientational_entropy
