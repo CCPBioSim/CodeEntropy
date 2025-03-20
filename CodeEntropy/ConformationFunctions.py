@@ -80,6 +80,3 @@ def assign_conformation(
         conformations[frame] = np.argmin(distances)
 
     return conformations
-
-
-# END assign_conformation
