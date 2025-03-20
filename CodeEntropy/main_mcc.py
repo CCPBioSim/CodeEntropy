@@ -420,8 +420,6 @@ def main():
                 with open(args.outfile, "a") as out:
                     print(molecule, "\t", level, "\tConformational\t", S_conf, file=out)
 
-                # End united atom vibrational and conformational calculations #
-
             if level in ("polymer", "residue"):
                 # Vibrational entropy at every level
                 # Get the force and torque matrices for the beads at the relevant level
@@ -539,8 +537,6 @@ def main():
         with open(args.outfile, "a") as out:
             print(molecule, "\t Molecule\tTotal Entropy\t", S_molecule, file=out)
 
-
-# END main function
 
 if __name__ == "__main__":
 
