@@ -46,7 +46,7 @@ arg_map = {
         "help": "Bin width in degrees for making the histogram",
         "default": 30,
     },
-    "tempra": {
+    "temperature": {
         "type": float,
         "help": "Temperature for entropy calculation (K)",
         "default": 298.0,
@@ -286,7 +286,7 @@ def main():
 
                     # Calculate the entropy from the diagonalisation of the matrices
                     S_trans_residue = EF.vibrational_entropy(
-                        force_matrix, "force", args.temp, highest_level
+                        force_matrix, "force", args.temperature, highest_level
                     )
                     S_trans += S_trans_residue
                     print(f"S_trans_{level}_{residue} = {S_trans_residue}")
@@ -312,7 +312,7 @@ def main():
                         )
 
                     S_rot_residue = EF.vibrational_entropy(
-                        torque_matrix, "torque", args.temp, highest_level
+                        torque_matrix, "torque", args.temperature, highest_level
                     )
                     S_rot += S_rot_residue
                     print(f"S_rot_{level}_{residue} = {S_rot_residue}")
@@ -438,7 +438,7 @@ def main():
 
                 # Calculate the entropy from the diagonalisation of the matrices
                 S_trans = EF.vibrational_entropy(
-                    force_matrix, "force", args.temp, highest_level
+                    force_matrix, "force", args.temperature, highest_level
                 )
                 print(f"S_trans_{level} = {S_trans}")
                 new_row = pd.DataFrame(
@@ -456,7 +456,7 @@ def main():
                     )
 
                 S_rot = EF.vibrational_entropy(
-                    torque_matrix, "torque", args.temp, highest_level
+                    torque_matrix, "torque", args.temperature, highest_level
                 )
                 print(f"S_rot_{level} = {S_rot}")
                 new_row = pd.DataFrame(
