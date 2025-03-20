@@ -48,9 +48,6 @@ def select_levels(data_container, verbose):
     return number_molecules, levels
 
 
-# END get_levels
-
-
 def get_matrices(
     data_container, level, verbose, start, end, step, number_frames, highest_level
 ):
@@ -155,9 +152,6 @@ def get_matrices(
     return force_matrix, torque_matrix
 
 
-# END get_matrices
-
-
 def get_dihedrals(data_container, level):
     """
     Define the set of dihedrals for use in the conformational entropy function.
@@ -233,6 +227,3 @@ def get_dihedrals(data_container, level):
                 dihedrals.append(atom_group.dihedral)
 
     return dihedrals
-
-
-# END get_dihedrals
