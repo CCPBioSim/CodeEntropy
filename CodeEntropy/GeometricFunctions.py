@@ -43,9 +43,6 @@ def get_beads(data_container, level):
     return list_of_beads
 
 
-# END
-
-
 def get_axes(data_container, level, index=0):
     """
     Function to set the translational and rotational axes.
@@ -126,9 +123,6 @@ def get_axes(data_container, level, index=0):
     return trans_axes, rot_axes
 
 
-# END
-
-
 def get_avg_pos(atom_set, center):
     """
     Function to get the average position of a set of atoms.
@@ -166,9 +160,6 @@ def get_avg_pos(atom_set, center):
     avg_position = avg_position - center
 
     return avg_position
-
-
-# END
 
 
 def get_sphCoord_axes(arg_r):
@@ -243,9 +234,6 @@ def get_sphCoord_axes(arg_r):
     return spherical_basis
 
 
-# END
-
-
 def get_weighted_forces(
     data_container, bead, trans_axes, highest_level, force_partitioning=0.5
 ):
@@ -289,9 +277,6 @@ def get_weighted_forces(
     weighted_force = forces_trans / np.sqrt(mass)
 
     return weighted_force
-
-
-# END
 
 
 def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5):
@@ -379,9 +364,6 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
     return weighted_torque
 
 
-# END
-
-
 def create_submatrix(data_i, data_j, number_frames):
     """
     Function for making covariance matrices.
@@ -409,9 +391,6 @@ def create_submatrix(data_i, data_j, number_frames):
     submatrix /= number_frames
 
     return submatrix
-
-
-# END
 
 
 def filter_zero_rows_columns(arg_matrix, verbose):
@@ -461,6 +440,3 @@ def filter_zero_rows_columns(arg_matrix, verbose):
         )
 
     return arg_matrix
-
-
-# END
