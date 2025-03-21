@@ -175,9 +175,7 @@ def get_dihedrals(data_container, level):
 
     # if united atom level, read dihedrals from MDAnalysis universe
     if level == "united_atom":
-        # only use dihedrals made of heavy atoms
-        heavy_atom_group = data_container.select_atoms("not name H*")
-        dihedrals = heavy_atom_group.dihedrals
+        dihedrals = data_container.dihedrals
 
     # if residue level, looking for dihedrals involving residues
     if level == "residue":
