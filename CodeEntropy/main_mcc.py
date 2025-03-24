@@ -1,135 +1,50 @@
-import argparse
+import logging
 import math
 import os
+import re
+import sys
 
 import MDAnalysis as mda
-
-# import numpy as np
 import pandas as pd
-import yaml
 
-from CodeEntropy import EntropyFunctions as EF
-from CodeEntropy import LevelFunctions as LF
-from CodeEntropy import MDAUniverseHelper as MDAHelper
-
-# from datetime import datetime
-
-arg_map = {
-    "top_traj_file": {
-        "type": str,
-        "nargs": "+",
-        "help": "Path to Structure/topology file followed by Trajectory file(s)",
-        "default": [],
-    },
-    "selection_string": {
-        "type": str,
-        "help": "Selection string for CodeEntropy",
-        "default": "all",
-    },
-    "start": {
-        "type": int,
-        "help": "Start analysing the trajectory from this frame index",
-        "default": 0,
-    },
-    "end": {
-        "type": int,
-        "help": "Stop analysing the trajectory at this frame index",
-        "default": -1,
-    },
-    "step": {
-        "type": int,
-        "help": "Interval between two consecutive frames to be read index",
-        "default": 1,
-    },
-    "bin_width": {
-        "type": int,
-        "help": "Bin width in degrees for making the histogram",
-        "default": 30,
-    },
-    "temperature": {
-        "type": float,
-        "help": "Temperature for entropy calculation (K)",
-        "default": 298.0,
-    },
-    "verbose": {
-        "type": bool,
-        "help": "True/False flag for noisy or quiet output",
-        "default": False,
-    },
-    "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
-    "outfile": {
-        "type": str,
-        "help": "Name of the file where the output will be written",
-        "default": "outfile.out",
-    },
-    "resfile": {
-        "type": str,
-        "help": "Name of the file where the residue entropy output will be written",
-        "default": "res_outfile.out",
-    },
-    "mout": {
-        "type": str,
-        "help": "Name of the file where certain matrices will be written",
-        "default": None,
-    },
-    "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
-    "waterEntropy": {"type": bool, "help": "Calculate water entropy", "default": False},
-}
+from CodeEntropy.calculations import EntropyFunctions as EF
+from CodeEntropy.calculations import LevelFunctions as LF
+from CodeEntropy.calculations import MDAUniverseHelper as MDAHelper
+from CodeEntropy.config.arg_config_manager import ConfigManager
+from CodeEntropy.config.data_logger import DataLogger
+from CodeEntropy.config.logging_config import LoggingConfig
 
 
-def load_config(file_path):
-    """Load YAML configuration file."""
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Configuration file '{file_path}' not found.")
+def create_job_folder():
+    """
+    Create a new job folder with an incremented job number based on existing folders.
+    """
+    # Get the current working directory
+    base_dir = os.getcwd()
 
-    with open(file_path, "r") as file:
-        config = yaml.safe_load(file)
+    # List all folders in the base directory
+    existing_folders = [
+        f for f in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, f))
+    ]
 
-        # If YAML content is empty, return an empty dictionary
-        if config is None:
-            config = {}
+    # Filter folders that match the pattern 'jobXXX'
+    job_folders = [f for f in existing_folders if re.match(r"job\d{3}", f)]
 
-    return config
+    # Determine the next job number
+    if job_folders:
+        max_job_number = max([int(re.search(r"\d{3}", f).group()) for f in job_folders])
+        next_job_number = max_job_number + 1
+    else:
+        next_job_number = 1
 
+    # Format the new job folder name
+    new_job_folder = f"job{next_job_number:03d}"
+    new_job_folder_path = os.path.join(base_dir, new_job_folder)
 
-def setup_argparse():
-    """Setup argument parsing dynamically based on arg_map."""
-    parser = argparse.ArgumentParser(
-        description="CodeEntropy: Entropy calculation with MCC method."
-    )
+    # Create the new job folder
+    os.makedirs(new_job_folder_path, exist_ok=True)
 
-    for arg, properties in arg_map.items():
-        kwargs = {key: properties[key] for key in properties if key != "help"}
-        parser.add_argument(f"--{arg}", **kwargs, help=properties.get("help"))
-
-    return parser
-
-
-def merge_configs(args, run_config):
-    """Merge CLI arguments with YAML configuration."""
-    if run_config is None:
-        run_config = {}
-
-    if not isinstance(run_config, dict):
-        raise TypeError("run_config must be a dictionary or None.")
-
-    # Step 1: Merge YAML configuration into args
-    for key, value in run_config.items():
-        if getattr(args, key, None) is None:
-            setattr(args, key, value)
-
-    # Step 2: Set default values for any missing arguments from `arg_map`
-    for key, params in arg_map.items():
-        if getattr(args, key, None) is None:
-            setattr(args, key, params.get("default"))
-
-    # Step 3: Override with CLI values if provided
-    for key in arg_map.keys():
-        cli_value = getattr(args, key, None)
-        if cli_value is not None:
-            run_config[key] = cli_value
-
-    return args
+    return new_job_folder_path
 
 
 def main():
@@ -137,22 +52,38 @@ def main():
     Main function for calculating the entropy of a system using the multiscale cell
     correlation method.
     """
+    folder = create_job_folder()
+    data_logger = DataLogger()
+    arg_config = ConfigManager()
+
+    # Load configuration
+    config = arg_config.load_config("config.yaml")
+    if config is None:
+        raise ValueError(
+            "No configuration file found, and no CLI arguments were provided."
+        )
+
+    parser = arg_config.setup_argparse()
+    args, unknown = parser.parse_known_args()
+    args.outfile = os.path.join(folder, args.outfile)
+
+    # Determine logging level
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+
+    # Initialize the logging system with the determined log level
+    logging_config = LoggingConfig(folder, default_level=log_level)
+    logger = logging_config.setup_logging()
+
+    # Capture and log the command-line invocation
+    command = " ".join(sys.argv)
+    logging.getLogger("commands").info(command)
+
     try:
-        config = load_config("config.yaml")
-
-        if config is None:
-            raise ValueError(
-                "No configuration file found, and no CLI arguments were provided."
-            )
-
-        parser = setup_argparse()
-        args, unknown = parser.parse_known_args()
-
         # Process each run in the YAML configuration
         for run_name, run_config in config.items():
             if isinstance(run_config, dict):
                 # Merging CLI arguments with YAML configuration
-                args = merge_configs(args, run_config)
+                args = arg_config.merge_configs(args, run_config)
 
                 # Ensure necessary arguments are provided
                 if not getattr(args, "top_traj_file"):
@@ -164,17 +95,15 @@ def main():
                         "The 'selection_string' argument is required but not provided."
                     )
 
-                # REPLACE INPUTS
-                print(f"Printing all input for {run_name}")
+                # Log all inputs for the current run
+                logger.info(f"All input for {run_name}")
                 for arg in vars(args):
-                    print(f" {arg}: {getattr(args, arg) or ''}")
+                    logger.info(f" {arg}: {getattr(args, arg) or ''}")
             else:
-                print(f"Run configuration for {run_name} is not a dictionary.")
+                logger.warning(f"Run configuration for {run_name} is not a dictionary.")
     except ValueError as e:
-        print(e)
+        logger.error(e)
         raise
-
-    # startTime = datetime.now()
 
     # Get topology and trajectory file names and make universe
     tprfile = args.top_traj_file[0]
@@ -202,20 +131,13 @@ def main():
         number_frames = math.floor((end - start) / step) + 1
     else:
         number_frames = math.floor((end - start) / step) + 1
-    print(number_frames)
+    logger.debug(f"Number of Frames: {number_frames}")
 
     # Create pandas data frame for results
     results_df = pd.DataFrame(columns=["Molecule ID", "Level", "Type", "Result"])
     residue_results_df = pd.DataFrame(
         columns=["Molecule ID", "Residue", "Type", "Result"]
     )
-
-    # printing headings for output files
-    with open(args.outfile, "a") as out:
-        print("Molecule\tLevel\tType\tResult (J/mol/K)\n", file=out)
-
-    with open(args.resfile, "a") as res:
-        print("Molecule\tResidue\tType\tResult (J/mol/K)\n", file=res)
 
     # Reduce number of atoms in MDA universe to selection_string arg
     # (default all atoms included)
@@ -289,7 +211,7 @@ def main():
                         force_matrix, "force", args.temperature, highest_level
                     )
                     S_trans += S_trans_residue
-                    print(f"S_trans_{level}_{residue} = {S_trans_residue}")
+                    logger.debug(f"S_trans_{level}_{residue} = {S_trans_residue}")
                     new_row = pd.DataFrame(
                         {
                             "Molecule ID": [molecule],
@@ -301,21 +223,13 @@ def main():
                     residue_results_df = pd.concat(
                         [residue_results_df, new_row], ignore_index=True
                     )
-                    with open(args.resfile, "a") as res:
-                        print(
-                            molecule,
-                            "\t",
-                            residue,
-                            "\tTransvibration\t",
-                            S_trans_residue,
-                            file=res,
-                        )
+                    data_logger.add_residue_data(molecule, residue, S_trans_residue)
 
                     S_rot_residue = EF.vibrational_entropy(
                         torque_matrix, "torque", args.temperature, highest_level
                     )
                     S_rot += S_rot_residue
-                    print(f"S_rot_{level}_{residue} = {S_rot_residue}")
+                    logger.debug(f"S_rot_{level}_{residue} = {S_rot_residue}")
                     new_row = pd.DataFrame(
                         {
                             "Molecule ID": [molecule],
@@ -327,16 +241,7 @@ def main():
                     residue_results_df = pd.concat(
                         [residue_results_df, new_row], ignore_index=True
                     )
-                    with open(args.resfile, "a") as res:
-                        #  print(new_row, file=res)
-                        print(
-                            molecule,
-                            "\t",
-                            residue,
-                            "\tRovibrational \t",
-                            S_rot_residue,
-                            file=res,
-                        )
+                    data_logger.add_residue_data(molecule, residue, S_rot_residue)
 
                     # Conformational entropy based on atom dihedral angle distributions
                     # Gives entropy of conformations within each residue
@@ -355,7 +260,7 @@ def main():
                         number_frames,
                     )
                     S_conf += S_conf_residue
-                    print(f"S_conf_{level}_{residue} = {S_conf_residue}")
+                    logger.debug(f"S_conf_{level}_{residue} = {S_conf_residue}")
                     new_row = pd.DataFrame(
                         {
                             "Molecule ID": [molecule],
@@ -367,18 +272,10 @@ def main():
                     residue_results_df = pd.concat(
                         [residue_results_df, new_row], ignore_index=True
                     )
-                    with open(args.resfile, "a") as res:
-                        print(
-                            molecule,
-                            "\t",
-                            residue,
-                            "\tConformational\t",
-                            S_conf_residue,
-                            file=res,
-                        )
+                    data_logger.add_residue_data(molecule, residue, S_conf_residue)
 
                 # Print united atom level results summed over all residues
-                print(f"S_trans_{level} = {S_trans}")
+                logger.debug(f"S_trans_{level} = {S_trans}")
                 new_row = pd.DataFrame(
                     {
                         "Molecule ID": [molecule],
@@ -387,14 +284,12 @@ def main():
                         "Result": [S_trans],
                     }
                 )
-                with open(args.outfile, "a") as out:
-                    print(
-                        molecule, "\t", level, "\tTransvibration\t", S_trans, file=out
-                    )
 
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
-                print(f"S_rot_{level} = {S_rot}")
+                data_logger.add_results_data(molecule, level, S_trans)
+
+                logger.debug(f"S_rot_{level} = {S_rot}")
                 new_row = pd.DataFrame(
                     {
                         "Molecule ID": [molecule],
@@ -404,10 +299,10 @@ def main():
                     }
                 )
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(args.outfile, "a") as out:
-                    print(molecule, "\t", level, "\tRovibrational \t", S_rot, file=out)
 
-                print(f"S_conf_{level} = {S_conf}")
+                data_logger.add_results_data(molecule, level, S_rot)
+                logger.debug(f"S_conf_{level} = {S_conf}")
+
                 new_row = pd.DataFrame(
                     {
                         "Molecule ID": [molecule],
@@ -417,8 +312,8 @@ def main():
                     }
                 )
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(args.outfile, "a") as out:
-                    print(molecule, "\t", level, "\tConformational\t", S_conf, file=out)
+
+                data_logger.add_results_data(molecule, level, S_conf)
 
             if level in ("polymer", "residue"):
                 # Vibrational entropy at every level
@@ -438,8 +333,10 @@ def main():
                 S_trans = EF.vibrational_entropy(
                     force_matrix, "force", args.temperature, highest_level
                 )
-                print(f"S_trans_{level} = {S_trans}")
-                new_row = pd.DataFrame(
+                logger.debug(f"S_trans_{level} = {S_trans}")
+
+                # Create new row as a DataFrame for Transvibrational
+                new_row_trans = pd.DataFrame(
                     {
                         "Molecule ID": [molecule],
                         "Level": [level],
@@ -447,17 +344,18 @@ def main():
                         "Result": [S_trans],
                     }
                 )
-                results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(args.outfile, "a") as out:
-                    print(
-                        molecule, "\t", level, "\tTransvibrational\t", S_trans, file=out
-                    )
 
+                # Concatenate the new row to the DataFrame
+                results_df = pd.concat([results_df, new_row_trans], ignore_index=True)
+
+                # Calculate the entropy for Rovibrational
                 S_rot = EF.vibrational_entropy(
                     torque_matrix, "torque", args.temperature, highest_level
                 )
-                print(f"S_rot_{level} = {S_rot}")
-                new_row = pd.DataFrame(
+                logger.debug(f"S_rot_{level} = {S_rot}")
+
+                # Create new row as a DataFrame for Rovibrational
+                new_row_rot = pd.DataFrame(
                     {
                         "Molecule ID": [molecule],
                         "Level": [level],
@@ -465,9 +363,12 @@ def main():
                         "Result": [S_rot],
                     }
                 )
-                results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(args.outfile, "a") as out:
-                    print(molecule, "\t", level, "\tRovibrational \t", S_rot, file=out)
+
+                # Concatenate the new row to the DataFrame
+                results_df = pd.concat([results_df, new_row_rot], ignore_index=True)
+
+                data_logger.add_results_data(molecule, level, S_trans)
+                data_logger.add_results_data(molecule, level, S_rot)
 
                 # Note: conformational entropy is not calculated at the polymer level,
                 # because there is at most one polymer bead per molecule so no dihedral
@@ -489,7 +390,7 @@ def main():
                     step,
                     number_frames,
                 )
-                print(f"S_conf_{level} = {S_conf}")
+                logger.debug(f"S_conf_{level} = {S_conf}")
                 new_row = pd.DataFrame(
                     {
                         "Molecule ID": [molecule],
@@ -499,8 +400,7 @@ def main():
                     }
                 )
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                with open(args.outfile, "a") as out:
-                    print(molecule, "\t", level, "\tConformational\t", S_conf, file=out)
+                data_logger.add_results_data(molecule, level, S_conf)
 
             # Orientational entropy based on network of neighbouring molecules,
             #  only calculated at the highest level (whole molecule)
@@ -524,7 +424,7 @@ def main():
 
         # Report total entropy for the molecule
         S_molecule = results_df[results_df["Molecule ID"] == molecule]["Result"].sum()
-        print(f"S_molecule = {S_molecule}")
+        logger.debug(f"S_molecule = {S_molecule}")
         new_row = pd.DataFrame(
             {
                 "Molecule ID": [molecule],
@@ -534,8 +434,17 @@ def main():
             }
         )
         results_df = pd.concat([results_df, new_row], ignore_index=True)
-        with open(args.outfile, "a") as out:
-            print(molecule, "\t Molecule\tTotal Entropy\t", S_molecule, file=out)
+
+        data_logger.add_results_data(molecule, level, S_molecule)
+        data_logger.save_dataframes_as_json(
+            results_df, residue_results_df, args.outfile
+        )
+
+        logger.info(f"Molecule: {molecule}")
+        data_logger.log_tables()
+
+    logger.info("Combined Molecules:")
+    data_logger.log_tables()
 
 
 if __name__ == "__main__":

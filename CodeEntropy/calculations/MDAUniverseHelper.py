@@ -1,8 +1,11 @@
+import logging
 import pickle
 
 import MDAnalysis as mda
 from MDAnalysis.analysis.base import AnalysisFromFunction
 from MDAnalysis.coordinates.memory import MemoryReader
+
+logger = logging.getLogger(__name__)
 
 
 def new_U_select_frame(u, start=None, end=None, step=1):
@@ -46,6 +49,7 @@ def new_U_select_frame(u, start=None, end=None, step=1):
     )
     u2 = mda.Merge(select_atom)
     u2.load_new(coordinates, format=MemoryReader, forces=forces, dimensions=dimensions)
+    logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
     return u2
 
 
@@ -83,6 +87,7 @@ def new_U_select_atom(u, select_string="all"):
     )
     u2 = mda.Merge(select_atom)
     u2.load_new(coordinates, format=MemoryReader, forces=forces, dimensions=dimensions)
+    logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
     return u2
 
 
