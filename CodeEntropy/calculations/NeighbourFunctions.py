@@ -1,9 +1,13 @@
 # import os
+import logging
 import sys
 
 # import matplotlib.pyplot as plt
 import MDAnalysis as mda
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
 
 # from ast import arg
 
@@ -85,4 +89,8 @@ def get_neighbours(molecule_i, reduced_atom):
                 # print(r_ij)
                 neighbours_array.append(molecule_j.atoms.resids[0])
                 neighbours_dict[molecule_j.atoms.resnames[0]] = 1
+
+    logger.debug(f"Neighbours dictionary: {neighbours_dict}")
+    logger.debug(f"Neighbours array: {neighbours_array}")
+
     return neighbours_dict, neighbours_array
