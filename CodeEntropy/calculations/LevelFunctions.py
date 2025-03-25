@@ -1,7 +1,11 @@
 # import MDAnalysis as mda
+import logging
+
 import numpy as np
 
-from CodeEntropy import GeometricFunctions as GF
+from CodeEntropy.calculations import GeometricFunctions as GF
+
+logger = logging.getLogger(__name__)
 
 
 def select_levels(data_container, verbose):
@@ -23,7 +27,7 @@ def select_levels(data_container, verbose):
 
     # fragments is MDAnalysis terminology for what chemists would call molecules
     number_molecules = len(data_container.atoms.fragments)
-    print("The number of molecules is {}.".format(number_molecules))
+    logger.debug("The number of molecules is {}.".format(number_molecules))
     fragments = data_container.atoms.fragments
     levels = [[] for _ in range(number_molecules)]
 
@@ -42,8 +46,7 @@ def select_levels(data_container, verbose):
             if number_residues > 1:
                 levels[molecule].append("polymer")
 
-    if verbose:
-        print(levels)
+    logger.debug(f"levels {levels}")
 
     return number_molecules, levels
 
@@ -142,12 +145,8 @@ def get_matrices(
     force_matrix = GF.filter_zero_rows_columns(force_matrix, verbose)
     torque_matrix = GF.filter_zero_rows_columns(torque_matrix, verbose)
 
-    if verbose:
-        with open("matrix.out", "a") as f:
-            print("force_matrix \n", file=f)
-            print(force_matrix, file=f)
-            print("torque_matrix \n", file=f)
-            print(torque_matrix, file=f)
+    logger.debug(f"Force Matrix: {force_matrix}")
+    logger.debug(f"Torque Matrix: {torque_matrix}")
 
     return force_matrix, torque_matrix
 
@@ -181,7 +180,7 @@ def get_dihedrals(data_container, level):
     if level == "residue":
         num_residues = len(data_container.residues)
         if num_residues < 4:
-            print("no residue level dihedrals")
+            logger.debug("no residue level dihedrals")
 
         else:
             # find bonds between residues N-3:N-2 and N-1:N
@@ -223,5 +222,7 @@ def get_dihedrals(data_container, level):
 
                 atom_group = atom1 + atom2 + atom3 + atom4
                 dihedrals.append(atom_group.dihedral)
+
+    logger.debug(f"Dihedrals: {dihedrals}")
 
     return dihedrals

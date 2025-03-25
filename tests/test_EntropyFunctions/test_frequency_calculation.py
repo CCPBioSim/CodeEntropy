@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from CodeEntropy import EntropyFunctions as EF
+from CodeEntropy.calculations import EntropyFunctions as EF
 
 # Test frequency_calculation
 # calculate vibrational frequencies from eigenvalues of covariance matrix
