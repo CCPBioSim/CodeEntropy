@@ -23,15 +23,13 @@ class DataLogger:
         with open(outfile, "w") as out:
             json.dump(data, out, indent=4)
 
-    def add_results_data(self, molecule, level, S_molecule):
+    def add_results_data(self, molecule, level, type, S_molecule):
         """Add data for molecule-level entries"""
-        self.molecule_data.append([molecule, level, "Total Entropy", f"{S_molecule}"])
+        self.molecule_data.append([molecule, level, type, f"{S_molecule}"])
 
-    def add_residue_data(self, molecule, residue, S_trans_residue):
+    def add_residue_data(self, molecule, residue, type, S_trans_residue):
         """Add data for residue-level entries"""
-        self.residue_data.append(
-            [molecule, residue, "Transvibrational", f"{S_trans_residue}"]
-        )
+        self.residue_data.append([molecule, residue, type, f"{S_trans_residue}"])
 
     def log_tables(self):
         """Log both tables at once"""
