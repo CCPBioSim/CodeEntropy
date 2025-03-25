@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def get_beads(data_container, level):
@@ -39,6 +43,8 @@ def get_beads(data_container, level):
                 + ")"
             )
             list_of_beads.append(data_container.select_atoms(atom_group))
+
+    logger.debug(f"List of beads: {list_of_beads}")
 
     return list_of_beads
 
@@ -120,6 +126,9 @@ def get_axes(data_container, level, index=0):
         # use spherical coordinates function to get rotational axes
         rot_axes = get_sphCoord_axes(vector)
 
+    logger.debug(f"Translational Axes: {trans_axes}")
+    logger.debug(f"Rotational Axes: {rot_axes}")
+
     return trans_axes, rot_axes
 
 
@@ -158,6 +167,8 @@ def get_avg_pos(atom_set, center):
 
     # transform the average position to a coordinate system with the origin at center
     avg_position = avg_position - center
+
+    logger.debug(f"Average Position: {avg_position}")
 
     return avg_position
 
@@ -231,6 +242,8 @@ def get_sphCoord_axes(arg_r):
     # Phi^
     spherical_basis[2, :] = np.asarray([-sin_phi, cos_phi, 0.0])
 
+    logger.debug(f"Spherical Basis: {spherical_basis}")
+
     return spherical_basis
 
 
@@ -275,6 +288,8 @@ def get_weighted_forces(
         )
 
     weighted_force = forces_trans / np.sqrt(mass)
+
+    logger.debug(f"Weighted Force: {weighted_force}")
 
     return weighted_force
 
@@ -361,6 +376,8 @@ def get_weighted_torques(data_container, bead, rot_axes, force_partitioning=0.5)
             moment_of_inertia[dimension, dimension]
         )
 
+    logger.debug(f"Weighted Torque: {weighted_torque}")
+
     return weighted_torque
 
 
@@ -389,6 +406,8 @@ def create_submatrix(data_i, data_j, number_frames):
 
     # Divide by the number of frames to get the average
     submatrix /= number_frames
+
+    logger.debug(f"Submatrix: {submatrix}")
 
     return submatrix
 
@@ -432,11 +451,13 @@ def filter_zero_rows_columns(arg_matrix, verbose):
     # get the final shape
     final_shape = np.shape(arg_matrix)
 
-    if verbose and init_shape != final_shape:
-        print(
-            "A shape change has occured ({},{}) -> ({}, {})".format(
+    if init_shape != final_shape:
+        logger.debug(
+            "A shape change has occurred ({},{}) -> ({}, {})".format(
                 *init_shape, *final_shape
             )
         )
+
+    logger.debug(f"arg_matrix: {arg_matrix}")
 
     return arg_matrix
