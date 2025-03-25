@@ -2,7 +2,8 @@ import argparse
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
-from CodeEntropy.main_mcc import load_config, main, merge_configs, setup_argparse
+from CodeEntropy.config.arg_config_manager import ConfigManager
+from CodeEntropy.main_mcc import main
 
 
 class test_maincc(unittest.TestCase):
@@ -52,9 +53,12 @@ class test_maincc(unittest.TestCase):
         """
         Test loading a valid configuration file.
         """
+
+        arg_config = ConfigManager()
+
         self.setup_file(mock_file)
 
-        config = load_config(self.config_file)
+        config = arg_config.load_config(self.config_file)
 
         self.assertIn("run1", config)
         self.assertEqual(
@@ -66,34 +70,35 @@ class test_maincc(unittest.TestCase):
         """
         Test loading a configuration file that does not exist.
         """
-        with self.assertRaises(FileNotFoundError):
-            load_config(self.config_file)
 
-    @patch("CodeEntropy.main_mcc.load_config", return_value=None)
+        arg_config = ConfigManager()
+
+        with self.assertRaises(FileNotFoundError):
+            arg_config.load_config(self.config_file)
+
+    @patch.object(ConfigManager, "load_config", return_value=None)
     def test_no_cli_no_yaml(self, mock_load_config):
-        """
-        Test behavior when no CLI arguments and no YAML file are provided.
-        Should raise an exception or use defaults.
-        """
+        """Test behavior when no CLI arguments and no YAML file are provided."""
 
         with self.assertRaises(ValueError) as context:
             self.code_entropy()
 
-        self.assertTrue(
-            "No configuration file found, and no CLI arguments were provided."
-            in str(context.exception)
+        self.assertEqual(
+            str(context.exception),
+            "No configuration file found, and no CLI arguments were provided.",
         )
 
     def test_invalid_run_config_type(self):
         """
         Test that passing an invalid type for run_config raises a TypeError.
         """
+        arg_config = ConfigManager()
         args = MagicMock()
         invalid_configs = ["string", 123, 3.14, ["list"], {("tuple_key",): "value"}]
 
         for invalid in invalid_configs:
             with self.assertRaises(TypeError):
-                merge_configs(args, invalid)
+                arg_config.merge_configs(args, invalid)
 
     @patch(
         "argparse.ArgumentParser.parse_args",
@@ -118,7 +123,8 @@ class test_maincc(unittest.TestCase):
         """
         Test parsing command-line arguments.
         """
-        parser = setup_argparse()
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
         args = parser.parse_args()
         self.assertEqual(args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
         self.assertEqual(args.selection_string, "all")
@@ -127,7 +133,8 @@ class test_maincc(unittest.TestCase):
         """
         Test if CLI parameters override default values.
         """
-        parser = setup_argparse()
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
         args = parser.parse_args(
             ["--top_traj_file", "/cli/path", "--selection_string", "cli_value"]
         )
@@ -140,7 +147,8 @@ class test_maincc(unittest.TestCase):
         """
         run_config = {"top_traj_file": ["/yaml/path"], "selection_string": "yaml_value"}
         args = argparse.Namespace()
-        merged_args = merge_configs(args, run_config)
+        arg_config = ConfigManager()
+        merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
         self.assertEqual(merged_args.selection_string, "yaml_value")
 
@@ -148,12 +156,13 @@ class test_maincc(unittest.TestCase):
         """
         Test if CLI parameters override YAML parameters correctly.
         """
-        parser = setup_argparse()
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
         args = parser.parse_args(
             ["--top_traj_file", "/cli/path", "--selection_string", "cli_value"]
         )
         run_config = {"top_traj_file": ["/yaml/path"], "selection_string": "yaml_value"}
-        merged_args = merge_configs(args, run_config)
+        merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
         self.assertEqual(merged_args.selection_string, "cli_value")
 
@@ -161,6 +170,7 @@ class test_maincc(unittest.TestCase):
         """
         Test merging default arguments with a run configuration.
         """
+        arg_config = ConfigManager()
         args = MagicMock(
             top_traj_file=None,
             selection_string=None,
@@ -193,7 +203,7 @@ class test_maincc(unittest.TestCase):
             "force_partitioning": 0.5,
             "waterEntropy": False,
         }
-        merged_args = merge_configs(args, run_config)
+        merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
         self.assertEqual(merged_args.selection_string, "all")
 
@@ -202,11 +212,11 @@ class test_maincc(unittest.TestCase):
         """
         Test if argument parser assigns default values correctly.
         """
-        # Since there are no default values, we don't need to set them in the mock
+        arg_config = ConfigManager()
         mock_parse_args.return_value = MagicMock(
             top_traj_file=["example.top", "example.traj"]
         )
-        parser = setup_argparse()
+        parser = arg_config.setup_argparse()
         args = parser.parse_args()
         self.assertEqual(args.top_traj_file, ["example.top", "example.traj"])
 
@@ -217,7 +227,8 @@ class test_maincc(unittest.TestCase):
         """
         Test behavior when required arguments are missing.
         """
-        parser = setup_argparse()
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
         args = parser.parse_args()
         with self.assertRaises(ValueError):
             if not args.top_traj_file:
@@ -229,7 +240,8 @@ class test_maincc(unittest.TestCase):
         """
         Test handling of invalid argument types.
         """
-        parser = setup_argparse()
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
         with self.assertRaises(SystemExit):
             parser.parse_args(["--start", "invalid"])
 
@@ -240,7 +252,8 @@ class test_maincc(unittest.TestCase):
         """
         Test parsing of edge case values.
         """
-        parser = setup_argparse()
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
         args = parser.parse_args()
         self.assertEqual(args.start, -1)
         self.assertEqual(args.end, -10)
@@ -252,7 +265,10 @@ class test_maincc(unittest.TestCase):
         Test behavior when an empty YAML file is provided.
         Should use defaults or raise an appropriate error.
         """
-        config = load_config(self.config_file)
+
+        arg_config = ConfigManager()
+
+        config = arg_config.load_config(self.config_file)
 
         self.assertIsInstance(config, dict)
         self.assertEqual(config, {})

@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # from MDAnalysis.analysis.dihedrals import Dihedral
 
@@ -78,5 +82,7 @@ def assign_conformation(
         # find the TP that the snapshot is least distant from
         distances = [abs(phi[frame] - peak) for peak in peak_values]
         conformations[frame] = np.argmin(distances)
+
+    logger.debug(f"Final conformations: {conformations}")
 
     return conformations
