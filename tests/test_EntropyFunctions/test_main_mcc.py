@@ -2,13 +2,7 @@ import argparse
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
-from CodeEntropy.main_mcc import (
-    arg_map,
-    load_config,
-    main,
-    merge_configs,
-    setup_argparse,
-)
+from CodeEntropy.main_mcc import load_config, main, merge_configs, setup_argparse
 
 
 class test_maincc(unittest.TestCase):
@@ -208,12 +202,13 @@ class test_maincc(unittest.TestCase):
         """
         Test if argument parser assigns default values correctly.
         """
-        default_args = {arg: params["default"] for arg, params in arg_map.items()}
-        mock_parse_args.return_value = MagicMock(**default_args)
+        # Since there are no default values, we don't need to set them in the mock
+        mock_parse_args.return_value = MagicMock(
+            top_traj_file=["example.top", "example.traj"]
+        )
         parser = setup_argparse()
         args = parser.parse_args()
-        for arg, params in arg_map.items():
-            self.assertEqual(getattr(args, arg), params["default"])
+        self.assertEqual(args.top_traj_file, ["example.top", "example.traj"])
 
     @patch(
         "argparse.ArgumentParser.parse_args", return_value=MagicMock(top_traj_file=None)

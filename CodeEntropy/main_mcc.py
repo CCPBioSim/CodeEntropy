@@ -19,7 +19,6 @@ arg_map = {
         "type": str,
         "nargs": "+",
         "help": "Path to Structure/topology file followed by Trajectory file(s)",
-        "default": [],
     },
     "selection_string": {
         "type": str,
