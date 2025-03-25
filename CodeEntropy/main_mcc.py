@@ -228,7 +228,9 @@ def main():
                     residue_results_df = pd.concat(
                         [residue_results_df, new_row], ignore_index=True
                     )
-                    data_logger.add_residue_data(molecule, residue, S_trans_residue)
+                    data_logger.add_residue_data(
+                        molecule, residue, "Transvibrational", S_trans_residue
+                    )
 
                     S_rot_residue = EF.vibrational_entropy(
                         torque_matrix, "torque", args.temperature, highest_level
@@ -246,7 +248,9 @@ def main():
                     residue_results_df = pd.concat(
                         [residue_results_df, new_row], ignore_index=True
                     )
-                    data_logger.add_residue_data(molecule, residue, S_rot_residue)
+                    data_logger.add_residue_data(
+                        molecule, residue, "Rovibrational", S_rot_residue
+                    )
 
                     # Conformational entropy based on atom dihedral angle distributions
                     # Gives entropy of conformations within each residue
@@ -277,7 +281,9 @@ def main():
                     residue_results_df = pd.concat(
                         [residue_results_df, new_row], ignore_index=True
                     )
-                    data_logger.add_residue_data(molecule, residue, S_conf_residue)
+                    data_logger.add_residue_data(
+                        molecule, residue, "Conformational", S_conf_residue
+                    )
 
                 # Print united atom level results summed over all residues
                 logger.debug(f"S_trans_{level} = {S_trans}")
@@ -292,7 +298,9 @@ def main():
 
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
-                data_logger.add_results_data(molecule, level, S_trans)
+                data_logger.add_results_data(
+                    molecule, level, "Transvibrational", S_trans
+                )
 
                 logger.debug(f"S_rot_{level} = {S_rot}")
                 new_row = pd.DataFrame(
@@ -305,7 +313,7 @@ def main():
                 )
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
-                data_logger.add_results_data(molecule, level, S_rot)
+                data_logger.add_results_data(molecule, level, "Rovibrational", S_rot)
                 logger.debug(f"S_conf_{level} = {S_conf}")
 
                 new_row = pd.DataFrame(
@@ -318,7 +326,7 @@ def main():
                 )
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
 
-                data_logger.add_results_data(molecule, level, S_conf)
+                data_logger.add_results_data(molecule, level, "Conformational", S_conf)
 
             if level in ("polymer", "residue"):
                 # Vibrational entropy at every level
@@ -372,8 +380,10 @@ def main():
                 # Concatenate the new row to the DataFrame
                 results_df = pd.concat([results_df, new_row_rot], ignore_index=True)
 
-                data_logger.add_results_data(molecule, level, S_trans)
-                data_logger.add_results_data(molecule, level, S_rot)
+                data_logger.add_results_data(
+                    molecule, level, "Transvibrational", S_trans
+                )
+                data_logger.add_results_data(molecule, level, "Rovibrational", S_rot)
 
                 # Note: conformational entropy is not calculated at the polymer level,
                 # because there is at most one polymer bead per molecule so no dihedral
@@ -405,7 +415,7 @@ def main():
                     }
                 )
                 results_df = pd.concat([results_df, new_row], ignore_index=True)
-                data_logger.add_results_data(molecule, level, S_conf)
+                data_logger.add_results_data(molecule, level, "Conformational", S_conf)
 
             # Orientational entropy based on network of neighbouring molecules,
             #  only calculated at the highest level (whole molecule)
@@ -440,15 +450,14 @@ def main():
         )
         results_df = pd.concat([results_df, new_row], ignore_index=True)
 
-        data_logger.add_results_data(molecule, level, S_molecule)
+        data_logger.add_results_data(
+            molecule, level, "Molecule Total Entropy", S_molecule
+        )
         data_logger.save_dataframes_as_json(
             results_df, residue_results_df, args.outfile
         )
 
-        logger.info(f"Molecule: {molecule}")
-        data_logger.log_tables()
-
-    logger.info("Combined Molecules:")
+    logger.info("Molecules:")
     data_logger.log_tables()
 
 
