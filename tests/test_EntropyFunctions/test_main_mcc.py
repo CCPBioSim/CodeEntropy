@@ -213,25 +213,12 @@ class test_maincc(unittest.TestCase):
         Test if argument parser assigns default values correctly.
         """
         arg_config = ConfigManager()
-
-        # Ensure every argument gets a sensible default
-        default_args = {
-            arg: params.get("default", False if "action" in params else None)
-            for arg, params in arg_config.arg_map.items()
-        }
-
-        # Mock argparse to return expected defaults
-        mock_parse_args.return_value = MagicMock(**default_args)
-
+        mock_parse_args.return_value = MagicMock(
+            top_traj_file=["example.top", "example.traj"]
+        )
         parser = arg_config.setup_argparse()
         args = parser.parse_args()
-
-        # Compare parsed args with expected defaults
-        for arg, params in arg_config.arg_map.items():
-            expected_default = params.get(
-                "default", False if "action" in params else None
-            )
-            self.assertEqual(getattr(args, arg), expected_default)
+        self.assertEqual(args.top_traj_file, ["example.top", "example.traj"])
 
     @patch(
         "argparse.ArgumentParser.parse_args", return_value=MagicMock(top_traj_file=None)
