@@ -116,7 +116,7 @@ class ConfigManager:
         # Step 1: Apply YAML values if CLI didn't explicitly set the argument
         for key, yaml_value in run_config.items():
             if yaml_value is not None and key not in cli_provided_args:
-                logger.info(f"Using YAML value for {key}: {yaml_value}")
+                logger.debug(f"Using YAML value for {key}: {yaml_value}")
                 setattr(args, key, yaml_value)
 
         # Step 2: Ensure all arguments have at least their default values
