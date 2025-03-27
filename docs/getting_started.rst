@@ -5,8 +5,6 @@ Requirements
 ----------------
 
 * Python > 3.9
-* gcc
-* g++
 
 Installation
 ----------------
@@ -20,7 +18,6 @@ Input
 ----------
 For supported format (AMBER NETCDF and GROMACS TRR) you will need to output the **coordinates** and **forces** to the **same file**.
 
-For unsupported format see :ref:`load-custom` for ideas on how to load custom data into MDanalysis universe and convert to supported format.
 
 Units
 ------------
@@ -31,7 +28,7 @@ The program assumes the following default unit
    :class: tight-table
    :header-rows: 1
    
-   * - Qunatity
+   * - Quantity
      - Unit
    * - Length
      - Å
@@ -50,16 +47,19 @@ Quick start guide
 
      This doesn't work on Windows!!!
 
-A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropyPoseidon``
+A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropy``
 
 For help
 ^^^^^^^^^^^
 .. code-block:: bash
     
-    CodeEntropyPoseidon -h
+    CodeEntropy -h
 
 Arguments
 ^^^^^^^^^^^^^
+Arguments should go in a config.yaml file.
+The values in the yaml file can be overridden by command line arguments.
+The top_traj_file argument is necessary to identify your simulation data, the others can use default values.
 
 .. list-table:: Arguments
    :widths: 20 30 10 10
@@ -70,113 +70,58 @@ Arguments
      - Description
      - Default
      - Type
-   * - ``-f``, ``--top_traj_file`` 
+   * - ``--top_traj_file`` 
      - Path to Structure/topology file(``AMBER PRMTOP``, ``GROMACS TPR`` or topology file with MDAnalysis readable dihedral information (not officially supported)) followed by Trajectory file(s) (``GROMAC TRR`` or ``AMBER NETCDF``) You will need to output the **coordinates** and **forces** to the **same file** . 
      - Required
      - list of ``str`` 
-   * - ``-l``, ``--selectString``
+   * - ``--selection_string``
      - Selection string for CodeEntropy such as protein or resid, refer to ``MDAnalysis.select_atoms`` for more information.
      - ``"all"``: select all atom in trajectory
      - ``str``
-   * - ``-b``, ``--begin``
+   * - ``--start``
      - Start analysing the trajectory from this frame index.
      - ``0``: From begining
      - ``int``
-   * - ``-e``, ``--end``
+   * - ``--end``
      - Stop analysing the trajectory at this frame index
      - ``-1``: end of trajectory
      - ``int``
-   * - ``-d``, ``--step``
-     - Steps between frame
+   * - ``--step``
+     - Interval between two consecutive frame indices to be read
      - ``1``
      - ``int``
-   * - ``-k``, ``--tempra``
+   * - ``--bin_width``
+     - Bin width in degrees for making the dihedral angle histogram
+     - ``30``
+     - ``int``
+   * - ``--temperature``
      - Temperature for entropy calculation (K)
      - ``298.0``
      - ``float``
-   * -  ``-t``, ``--thread``
+   * - ``--verbose``
+     - Enable verbose output
+     - ``False``
+     - ``bool``
+   * - ``--thread``
      - How many multiprocess to use.
      - ``1``: for single core execution
      - ``int``
-   * - ``-o``, ``--out``
+   * - ``--outfile``
      - Name of the file where the text format output will be written.
      - ``outfile.out``
      - ``str``
-   * - ``-v``, ``--csvout``
-     - Name of the file where the total entropy output will be written.
-     - ``outfile.csv``
-     - ``str`` 
-   * - ``-r``, ``--resout``
-     - Name of the file where the residue entropy output will be written.
-     - ``res_outfile.csv``
-     - ``str``
-   * - ``-m``, ``--mout``
+   * - ``--mout``
      - Name of the file where certain matrices will be written.
      - ``None``
      - ``str``
-   * - ``-n``, ``--nmd`` 
-     - Name of the file where VMD compatible NMD format files with mode information will be printed.
-     - ``None``
-     - ``str``
-   * - ``-a``, ``--rotationalaxis``
-     - The 3 atom name in each residue for rotational and translational axis.
-     - ``['C', 'CA', 'N']`` : for protein 
-     - list of ``str``
-   * - ``-c``, ``--cutShell``
-     -  Include cutoff shell analysis, add cutoff distance in angstrom. 
-     - ``None`` \: will ust the RAD Algorithm. See Higham, Jonathan, and Richard H Henchman. “Locally adaptive method to define coordination shell.” The Journal of chemical physics vol. 145,8 (2016): 084108. doi:10.1063/1.4961439
-     - list of ``str``
-   * - ``-p``, ``--pureAtomNum``
-     - Reference molecule resid for system of pure liquid.
-     - ``1``
-     - ``int``
-   * - ``-x``, ``--excludedResnames`` 
-     - Exclude a list of molecule names from nearest non-like analysis.
-     - ``None``
-     - list of ``str``
-   * - ``-w``, ``--water``
-     - Resname for water molecules. 
-     - ``'Wat'``
-     - list of ``str``
-   * - ``-s``, ``--solvent``
-     - Include resname of solvent molecules (case-sensitive).
-     - ``None``
-     - list of ``str``
-   * - ``--wm``
-     - Do entropy calculation at whole molecule level (The whole molecule is treated as one single bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--res``
-     - Do entropy calculation at residue level (A residue as a whole represents a bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--uatom``
-     - Do entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--topog``
-     - Compute the topographical entropy using :  
-        * 1 : pLogP method (will separate between backbone and side chain)
-        * 2 : Corr. pLogP method (will separate between backbone and side chain)
-        * 3 : Corr. pLogP after adaptive enumeration of states
-     -  ``0`` : no topographical analysis 
-     -  ``int``
-   * - ``--solwm``
-     - Do solution entropy calculation at residue level (The whole molecule is treated as one single bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--solres``
-     - Do solution entropy calculation at residue level (A residue as a whole represents a bead.
-     - Flag, activate when included
-     - Flag
-   * - ``--soluatom``
-     - Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--solContact``
-     - Do solute contact calculation.
-     - Flag, activate when included
-     - Flag
+   * - ``--force_partitioning``
+     - Factor for partitioning forces when there are weak correlations
+     - ``0.5``
+     - ``float``
+   * - ``--waterEntropy``
+     - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy
+     - ``False``
+     - ``bool``
 
 
 Example
@@ -185,7 +130,7 @@ Example
 .. code-block:: bash
     
     # example 1 DNA
-    CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 3
+    CodeEntropy --top_traj_file "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" 
 
     # example 2 lysozyme in water
-    CodeEntropyPoseidon -f "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom --solContact
+    CodeEntropy --top_traj_file "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr"

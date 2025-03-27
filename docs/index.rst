@@ -8,15 +8,13 @@
 Welcome to CodeEntropy's documentation!
 =========================================================
 
-This code is based on the CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for computing entropy of macromolecular systems from the forces sampled in a MD simulation.
+This code is a complete and generally applicable set of tools for computing entropy of macromolecular systems from the forces sampled in a MD simulation.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    getting_started
-   Run_as_script
-   Script_example
    api
    faq
    community_guide
