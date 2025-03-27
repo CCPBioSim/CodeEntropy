@@ -1,81 +1,62 @@
 API Documentation
 =================
 
-MDAnalysis Helper
--------------------
+Main
+----
+.. autosummary::
+    :toctree: autosummary
+
+    CodeEntropy.main_mcc.create_job_folder
+    CodeEntropy.main_mcc.main
+
+Calculations
+------------
+
+Conformation Functions
+^^^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.IO.MDAUniverseHelper.new_U_select_frame
-   CodeEntropy.IO.MDAUniverseHelper.new_U_select_atom
-   CodeEntropy.IO.MDAUniverseHelper.write_universe
-   CodeEntropy.IO.MDAUniverseHelper.read_universe
+   CodeEntropy.calculations.ConformationFunctions.assign_conformation
 
-Solute
--------
-
-Import Data
-^^^^^^^^^^^^^^^
+Entropy Functions
+^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.ClassCollection.DataContainer.DataContainer
+   CodeEntropy.calculations.EntropyFunctions.frequency_calculation
+   CodeEntropy.calculations.EntropyFunctions.vibrational_entropy
+   CodeEntropy.calculations.EntropyFunctions.conformational_entropy
+   CodeEntropy.calculations.EntropyFunctions.orientational_entropy
 
-Solute Entropy Calculation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Whole Molecule Level
-""""""""""""""""""""""""
-
+Geometric Functions
+^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_whole_molecule_level
+   CodeEntropy.calculations.GeometricFunctions.get_beads
+   CodeEntropy.calculations.GeometricFunctions.get_axes
+   CodeEntropy.calculations.GeometricFunctions.get_avg_pos
+   CodeEntropy.calculations.GeometricFunctions.get_sphCoord_axes
+   CodeEntropy.calculations.GeometricFunctions.get_weighted_forces
+   CodeEntropy.calculations.GeometricFunctions.get_weighted_torques
+   CodeEntropy.calculations.GeometricFunctions.create_submatrix
+   CodeEntropy.calculations.GeometricFunctions.filter_zero_rows_columns
 
-Residue Level
-""""""""""""""""""""
-
-.. autosummary::
-   :toctree: autosummary
-   
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_residue_level
-   
-United-Atom Level
-"""""""""""""""""""
-
-.. autosummary::
-   :toctree: autosummary
-      
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_UA_level
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_UA_level_multiprocess
-
-Topographical Level
-""""""""""""""""""""""""
-.. autosummary::
-   :toctree: autosummary
-   
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy0_SC
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy0_BB
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy1_SC
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy1_BB
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy_AEM
-
-Solvent
---------
-
-Import Data
-^^^^^^^^^^^^^^^
+Level Functions
+^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon_mp
+   CodeEntropy.calculations.LevelFunctions.select_levels
+   CodeEntropy.calculations.LevelFunctions.get_matrices
+   CodeEntropy.calculations.LevelFunctions.get_dihedrals
 
-Run Analysis
-^^^^^^^^^^^^^^^^
-
+Config
+------
 .. autosummary::
    :toctree: autosummary
+   :recursive:
 
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon.run_analysis
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon_mp.run_analysis
+   CodeEntropy.config
+
