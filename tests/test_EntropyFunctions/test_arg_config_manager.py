@@ -155,17 +155,6 @@ class test_arg_config_manager(unittest.TestCase):
         self.assertEqual(args.top_traj_file, ["/cli/path"])
         self.assertEqual(args.selection_string, "cli_value")
 
-    def test_yaml_overrides_defaults(self):
-        """
-        Test if YAML parameters override default values.
-        """
-        run_config = {"top_traj_file": ["/yaml/path"], "selection_string": "yaml_value"}
-        args = argparse.Namespace()
-        arg_config = ConfigManager()
-        merged_args = arg_config.merge_configs(args, run_config)
-        self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
-        self.assertEqual(merged_args.selection_string, "yaml_value")
-
     def test_cli_overrides_yaml(self):
         """
         Test if CLI parameters override YAML parameters correctly.
@@ -179,6 +168,93 @@ class test_arg_config_manager(unittest.TestCase):
         merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
         self.assertEqual(merged_args.selection_string, "cli_value")
+
+    def test_cli_overrides_yaml_with_multiple_values(self):
+        """
+        Ensures that CLI arguments override YAML when multiple values are provided in
+        YAML.
+        """
+        arg_config = ConfigManager()
+        yaml_config = {"top_traj_file": ["/yaml/path1", "/yaml/path2"]}
+        args = argparse.Namespace(top_traj_file=["/cli/path"])
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
+
+    def test_yaml_overrides_defaults(self):
+        """
+        Test if YAML parameters override default values.
+        """
+        run_config = {"top_traj_file": ["/yaml/path"], "selection_string": "yaml_value"}
+        args = argparse.Namespace()
+        arg_config = ConfigManager()
+        merged_args = arg_config.merge_configs(args, run_config)
+        self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
+        self.assertEqual(merged_args.selection_string, "yaml_value")
+
+    def test_yaml_does_not_override_cli_if_set(self):
+        """
+        Ensure YAML does not override CLI arguments that are set.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {"bin_width": 50}
+        args = argparse.Namespace(bin_width=100)
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.bin_width, 100)
+
+    def test_yaml_overrides_defaults_when_no_cli(self):
+        """
+        Test if YAML parameters override default values when no CLI input is given.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {
+            "top_traj_file": ["/yaml/path"],
+            "bin_width": 50,
+        }
+
+        args = argparse.Namespace()
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
+        self.assertEqual(merged_args.bin_width, 50)
+
+    def test_yaml_none_does_not_override_defaults(self):
+        """
+        Ensures that YAML values set to `None` do not override existing CLI values.
+        """
+        arg_config = ConfigManager()
+        yaml_config = {"bin_width": None}
+        args = argparse.Namespace(bin_width=100)
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.bin_width, 100)
+
+    def test_hierarchy_cli_yaml_defaults(self):
+        """
+        Test if CLI arguments override YAML, and YAML overrides defaults.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {
+            "top_traj_file": ["/yaml/path", "/yaml/path"],
+            "bin_width": "50",
+        }
+
+        args = argparse.Namespace(
+            top_traj_file=["/cli/path", "/cli/path"], bin_width=100
+        )
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/cli/path", "/cli/path"])
+        self.assertEqual(merged_args.bin_width, 100)
 
     def test_merge_configs(self):
         """
@@ -221,6 +297,19 @@ class test_arg_config_manager(unittest.TestCase):
         self.assertEqual(merged_args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
         self.assertEqual(merged_args.selection_string, "all")
 
+    def test_merge_with_none_yaml(self):
+        """
+        Ensure merging still works if no YAML config is provided.
+        """
+        arg_config = ConfigManager()
+
+        args = argparse.Namespace(top_traj_file=["/cli/path"])
+        yaml_config = None
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
+
     @patch("argparse.ArgumentParser.parse_args")
     def test_default_values(self, mock_parse_args):
         """
@@ -233,6 +322,20 @@ class test_arg_config_manager(unittest.TestCase):
         parser = arg_config.setup_argparse()
         args = parser.parse_args()
         self.assertEqual(args.top_traj_file, ["example.top", "example.traj"])
+
+    def test_fallback_to_defaults(self):
+        """
+        Ensure arguments fall back to defaults if neither YAML nor CLI provides them.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {}
+        args = argparse.Namespace()
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.step, 1)
+        self.assertEqual(merged_args.end, -1)
 
     @patch(
         "argparse.ArgumentParser.parse_args", return_value=MagicMock(top_traj_file=None)
