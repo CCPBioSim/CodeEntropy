@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
@@ -59,6 +60,10 @@ class TestMainCC(unittest.TestCase):
             "force_partitioning: 0.5\n  "
             "waterEntropy: False"
         ).return_value
+
+    def test_CodeEntropy_imported(self):
+        """Sample test, will always pass so long as import statement worked."""
+        assert "CodeEntropy" in sys.modules
 
     @patch(
         "builtins.open",
