@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, mock_open, patch
 from CodeEntropy.main_mcc import main
 
 
-class TestMainCC(unittest.TestCase):
+class TestMainMcc(unittest.TestCase):
     """
     Unit tests for the main functionality of CodeEntropy.
     """
