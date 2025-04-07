@@ -67,23 +67,26 @@ def main():
     args, unknown = parser.parse_known_args()
     args.outfile = os.path.join(folder, args.outfile)
 
-    # Determine logging level
-    log_level = logging.DEBUG if args.verbose else logging.INFO
-
-    # Initialize the logging system with the determined log level
-    logging_config = LoggingConfig(folder, default_level=log_level)
-    logger = logging_config.setup_logging()
-
-    # Capture and log the command-line invocation
-    command = " ".join(sys.argv)
-    logging.getLogger("commands").info(command)
-
     try:
+        # Initialize the logging system once
+        logging_config = LoggingConfig(folder)
+        logger = logging_config.setup_logging()
+
         # Process each run in the YAML configuration
         for run_name, run_config in config.items():
             if isinstance(run_config, dict):
                 # Merging CLI arguments with YAML configuration
                 args = arg_config.merge_configs(args, run_config)
+
+                # Determine logging level
+                log_level = logging.DEBUG if args.verbose else logging.INFO
+
+                # Update the logging level
+                logging_config.update_logging_level(log_level)
+
+                # Capture and log the command-line invocation
+                command = " ".join(sys.argv)
+                logging.getLogger("commands").info(command)
 
                 # Ensure necessary arguments are provided
                 if not getattr(args, "top_traj_file"):
