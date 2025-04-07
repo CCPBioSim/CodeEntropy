@@ -94,10 +94,11 @@ def get_matrices(
             trans_axes, rot_axes = GF.get_axes(data_container, level, bead_index)
 
             # Sort out coordinates, forces, and torques for each atom in the bead
-            weighted_forces[bead_index][timestep.frame] = GF.get_weighted_forces(
+            timestep_index = timestep.frame - start
+            weighted_forces[bead_index][timestep_index] = GF.get_weighted_forces(
                 data_container, list_of_beads[bead_index], trans_axes, highest_level
             )
-            weighted_torques[bead_index][timestep.frame] = GF.get_weighted_torques(
+            weighted_torques[bead_index][timestep_index] = GF.get_weighted_torques(
                 data_container, list_of_beads[bead_index], rot_axes
             )
 
