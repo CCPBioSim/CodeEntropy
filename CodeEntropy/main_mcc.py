@@ -65,7 +65,7 @@ def main():
 
     parser = arg_config.setup_argparse()
     args, unknown = parser.parse_known_args()
-    args.outfile = os.path.join(folder, args.outfile)
+    args.output_file = os.path.join(folder, args.output_file)
 
     try:
         # Initialize the logging system once
@@ -432,7 +432,7 @@ def main():
             #            'Type':['Orientational (J/mol/K)'],
             #            'Result': [S_orient],})
             #        results_df = pd.concat([results_df, new_row], ignore_index=True)
-            #        with open(args.outfile, "a") as out:
+            #        with open(args.output_file, "a") as out:
             #    print(molecule,
             #          "\t",
             #          level,
@@ -457,7 +457,7 @@ def main():
             molecule, level, "Molecule Total Entropy", S_molecule
         )
         data_logger.save_dataframes_as_json(
-            results_df, residue_results_df, args.outfile
+            results_df, residue_results_df, args.output_file
         )
 
     logger.info("Molecules:")

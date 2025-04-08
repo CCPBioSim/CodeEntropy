@@ -62,11 +62,10 @@ class test_arg_config_manager(unittest.TestCase):
             "tempra: 298.0\n  "
             "verbose: False\n  "
             "thread: 1\n  "
-            "outfile: 'outfile.out'\n  "
-            "resfile: 'res_outfile.out'\n  "
-            "mout: null\n  "
+            "output_file: 'output_file.json'\n  "
+            "matrix_out: null\n  "
             "force_partitioning: 0.5\n  "
-            "waterEntropy: False"
+            "water_entropy: False"
         ).return_value
 
     @patch("builtins.open", new_callable=mock_open)
@@ -126,11 +125,10 @@ class test_arg_config_manager(unittest.TestCase):
             tempra=298.0,
             verbose=False,
             thread=1,
-            outfile="outfile.out",
-            resfile="res_outfile.out",
-            mout=None,
+            output_file="output_file.json",
+            matrix_out=None,
             force_partitioning=0.5,
-            waterEntropy=False,
+            water_entropy=False,
         ),
     )
     def test_setup_argparse(self, mock_args):
@@ -271,11 +269,10 @@ class test_arg_config_manager(unittest.TestCase):
             tempra=None,
             verbose=None,
             thread=None,
-            outfile=None,
-            resfile=None,
-            mout=None,
+            output_file=None,
+            matrix_out=None,
             force_partitioning=None,
-            waterEntropy=None,
+            water_entropy=None,
         )
         run_config = {
             "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
@@ -287,11 +284,10 @@ class test_arg_config_manager(unittest.TestCase):
             "tempra": 298.0,
             "verbose": False,
             "thread": 1,
-            "outfile": "outfile.out",
-            "resfile": "res_outfile.out",
-            "mout": None,
+            "output_file": "output_file.json",
+            "matrix_out": None,
             "force_partitioning": 0.5,
-            "waterEntropy": False,
+            "water_entropy": False,
         }
         merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
