@@ -54,11 +54,9 @@ class TestMainMcc(unittest.TestCase):
             "tempra: 298.0\n  "
             "verbose: False\n  "
             "thread: 1\n  "
-            "outfile: 'outfile.out'\n  "
-            "resfile: 'res_outfile.out'\n  "
-            "mout: null\n  "
+            "output_file: 'output_file.json'\n  "
             "force_partitioning: 0.5\n  "
-            "waterEntropy: False"
+            "water_entropy: False"
         ).return_value
 
     def test_CodeEntropy_imported(self):

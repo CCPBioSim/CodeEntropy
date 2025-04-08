@@ -12,7 +12,7 @@ class DataLogger:
         self.molecule_data = []
         self.residue_data = []
 
-    def save_dataframes_as_json(self, molecule_df, residue_df, outfile):
+    def save_dataframes_as_json(self, molecule_df, residue_df, output_file):
         """Save multiple DataFrames into a single JSON file with separate keys"""
         data = {
             "molecule_data": molecule_df.to_dict(orient="records"),
@@ -20,7 +20,7 @@ class DataLogger:
         }
 
         # Write JSON data to file
-        with open(outfile, "w") as out:
+        with open(output_file, "w") as out:
             json.dump(data, out, indent=4)
 
     def add_results_data(self, molecule, level, type, S_molecule):

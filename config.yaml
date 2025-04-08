@@ -7,11 +7,9 @@ run1:
   end: 
   step:
   bin_width:
-  tempra:
+  temperature:
   verbose:
   thread: 
-  outfile:
-  resfile:
-  mout: 
+  output_file: 
   force_partitioning:
-  waterEntropy: 
+  water_entropy:
