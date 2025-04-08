@@ -10,7 +10,6 @@ run1:
   temperature:
   verbose:
   thread: 
-  output_file:
-  matrix_output: 
+  output_file: 
   force_partitioning:
   water_entropy:
