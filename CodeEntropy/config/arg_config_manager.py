@@ -48,18 +48,22 @@ arg_map = {
         "help": "Enable verbose output",
     },
     "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
-    "outfile": {
+    "output_file": {
         "type": str,
         "help": "Name of the file where the output will be written",
-        "default": "outfile.json",
+        "default": "output_file.json",
     },
-    "mout": {
+    "matrix_out": {
         "type": str,
         "help": "Name of the file where certain matrices will be written",
         "default": None,
     },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
-    "waterEntropy": {"type": bool, "help": "Calculate water entropy", "default": False},
+    "water_entropy": {
+        "type": bool,
+        "help": "Calculate water entropy",
+        "default": False,
+    },
 }
 
 

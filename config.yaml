@@ -10,7 +10,7 @@ run1:
   temperature:
   verbose:
   thread: 
-  outfile:
-  mout: 
+  output_file:
+  matrix_output: 
   force_partitioning:
-  waterEntropy:
+  water_entropy:
