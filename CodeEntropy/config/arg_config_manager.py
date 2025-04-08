@@ -53,11 +53,6 @@ arg_map = {
         "help": "Name of the file where the output will be written",
         "default": "output_file.json",
     },
-    "matrix_out": {
-        "type": str,
-        "help": "Name of the file where certain matrices will be written",
-        "default": None,
-    },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
     "water_entropy": {
         "type": bool,

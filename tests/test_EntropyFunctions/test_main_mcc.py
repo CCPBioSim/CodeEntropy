@@ -55,7 +55,6 @@ class TestMainMcc(unittest.TestCase):
             "verbose: False\n  "
             "thread: 1\n  "
             "output_file: 'output_file.json'\n  "
-            "matrix_out: null\n  "
             "force_partitioning: 0.5\n  "
             "water_entropy: False"
         ).return_value

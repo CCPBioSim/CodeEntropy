@@ -63,7 +63,6 @@ class test_arg_config_manager(unittest.TestCase):
             "verbose: False\n  "
             "thread: 1\n  "
             "output_file: 'output_file.json'\n  "
-            "matrix_out: null\n  "
             "force_partitioning: 0.5\n  "
             "water_entropy: False"
         ).return_value
@@ -126,7 +125,6 @@ class test_arg_config_manager(unittest.TestCase):
             verbose=False,
             thread=1,
             output_file="output_file.json",
-            matrix_out=None,
             force_partitioning=0.5,
             water_entropy=False,
         ),
@@ -270,7 +268,6 @@ class test_arg_config_manager(unittest.TestCase):
             verbose=None,
             thread=None,
             output_file=None,
-            matrix_out=None,
             force_partitioning=None,
             water_entropy=None,
         )
@@ -285,7 +282,6 @@ class test_arg_config_manager(unittest.TestCase):
             "verbose": False,
             "thread": 1,
             "output_file": "output_file.json",
-            "matrix_out": None,
             "force_partitioning": 0.5,
             "water_entropy": False,
         }
