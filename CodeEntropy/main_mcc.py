@@ -127,13 +127,17 @@ def main():
     if step is None:
         step = 1
     # Count number of frames, easy if not slicing
+    # MDAnalysis trajectory slicing only includes up to end-1
+    # This works the way we want it to if the whole trajectory is being included
     if start == 0 and end == -1 and step == 1:
+        end = len(u.trajectory)
         number_frames = len(u.trajectory)
     elif end == -1:
         end = len(u.trajectory)
-        number_frames = math.floor((end - start) / step) + 1
+        number_frames = math.floor((end - start) / step) 
     else:
-        number_frames = math.floor((end - start) / step) + 1
+        end = end + 1
+        number_frames = math.floor((end - start) / step)
     logger.debug(f"Number of Frames: {number_frames}")
 
     # Create pandas data frame for results
