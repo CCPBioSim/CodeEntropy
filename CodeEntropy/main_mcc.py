@@ -134,7 +134,7 @@ def main():
         number_frames = len(u.trajectory)
     elif end == -1:
         end = len(u.trajectory)
-        number_frames = math.floor((end - start) / step) 
+        number_frames = math.floor((end - start) / step)
     else:
         end = end + 1
         number_frames = math.floor((end - start) / step)
