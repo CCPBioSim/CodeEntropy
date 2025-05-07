@@ -29,7 +29,7 @@ arg_map = {
                  "the frame index of the last frame to be included, so for example"
                  "if start=0 and end=500 there would be 501 frames analysed. The "
                  "default -1 will include everything up to the last frame."
-                 ),
+        ),
         "default": -1,
     },
     "step": {
