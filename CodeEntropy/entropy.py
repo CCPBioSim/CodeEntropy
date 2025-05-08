@@ -10,16 +10,20 @@ logger = logging.getLogger(__name__)
 
 class EntropyManager:
     """
-    Base class for running entropy calculations. Coordinates the main analysis workflow
-    by integrating configuration, trajectory data, logging, and level management.
-    Stores and organizes results at both the molecule and residue level.
+    Manages entropy calculations at multiple molecular levels, based on a
+    molecular dynamics trajectory.
     """
 
     def __init__(self, run_manager, args, universe, data_logger, level_manager):
         """
-        Initializes the EntropyManager with all required components for running the
-        entropy calculation, including configuration, trajectory data, logging, and
-        level handling. Sets up internal dataframes for storing results.
+        Initializes the EntropyManager with required components.
+
+        Args:
+            run_manager: Manager for universe and selection operations.
+            args: Argument namespace containing user parameters.
+            universe: MDAnalysis universe representing the simulation system.
+            data_logger: Logger for storing and exporting entropy data.
+            level_manager: Provides level-specific data such as matrices and dihedrals.
         """
         self._run_manager = run_manager
         self._args = args
@@ -47,54 +51,13 @@ class EntropyManager:
 
     def execute(self):
         """
-        Runs the main entropy calculation workflow. This method should be implemented
-        by subclasses to perform specific analysis steps and populate the results
-        dataframes.
+        Executes the full entropy computation workflow over selected molecules and
+        levels. This includes both vibrational and conformational entropy, recorded
+        per molecule and residue.
         """
-        # Define bin_width for histogram from inputs
-        bin_width = self._args.bin_width
-
-        # Define trajectory slicing from inputs
-        start = self._args.start
-        if start is None:
-            start = 0
-        end = self._args.end
-        if end is None:
-            end = -1
-        step = self._args.step
-        if step is None:
-            step = 1
-        # Count number of frames, easy if not slicing
-        if start == 0 and end == -1 and step == 1:
-            number_frames = len(self._universe.trajectory)
-        elif end == -1:
-            end = len(self._universe.trajectory)
-            number_frames = math.floor((end - start) / step) + 1
-        else:
-            number_frames = math.floor((end - start) / step) + 1
-        logger.debug(f"Number of Frames: {number_frames}")
-
-        # Create pandas data frame for results
-        results_df = pd.DataFrame(columns=["Molecule ID", "Level", "Type", "Result"])
-        residue_results_df = pd.DataFrame(
-            columns=["Molecule ID", "Residue", "Type", "Result"]
-        )
-
-        # Reduce number of atoms in MDA universe to selection_string arg
-        # (default all atoms included)
-        if self._args.selection_string == "all":
-            reduced_atom = self._universe
-        else:
-            reduced_atom = self._run_manager.new_U_select_atom(
-                self._universe, self._args.selection_string
-            )
-            reduced_atom_name = (
-                f"{len(reduced_atom.trajectory)}_frame_dump_atom_selection"
-            )
-            self._run_manager.write_universe(reduced_atom, reduced_atom_name)
-
-        # Scan system for molecules and select levels (united atom, residue, polymer)
-        # for each
+        start, end, step = self._get_trajectory_bounds()
+        number_frames = self._get_number_frames(start, end, step)
+        reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
 
         ve = VibrationalEntropy(
@@ -111,209 +74,18 @@ class EntropyManager:
             self._data_logger,
             self._level_manager,
         )
-        # oe = OrientationalEntropy(
-        #     self._run_manager,
-        #     self._args,
-        #     self._universe,
-        #     self._data_logger,
-        #     self._level_manager,
-        # )
 
-        # Loop over molecules
-        for molecule in range(number_molecules):
-            # molecule data container of MDAnalysis Universe type for internal degrees
-            # of freedom getting indices of first and last atoms in the molecule
-            # assuming atoms are numbered consecutively and all atoms in a given
-            # molecule are together
-            index1 = reduced_atom.atoms.fragments[molecule].indices[0]
-            index2 = reduced_atom.atoms.fragments[molecule].indices[-1]
-            selection_string = f"index {index1}:{index2}"
-            molecule_container = self._run_manager.new_U_select_atom(
-                reduced_atom, selection_string
-            )
+        for molecule_id in range(number_molecules):
+            mol_container = self._get_molecule_container(reduced_atom, molecule_id)
 
-            # Calculate entropy for each relevent level
-            for level in levels[molecule]:
-                if level == levels[molecule][-1]:
-                    highest_level = True
-                else:
-                    highest_level = False
-
+            for level in levels[molecule_id]:
+                highest_level = level == levels[molecule_id][-1]
                 if level == "united_atom":
-                    # loop over residues, report results per residue + total united atom
-                    # level. This is done per residue to reduce the size of the matrices
-                    # - amino acid resiudes have tens of united atoms but a whole
-                    # protein could have thousands. Doing the calculation per residue
-                    # allows for comparisons of contributions from different residues
-                    num_residues = len(molecule_container.residues)
-                    S_trans = 0
-                    S_rot = 0
-                    S_conf = 0
-
-                    for residue in range(num_residues):
-                        # molecule data container of MDAnalysis Universe type for
-                        # internal degrees of freedom getting indices of first and
-                        # last atoms in the molecule assuming atoms are numbered
-                        # consecutively and all atoms in a given molecule are together
-                        index1 = molecule_container.residues[residue].atoms.indices[0]
-                        index2 = molecule_container.residues[residue].atoms.indices[-1]
-                        selection_string = f"index {index1}:{index2}"
-                        residue_container = self._run_manager.new_U_select_atom(
-                            molecule_container, selection_string
-                        )
-                        residue_heavy_atoms_container = (
-                            self._run_manager.new_U_select_atom(
-                                residue_container, "not name H*"
-                            )
-                        )  # only heavy atom dihedrals are relevant
-
-                        # Vibrational entropy at every level
-                        # Get the force and torque matrices for the beads at the
-                        # relevant level
-
-                        force_matrix, torque_matrix = self._level_manager.get_matrices(
-                            residue_container,
-                            level,
-                            start,
-                            end,
-                            step,
-                            number_frames,
-                            highest_level,
-                        )
-
-                        # Calculate the entropy from the diagonalisation of the matrices
-                        S_trans_residue = ve.vibrational_entropy_calculation(
-                            force_matrix, "force", self._args.temperature, highest_level
-                        )
-                        S_trans += S_trans_residue
-                        logger.debug(f"S_trans_{level}_{residue} = {S_trans_residue}")
-                        new_row = pd.DataFrame(
-                            {
-                                "Molecule ID": [molecule],
-                                "Residue": [residue],
-                                "Type": ["Transvibrational (J/mol/K)"],
-                                "Result": [S_trans_residue],
-                            }
-                        )
-                        residue_results_df = pd.concat(
-                            [residue_results_df, new_row], ignore_index=True
-                        )
-                        self._data_logger.add_residue_data(
-                            molecule, residue, "Transvibrational", S_trans_residue
-                        )
-
-                        S_rot_residue = ve.vibrational_entropy_calculation(
-                            torque_matrix,
-                            "torque",
-                            self._args.temperature,
-                            highest_level,
-                        )
-                        S_rot += S_rot_residue
-                        logger.debug(f"S_rot_{level}_{residue} = {S_rot_residue}")
-                        new_row = pd.DataFrame(
-                            {
-                                "Molecule ID": [molecule],
-                                "Residue": [residue],
-                                "Type": ["Rovibrational (J/mol/K)"],
-                                "Result": [S_rot_residue],
-                            }
-                        )
-                        residue_results_df = pd.concat(
-                            [residue_results_df, new_row], ignore_index=True
-                        )
-                        self._data_logger.add_residue_data(
-                            molecule, residue, "Rovibrational", S_rot_residue
-                        )
-
-                        # Conformational entropy based on atom dihedral angle
-                        # distribution. Gives entropy of conformations within
-                        # each residue
-
-                        # Get dihedral angle distribution
-                        dihedrals = self._level_manager.get_dihedrals(
-                            residue_heavy_atoms_container, level
-                        )
-
-                        # Calculate conformational entropy
-                        S_conf_residue = ce.conformational_entropy_calculation(
-                            residue_heavy_atoms_container,
-                            dihedrals,
-                            bin_width,
-                            start,
-                            end,
-                            step,
-                            number_frames,
-                        )
-                        S_conf += S_conf_residue
-                        logger.debug(f"S_conf_{level}_{residue} = {S_conf_residue}")
-                        new_row = pd.DataFrame(
-                            {
-                                "Molecule ID": [molecule],
-                                "Residue": [residue],
-                                "Type": ["Conformational (J/mol/K)"],
-                                "Result": [S_conf_residue],
-                            }
-                        )
-                        residue_results_df = pd.concat(
-                            [residue_results_df, new_row], ignore_index=True
-                        )
-                        self._data_logger.add_residue_data(
-                            molecule, residue, "Conformational", S_conf_residue
-                        )
-
-                    # Print united atom level results summed over all residues
-                    logger.debug(f"S_trans_{level} = {S_trans}")
-                    new_row = pd.DataFrame(
-                        {
-                            "Molecule ID": [molecule],
-                            "Level": [level],
-                            "Type": ["Transvibrational (J/mol/K)"],
-                            "Result": [S_trans],
-                        }
-                    )
-
-                    results_df = pd.concat([results_df, new_row], ignore_index=True)
-
-                    self._data_logger.add_results_data(
-                        molecule, level, "Transvibrational", S_trans
-                    )
-
-                    logger.debug(f"S_rot_{level} = {S_rot}")
-                    new_row = pd.DataFrame(
-                        {
-                            "Molecule ID": [molecule],
-                            "Level": [level],
-                            "Type": ["Rovibrational (J/mol/K)"],
-                            "Result": [S_rot],
-                        }
-                    )
-                    results_df = pd.concat([results_df, new_row], ignore_index=True)
-
-                    self._data_logger.add_results_data(
-                        molecule, level, "Rovibrational", S_rot
-                    )
-                    logger.debug(f"S_conf_{level} = {S_conf}")
-
-                    new_row = pd.DataFrame(
-                        {
-                            "Molecule ID": [molecule],
-                            "Level": [level],
-                            "Type": ["Conformational (J/mol/K)"],
-                            "Result": [S_conf],
-                        }
-                    )
-                    results_df = pd.concat([results_df, new_row], ignore_index=True)
-
-                    self._data_logger.add_results_data(
-                        molecule, level, "Conformational", S_conf
-                    )
-
-                if level in ("polymer", "residue"):
-                    # Vibrational entropy at every level
-                    # Get the force and torque matrices for the beads at the relevant
-                    # level
-                    force_matrix, torque_matrix = self._level_manager.get_matrices(
-                        molecule_container,
+                    self._process_united_atom_level(
+                        molecule_id,
+                        mol_container,
+                        ve,
+                        ce,
                         level,
                         start,
                         end,
@@ -321,141 +93,265 @@ class EntropyManager:
                         number_frames,
                         highest_level,
                     )
-
-                    # Calculate the entropy from the diagonalisation of the matrices
-                    S_trans = ve.vibrational_entropy_calculation(
-                        force_matrix, "force", self._args.temperature, highest_level
+                elif level in ("polymer", "residue"):
+                    self._process_vibrational_only_levels(
+                        molecule_id,
+                        mol_container,
+                        ve,
+                        level,
+                        start,
+                        end,
+                        step,
+                        number_frames,
+                        highest_level,
                     )
-                    logger.debug(f"S_trans_{level} = {S_trans}")
-
-                    # Create new row as a DataFrame for Transvibrational
-                    new_row_trans = pd.DataFrame(
-                        {
-                            "Molecule ID": [molecule],
-                            "Level": [level],
-                            "Type": ["Transvibrational (J/mol/K)"],
-                            "Result": [S_trans],
-                        }
-                    )
-
-                    # Concatenate the new row to the DataFrame
-                    results_df = pd.concat(
-                        [results_df, new_row_trans], ignore_index=True
-                    )
-
-                    # Calculate the entropy for Rovibrational
-                    S_rot = ve.vibrational_entropy_calculation(
-                        torque_matrix, "torque", self._args.temperature, highest_level
-                    )
-                    logger.debug(f"S_rot_{level} = {S_rot}")
-
-                    # Create new row as a DataFrame for Rovibrational
-                    new_row_rot = pd.DataFrame(
-                        {
-                            "Molecule ID": [molecule],
-                            "Level": [level],
-                            "Type": ["Rovibrational (J/mol/K)"],
-                            "Result": [S_rot],
-                        }
-                    )
-
-                    # Concatenate the new row to the DataFrame
-                    results_df = pd.concat([results_df, new_row_rot], ignore_index=True)
-
-                    self._data_logger.add_results_data(
-                        molecule, level, "Transvibrational", S_trans
-                    )
-                    self._data_logger.add_results_data(
-                        molecule, level, "Rovibrational", S_rot
-                    )
-
-                    # Note: conformational entropy is not calculated at the polymer
-                    # level, because there is at most one polymer bead per molecule
-                    # so no dihedral angles.
-
                 if level == "residue":
-                    # Conformational entropy based on distributions of dihedral angles
-                    # of residues. Gives conformational entropy of secondary structure
-
-                    # Get dihedral angle distribution
-                    dihedrals = self._level_manager.get_dihedrals(
-                        molecule_container, level
-                    )
-                    # Calculate conformational entropy
-                    S_conf = ce.conformational_entropy_calculation(
-                        molecule_container,
-                        dihedrals,
-                        bin_width,
+                    self._process_conformational_residue_level(
+                        molecule_id,
+                        mol_container,
+                        ce,
+                        level,
                         start,
                         end,
                         step,
                         number_frames,
                     )
-                    logger.debug(f"S_conf_{level} = {S_conf}")
-                    new_row = pd.DataFrame(
-                        {
-                            "Molecule ID": [molecule],
-                            "Level": [level],
-                            "Type": ["Conformational (J/mol/K)"],
-                            "Result": [S_conf],
-                        }
-                    )
-                    results_df = pd.concat([results_df, new_row], ignore_index=True)
-                    self._data_logger.add_results_data(
-                        molecule, level, "Conformational", S_conf
-                    )
 
-                # Orientational entropy based on network of neighbouring molecules,
-                #  only calculated at the highest level (whole molecule)
-                # if highest_level:
-                #     neigbours = self._level_manager.get_neighbours(
-                #         reduced_atom, molecule
-                #     )
-                #     S_orient = EF.orientational_entropy(neighbours)
-                #     print(f"S_orient_{level} = {S_orient}")
-                #     new_row = pd.DataFrame(
-                #         {
-                #             "Molecule ID": [molecule],
-                #             "Level": [level],
-                #             "Type": ["Orientational (J/mol/K)"],
-                #             "Result": [S_orient],
-                #         }
-                #     )
-                #     results_df = pd.concat([results_df, new_row], ignore_index=True)
-                #     with open(self._args.output_file, "a") as out:
-                #         print(
-                #             molecule,
-                #             "\t",
-                #             level,
-                #             "\tOrientational\t",
-                #             S_orient,
-                #             file=out,
-                #         )
+            self._finalize_molecule_results(molecule_id, level)
 
-            # Report total entropy for the molecule
-            S_molecule = results_df[results_df["Molecule ID"] == molecule][
-                "Result"
-            ].sum()
-            logger.debug(f"S_molecule = {S_molecule}")
-            new_row = pd.DataFrame(
-                {
-                    "Molecule ID": [molecule],
-                    "Level": ["Molecule Total"],
-                    "Type": ["Molecule Total Entropy "],
-                    "Result": [S_molecule],
-                }
-            )
-            results_df = pd.concat([results_df, new_row], ignore_index=True)
-
-            self._data_logger.add_results_data(
-                molecule, level, "Molecule Total Entropy", S_molecule
-            )
-            self._data_logger.save_dataframes_as_json(
-                results_df, residue_results_df, self._args.output_file
-            )
-
-        logger.info("Molecules:")
         self._data_logger.log_tables()
+
+    def _get_trajectory_bounds(self):
+        """
+        Returns the start, end, and step frame indices based on input arguments.
+
+        Returns:
+            Tuple of (start, end, step) frame indices.
+        """
+        start = self._args.start or 0
+        end = self._args.end or -1
+        step = self._args.step or 1
+
+        return start, end, step
+
+    def _get_number_frames(self, start, end, step):
+        """
+        Calculates the total number of trajectory frames used in the calculation.
+
+        Args:
+            start (int): Start frame index.
+            end (int): End frame index.
+            step (int): Frame step.
+
+        Returns:
+            int: Total number of frames considered.
+        """
+        if start == 0 and end == -1 and step == 1:
+            return len(self._universe.trajectory)
+        if end == -1:
+            end = len(self._universe.trajectory)
+
+        return math.floor((end - start) / step) + 1
+
+    def _get_reduced_universe(self):
+        """
+        Applies atom selection based on the user's input.
+
+        Returns:
+            MDAnalysis.Universe: Selected subset of the system.
+        """
+        if self._args.selection_string == "all":
+            return self._universe
+        reduced = self._run_manager.new_U_select_atom(
+            self._universe, self._args.selection_string
+        )
+        name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
+        self._run_manager.write_universe(reduced, name)
+        return reduced
+
+    def _get_molecule_container(self, universe, molecule_id):
+        """
+        Extracts the atom group corresponding to a single molecule from the universe.
+
+        Args:
+            universe (MDAnalysis.Universe): The reduced universe.
+            molecule_id (int): Index of the molecule to extract.
+
+        Returns:
+            MDAnalysis.Universe: Universe containing only the selected molecule.
+        """
+        frag = universe.atoms.fragments[molecule_id]
+        selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
+        return self._run_manager.new_U_select_atom(universe, selection_string)
+
+    def _process_united_atom_level(
+        self, mol_id, mol_container, ve, ce, level, start, end, step, n_frames, highest
+    ):
+        """
+        Calculates translational, rotational, and conformational entropy at the
+        united-atom level.
+
+        Args:
+            mol_id (int): ID of the molecule.
+            mol_container (Universe): Universe for the selected molecule.
+            ve: VibrationalEntropy object.
+            ce: ConformationalEntropy object.
+            level (str): Granularity level (should be 'united_atom').
+            start, end, step (int): Trajectory frame parameters.
+            n_frames (int): Number of trajectory frames.
+            highest (bool): Whether this is the highest level of resolution for
+            the molecule.
+        """
+        bin_width = self._args.bin_width
+        S_trans, S_rot, S_conf = 0, 0, 0
+        for residue_id, residue in enumerate(mol_container.residues):
+            res_container = self._run_manager.new_U_select_atom(
+                mol_container,
+                f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}",
+            )
+            heavy_res = self._run_manager.new_U_select_atom(
+                res_container, "not name H*"
+            )
+
+            force_matrix, torque_matrix = self._level_manager.get_matrices(
+                res_container, level, start, end, step, n_frames, highest
+            )
+
+            S_trans_res = ve.vibrational_entropy_calculation(
+                force_matrix, "force", self._args.temperature, highest
+            )
+            S_rot_res = ve.vibrational_entropy_calculation(
+                torque_matrix, "torque", self._args.temperature, highest
+            )
+
+            dihedrals = self._level_manager.get_dihedrals(heavy_res, level)
+            S_conf_res = ce.conformational_entropy_calculation(
+                heavy_res, dihedrals, bin_width, start, end, step, n_frames
+            )
+
+            S_trans += S_trans_res
+            S_rot += S_rot_res
+            S_conf += S_conf_res
+
+            self._log_residue_data(mol_id, residue_id, "Transvibrational", S_trans_res)
+            self._log_residue_data(mol_id, residue_id, "Rovibrational", S_rot_res)
+            self._log_residue_data(mol_id, residue_id, "Conformational", S_conf_res)
+
+        self._log_result(mol_id, level, "Transvibrational", S_trans)
+        self._log_result(mol_id, level, "Rovibrational", S_rot)
+        self._log_result(mol_id, level, "Conformational", S_conf)
+
+    def _process_vibrational_only_levels(
+        self, mol_id, mol_container, ve, level, start, end, step, n_frames, highest
+    ):
+        """
+        Calculates vibrational entropy at levels where conformational entropy is
+        not considered.
+
+        Args:
+            mol_id (int): Molecule ID.
+            mol_container (Universe): Selected molecule's universe.
+            ve: VibrationalEntropy object.
+            level (str): Current granularity level ('polymer' or 'residue').
+            start, end, step (int): Trajectory frame parameters.
+            n_frames (int): Number of trajectory frames.
+            highest (bool): Flag indicating if this is the highest granularity
+            level.
+        """
+        force_matrix, torque_matrix = self._level_manager.get_matrices(
+            mol_container, level, start, end, step, n_frames, highest
+        )
+        S_trans = ve.vibrational_entropy_calculation(
+            force_matrix, "force", self._args.temperature, highest
+        )
+        S_rot = ve.vibrational_entropy_calculation(
+            torque_matrix, "torque", self._args.temperature, highest
+        )
+
+        self._log_result(mol_id, level, "Transvibrational", S_trans)
+        self._log_result(mol_id, level, "Rovibrational", S_rot)
+
+    def _process_conformational_residue_level(
+        self, mol_id, mol_container, ce, level, start, end, step, n_frames
+    ):
+        """
+        Computes conformational entropy at the residue level (whole-molecule dihedral
+        analysis).
+
+        Args:
+            mol_id (int): ID of the molecule.
+            mol_container (Universe): Selected molecule's universe.
+            ce: ConformationalEntropy object.
+            level (str): Level name (should be 'residue').
+            start, end, step (int): Frame bounds.
+            n_frames (int): Number of frames used.
+        """
+        bin_width = self._args.bin_width
+        dihedrals = self._level_manager.get_dihedrals(mol_container, level)
+        S_conf = ce.conformational_entropy_calculation(
+            mol_container, dihedrals, bin_width, start, end, step, n_frames
+        )
+        self._log_result(mol_id, level, "Conformational", S_conf)
+
+    def _finalize_molecule_results(self, mol_id, level):
+        """
+        Summarizes entropy for a molecule and saves results to file.
+
+        Args:
+            mol_id (int): ID of the molecule.
+            level (str): Current level name (used for tagging final results).
+        """
+        S_total = self._results_df[self._results_df["Molecule ID"] == mol_id][
+            "Result"
+        ].sum()
+        self._log_result(mol_id, "Molecule Total", "Molecule Total Entropy", S_total)
+        self._data_logger.save_dataframes_as_json(
+            self._results_df, self._residue_results_df, self._args.output_file
+        )
+
+    def _log_result(self, mol_id, level, entropy_type, value):
+        """
+        Logs and stores a single entropy value in the global results dataframe.
+
+        Args:
+            mol_id (int): Molecule ID.
+            level (str): Entropy level or type.
+            entropy_type (str): Type of entropy (e.g., 'Transvibrational').
+            value (float): Entropy value.
+        """
+        row = pd.DataFrame(
+            {
+                "Molecule ID": [mol_id],
+                "Level": [level],
+                "Type": [f"{entropy_type} (J/mol/K)"],
+                "Result": [value],
+            }
+        )
+        self._results_df = pd.concat([self._results_df, row], ignore_index=True)
+        self._data_logger.add_results_data(mol_id, level, entropy_type, value)
+
+    def _log_residue_data(self, mol_id, residue_id, entropy_type, value):
+        """
+        Logs and stores per-residue entropy data.
+
+        Args:
+            mol_id (int): Molecule ID.
+            residue_id (int): Residue index within the molecule.
+            entropy_type (str): Entropy category.
+            value (float): Entropy value.
+        """
+        row = pd.DataFrame(
+            {
+                "Molecule ID": [mol_id],
+                "Residue": [residue_id],
+                "Type": [f"{entropy_type} (J/mol/K)"],
+                "Result": [value],
+            }
+        )
+        self._residue_results_df = pd.concat(
+            [self._residue_results_df, row], ignore_index=True
+        )
+        self._data_logger.add_residue_data(mol_id, residue_id, entropy_type, value)
 
 
 class VibrationalEntropy(EntropyManager):
