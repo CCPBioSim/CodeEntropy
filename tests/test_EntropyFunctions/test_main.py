@@ -5,10 +5,10 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
-from CodeEntropy.main_mcc import main
+from CodeEntropy.main import main
 
 
-class TestMainMcc(unittest.TestCase):
+class TestMain(unittest.TestCase):
     """
     Unit tests for the main functionality of CodeEntropy.
     """

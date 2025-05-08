@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import tests.data as data
 from CodeEntropy.config.arg_config_manager import ConfigManager
-from CodeEntropy.main_mcc import main
+from CodeEntropy.main import main
 
 
 class test_arg_config_manager(unittest.TestCase):
@@ -93,12 +93,9 @@ class test_arg_config_manager(unittest.TestCase):
     @patch.object(ConfigManager, "load_config", return_value=None)
     def test_no_cli_no_yaml(self, mock_load_config):
         """Test behavior when no CLI arguments and no YAML file are provided."""
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(SystemExit) as context:
             main()
-        self.assertEqual(
-            str(context.exception),
-            "No configuration file found, and no CLI arguments were provided.",
-        )
+        self.assertEqual(context.exception.code, 1)
 
     def test_invalid_run_config_type(self):
         """

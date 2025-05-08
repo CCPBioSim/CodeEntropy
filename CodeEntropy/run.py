@@ -92,7 +92,9 @@ class RunManager:
 
             config = self._config_manager.load_config("config.yaml")
             if config is None:
-                raise ValueError("No configuration file found.")
+                raise ValueError(
+                    "No configuration file found, and no CLI arguments were provided."
+                )
 
             parser = self._config_manager.setup_argparse()
             args, _ = parser.parse_known_args()
