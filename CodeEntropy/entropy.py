@@ -26,6 +26,7 @@ class EntropyManager:
         self._universe = universe
         self._data_logger = data_logger
         self._level_manager = level_manager
+        self._GAS_CONST = 8.3144598484848
 
         self._results_df = pd.DataFrame(
             columns=["Molecule ID", "Level", "Type", "Result"]
@@ -471,7 +472,6 @@ class VibrationalEntropy(EntropyManager):
         """
         super().__init__(run_manager, args, universe, data_logger, level_manager)
         self._PLANCK_CONST = 6.62607004081818e-34
-        self._GAS_CONST = 8.3144598484848
 
     def frequency_calculation(self, lambdas, temp):
         """
@@ -595,7 +595,6 @@ class ConformationalEntropy(EntropyManager):
         sets the gas constant used in conformational entropy calculations.
         """
         super().__init__(run_manager, args, universe, data_logger, level_manager)
-        self._GAS_CONST = 8.3144598484848
 
     def assign_conformation(
         self, data_container, dihedral, number_frames, bin_width, start, end, step
@@ -755,7 +754,6 @@ class OrientationalEntropy(EntropyManager):
         sets the gas constant used in orientational entropy calculations.
         """
         super().__init__(run_manager, args, universe, data_logger, level_manager)
-        self._GAS_CONST = 8.3144598484848
 
     def orientational_entropy_calculation(self, neighbours_dict):
         """
