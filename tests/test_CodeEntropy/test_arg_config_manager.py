@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import shutil
 import tempfile
@@ -7,7 +8,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import tests.data as data
 from CodeEntropy.config.arg_config_manager import ConfigManager
-from CodeEntropy.main_mcc import main
+from CodeEntropy.main import main
 
 
 class test_arg_config_manager(unittest.TestCase):
@@ -93,12 +94,9 @@ class test_arg_config_manager(unittest.TestCase):
     @patch.object(ConfigManager, "load_config", return_value=None)
     def test_no_cli_no_yaml(self, mock_load_config):
         """Test behavior when no CLI arguments and no YAML file are provided."""
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(SystemExit) as context:
             main()
-        self.assertEqual(
-            str(context.exception),
-            "No configuration file found, and no CLI arguments were provided.",
-        )
+        self.assertEqual(context.exception.code, 1)
 
     def test_invalid_run_config_type(self):
         """
@@ -301,6 +299,49 @@ class test_arg_config_manager(unittest.TestCase):
         merged_args = arg_config.merge_configs(args, yaml_config)
 
         self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_merge_configs_sets_debug_logging(self, mock_logger):
+        """
+        Ensure logging is set to DEBUG when verbose=True.
+        """
+        arg_config = ConfigManager()
+        args = argparse.Namespace(verbose=True)
+        for key in arg_config.arg_map:
+            if not hasattr(args, key):
+                setattr(args, key, None)
+
+        # Mock logger handlers
+        mock_handler = MagicMock()
+        mock_logger.handlers = [mock_handler]
+
+        arg_config.merge_configs(args, {})
+
+        mock_logger.setLevel.assert_called_with(logging.DEBUG)
+        mock_handler.setLevel.assert_called_with(logging.DEBUG)
+        mock_logger.debug.assert_called_with(
+            "Verbose mode enabled. Logger set to DEBUG level."
+        )
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_merge_configs_sets_info_logging(self, mock_logger):
+        """
+        Ensure logging is set to INFO when verbose=False.
+        """
+        arg_config = ConfigManager()
+        args = argparse.Namespace(verbose=False)
+        for key in arg_config.arg_map:
+            if not hasattr(args, key):
+                setattr(args, key, None)
+
+        # Mock logger handlers
+        mock_handler = MagicMock()
+        mock_logger.handlers = [mock_handler]
+
+        arg_config.merge_configs(args, {})
+
+        mock_logger.setLevel.assert_called_with(logging.INFO)
+        mock_handler.setLevel.assert_called_with(logging.INFO)
 
     @patch("argparse.ArgumentParser.parse_args")
     def test_default_values(self, mock_parse_args):
