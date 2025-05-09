@@ -140,18 +140,23 @@ class EntropyManager:
 
         Args:
             start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Frame step.
+            end (int): End frame index. If -1, it refers to the end of the trajectory.
+            step (int): Frame step size.
 
         Returns:
             int: Total number of frames considered.
         """
-        if start == 0 and end == -1 and step == 1:
-            return len(self._universe.trajectory)
-        if end == -1:
-            end = len(self._universe.trajectory)
+        trajectory_length = len(self._universe.trajectory)
 
-        return math.floor((end - start) / step) + 1
+        if start == 0 and end == -1 and step == 1:
+            return trajectory_length
+
+        if end == -1:
+            end = trajectory_length
+        else:
+            end += 1
+
+        return math.floor((end - start) / step)
 
     def _get_reduced_universe(self):
         """
