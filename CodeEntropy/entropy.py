@@ -41,12 +41,14 @@ class EntropyManager:
 
     @property
     def results_df(self):
-        """Returns the dataframe containing molecule-level entropy results."""
+        """Returns the dataframe containing entropy results at all levels."""
         return self._results_df
 
     @property
     def residue_results_df(self):
-        """Returns the dataframe containing residue-level entropy results."""
+        """
+        Returns the dataframe containing united-atom level results for each residue.
+        """
         return self._residue_results_df
 
     def execute(self):
