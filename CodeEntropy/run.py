@@ -1,7 +1,6 @@
 import logging
 import os
 import pickle
-import re
 
 import MDAnalysis as mda
 from MDAnalysis.analysis.base import AnalysisFromFunction
@@ -52,33 +51,38 @@ class RunManager:
         folders.
         """
         # Get the current working directory
-        base_dir = os.getcwd()
+        current_dir = os.getcwd()
 
-        # List all folders in the base directory
-        existing_folders = [
-            f for f in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, f))
-        ]
+        # Get a list of existing folders that start with "job"
+        existing_folders = [f for f in os.listdir(current_dir) if f.startswith("job")]
 
-        # Filter folders that match the pattern 'jobXXX'
-        job_folders = [f for f in existing_folders if re.match(r"job\d{3}", f)]
+        # Extract numbers from existing folder names
+        job_numbers = []
+        for folder in existing_folders:
+            try:
+                # Assuming folder names are in the format "jobXXX"
+                job_number = int(folder[3:])  # Get the number part after "job"
+                job_numbers.append(job_number)
+            except ValueError:
+                continue  # Ignore any folder names that don't follow the pattern
 
-        # Determine the next job number
-        if job_folders:
-            max_job_number = max(
-                [int(re.search(r"\d{3}", f).group()) for f in job_folders]
-            )
-            next_job_number = max_job_number + 1
-        else:
+        # If no folders exist, start with job001
+        if not job_numbers:
             next_job_number = 1
+        else:
+            next_job_number = max(job_numbers) + 1
 
-        # Format the new job folder name
+        # Create the new job folder name
         new_job_folder = f"job{next_job_number:03d}"
-        new_job_folder_path = os.path.join(base_dir, new_job_folder)
 
-        # Create the new job folder
-        os.makedirs(new_job_folder_path, exist_ok=True)
+        # Create the full path to the new folder
+        new_folder_path = os.path.join(current_dir, new_job_folder)
 
-        return new_job_folder_path
+        # Create the directory
+        os.makedirs(new_folder_path, exist_ok=True)
+
+        # Return the path of the newly created folder
+        return new_folder_path
 
     def run_entropy_workflow(self):
         """
