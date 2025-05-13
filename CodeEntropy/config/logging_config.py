@@ -38,12 +38,12 @@ class LoggingConfig:
                     "class": "logging.FileHandler",
                     "filename": os.path.join(log_directory, "program.log"),
                     "formatter": "detailed",
-                    "level": logging.DEBUG,
+                    "level": log_level,
                 },
                 "errorfile": {
                     "class": "logging.FileHandler",
                     "filename": os.path.join(log_directory, "program.err"),
-                    "formatter": "detailed",
+                    "formatter": "simple",
                     "level": logging.ERROR,
                 },
                 "commandfile": {
@@ -56,7 +56,7 @@ class LoggingConfig:
                     "class": "logging.FileHandler",
                     "filename": os.path.join(log_directory, "mdanalysis.log"),
                     "formatter": "detailed",
-                    "level": logging.DEBUG,
+                    "level": log_level,
                 },
             },
             "loggers": {
@@ -66,7 +66,7 @@ class LoggingConfig:
                 },
                 "MDAnalysis": {
                     "handlers": ["mdanalysis_log"],
-                    "level": logging.DEBUG,
+                    "level": log_level,
                     "propagate": False,
                 },
                 "commands": {
@@ -88,17 +88,17 @@ class LoggingConfig:
         root_logger = logging.getLogger()
         root_logger.setLevel(log_level)
         for handler in root_logger.handlers:
-            if isinstance(handler, logging.FileHandler):
-                handler.setLevel(logging.DEBUG)
-            else:
-                handler.setLevel(logging.INFO)
+            handler.setLevel(
+                log_level if isinstance(handler, logging.FileHandler) else logging.INFO
+            )
 
         # Update all other loggers and their handlers
         for logger_name in self.LOGGING["loggers"]:
             logger = logging.getLogger(logger_name)
             logger.setLevel(log_level)
             for handler in logger.handlers:
-                if isinstance(handler, logging.FileHandler):
-                    handler.setLevel(logging.DEBUG)
-                else:
-                    handler.setLevel(logging.INFO)
+                handler.setLevel(
+                    log_level
+                    if isinstance(handler, logging.FileHandler)
+                    else logging.INFO
+                )
