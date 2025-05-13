@@ -65,11 +65,17 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertEqual(root_logger.level, logging.INFO)
 
     def test_mdanalysis_and_command_loggers_exist(self):
-        """Ensure specialized loggers are set up"""
+        """Ensure specialized loggers are set up with correct configuration"""
+        log_level = logging.DEBUG
+        self.logging_config = LoggingConfig(
+            folder=self.temp_dir.name, log_level=log_level
+        )
         self.logging_config.setup_logging()
+
         mda_logger = logging.getLogger("MDAnalysis")
         cmd_logger = logging.getLogger("commands")
-        self.assertEqual(mda_logger.level, logging.DEBUG)
+
+        self.assertEqual(mda_logger.level, log_level)
         self.assertEqual(cmd_logger.level, logging.INFO)
         self.assertFalse(mda_logger.propagate)
         self.assertFalse(cmd_logger.propagate)
