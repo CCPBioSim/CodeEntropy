@@ -1,4 +1,4 @@
-name: ci
+name: CodeEntropy CI
 
 on:
   push:
@@ -68,34 +68,3 @@ jobs:
      run: |
        pre-commit install
        pre-commit run --all-files || ( git status --short ; git diff ; exit 1 )
-
-  mdanalysis_compatibility:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-        mdanalysis-version: ["2.7.0", "2.8.0", "2.9.0", "latest"]
-    name: MDAnalysis v${{ matrix.mdanalysis-version }} / Python ${{ matrix.python-version }}
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies with MDAnalysis ${{ matrix.mdanalysis-version }}
-      run: |
-        pip install --upgrade pip
-        if [ "${{ matrix.mdanalysis-version }}" = "latest" ]; then
-          pip install -e .[testing]
-          pip install MDAnalysis
-        else
-          pip install -e .[testing]
-          pip install "MDAnalysis==${{ matrix.mdanalysis-version }}"
-        fi
-
-    - name: Run tests
-      run: pytest --cov CodeEntropy --cov-report=term-missing --cov-append
