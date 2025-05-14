@@ -2,7 +2,9 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 
 from CodeEntropy.run import RunManager
 
@@ -99,6 +101,312 @@ class TestRunManager(unittest.TestCase):
 
         self.assertEqual(new_folder_path, expected_path)
         mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+
+    def test_run_entropy_workflow(self):
+        """
+        Test the run_entropy_workflow method to ensure it initializes and executes
+        correctly with mocked dependencies.
+        """
+        run_manager = RunManager("folder")
+        run_manager._logging_config = MagicMock()
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.folder = self.test_dir
+
+        mock_logger = MagicMock()
+        run_manager._logging_config.setup_logging.return_value = mock_logger
+
+        run_manager._config_manager.load_config.return_value = {
+            "test_run": {
+                "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
+                "selection_string": "all",
+                "output_file": "output.json",
+                "verbose": True,
+            }
+        }
+
+        mock_args = MagicMock()
+        mock_args.output_file = "output.json"
+        mock_args.verbose = True
+        mock_args.top_traj_file = ["/path/to/tpr", "/path/to/trr"]
+        mock_args.selection_string = "all"
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (mock_args, [])
+
+        run_manager._config_manager.merge_configs.return_value = mock_args
+
+        mock_entropy_manager = MagicMock()
+        with unittest.mock.patch(
+            "CodeEntropy.run.EntropyManager", return_value=mock_entropy_manager
+        ), unittest.mock.patch("CodeEntropy.run.mda.Universe") as mock_universe:
+
+            run_manager.run_entropy_workflow()
+
+            mock_universe.assert_called_once_with("/path/to/tpr", ["/path/to/trr"])
+            mock_entropy_manager.execute.assert_called_once()
+
+    def test_run_configuration_warning(self):
+        """
+        Test that a warning is logged when the config entry is not a dictionary.
+        """
+        run_manager = RunManager("folder")
+        run_manager._logging_config = MagicMock()
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.folder = self.test_dir
+
+        mock_logger = MagicMock()
+        run_manager._logging_config.setup_logging.return_value = mock_logger
+
+        run_manager._config_manager.load_config.return_value = {
+            "invalid_run": "this_should_be_a_dict"
+        }
+
+        mock_args = MagicMock()
+        mock_args.output_file = "output.json"
+        mock_args.verbose = False
+
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (mock_args, [])
+        run_manager._config_manager.merge_configs.return_value = mock_args
+
+        run_manager.run_entropy_workflow()
+
+        mock_logger.warning.assert_called_with(
+            "Run configuration for invalid_run is not a dictionary."
+        )
+
+    def test_run_entropy_workflow_missing_traj_file(self):
+        """
+        Test that a ValueError is raised when 'top_traj_file' is missing.
+        """
+        run_manager = RunManager("folder")
+        run_manager._logging_config = MagicMock()
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.folder = self.test_dir
+
+        mock_logger = MagicMock()
+        run_manager._logging_config.setup_logging.return_value = mock_logger
+
+        run_manager._config_manager.load_config.return_value = {
+            "test_run": {
+                "top_traj_file": None,
+                "output_file": "output.json",
+                "verbose": False,
+            }
+        }
+
+        mock_args = MagicMock()
+        mock_args.output_file = "output.json"
+        mock_args.verbose = False
+        mock_args.top_traj_file = None
+        mock_args.selection_string = None
+
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (mock_args, [])
+        run_manager._config_manager.merge_configs.return_value = mock_args
+
+        with self.assertRaisesRegex(ValueError, "Missing 'top_traj_file' argument."):
+            run_manager.run_entropy_workflow()
+
+    def test_run_entropy_workflow_missing_selection_string(self):
+        """
+        Test that a ValueError is raised when 'selection_string' is missing.
+        """
+        run_manager = RunManager("folder")
+        run_manager._logging_config = MagicMock()
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.folder = self.test_dir
+
+        mock_logger = MagicMock()
+        run_manager._logging_config.setup_logging.return_value = mock_logger
+
+        run_manager._config_manager.load_config.return_value = {
+            "test_run": {
+                "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
+                "output_file": "output.json",
+                "verbose": False,
+            }
+        }
+
+        mock_args = MagicMock()
+        mock_args.output_file = "output.json"
+        mock_args.verbose = False
+        mock_args.top_traj_file = ["/path/to/tpr", "/path/to/trr"]
+        mock_args.selection_string = None
+
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (mock_args, [])
+        run_manager._config_manager.merge_configs.return_value = mock_args
+
+        with self.assertRaisesRegex(ValueError, "Missing 'selection_string' argument."):
+            run_manager.run_entropy_workflow()
+
+    @patch("CodeEntropy.run.AnalysisFromFunction")
+    @patch("CodeEntropy.run.mda.Merge")
+    def test_new_U_select_frame(self, MockMerge, MockAnalysisFromFunction):
+        # Mock Universe and its components
+        mock_universe = MagicMock()
+        mock_trajectory = MagicMock()
+        mock_trajectory.__len__.return_value = 10
+        mock_universe.trajectory = mock_trajectory
+
+        mock_select_atoms = MagicMock()
+        mock_universe.select_atoms.return_value = mock_select_atoms
+
+        # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
+        coords = np.random.rand(10, 100, 3)
+        forces = np.random.rand(10, 100, 3)
+        dims = np.random.rand(10, 3)
+
+        mock_coords_analysis = MagicMock()
+        mock_coords_analysis.run.return_value.results = {"timeseries": coords}
+
+        mock_forces_analysis = MagicMock()
+        mock_forces_analysis.run.return_value.results = {"timeseries": forces}
+
+        mock_dims_analysis = MagicMock()
+        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
+
+        # Set the side effects for the three AnalysisFromFunction calls
+        MockAnalysisFromFunction.side_effect = [
+            mock_coords_analysis,
+            mock_forces_analysis,
+            mock_dims_analysis,
+        ]
+
+        # Mock the merge operation
+        mock_merged_universe = MagicMock()
+        MockMerge.return_value = mock_merged_universe
+
+        # Call the method under test
+        run_manager = RunManager("folder")
+        result = run_manager.new_U_select_frame(mock_universe)
+
+        # Assertions
+        mock_universe.select_atoms.assert_called_once_with("all", updating=True)
+        MockMerge.assert_called_once_with(mock_select_atoms)
+
+        # Ensure the 'load_new' method was called with the correct arguments
+        mock_merged_universe.load_new.assert_called_once()
+        args, kwargs = mock_merged_universe.load_new.call_args
+
+        # Use np.testing to assert that the arrays are passed correctly
+        np.testing.assert_array_equal(args[0], coords)
+        np.testing.assert_array_equal(kwargs["forces"], forces)
+        np.testing.assert_array_equal(kwargs["dimensions"], dims)
+
+        # Check if format was included in the kwargs
+        self.assertIn("format", kwargs)
+
+        # Ensure the result is the mock merged universe
+        self.assertEqual(result, mock_merged_universe)
+
+    @patch("CodeEntropy.run.AnalysisFromFunction")
+    @patch("CodeEntropy.run.mda.Merge")
+    def test_new_U_select_atom(self, MockMerge, MockAnalysisFromFunction):
+        # Mock Universe and its components
+        mock_universe = MagicMock()
+        mock_select_atoms = MagicMock()
+        mock_universe.select_atoms.return_value = mock_select_atoms
+
+        # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
+        coords = np.random.rand(10, 100, 3)
+        forces = np.random.rand(10, 100, 3)
+        dims = np.random.rand(10, 3)
+
+        mock_coords_analysis = MagicMock()
+        mock_coords_analysis.run.return_value.results = {"timeseries": coords}
+
+        mock_forces_analysis = MagicMock()
+        mock_forces_analysis.run.return_value.results = {"timeseries": forces}
+
+        mock_dims_analysis = MagicMock()
+        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
+
+        # Set the side effects for the three AnalysisFromFunction calls
+        MockAnalysisFromFunction.side_effect = [
+            mock_coords_analysis,
+            mock_forces_analysis,
+            mock_dims_analysis,
+        ]
+
+        # Mock the merge operation
+        mock_merged_universe = MagicMock()
+        MockMerge.return_value = mock_merged_universe
+
+        # Call the method under test
+        run_manager = RunManager("folder")
+        result = run_manager.new_U_select_atom(
+            mock_universe, select_string="resid 1-10"
+        )
+
+        # Assertions
+        mock_universe.select_atoms.assert_called_once_with("resid 1-10", updating=True)
+        MockMerge.assert_called_once_with(mock_select_atoms)
+
+        # Ensure the 'load_new' method was called with the correct arguments
+        mock_merged_universe.load_new.assert_called_once()
+        args, kwargs = mock_merged_universe.load_new.call_args
+
+        # Use np.testing to assert that the arrays are passed correctly
+        np.testing.assert_array_equal(args[0], coords)
+        np.testing.assert_array_equal(kwargs["forces"], forces)
+        np.testing.assert_array_equal(kwargs["dimensions"], dims)
+
+        # Check if format was included in the kwargs
+        self.assertIn("format", kwargs)
+
+        # Ensure the result is the mock merged universe
+        self.assertEqual(result, mock_merged_universe)
+
+    @patch("CodeEntropy.run.pickle.dump")
+    @patch("CodeEntropy.run.open", create=True)
+    def test_write_universe(self, mock_open, mock_pickle_dump):
+        # Mock Universe
+        mock_universe = MagicMock()
+
+        # Mock the file object returned by open
+        mock_file = MagicMock()
+        mock_open.return_value = mock_file
+
+        run_manager = RunManager("folder")
+        result = run_manager.write_universe(mock_universe, name="test_universe")
+
+        mock_open.assert_called_once_with("test_universe.pkl", "wb")
+
+        # Ensure pickle.dump() was called
+        mock_pickle_dump.assert_called_once_with(mock_universe, mock_file)
+
+        # Ensure the method returns the correct filename
+        self.assertEqual(result, "test_universe")
+
+    @patch("CodeEntropy.run.pickle.load")
+    @patch("CodeEntropy.run.open", create=True)
+    def test_read_universe(self, mock_open, mock_pickle_load):
+        # Mock the file object returned by open
+        mock_file = MagicMock()
+        mock_open.return_value = mock_file
+
+        # Mock Universe to return when pickle.load is called
+        mock_universe = MagicMock()
+        mock_pickle_load.return_value = mock_universe
+
+        # Path to the mock file
+        path = "test_universe.pkl"
+
+        run_manager = RunManager("folder")
+        result = run_manager.read_universe(path)
+
+        mock_open.assert_called_once_with(path, "rb")
+
+        # Ensure pickle.load() was called with the mock file object
+        mock_pickle_load.assert_called_once_with(mock_file)
+
+        # Ensure the method returns the correct mock universe
+        self.assertEqual(result, mock_universe)
 
 
 if __name__ == "__main__":
