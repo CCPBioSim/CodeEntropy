@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '0 8 * * 1'
 
 jobs:
   tests:
@@ -14,57 +16,100 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     name: Run tests
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install CodeEntropy and its testing dependencies
-      shell: bash
-      run: pip install -e .[testing]
+      - name: Install CodeEntropy and its testing dependencies
+        run: pip install -e .[testing]
 
-    - name: Run test suite
-      shell: bash
-      run: pytest --cov CodeEntropy --cov-report term-missing --cov-append .
+      - name: Run test suite
+        run: pytest --cov CodeEntropy --cov-report term-missing --cov-append .
 
-    - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@v2.3.6
-      with:
-        github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v2.3.6
+        with:
+          github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
 
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.12
-    - name: Install python dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -e .[docs]
-    - name: Build docs
-      run: cd docs && make
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Install python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .[docs]
+      - name: Build docs
+        run: cd docs && make
 
   pre-commit:
-   runs-on: ubuntu-latest
-   timeout-minutes: 15
-   steps:
-   - uses: actions/checkout@v4
-   - name: Set up Python 3.11
-     uses: actions/setup-python@v5
-     with:
-       python-version: 3.11
-   - name: Install python dependencies
-     run: |
-       pip install --upgrade pip
-       pip install -e .[pre-commit,docs,testing]
-   - name: Run pre-commit
-     run: |
-       pre-commit install
-       pre-commit run --all-files || ( git status --short ; git diff ; exit 1 )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Install python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .[pre-commit,docs,testing]
+      - name: Run pre-commit
+        run: |
+          pre-commit install
+          pre-commit run --all-files || ( git status --short ; git diff ; exit 1 )
+
+  mdanalysis-compatibility:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        mdanalysis-version: ["2.7.0", "2.8.0", "2.9.0", "latest"]
+    name: MDAnalysis v${{ matrix.mdanalysis-version }} / Python ${{ matrix.python-version }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies with MDAnalysis ${{ matrix.mdanalysis-version }}
+        run: |
+          pip install --upgrade pip
+          pip install -e .[testing]
+          if [ "${{ matrix.mdanalysis-version }}" = "latest" ]; then
+            pip install MDAnalysis
+          else
+            pip install "MDAnalysis==${{ matrix.mdanalysis-version }}"
+          fi
+
+      - name: Run compatibility tests
+        run: pytest --cov CodeEntropy --cov-report=term-missing --cov-append
+
+      - name: Create Issue on Failure
+        if: failure()
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          MDA_VERSION: ${{ matrix.mdanalysis-version }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          filename: .github/mdanalysis-compatibility-failure.md
+          update_existing: true
+          search_existing: open
