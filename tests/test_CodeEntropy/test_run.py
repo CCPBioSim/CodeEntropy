@@ -136,9 +136,12 @@ class TestRunManager(unittest.TestCase):
         run_manager._config_manager.merge_configs.return_value = mock_args
 
         mock_entropy_manager = MagicMock()
-        with unittest.mock.patch(
-            "CodeEntropy.run.EntropyManager", return_value=mock_entropy_manager
-        ), unittest.mock.patch("CodeEntropy.run.mda.Universe") as mock_universe:
+        with (
+            unittest.mock.patch(
+                "CodeEntropy.run.EntropyManager", return_value=mock_entropy_manager
+            ),
+            unittest.mock.patch("CodeEntropy.run.mda.Universe") as mock_universe,
+        ):
 
             run_manager.run_entropy_workflow()
 
