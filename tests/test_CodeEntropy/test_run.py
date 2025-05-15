@@ -281,11 +281,9 @@ class TestRunManager(unittest.TestCase):
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
-        # Call the method under test
         run_manager = RunManager("folder")
         result = run_manager.new_U_select_frame(mock_universe)
 
-        # Assertions
         mock_universe.select_atoms.assert_called_once_with("all", updating=True)
         MockMerge.assert_called_once_with(mock_select_atoms)
 
@@ -293,7 +291,7 @@ class TestRunManager(unittest.TestCase):
         mock_merged_universe.load_new.assert_called_once()
         args, kwargs = mock_merged_universe.load_new.call_args
 
-        # Use np.testing to assert that the arrays are passed correctly
+        # Assert that the arrays are passed correctly
         np.testing.assert_array_equal(args[0], coords)
         np.testing.assert_array_equal(kwargs["forces"], forces)
         np.testing.assert_array_equal(kwargs["dimensions"], dims)
@@ -337,13 +335,11 @@ class TestRunManager(unittest.TestCase):
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
-        # Call the method under test
         run_manager = RunManager("folder")
         result = run_manager.new_U_select_atom(
             mock_universe, select_string="resid 1-10"
         )
 
-        # Assertions
         mock_universe.select_atoms.assert_called_once_with("resid 1-10", updating=True)
         MockMerge.assert_called_once_with(mock_select_atoms)
 
@@ -351,7 +347,7 @@ class TestRunManager(unittest.TestCase):
         mock_merged_universe.load_new.assert_called_once()
         args, kwargs = mock_merged_universe.load_new.call_args
 
-        # Use np.testing to assert that the arrays are passed correctly
+        # Assert that the arrays are passed correctly
         np.testing.assert_array_equal(args[0], coords)
         np.testing.assert_array_equal(kwargs["forces"], forces)
         np.testing.assert_array_equal(kwargs["dimensions"], dims)
