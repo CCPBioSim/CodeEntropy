@@ -1,5 +1,5 @@
 [//]: # (Badges)
-[![ci](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/CI.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/CI.yaml)
+[![CodeEntropy CI](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/project-ci.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/project-ci.yaml)
 ![PyPI - Version](https://img.shields.io/pypi/v/codeentropy?logo=pypi&logoColor=white)
 ![PyPI - Status](https://img.shields.io/pypi/status/codeentropy?logo=pypi&logoColor=white)
 ![PyPI - Downloads](https://img.shields.io/pepy/dt/codeentropy?logo=pypi&logoColor=white&color=blue)
