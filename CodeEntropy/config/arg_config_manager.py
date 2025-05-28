@@ -25,7 +25,12 @@ arg_map = {
     },
     "end": {
         "type": int,
-        "help": "Stop analysing the trajectory at this frame index",
+        "help": (
+            "Stop analysing the trajectory at this frame index. This is "
+            "the frame index of the last frame to be included, so for example"
+            "if start=0 and end=500 there would be 501 frames analysed. The "
+            "default -1 will include the last frame."
+        ),
         "default": -1,
     },
     "step": {
@@ -48,18 +53,17 @@ arg_map = {
         "help": "Enable verbose output",
     },
     "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
-    "outfile": {
+    "output_file": {
         "type": str,
         "help": "Name of the file where the output will be written",
-        "default": "outfile.json",
-    },
-    "mout": {
-        "type": str,
-        "help": "Name of the file where certain matrices will be written",
-        "default": None,
+        "default": "output_file.json",
     },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
-    "waterEntropy": {"type": bool, "help": "Calculate water entropy", "default": False},
+    "water_entropy": {
+        "type": bool,
+        "help": "Calculate water entropy",
+        "default": False,
+    },
 }
 
 
