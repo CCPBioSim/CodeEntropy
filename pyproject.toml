@@ -30,10 +30,10 @@ classifiers = [
     "Development Status :: 4 - Beta"
 ]
 keywords = ["entropy", "macromolecular systems", "MD simulation"]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "numpy==2.2.3",
-    "mdanalysis==2.8.0",
+    "mdanalysis>=2.7.0",
     "pandas==2.2.3",
     "psutil==5.9.5",
     "PyYAML==6.0.2",
@@ -66,7 +66,7 @@ docs = [
 ]
 
 [project.scripts]
-CodeEntropy = "CodeEntropy.main_mcc:main"
+CodeEntropy = "CodeEntropy.main:main"
 
 [tool.isort]
 profile = "black"

@@ -1,28 +1,52 @@
 import argparse
+import logging
+import os
+import shutil
+import tempfile
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
+import tests.data as data
 from CodeEntropy.config.arg_config_manager import ConfigManager
-from CodeEntropy.main_mcc import main
+from CodeEntropy.main import main
 
 
-class test_maincc(unittest.TestCase):
+class test_arg_config_manager(unittest.TestCase):
     """
-    Unit tests for the main functionality of CodeEntropy.
+    Unit tests for the ConfigManager.
     """
 
     def setUp(self):
         """
-        Set up test environment.
+        Setup test data and output directories.
         """
-        self.config_file = "config.yaml"
-        self.code_entropy = main
+        self.test_data_dir = os.path.dirname(data.__file__)
+        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        self.config_file = os.path.join(self.test_dir, "config.yaml")
+
+        # Create a mock config file
+        with patch("builtins.open", new_callable=mock_open) as mock_file:
+            self.setup_file(mock_file)
+            with open(self.config_file, "w") as f:
+                f.write(mock_file.return_value.read())
+
+        # Change to test directory
+        self._orig_dir = os.getcwd()
+        os.chdir(self.test_dir)
 
     def tearDown(self):
         """
         Clean up after each test.
         """
-        return super().tearDown()
+        os.chdir(self._orig_dir)
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+
+    def list_data_files(self):
+        """
+        List all files in the test data directory.
+        """
+        return os.listdir(self.test_data_dir)
 
     def setup_file(self, mock_file):
         """
@@ -31,8 +55,7 @@ class test_maincc(unittest.TestCase):
         mock_file.return_value = mock_open(
             read_data="--- \n \nrun1:\n  "
             "top_traj_file: ['/path/to/tpr', '/path/to/trr']\n  "
-            "selection_string: "
-            "'all'\n  "
+            "selection_string: 'all'\n  "
             "start: 0\n  "
             "end: -1\n  "
             "step: 1\n  "
@@ -40,11 +63,9 @@ class test_maincc(unittest.TestCase):
             "tempra: 298.0\n  "
             "verbose: False\n  "
             "thread: 1\n  "
-            "outfile: 'outfile.out'\n  "
-            "resfile: 'res_outfile.out'\n  "
-            "mout: null\n  "
+            "output_file: 'output_file.json'\n  "
             "force_partitioning: 0.5\n  "
-            "waterEntropy: False"
+            "water_entropy: False"
         ).return_value
 
     @patch("builtins.open", new_callable=mock_open)
@@ -53,13 +74,9 @@ class test_maincc(unittest.TestCase):
         """
         Test loading a valid configuration file.
         """
-
         arg_config = ConfigManager()
-
         self.setup_file(mock_file)
-
         config = arg_config.load_config(self.config_file)
-
         self.assertIn("run1", config)
         self.assertEqual(
             config["run1"]["top_traj_file"], ["/path/to/tpr", "/path/to/trr"]
@@ -70,23 +87,16 @@ class test_maincc(unittest.TestCase):
         """
         Test loading a configuration file that does not exist.
         """
-
         arg_config = ConfigManager()
-
         with self.assertRaises(FileNotFoundError):
             arg_config.load_config(self.config_file)
 
     @patch.object(ConfigManager, "load_config", return_value=None)
     def test_no_cli_no_yaml(self, mock_load_config):
         """Test behavior when no CLI arguments and no YAML file are provided."""
-
-        with self.assertRaises(ValueError) as context:
-            self.code_entropy()
-
-        self.assertEqual(
-            str(context.exception),
-            "No configuration file found, and no CLI arguments were provided.",
-        )
+        with self.assertRaises(SystemExit) as context:
+            main()
+        self.assertEqual(context.exception.code, 1)
 
     def test_invalid_run_config_type(self):
         """
@@ -112,11 +122,9 @@ class test_maincc(unittest.TestCase):
             tempra=298.0,
             verbose=False,
             thread=1,
-            outfile="outfile.out",
-            resfile="res_outfile.out",
-            mout=None,
+            output_file="output_file.json",
             force_partitioning=0.5,
-            waterEntropy=False,
+            water_entropy=False,
         ),
     )
     def test_setup_argparse(self, mock_args):
@@ -141,17 +149,6 @@ class test_maincc(unittest.TestCase):
         self.assertEqual(args.top_traj_file, ["/cli/path"])
         self.assertEqual(args.selection_string, "cli_value")
 
-    def test_yaml_overrides_defaults(self):
-        """
-        Test if YAML parameters override default values.
-        """
-        run_config = {"top_traj_file": ["/yaml/path"], "selection_string": "yaml_value"}
-        args = argparse.Namespace()
-        arg_config = ConfigManager()
-        merged_args = arg_config.merge_configs(args, run_config)
-        self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
-        self.assertEqual(merged_args.selection_string, "yaml_value")
-
     def test_cli_overrides_yaml(self):
         """
         Test if CLI parameters override YAML parameters correctly.
@@ -165,6 +162,93 @@ class test_maincc(unittest.TestCase):
         merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
         self.assertEqual(merged_args.selection_string, "cli_value")
+
+    def test_cli_overrides_yaml_with_multiple_values(self):
+        """
+        Ensures that CLI arguments override YAML when multiple values are provided in
+        YAML.
+        """
+        arg_config = ConfigManager()
+        yaml_config = {"top_traj_file": ["/yaml/path1", "/yaml/path2"]}
+        args = argparse.Namespace(top_traj_file=["/cli/path"])
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
+
+    def test_yaml_overrides_defaults(self):
+        """
+        Test if YAML parameters override default values.
+        """
+        run_config = {"top_traj_file": ["/yaml/path"], "selection_string": "yaml_value"}
+        args = argparse.Namespace()
+        arg_config = ConfigManager()
+        merged_args = arg_config.merge_configs(args, run_config)
+        self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
+        self.assertEqual(merged_args.selection_string, "yaml_value")
+
+    def test_yaml_does_not_override_cli_if_set(self):
+        """
+        Ensure YAML does not override CLI arguments that are set.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {"bin_width": 50}
+        args = argparse.Namespace(bin_width=100)
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.bin_width, 100)
+
+    def test_yaml_overrides_defaults_when_no_cli(self):
+        """
+        Test if YAML parameters override default values when no CLI input is given.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {
+            "top_traj_file": ["/yaml/path"],
+            "bin_width": 50,
+        }
+
+        args = argparse.Namespace()
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/yaml/path"])
+        self.assertEqual(merged_args.bin_width, 50)
+
+    def test_yaml_none_does_not_override_defaults(self):
+        """
+        Ensures that YAML values set to `None` do not override existing CLI values.
+        """
+        arg_config = ConfigManager()
+        yaml_config = {"bin_width": None}
+        args = argparse.Namespace(bin_width=100)
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.bin_width, 100)
+
+    def test_hierarchy_cli_yaml_defaults(self):
+        """
+        Test if CLI arguments override YAML, and YAML overrides defaults.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {
+            "top_traj_file": ["/yaml/path", "/yaml/path"],
+            "bin_width": "50",
+        }
+
+        args = argparse.Namespace(
+            top_traj_file=["/cli/path", "/cli/path"], bin_width=100
+        )
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/cli/path", "/cli/path"])
+        self.assertEqual(merged_args.bin_width, 100)
 
     def test_merge_configs(self):
         """
@@ -181,11 +265,9 @@ class test_maincc(unittest.TestCase):
             tempra=None,
             verbose=None,
             thread=None,
-            outfile=None,
-            resfile=None,
-            mout=None,
+            output_file=None,
             force_partitioning=None,
-            waterEntropy=None,
+            water_entropy=None,
         )
         run_config = {
             "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
@@ -197,15 +279,69 @@ class test_maincc(unittest.TestCase):
             "tempra": 298.0,
             "verbose": False,
             "thread": 1,
-            "outfile": "outfile.out",
-            "resfile": "res_outfile.out",
-            "mout": None,
+            "output_file": "output_file.json",
             "force_partitioning": 0.5,
-            "waterEntropy": False,
+            "water_entropy": False,
         }
         merged_args = arg_config.merge_configs(args, run_config)
         self.assertEqual(merged_args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
         self.assertEqual(merged_args.selection_string, "all")
+
+    def test_merge_with_none_yaml(self):
+        """
+        Ensure merging still works if no YAML config is provided.
+        """
+        arg_config = ConfigManager()
+
+        args = argparse.Namespace(top_traj_file=["/cli/path"])
+        yaml_config = None
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.top_traj_file, ["/cli/path"])
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_merge_configs_sets_debug_logging(self, mock_logger):
+        """
+        Ensure logging is set to DEBUG when verbose=True.
+        """
+        arg_config = ConfigManager()
+        args = argparse.Namespace(verbose=True)
+        for key in arg_config.arg_map:
+            if not hasattr(args, key):
+                setattr(args, key, None)
+
+        # Mock logger handlers
+        mock_handler = MagicMock()
+        mock_logger.handlers = [mock_handler]
+
+        arg_config.merge_configs(args, {})
+
+        mock_logger.setLevel.assert_called_with(logging.DEBUG)
+        mock_handler.setLevel.assert_called_with(logging.DEBUG)
+        mock_logger.debug.assert_called_with(
+            "Verbose mode enabled. Logger set to DEBUG level."
+        )
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_merge_configs_sets_info_logging(self, mock_logger):
+        """
+        Ensure logging is set to INFO when verbose=False.
+        """
+        arg_config = ConfigManager()
+        args = argparse.Namespace(verbose=False)
+        for key in arg_config.arg_map:
+            if not hasattr(args, key):
+                setattr(args, key, None)
+
+        # Mock logger handlers
+        mock_handler = MagicMock()
+        mock_logger.handlers = [mock_handler]
+
+        arg_config.merge_configs(args, {})
+
+        mock_logger.setLevel.assert_called_with(logging.INFO)
+        mock_handler.setLevel.assert_called_with(logging.INFO)
 
     @patch("argparse.ArgumentParser.parse_args")
     def test_default_values(self, mock_parse_args):
@@ -219,6 +355,20 @@ class test_maincc(unittest.TestCase):
         parser = arg_config.setup_argparse()
         args = parser.parse_args()
         self.assertEqual(args.top_traj_file, ["example.top", "example.traj"])
+
+    def test_fallback_to_defaults(self):
+        """
+        Ensure arguments fall back to defaults if neither YAML nor CLI provides them.
+        """
+        arg_config = ConfigManager()
+
+        yaml_config = {}
+        args = argparse.Namespace()
+
+        merged_args = arg_config.merge_configs(args, yaml_config)
+
+        self.assertEqual(merged_args.step, 1)
+        self.assertEqual(merged_args.end, -1)
 
     @patch(
         "argparse.ArgumentParser.parse_args", return_value=MagicMock(top_traj_file=None)
@@ -272,26 +422,6 @@ class test_maincc(unittest.TestCase):
 
         self.assertIsInstance(config, dict)
         self.assertEqual(config, {})
-
-    @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data=b"--- \n top_traj_file: ['/path/to/tpr', '/path/to/trr'] \n",
-    )
-    @patch("os.path.exists", return_value=True)
-    @patch("MDAnalysis.Universe")
-    @patch("gettext.translation", return_value=MagicMock())
-    def test_run(self, mock_translation, mock_universe, mock_exists, mock_file):
-        """
-        Test the execution of the main function with the necessary CLI argument.
-        """
-        with patch(
-            "sys.argv",
-            ["CodeEntropy", "--top_traj_file", "/path/to/tpr", "/path/to/trr"],
-        ):
-            self.setup_file(mock_file)
-            mock_universe.return_value.trajectory = MagicMock()
-            main()
 
 
 if __name__ == "__main__":
