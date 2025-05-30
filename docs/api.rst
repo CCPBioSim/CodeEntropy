@@ -6,57 +6,67 @@ Main
 .. autosummary::
     :toctree: autosummary
 
-    CodeEntropy.main_mcc.create_job_folder
-    CodeEntropy.main_mcc.main
+    CodeEntropy.main.main
 
-Calculations
+Run Manager
 ------------
+.. autosummary::
+    :toctree: autosummary
 
-Conformation Functions
+    CodeEntropy.run.RunManager
+    CodeEntropy.run.RunManager.create_job_folder
+    CodeEntropy.run.RunManager.run_entropy_workflow
+    CodeEntropy.run.RunManager.new_U_select_frame
+    CodeEntropy.run.RunManager.new_U_select_atom
+
+Level Manager
+-------------
+.. autosummary::
+    :toctree: autosummary
+
+    CodeEntropy.levels.LevelManager
+    CodeEntropy.levels.LevelManager.select_levels
+    CodeEntropy.levels.LevelManager.get_matrices
+    CodeEntropy.levels.LevelManager.get_dihedrals
+    CodeEntropy.levels.LevelManager.get_beads
+    CodeEntropy.levels.LevelManager.get_axes
+    CodeEntropy.levels.LevelManager.get_avg_pos
+    CodeEntropy.levels.LevelManager.get_shpCoord_axes
+    CodeEntropy.levels.LevelManager.get_weighted_forces
+    CodeEntropy.levels.LevelManager.get_weighted_torques
+    CodeEntropy.levels.LevelManager.create_submatrix
+    CodeEntropy.levels.LevelManager.filter_zero_rows_columns
+
+Entropy Manager
+---------------
+.. autosummary::
+   :toctree: autosummary
+
+   CodeEntropy.entropy.EntropyManager
+   CodeEntropy.entropy.EntropyManager.execute
+
+Vibrational Entropy
+^^^^^^^^^^^^^^^^^^^
+.. autosummary::
+   :toctree: autosummary
+
+   CodeEntropy.entropy.VibrationalEntropy
+   CodeEntropy.entropy.VibrationalEntropy.frequency_calculation
+   CodeEntropy.entropy.VibrationalEntropy.vibrational_entropy_calculation
+   
+
+Conformational Entropy
 ^^^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.calculations.ConformationFunctions.assign_conformation
+   CodeEntropy.entropy.ConformationalEntropy
+   CodeEntropy.entropy.ConformationalEntropy.assign_conformation
+   CodeEntropy.entropy.ConformationalEntropy.conformational_entropy_calculation
 
-Entropy Functions
-^^^^^^^^^^^^^^^^^
+Orientational Entropy
+^^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.calculations.EntropyFunctions.frequency_calculation
-   CodeEntropy.calculations.EntropyFunctions.vibrational_entropy
-   CodeEntropy.calculations.EntropyFunctions.conformational_entropy
-   CodeEntropy.calculations.EntropyFunctions.orientational_entropy
-
-Geometric Functions
-^^^^^^^^^^^^^^^^^^^
-.. autosummary::
-   :toctree: autosummary
-
-   CodeEntropy.calculations.GeometricFunctions.get_beads
-   CodeEntropy.calculations.GeometricFunctions.get_axes
-   CodeEntropy.calculations.GeometricFunctions.get_avg_pos
-   CodeEntropy.calculations.GeometricFunctions.get_sphCoord_axes
-   CodeEntropy.calculations.GeometricFunctions.get_weighted_forces
-   CodeEntropy.calculations.GeometricFunctions.get_weighted_torques
-   CodeEntropy.calculations.GeometricFunctions.create_submatrix
-   CodeEntropy.calculations.GeometricFunctions.filter_zero_rows_columns
-
-Level Functions
-^^^^^^^^^^^^^^^^^^^
-.. autosummary::
-   :toctree: autosummary
-
-   CodeEntropy.calculations.LevelFunctions.select_levels
-   CodeEntropy.calculations.LevelFunctions.get_matrices
-   CodeEntropy.calculations.LevelFunctions.get_dihedrals
-
-Config
-------
-.. autosummary::
-   :toctree: autosummary
-   :recursive:
-
-   CodeEntropy.config
-
+   CodeEntropy.entropy.OrientationalEntropy

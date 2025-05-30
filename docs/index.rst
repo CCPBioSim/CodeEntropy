@@ -16,11 +16,9 @@ This code is a complete and generally applicable set of tools for computing entr
 
    getting_started
    api
+   science
    faq
    community_guide
-   developer_guide
-
-
 
 Indices and tables
 ==================

@@ -16,7 +16,7 @@ Run the following at the root directory of this repository
 
 Input
 ----------
-For supported format (AMBER NETCDF and GROMACS TRR) you will need to output the **coordinates** and **forces** to the **same file**.
+For supported format (any topology and trajectory formats that can be read by `MDAnalysis <https://userguide.mdanalysis.org/stable/formats/index.html>`_) you will need to output the **coordinates** and **forces** to the **same file**.
 
 
 Units
@@ -110,15 +110,11 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - Name of the file where the text format output will be written.
      - ``outfile.out``
      - ``str``
-   * - ``--mout``
-     - Name of the file where certain matrices will be written.
-     - ``None``
-     - ``str``
    * - ``--force_partitioning``
      - Factor for partitioning forces when there are weak correlations
      - ``0.5``
      - ``float``
-   * - ``--waterEntropy``
+   * - ``--water_entropy``
      - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy
      - ``False``
      - ``bool``
@@ -130,7 +126,5 @@ Example
 .. code-block:: bash
     
     # example 1 DNA
-    CodeEntropy --top_traj_file "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" 
 
     # example 2 lysozyme in water
-    CodeEntropy --top_traj_file "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr"
