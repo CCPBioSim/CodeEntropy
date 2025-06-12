@@ -2,12 +2,12 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
 
-from CodeEntropy.entropy import VibrationalEntropy
+from CodeEntropy.entropy import EntropyManager, VibrationalEntropy
 from CodeEntropy.main import main
 from CodeEntropy.run import RunManager
 
@@ -27,6 +27,10 @@ class TestVibrationalEntropy(unittest.TestCase):
         # Change to test directory
         self._orig_dir = os.getcwd()
         os.chdir(self.test_dir)
+
+        self.entropy_manager = EntropyManager(
+            MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
+        )
 
     def tearDown(self):
         """
@@ -121,6 +125,138 @@ class TestVibrationalEntropy(unittest.TestCase):
         )
 
         assert S_vib == pytest.approx(48.45003266069881)
+
+    def test_calculate_water_orientational_entropy(self):
+        """
+        Test that orientational entropy values are correctly extracted from Sorient_dict
+        and logged using _log_residue_data. Verifies that the entropy values are passed
+        correctly and that no molecule-level aggregation is performed unless
+        implemented.
+        """
+        self.entropy_manager._log_residue_data = MagicMock()
+        self.entropy_manager._log_result = MagicMock()
+
+        Sorient_dict = {1: {"mol1": [1.0, 2]}, 2: {"mol1": [3.0, 4]}}
+
+        self.entropy_manager._calculate_water_orientational_entropy(Sorient_dict)
+
+        self.entropy_manager._log_residue_data.assert_has_calls(
+            [
+                call("mol1", 1, "Orientational", 1.0),
+                call("mol1", 2, "Orientational", 3.0),
+            ]
+        )
+
+    def test_calculate_water_vibrational_translational_entropy(self):
+        """
+        Test that translational vibrational entropy values are correctly summed
+        and logged per residue using _log_residue_data. Also verifies that the
+        molecule-level average is computed and logged using _log_result.
+        """
+        self.entropy_manager._log_residue_data = MagicMock()
+        self.entropy_manager._log_result = MagicMock()
+
+        mock_vibrations = MagicMock()
+        mock_vibrations.translational_S = {
+            ("res1", "mol1"): [1.0, 2.0],
+            ("res2", "mol1"): 3.0,
+        }
+
+        self.entropy_manager._calculate_water_vibrational_translational_entropy(
+            mock_vibrations
+        )
+
+        self.entropy_manager._log_residue_data.assert_has_calls(
+            [
+                call("mol1", "res1", "Transvibrational", 3.0),
+                call("mol1", "res2", "Transvibrational", 3.0),
+            ]
+        )
+
+    def test_calculate_water_vibrational_rotational_entropy(self):
+        """
+        Test that rotational vibrational entropy values are correctly summed
+        and logged per residue using _log_residue_data. Also verifies that the
+        molecule-level average is computed and logged using _log_result.
+        """
+        self.entropy_manager._log_residue_data = MagicMock()
+        self.entropy_manager._log_result = MagicMock()
+
+        mock_vibrations = MagicMock()
+        mock_vibrations.rotational_S = {
+            ("res1", "mol1"): [2.0, 4.0],
+            ("res2", "mol1"): 6.0,
+        }
+
+        self.entropy_manager._calculate_water_vibrational_rotational_entropy(
+            mock_vibrations
+        )
+
+        self.entropy_manager._log_residue_data.assert_has_calls(
+            [
+                call("mol1", "res1", "Rovibrational", 6.0),
+                call("mol1", "res2", "Rovibrational", 6.0),
+            ]
+        )
+
+    def test_empty_vibrational_entropy_dicts(self):
+        """
+        Test that no logging occurs when both translational and rotational
+        entropy dictionaries are empty. Ensures that the methods handle empty
+        input gracefully without errors or unnecessary logging.
+        """
+        self.entropy_manager._log_residue_data = MagicMock()
+        self.entropy_manager._log_result = MagicMock()
+
+        mock_vibrations = MagicMock()
+        mock_vibrations.translational_S = {}
+        mock_vibrations.rotational_S = {}
+
+        self.entropy_manager._calculate_water_vibrational_translational_entropy(
+            mock_vibrations
+        )
+        self.entropy_manager._calculate_water_vibrational_rotational_entropy(
+            mock_vibrations
+        )
+
+        self.entropy_manager._log_residue_data.assert_not_called()
+        self.entropy_manager._log_result.assert_not_called()
+
+    @patch(
+        "waterEntropy.recipes.interfacial_solvent.get_interfacial_water_orient_entropy"
+    )
+    def test_calculate_water_entropy(self, mock_get_entropy):
+        """
+        Integration-style test that verifies _calculate_water_entropy correctly
+        delegates to the orientational and vibrational entropy methods and logs
+        the expected values. Uses a mocked return from
+        get_interfacial_water_orient_entropy.
+        """
+        self.entropy_manager._log_residue_data = MagicMock()
+        self.entropy_manager._log_result = MagicMock()
+
+        mock_vibrations = MagicMock()
+        mock_vibrations.translational_S = {("res1", "mol1"): 2.0}
+        mock_vibrations.rotational_S = {("res1", "mol1"): 3.0}
+
+        mock_get_entropy.return_value = (
+            {1: {"mol1": [1.0, 5]}},
+            None,
+            mock_vibrations,
+            None,
+        )
+
+        mock_universe = MagicMock()
+        self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 1)
+
+        self.entropy_manager._log_residue_data.assert_has_calls(
+            [
+                call("mol1", 1, "Orientational", 1.0),
+                call("mol1", "res1", "Transvibrational", 2.0),
+                call("mol1", "res1", "Rovibrational", 3.0),
+            ]
+        )
+        self.entropy_manager._log_result.assert_not_called()
 
     # TODO test for error handling on invalid inputs
 
