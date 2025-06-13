@@ -270,9 +270,8 @@ class TestVibrationalEntropy(unittest.TestCase):
         self.entropy_manager._log_residue_data = MagicMock()
         self.entropy_manager._log_result = MagicMock()
 
-        # Minimal mocked return from get_interfacial_water_orient_entropy
         mock_get_entropy.return_value = (
-            {},  # Sorient_dict (not used here)
+            {},
             None,
             MagicMock(
                 translational_S={("ACE_1", "WAT"): 10.0},
@@ -281,7 +280,6 @@ class TestVibrationalEntropy(unittest.TestCase):
             None,
         )
 
-        # Minimal internal state
         self.entropy_manager._residue_results_df = pd.DataFrame(
             [
                 {
@@ -305,11 +303,9 @@ class TestVibrationalEntropy(unittest.TestCase):
             ]
         )
 
-        # Call the real method
         mock_universe = MagicMock()
         self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 1)
 
-        # Assert that only ACE is logged with correct values
         self.entropy_manager._log_result.assert_has_calls(
             [
                 call("ACE", "water", "Orientational", 5.0),
