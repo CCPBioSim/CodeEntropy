@@ -10,9 +10,13 @@ import pandas as pd
 import pytest
 
 import tests.data as data
-from CodeEntropy.entropy import EntropyManager, VibrationalEntropy
-
-# from CodeEntropy.levels import LevelManager
+from CodeEntropy.config.data_logger import DataLogger
+from CodeEntropy.entropy import (
+    ConformationalEntropy,
+    EntropyManager,
+    VibrationalEntropy,
+)
+from CodeEntropy.levels import LevelManager
 from CodeEntropy.main import main
 from CodeEntropy.run import ConfigManager, RunManager
 
@@ -273,6 +277,62 @@ class TestEntropyManager(unittest.TestCase):
 
         assert set(selected_indices) == set(expected_indices)
         assert len(mol_universe.atoms) == len(original_fragment)
+
+    def test_process_united_atom_level_atomistic(self):
+        """
+        Tests that `_process_united_atom_level` correctly logs global and residue-level
+        entropy results for a known molecular system using MDAnalysis.
+        """
+
+        # Load a known test universe
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        # Setup managers and arguments
+        args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        manager = EntropyManager(run_manager, args, u, data_logger, level_manager)
+
+        reduced_atom = manager._get_reduced_universe()
+        mol_container = manager._get_molecule_container(reduced_atom, 0)
+        n_residues = len(mol_container.residues)
+
+        ve = VibrationalEntropy(run_manager, args, u, data_logger, level_manager)
+        ce = ConformationalEntropy(run_manager, args, u, data_logger, level_manager)
+
+        # Run the function
+        manager._process_united_atom_level(
+            mol_id=0,
+            mol_container=mol_container,
+            ve=ve,
+            ce=ce,
+            level="united_atom",
+            start=1,
+            end=1,
+            step=1,
+            n_frames=1,
+            highest=True,
+        )
+
+        # Check that results were logged for each entropy type
+        df = manager._results_df
+        self.assertEqual(len(df), 3)  # Trans, Rot, Conf
+
+        # Check that residue-level results were logged
+        residue_df = manager._residue_results_df
+        self.assertEqual(len(residue_df), 3 * n_residues)  # 3 types per residue
+
+        # Check that all expected types are present
+        expected_types = {
+            "Transvibrational (J/mol/K)",
+            "Rovibrational (J/mol/K)",
+            "Conformational (J/mol/K)",
+        }
+        self.assertSetEqual(set(df["Type"]), expected_types)
+        self.assertSetEqual(set(residue_df["Type"]), expected_types)
 
 
 class TestVibrationalEntropy(unittest.TestCase):
