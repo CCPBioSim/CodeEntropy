@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock, call, patch
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from CodeEntropy.entropy import EntropyManager, VibrationalEntropy
@@ -257,6 +258,67 @@ class TestVibrationalEntropy(unittest.TestCase):
             ]
         )
         self.entropy_manager._log_result.assert_not_called()
+
+    @patch(
+        "waterEntropy.recipes.interfacial_solvent.get_interfacial_water_orient_entropy"
+    )
+    def test_calculate_water_entropy_minimal(self, mock_get_entropy):
+        """
+        This twst verifies that _calculate_water_entropy correctly logs
+        entropy components and total for a single molecule with minimal data.
+        """
+        self.entropy_manager._log_residue_data = MagicMock()
+        self.entropy_manager._log_result = MagicMock()
+
+        # Minimal mocked return from get_interfacial_water_orient_entropy
+        mock_get_entropy.return_value = (
+            {},  # Sorient_dict (not used here)
+            None,
+            MagicMock(
+                translational_S={("ACE_1", "WAT"): 10.0},
+                rotational_S={("ACE_1", "WAT"): 2.0},
+            ),
+            None,
+        )
+
+        # Minimal internal state
+        self.entropy_manager._residue_results_df = pd.DataFrame(
+            [
+                {
+                    "Molecule ID": "ACE",
+                    "Residue": "1",
+                    "Type": "Orientational (J/mol/K)",
+                    "Result": 5.0,
+                },
+                {
+                    "Molecule ID": "WAT",
+                    "Residue": "ACE_1",
+                    "Type": "Transvibrational (J/mol/K)",
+                    "Result": 10.0,
+                },
+                {
+                    "Molecule ID": "WAT",
+                    "Residue": "ACE_1",
+                    "Type": "Rovibrational (J/mol/K)",
+                    "Result": 2.0,
+                },
+            ]
+        )
+
+        # Call the real method
+        mock_universe = MagicMock()
+        self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 1)
+
+        # Assert that only ACE is logged with correct values
+        self.entropy_manager._log_result.assert_has_calls(
+            [
+                call("ACE", "water", "Orientational", 5.0),
+                call("ACE", "water", "Transvibrational", 10.0),
+                call("ACE", "water", "Rovibrational", 2.0),
+                call("ACE", "Molecule Total", "Molecule Total Entropy", 17.0),
+            ],
+            any_order=False,
+        )
 
     # TODO test for error handling on invalid inputs
 
