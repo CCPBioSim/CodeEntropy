@@ -278,7 +278,7 @@ class TestEntropyManager(unittest.TestCase):
         assert set(selected_indices) == set(expected_indices)
         assert len(mol_universe.atoms) == len(original_fragment)
 
-    def test_process_united_atom_level_atomistic(self):
+    def test_process_united_atom_level(self):
         """
         Tests that `_process_united_atom_level` correctly logs global and residue-level
         entropy results for a known molecular system using MDAnalysis.
