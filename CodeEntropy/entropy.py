@@ -125,7 +125,7 @@ class EntropyManager:
                         number_frames,
                     )
 
-            self._finalize_molecule_results(molecule_id, level)
+        self._finalize_molecule_results()
 
         self._data_logger.log_tables()
 
@@ -312,21 +312,24 @@ class EntropyManager:
         )
         self._log_result(mol_id, level, "Conformational", S_conf)
 
-    def _finalize_molecule_results(self, mol_id, level):
+    def _finalize_molecule_results(self):
         """
         Summarizes entropy for a molecule and saves results to file.
 
         Args:
             mol_id (int): ID of the molecule.
-            level (str): Current level name (used for tagging final results).
         """
-        S_total = self._results_df[self._results_df["Molecule ID"] == mol_id][
-            "Result"
-        ].sum()
-        self._log_result(mol_id, "Molecule Total", "Molecule Total Entropy", S_total)
-        self._data_logger.save_dataframes_as_json(
-            self._results_df, self._residue_results_df, self._args.output_file
-        )
+        logger.info(f"len(self._results_df) {len(self._results_df)}")
+        for mol_id in range(len(self._results_df)):
+            S_total = self._results_df[self._results_df["Molecule ID"] == mol_id][
+                "Result"
+            ].sum()
+            self._log_result(
+                mol_id, "Molecule Total", "Molecule Total Entropy", S_total
+            )
+            self._data_logger.save_dataframes_as_json(
+                self._results_df, self._residue_results_df, self._args.output_file
+            )
 
     def _log_result(self, mol_id, level, entropy_type, value):
         """
@@ -392,13 +395,36 @@ class EntropyManager:
         self._calculate_water_vibrational_translational_entropy(vibrations)
         self._calculate_water_vibrational_rotational_entropy(vibrations)
 
-        # Compute and log per-molecule totals
-        unique_mol_ids = set(self._residue_results_df["Molecule ID"])
-        for mol_id in unique_mol_ids:
-            S_total = self._residue_results_df[
-                self._residue_results_df["Molecule ID"] == mol_id
-            ]["Result"].sum()
-            self._log_result(mol_id, "water", "Molecule Total Entropy", S_total)
+        # Aggregate entropy components per molecule
+        results = {}
+
+        for _, row in self._residue_results_df.iterrows():
+            entropy_type = row["Type"].split()[0]
+            value = row["Result"]
+
+            if entropy_type == "Orientational":
+                mol_id = row["Molecule ID"]
+            else:
+                mol_id = row["Residue"].split("_")[0]
+
+            if mol_id not in results:
+                results[mol_id] = {
+                    "Orientational": 0.0,
+                    "Transvibrational": 0.0,
+                    "Rovibrational": 0.0,
+                }
+
+            results[mol_id][entropy_type] += value
+
+        # Log per-molecule entropy components and total
+        for mol_id, components in results.items():
+            total = 0.0
+            for entropy_type in ["Orientational", "Transvibrational", "Rovibrational"]:
+                S_component = components[entropy_type]
+                self._log_result(mol_id, "water", entropy_type, S_component)
+                total += S_component
+
+            self._log_result(mol_id, "Molecule Total", "Molecule Total Entropy", total)
 
     def _calculate_water_orientational_entropy(self, Sorient_dict):
         """
