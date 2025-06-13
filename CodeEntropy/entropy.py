@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 import pandas as pd
+import waterEntropy.recipes.interfacial_solvent as GetSolvent
 from numpy import linalg as la
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,11 @@ class EntropyManager:
         """
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
+
+        if self._universe.select_atoms("water").n_atoms > 0:
+            self._calculate_water_entropy(self._universe, start, end, step)
+            self._args.selection_string = "not water"
+
         reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
 
@@ -119,7 +125,7 @@ class EntropyManager:
                         number_frames,
                     )
 
-            self._finalize_molecule_results(molecule_id, level)
+        self._finalize_molecule_results()
 
         self._data_logger.log_tables()
 
@@ -240,9 +246,15 @@ class EntropyManager:
             S_rot += S_rot_res
             S_conf += S_conf_res
 
-            self._log_residue_data(mol_id, residue_id, "Transvibrational", S_trans_res)
-            self._log_residue_data(mol_id, residue_id, "Rovibrational", S_rot_res)
-            self._log_residue_data(mol_id, residue_id, "Conformational", S_conf_res)
+            self._log_residue_data(
+                residue.resid, residue.resname, "Transvibrational", S_trans_res
+            )
+            self._log_residue_data(
+                residue.resid, residue.resname, "Rovibrational", S_rot_res
+            )
+            self._log_residue_data(
+                residue.resid, residue.resname, "Conformational", S_conf_res
+            )
 
         self._log_result(mol_id, level, "Transvibrational", S_trans)
         self._log_result(mol_id, level, "Rovibrational", S_rot)
@@ -300,21 +312,24 @@ class EntropyManager:
         )
         self._log_result(mol_id, level, "Conformational", S_conf)
 
-    def _finalize_molecule_results(self, mol_id, level):
+    def _finalize_molecule_results(self):
         """
         Summarizes entropy for a molecule and saves results to file.
 
         Args:
             mol_id (int): ID of the molecule.
-            level (str): Current level name (used for tagging final results).
         """
-        S_total = self._results_df[self._results_df["Molecule ID"] == mol_id][
-            "Result"
-        ].sum()
-        self._log_result(mol_id, "Molecule Total", "Molecule Total Entropy", S_total)
-        self._data_logger.save_dataframes_as_json(
-            self._results_df, self._residue_results_df, self._args.output_file
-        )
+        logger.info(f"len(self._results_df) {len(self._results_df)}")
+        for mol_id in range(len(self._results_df)):
+            S_total = self._results_df[self._results_df["Molecule ID"] == mol_id][
+                "Result"
+            ].sum()
+            self._log_result(
+                mol_id, "Molecule Total", "Molecule Total Entropy", S_total
+            )
+            self._data_logger.save_dataframes_as_json(
+                self._results_df, self._residue_results_df, self._args.output_file
+            )
 
     def _log_result(self, mol_id, level, entropy_type, value):
         """
@@ -334,7 +349,8 @@ class EntropyManager:
                 "Result": [value],
             }
         )
-        self._results_df = pd.concat([self._results_df, row], ignore_index=True)
+        if self.results_df.empty:
+            self._results_df = pd.concat([self._results_df, row], ignore_index=True)
         self._data_logger.add_results_data(mol_id, level, entropy_type, value)
 
     def _log_residue_data(self, mol_id, residue_id, entropy_type, value):
@@ -359,6 +375,84 @@ class EntropyManager:
             [self._residue_results_df, row], ignore_index=True
         )
         self._data_logger.add_residue_data(mol_id, residue_id, entropy_type, value)
+
+    def _calculate_water_entropy(self, universe, start, end, step):
+        """
+        Calculates orientational and vibrational entropy for water molecules.
+
+        Args:
+            universe: MDAnalysis Universe object.
+            start (int): Start frame.
+            end (int): End frame.
+            step (int): Step size.
+        """
+        Sorient_dict, _, vibrations, _ = (
+            GetSolvent.get_interfacial_water_orient_entropy(universe, start, end, step)
+        )
+
+        # Log per-residue entropy using helper functions
+        self._calculate_water_orientational_entropy(Sorient_dict)
+        self._calculate_water_vibrational_translational_entropy(vibrations)
+        self._calculate_water_vibrational_rotational_entropy(vibrations)
+
+        # Aggregate entropy components per molecule
+        results = {}
+
+        for _, row in self._residue_results_df.iterrows():
+            entropy_type = row["Type"].split()[0]
+            value = row["Result"]
+
+            if entropy_type == "Orientational":
+                mol_id = row["Molecule ID"]
+            else:
+                mol_id = row["Residue"].split("_")[0]
+
+            if mol_id not in results:
+                results[mol_id] = {
+                    "Orientational": 0.0,
+                    "Transvibrational": 0.0,
+                    "Rovibrational": 0.0,
+                }
+
+            results[mol_id][entropy_type] += value
+
+        # Log per-molecule entropy components and total
+        for mol_id, components in results.items():
+            total = 0.0
+            for entropy_type in ["Orientational", "Transvibrational", "Rovibrational"]:
+                S_component = components[entropy_type]
+                self._log_result(mol_id, "water", entropy_type, S_component)
+                total += S_component
+
+            self._log_result(mol_id, "Molecule Total", "Molecule Total Entropy", total)
+
+    def _calculate_water_orientational_entropy(self, Sorient_dict):
+        """
+        Logs orientational entropy values directly from Sorient_dict.
+        """
+        for resid, resname_dict in Sorient_dict.items():
+            for resname, values in resname_dict.items():
+                if isinstance(values, list) and len(values) == 2:
+                    Sor, count = values
+                    self._log_residue_data(resname, resid, "Orientational", Sor)
+
+    def _calculate_water_vibrational_translational_entropy(self, vibrations):
+        """
+        Logs summed translational entropy values per residue-solvent pair.
+        """
+        for (resid, mol_id), entropy in vibrations.translational_S.items():
+            if isinstance(entropy, (list, np.ndarray)):
+                entropy = float(np.sum(entropy))
+            self._log_residue_data(mol_id, f"{resid}", "Transvibrational", entropy)
+
+    def _calculate_water_vibrational_rotational_entropy(self, vibrations):
+        """
+        Logs summed rotational entropy values per residue-solvent pair.
+        """
+        for (resid, mol_id), entropy in vibrations.rotational_S.items():
+            if isinstance(entropy, (list, np.ndarray)):
+                entropy = float(np.sum(entropy))
+            self._log_residue_data(mol_id, f"{resid}", "Rovibrational", entropy)
 
 
 class VibrationalEntropy(EntropyManager):
