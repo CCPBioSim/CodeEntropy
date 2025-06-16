@@ -53,20 +53,23 @@ class TestDataLogger(unittest.TestCase):
         Test that add_results_data correctly appends a molecule-level entry.
         """
         self.logger.add_results_data(
-            0, "united_atom", "Transvibrational (J/mol/K)", 653.404
+            0, "united_atom", "Transvibrational", 653.4041220313459
         )
         self.assertEqual(
             self.logger.molecule_data,
-            [[0, "united_atom", "Transvibrational (J/mol/K)", "653.404"]],
+            [("0", "united_atom", "Transvibrational", 653.4041220313459)],
         )
 
     def test_add_residue_data(self):
         """
         Test that add_residue_data correctly appends a residue-level entry.
         """
-        self.logger.add_residue_data(0, 0, "Transvibrational (J/mol/K)", 122.612)
+        self.logger.add_residue_data(
+            0, "DA", "united_atom", "Transvibrational", 122.61216935211893
+        )
         self.assertEqual(
-            self.logger.residue_data, [[0, 0, "Transvibrational (J/mol/K)", "122.612"]]
+            self.logger.residue_data,
+            [[0, "DA", "united_atom", "Transvibrational", 122.61216935211893]],
         )
 
     def test_save_dataframes_as_json(self):
@@ -124,9 +127,11 @@ class TestDataLogger(unittest.TestCase):
         logger.
         """
         self.logger.add_results_data(
-            0, "united_atom", "Transvibrational (J/mol/K)", 653.404
+            0, "united_atom", "Transvibrational", 653.4041220313459
         )
-        self.logger.add_residue_data(0, 0, "Transvibrational (J/mol/K)", 122.612)
+        self.logger.add_residue_data(
+            0, "DA", "united_atom", "Transvibrational", 122.61216935211893
+        )
 
         self.logger.log_tables()
 
