@@ -14,6 +14,7 @@ from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.entropy import (
     ConformationalEntropy,
     EntropyManager,
+    OrientationalEntropy,
     VibrationalEntropy,
 )
 from CodeEntropy.levels import LevelManager
@@ -84,8 +85,71 @@ class TestEntropyManager(unittest.TestCase):
         # Check that it's initially empty
         self.assertTrue(df.empty)
 
+    def test_execute_full_workflow(self):
+        """
+        Tests that `execute` runs the full entropy workflow for a known system,
+        triggering all processing branches and logging expected results.
+        """
+        # Load test universe
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        # Setup managers and arguments
+        args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        entropy_manager = EntropyManager(
+            run_manager, args, u, data_logger, level_manager
+        )
+
+        # Mock internal methods
+        entropy_manager._get_trajectory_bounds = MagicMock(return_value=(0, 10, 1))
+        entropy_manager._get_number_frames = MagicMock(return_value=11)
+        entropy_manager._get_reduced_universe = MagicMock(
+            return_value="reduced_universe"
+        )
+        entropy_manager._get_molecule_container = MagicMock(
+            return_value=MagicMock(residues=[1, 2, 3])
+        )
+        entropy_manager._finalize_molecule_results = MagicMock()
+        entropy_manager._data_logger.log_tables = MagicMock()
+
+        # Mock level selection
+        entropy_manager._level_manager.select_levels = MagicMock(
+            return_value=(1, [["united_atom", "polymer", "residue"]])
+        )
+
+        # Patch entropy classes
+        ve = MagicMock()
+        ce = MagicMock()
+        with (
+            patch("CodeEntropy.entropy.VibrationalEntropy", return_value=ve),
+            patch("CodeEntropy.entropy.ConformationalEntropy", return_value=ce),
+        ):
+
+            # Patch processing methods to simulate logging
+            entropy_manager._process_united_atom_level = MagicMock()
+            entropy_manager._process_vibrational_only_levels = MagicMock()
+            entropy_manager._process_conformational_residue_level = MagicMock()
+
+            # Run the method
+            entropy_manager.execute()
+
+        # Assertions
+        entropy_manager._process_united_atom_level.assert_called_once()
+        self.assertEqual(
+            entropy_manager._process_vibrational_only_levels.call_count, 2
+        )  # polymer + residue
+        entropy_manager._process_conformational_residue_level.assert_called_once()
+        entropy_manager._finalize_molecule_results.assert_called_once_with(0, "residue")
+        entropy_manager._data_logger.log_tables.assert_called_once()
+
     def test_get_trajectory_bounds(self):
-        """"""
+        """
+        Tests that `_get_trajectory_bounds` runs and returns expected types.
+        """
 
         config_manager = ConfigManager()
 
@@ -111,8 +175,12 @@ class TestEntropyManager(unittest.TestCase):
         ),
     )
     def test_get_number_frames(self, mock_args):
-        """"""
+        """
+        Test `_get_number_frames` when the end index is -1 (interpreted as no slicing).
 
+        Ensures that the function returns 0 frames when the trajectory bounds
+        result in an empty range.
+        """
         config_manager = ConfigManager()
 
         parser = config_manager.setup_argparse()
@@ -139,8 +207,12 @@ class TestEntropyManager(unittest.TestCase):
         ),
     )
     def test_get_number_frames_sliced_trajectory(self, mock_args):
-        """"""
+        """
+        Test `_get_number_frames` with a valid slicing range.
 
+        Verifies that the function correctly calculates the number of frames
+        when slicing from 0 to 20 with a step of 1, expecting 21 frames.
+        """
         config_manager = ConfigManager()
 
         parser = config_manager.setup_argparse()
@@ -167,7 +239,12 @@ class TestEntropyManager(unittest.TestCase):
         ),
     )
     def test_get_number_frames_sliced_trajectory_step(self, mock_args):
-        """"""
+        """
+        Test `_get_number_frames` with a step that skips all frames.
+
+        Ensures that the function returns 0 when the step size results in
+        no frames being selected from the trajectory.
+        """
 
         config_manager = ConfigManager()
 
@@ -193,8 +270,12 @@ class TestEntropyManager(unittest.TestCase):
         ),
     )
     def test_get_reduced_universe_all(self, mock_args):
-        """"""
+        """
+        Test `_get_reduced_universe` with 'all' selection.
 
+        Verifies that the full universe is returned when the selection string
+        is set to 'all', and the number of atoms remains unchanged.
+        """
         # Load MDAnalysis Universe
         tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
         trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
@@ -218,7 +299,12 @@ class TestEntropyManager(unittest.TestCase):
         ),
     )
     def test_get_reduced_universe_reduced(self, mock_args):
-        """"""
+        """
+        Test `_get_reduced_universe` with a specific atom selection.
+
+        Ensures that the reduced universe contains fewer atoms than the original
+        when a specific selection string is used.
+        """
 
         # Load MDAnalysis Universe
         tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
@@ -245,7 +331,12 @@ class TestEntropyManager(unittest.TestCase):
         ),
     )
     def test_get_molecule_container(self, mock_args):
-        """"""
+        """
+        Test `_get_molecule_container` for extracting a molecule fragment.
+
+        Verifies that the returned universe contains the correct atoms corresponding
+        to the specified molecule ID's fragment from the original universe.
+        """
 
         # Load a test universe
         tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
@@ -334,6 +425,114 @@ class TestEntropyManager(unittest.TestCase):
         self.assertSetEqual(set(df["Type"]), expected_types)
         self.assertSetEqual(set(residue_df["Type"]), expected_types)
 
+    def test_process_vibrational_only_levels(self):
+        """
+        Tests that `_process_vibrational_only_levels` correctly logs vibrational
+        entropy results for a known molecular system using MDAnalysis.
+        """
+
+        # Load a known test universe
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        # Setup managers and arguments
+        args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        manager = EntropyManager(run_manager, args, u, data_logger, level_manager)
+
+        reduced_atom = manager._get_reduced_universe()
+        mol_container = manager._get_molecule_container(reduced_atom, 0)
+
+        # Patch methods to isolate the test
+        manager._level_manager.get_matrices = MagicMock(
+            return_value=("mock_force", "mock_torque")
+        )
+
+        ve = VibrationalEntropy(run_manager, args, u, data_logger, level_manager)
+        ve.vibrational_entropy_calculation = MagicMock(side_effect=[1.11, 2.22])
+
+        # Run the function
+        manager._process_vibrational_only_levels(
+            mol_id=0,
+            mol_container=mol_container,
+            ve=ve,
+            level="Vibrational",
+            start=1,
+            end=1,
+            step=1,
+            n_frames=1,
+            highest=True,
+        )
+
+        # Check that results were logged
+        df = manager._results_df
+        self.assertEqual(len(df), 2)  # Transvibrational and Rovibrational
+
+        expected_types = {
+            "Transvibrational (J/mol/K)",
+            "Rovibrational (J/mol/K)",
+        }
+        self.assertSetEqual(set(df["Type"]), expected_types)
+
+        # Check that the entropy values match the mocked return values
+        self.assertIn(1.11, df["Result"].values)
+        self.assertIn(2.22, df["Result"].values)
+
+    def test_process_conformational_residue_level(self):
+        """
+        Tests that `_process_conformational_residue_level` correctly logs conformational
+        entropy results at the residue level for a known molecular system using
+        MDAnalysis.
+        """
+
+        # Load a known test universe
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        # Setup managers and arguments
+        args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        manager = EntropyManager(run_manager, args, u, data_logger, level_manager)
+
+        reduced_atom = manager._get_reduced_universe()
+        mol_container = manager._get_molecule_container(reduced_atom, 0)
+
+        # Patch methods to isolate the test
+        mock_dihedrals = ["phi", "psi", "chi1"]
+        manager._level_manager.get_dihedrals = MagicMock(return_value=mock_dihedrals)
+
+        ce = ConformationalEntropy(run_manager, args, u, data_logger, level_manager)
+        ce.conformational_entropy_calculation = MagicMock(return_value=3.33)
+
+        # Run the function
+        manager._process_conformational_residue_level(
+            mol_id=0,
+            mol_container=mol_container,
+            ce=ce,
+            level="residue",
+            start=1,
+            end=1,
+            step=1,
+            n_frames=1,
+        )
+
+        # Check that results were logged
+        df = manager._results_df
+        self.assertEqual(len(df), 1)
+
+        # Check that the correct type is present
+        expected_type = "Conformational (J/mol/K)"
+        self.assertIn(expected_type, df["Type"].values)
+
+        # Check that the entropy value matches the mocked return value
+        self.assertIn(3.33, df["Result"].values)
+
 
 class TestVibrationalEntropy(unittest.TestCase):
     """
@@ -345,6 +544,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         Set up test environment.
         """
         self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        self.test_data_dir = os.path.dirname(data.__file__)
         self.code_entropy = main
 
         # Change to test directory
@@ -359,8 +559,39 @@ class TestVibrationalEntropy(unittest.TestCase):
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
 
+    def test_vibrational_entropy_init(self):
+        """
+        Test initialization of the `VibrationalEntropy` class.
+
+        Verifies that the object is correctly instantiated and that key arguments
+        such as temperature and bin width are properly assigned.
+        """
+        # Mock dependencies
+        universe = MagicMock()
+        args = MagicMock()
+        args.bin_width = 0.1
+        args.temperature = 300
+        args.selection_string = "all"
+
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+
+        # Instantiate VibrationalEntropy
+        ve = VibrationalEntropy(run_manager, args, universe, data_logger, level_manager)
+
+        # Basic assertions to check initialization
+        self.assertIsInstance(ve, VibrationalEntropy)
+        self.assertEqual(ve._args.temperature, 300)
+        self.assertEqual(ve._args.bin_width, 0.1)
+
     # test when lambda is zero
     def test_frequency_calculation_0(self):
+        """
+        Test `frequency_calculation` with zero eigenvalue.
+
+        Ensures that the method returns 0 when the input eigenvalue (lambda) is zero.
+        """
         lambdas = 0
         temp = 298
 
@@ -373,8 +604,13 @@ class TestVibrationalEntropy(unittest.TestCase):
 
         assert frequencies == 0
 
-    # test when lambdas are positive
-    def test_frequency_calculation_pos(self):
+    def test_frequency_calculation_positive(self):
+        """
+        Test `frequency_calculation` with positive eigenvalues.
+
+        Verifies that the method correctly computes frequencies from a set of
+        positive eigenvalues at a given temperature.
+        """
         lambdas = np.array([585495.0917897299, 658074.5130064893, 782425.305888707])
         temp = 298
 
@@ -393,10 +629,78 @@ class TestVibrationalEntropy(unittest.TestCase):
             [1899594266400.4016, 2013894687315.6213, 2195940987139.7097]
         )
 
-    # TODO test for error handling when lambdas are negative
+    def test_frequency_calculation_negative(self):
+        """
+        Test `frequency_calculation` with a negative eigenvalue.
 
-    # test for matrix_type force, highest level=yes
+        Ensures that the method raises a `ValueError` when any eigenvalue is negative,
+        as this is physically invalid for frequency calculations.
+        """
+        lambdas = np.array([585495.0917897299, -658074.5130064893, 782425.305888707])
+        temp = 298
+
+        # Create a mock RunManager and set return value for get_KT2J
+        run_manager = RunManager("temp_folder")
+        run_manager.get_KT2J
+
+        # Instantiate VibrationalEntropy with mocks
+        ve = VibrationalEntropy(
+            run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock()
+        )
+
+        # Assert that ValueError is raised due to negative eigenvalue
+        with self.assertRaises(ValueError) as context:
+            ve.frequency_calculation(lambdas, temp)
+
+        self.assertIn("Negative eigenvalues", str(context.exception))
+
+    def test_vibrational_entropy_calculation_force_not_highest(self):
+        """
+        Test `vibrational_entropy_calculation` for a force matrix with
+        `highest_level=False`.
+
+        Verifies that the entropy is correctly computed using mocked frequency values
+        and a dummy identity matrix, excluding the first six modes.
+        """
+        # Mock RunManager
+        run_manager = MagicMock()
+        run_manager.change_lambda_units.return_value = np.array([1e-20] * 12)
+        run_manager.get_KT2J.return_value = 2.47e-21
+
+        # Instantiate VibrationalEntropy with mocks
+        ve = VibrationalEntropy(
+            run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock()
+        )
+
+        # Patch frequency_calculation to return known frequencies
+        ve.frequency_calculation = MagicMock(return_value=np.array([1.0] * 12))
+
+        # Create a dummy 12x12 matrix
+        matrix = np.identity(12)
+
+        # Run the method
+        result = ve.vibrational_entropy_calculation(
+            matrix=matrix, matrix_type="force", temp=298, highest_level=False
+        )
+
+        # Manually compute expected entropy components
+        exponent = ve._PLANCK_CONST * 1.0 / 2.47e-21
+        power_positive = np.exp(exponent)
+        power_negative = np.exp(-exponent)
+        S_component = exponent / (power_positive - 1) - np.log(1 - power_negative)
+        S_component *= ve._GAS_CONST
+        expected = S_component * 6  # sum of components[6:]
+
+        self.assertAlmostEqual(result, expected, places=5)
+
     def test_vibrational_entropy_polymer_force(self):
+        """
+        Test `vibrational_entropy_calculation` with a real force matrix and
+        `highest_level='yes'`.
+
+        Ensures that the entropy is computed correctly for a small polymer system
+        using a known force matrix and temperature.
+        """
         matrix = np.array(
             [
                 [4.67476, -0.04069, -0.19714],
@@ -419,10 +723,14 @@ class TestVibrationalEntropy(unittest.TestCase):
 
         assert S_vib == pytest.approx(52.88123410327823)
 
-    # test for matrix_type force, highest level=no
-
-    # test for matrix_type torque
     def test_vibrational_entropy_polymer_torque(self):
+        """
+        Test `vibrational_entropy_calculation` with a torque matrix and
+        `highest_level='yes'`.
+
+        Verifies that the entropy is computed correctly for a torque matrix,
+        simulating rotational degrees of freedom.
+        """
         matrix = np.array(
             [
                 [6.69611, 0.39754, 0.57763],
@@ -458,6 +766,7 @@ class TestConformationalEntropy(unittest.TestCase):
         Set up test environment.
         """
         self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        self.test_data_dir = os.path.dirname(data.__file__)
         self.code_entropy = main
 
         # Change to test directory
@@ -471,6 +780,82 @@ class TestConformationalEntropy(unittest.TestCase):
         os.chdir(self._orig_dir)
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
+
+    def test_confirmational_entropy_init(self):
+        """
+        Test initialization of the `ConformationalEntropy` class.
+
+        Verifies that the object is correctly instantiated and that key arguments
+        such as temperature and bin width are properly assigned during initialization.
+        """
+        # Mock dependencies
+        universe = MagicMock()
+        args = MagicMock()
+        args.bin_width = 0.1
+        args.temperature = 300
+        args.selection_string = "all"
+
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+
+        # Instantiate ConformationalEntropy
+        ce = ConformationalEntropy(
+            run_manager, args, universe, data_logger, level_manager
+        )
+
+        # Basic assertions to check initialization
+        self.assertIsInstance(ce, ConformationalEntropy)
+        self.assertEqual(ce._args.temperature, 300)
+        self.assertEqual(ce._args.bin_width, 0.1)
+
+    def test_assign_conformation(self):
+        """
+        Test the `assign_conformation` method for correct binning of dihedral angles.
+
+        Mocks a dihedral angle with specific values across frames and checks that:
+        - The returned result is a NumPy array.
+        - The array has the expected length.
+        - All values are non-negative and of floating-point type.
+        """
+        # Mock dihedral with predefined values
+        dihedral = MagicMock()
+        dihedral.value = MagicMock(side_effect=[-30, 350, 350, 250, 10, 10])
+
+        # Create a list of mock timesteps with frame numbers
+        mock_timesteps = [MagicMock(frame=i) for i in range(6)]
+
+        # Mock data_container with a trajectory that returns the mock timesteps
+        data_container = MagicMock()
+        data_container.trajectory.__getitem__.return_value = mock_timesteps
+
+        # Load test universe
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        # Setup managers and arguments
+        args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+
+        ce = ConformationalEntropy(run_manager, args, u, data_logger, level_manager)
+
+        result = ce.assign_conformation(
+            data_container=data_container,
+            dihedral=dihedral,
+            number_frames=6,
+            bin_width=60,
+            start=0,
+            end=6,
+            step=1,
+        )
+
+        assert isinstance(result, np.ndarray)
+        assert len(result) == 6
+        assert np.all(result >= 0)
+        assert np.issubdtype(result.dtype, np.floating)
 
 
 class TestOrientationalEntropy(unittest.TestCase):
@@ -496,6 +881,34 @@ class TestOrientationalEntropy(unittest.TestCase):
         os.chdir(self._orig_dir)
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
+
+    def test_orientational_entropy_init(self):
+        """
+        Test initialization of the `OrientationalEntropy` class.
+
+        Verifies that the object is correctly instantiated and that key arguments
+        such as temperature and bin width are properly assigned during initialization.
+        """
+        # Mock dependencies
+        universe = MagicMock()
+        args = MagicMock()
+        args.bin_width = 0.1
+        args.temperature = 300
+        args.selection_string = "all"
+
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+
+        # Instantiate OrientationalEntropy
+        oe = OrientationalEntropy(
+            run_manager, args, universe, data_logger, level_manager
+        )
+
+        # Basic assertions to check initialization
+        self.assertIsInstance(oe, OrientationalEntropy)
+        self.assertEqual(oe._args.temperature, 300)
+        self.assertEqual(oe._args.bin_width, 0.1)
 
 
 if __name__ == "__main__":
