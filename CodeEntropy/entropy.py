@@ -51,6 +51,15 @@ class EntropyManager:
             else:
                 self._args.selection_string = "not water"
 
+            logger.debug(
+                "WaterEntropy: molecule_data: %s",
+                self._data_logger.molecule_data,
+            )
+            logger.debug(
+                "WaterEntropy: residue_data: %s",
+                self._data_logger.residue_data,
+            )
+
         reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
 
@@ -87,6 +96,16 @@ class EntropyManager:
                         number_frames,
                         highest_level,
                     )
+
+                    logger.debug(
+                        "United Atom Level: molecule_data: %s",
+                        self._data_logger.molecule_data,
+                    )
+                    logger.debug(
+                        "United Atom Level: residue_data: %s",
+                        self._data_logger.residue_data,
+                    )
+
                 elif level in ("polymer", "residue"):
                     self._process_vibrational_only_levels(
                         molecule_id,
@@ -99,6 +118,16 @@ class EntropyManager:
                         number_frames,
                         highest_level,
                     )
+
+                    logger.debug(
+                        "Vibrational Level: molecule_data: %s",
+                        self._data_logger.molecule_data,
+                    )
+                    logger.debug(
+                        "Vibrational Level: residue_data: %s",
+                        self._data_logger.residue_data,
+                    )
+
                 if level == "residue":
                     self._process_conformational_residue_level(
                         molecule_id,
@@ -109,6 +138,15 @@ class EntropyManager:
                         end,
                         step,
                         number_frames,
+                    )
+
+                    logger.debug(
+                        "Confirmational Level: molecule_data: %s",
+                        self._data_logger.molecule_data,
+                    )
+                    logger.debug(
+                        "Confirmational Level: residue_data: %s",
+                        self._data_logger.residue_data,
                     )
 
         self._finalize_molecule_results()
