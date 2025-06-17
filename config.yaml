@@ -2,13 +2,14 @@
 
 run1:
   top_traj_file:
-  selection_string: 
+  selection_string:
   start:
-  end: 
+  end:
   step:
   bin_width:
   temperature:
   verbose:
-  thread: 
-  output_file: 
+  thread:
+  output_file:
   force_partitioning:
+  disable_water_entropy:
