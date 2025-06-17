@@ -43,7 +43,8 @@ class EntropyManager:
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
 
-        if self._universe.select_atoms("water").n_atoms > 0:
+        has_water = self._universe.select_atoms("water").n_atoms > 0
+        if has_water and not self._args.disable_water_entropy:
             self._calculate_water_entropy(self._universe, start, end, step)
 
             if self._args.selection_string != "all":
