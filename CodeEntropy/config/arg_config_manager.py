@@ -61,8 +61,8 @@ arg_map = {
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
     "water_entropy": {
         "type": bool,
-        "help": "Calculate water entropy",
-        "default": False,
+        "help": "If set to False, disables the calculation of water entropy",
+        "default": True,
     },
 }
 
