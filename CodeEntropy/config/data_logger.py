@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from tabulate import tabulate
 
@@ -23,13 +24,19 @@ class DataLogger:
         with open(output_file, "w") as out:
             json.dump(data, out, indent=4)
 
-    def add_results_data(self, molecule, level, type, S_molecule):
-        """Add data for molecule-level entries"""
-        self.molecule_data.append([molecule, level, type, f"{S_molecule}"])
+    def clean_residue_name(self, resname):
+        """Ensures residue names are stripped and cleaned before being stored"""
+        return re.sub(r"[-–—]", "", str(resname))
 
-    def add_residue_data(self, molecule, residue, type, S_trans_residue):
+    def add_results_data(self, resname, level, entropy_type, value):
+        """Add data for molecule-level entries"""
+        resname = self.clean_residue_name(resname)
+        self.molecule_data.append((resname, level, entropy_type, value))
+
+    def add_residue_data(self, resid, resname, level, entropy_type, value):
         """Add data for residue-level entries"""
-        self.residue_data.append([molecule, residue, type, f"{S_trans_residue}"])
+        resname = self.clean_residue_name(resname)
+        self.residue_data.append([resid, resname, level, entropy_type, value])
 
     def log_tables(self):
         """Log both tables at once"""
@@ -38,8 +45,10 @@ class DataLogger:
             logger.info("Molecule Data Table:")
             table_str = tabulate(
                 self.molecule_data,
-                headers=["Molecule ID", "Level", "Type", "Result (J/mol/K)"],
+                headers=["Residue Name", "Level", "Type", "Result (J/mol/K)"],
                 tablefmt="grid",
+                numalign="center",
+                stralign="center",
             )
             logger.info(f"\n{table_str}")
 
@@ -48,7 +57,15 @@ class DataLogger:
             logger.info("Residue Data Table:")
             table_str = tabulate(
                 self.residue_data,
-                headers=["Molecule ID", "Residue", "Type", "Result (J/mol/K)"],
+                headers=[
+                    "Residue ID",
+                    "Residue Name",
+                    "Level",
+                    "Type",
+                    "Result (J/mol/K)",
+                ],
                 tablefmt="grid",
+                numalign="center",
+                stralign="center",
             )
             logger.info(f"\n{table_str}")
