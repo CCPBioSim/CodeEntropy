@@ -594,6 +594,72 @@ class TestLevels(unittest.TestCase):
         result = level_manager.get_weighted_torques(data_container, bead, rot_axes)
         np.testing.assert_array_almost_equal(result, np.zeros(3))
 
+    def test_get_weighted_torques_zero_moi_raises(self):
+        """
+        Should raise ZeroDivisionError when moment of inertia is zero in a dimension
+        and torque in that dimension is non-zero.
+        """
+        level_manager = LevelManager()
+
+        atom = MagicMock()
+        atom.index = 0
+
+        bead = MagicMock()
+        bead.atoms = [atom]
+        bead.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
+
+        # Set moment of inertia with zero in dimension 2
+        moi = np.identity(3)
+        moi[2, 2] = 0.0
+        bead.moment_of_inertia.return_value = moi
+
+        data_container = MagicMock()
+        # Position and force that will produce a non-zero torque in z (dimension 2)
+        data_container.atoms.__getitem__.return_value.position = np.array(
+            [1.0, 0.0, 0.0]
+        )
+        data_container.atoms.__getitem__.return_value.force = np.array([0.0, 1.0, 0.0])
+
+        rot_axes = np.identity(3)
+
+        with self.assertRaises(ZeroDivisionError):
+            level_manager.get_weighted_torques(data_container, bead, rot_axes)
+
+    def test_get_weighted_torques_negative_moi_raises(self):
+        """
+        Should raise ValueError when moment of inertia is negative in a dimension
+        and torque in that dimension is non-zero.
+        """
+        level_manager = LevelManager()
+
+        atom = MagicMock()
+        atom.index = 0
+
+        bead = MagicMock()
+        bead.atoms = [atom]
+        bead.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
+
+        # Set moment of inertia with negative value in dimension 2
+        moi = np.identity(3)
+        moi[2, 2] = -1.0
+        bead.moment_of_inertia.return_value = moi
+
+        data_container = MagicMock()
+        # Position and force that will produce a non-zero torque in z (dimension 2)
+        data_container.atoms.__getitem__.return_value.position = np.array(
+            [1.0, 0.0, 0.0]
+        )
+        data_container.atoms.__getitem__.return_value.force = np.array([0.0, 1.0, 0.0])
+
+        rot_axes = np.identity(3)
+
+        with self.assertRaises(ValueError) as context:
+            level_manager.get_weighted_torques(data_container, bead, rot_axes)
+
+        self.assertIn(
+            "Negative value encountered for moment of inertia", str(context.exception)
+        )
+
     def test_create_submatrix_basic_outer_product_average(self):
         """
         Test with known vectors to verify correct average outer product.
