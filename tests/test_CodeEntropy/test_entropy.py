@@ -1,3 +1,4 @@
+import math
 import os
 import shutil
 import tempfile
@@ -1196,6 +1197,46 @@ class TestOrientationalEntropy(unittest.TestCase):
         self.assertIsInstance(oe, OrientationalEntropy)
         self.assertEqual(oe._args.temperature, 300)
         self.assertEqual(oe._args.bin_width, 0.1)
+
+    def test_orientational_entropy_calculation(self):
+        """
+        Tests that `orientational_entropy_calculation` correctly computes the total
+        orientational entropy for a given dictionary of neighboring species using
+        the internal gas constant.
+        """
+        # Setup a mock neighbours dictionary
+        neighbours_dict = {
+            "ligandA": 2,
+            "ligandB": 3,
+        }
+
+        # Create an instance of OrientationalEntropy with dummy dependencies
+        oe = OrientationalEntropy(None, None, None, None, None)
+
+        # Run the method
+        result = oe.orientational_entropy_calculation(neighbours_dict)
+
+        # Manually compute expected result using the class's internal gas constant
+        expected = (
+            math.log(math.sqrt((2**3) * math.pi))
+            + math.log(math.sqrt((3**3) * math.pi))
+        ) * oe._GAS_CONST
+
+        # Assert the result is as expected
+        self.assertAlmostEqual(result, expected, places=6)
+
+    def test_orientational_entropy_water_branch_is_covered(self):
+        """
+        Tests that the placeholder branch for water molecules is executed to ensure
+        coverage of the `if neighbour in [...]` block.
+        """
+        neighbours_dict = {"H2O": 1}  # Matches the condition exactly
+
+        oe = OrientationalEntropy(None, None, None, None, None)
+        result = oe.orientational_entropy_calculation(neighbours_dict)
+
+        # Since the logic is skipped, total entropy should be 0.0
+        self.assertEqual(result, 0.0)
 
 
 if __name__ == "__main__":
