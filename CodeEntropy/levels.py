@@ -441,14 +441,17 @@ class LevelManager:
         if x2y2 == 0.0:
             raise ValueError("x2y2 is zero, cannot compute sin_phi and cos_phi.")
 
+        # These conditions are mathematically unreachable for real-valued vectors.
+        # Marked as no cover to avoid false negatives in coverage reports.
+
         # Check for non-negative values inside the square root
-        if x2y2 / r2 < 0:
+        if x2y2 / r2 < 0:  # pragma: no cover
             raise ValueError(
                 f"Negative value encountered for sin_theta calculation: {x2y2 / r2}. "
                 f"Cannot take square root."
             )
 
-        if x2y2 < 0:
+        if x2y2 < 0:  # pragma: no cover
             raise ValueError(
                 f"Negative value encountered for sin_phi and cos_phi "
                 f"calculation: {x2y2}. "
@@ -462,7 +465,7 @@ class LevelManager:
             sin_phi = arg_r[1] / np.sqrt(x2y2)
             cos_phi = arg_r[0] / np.sqrt(x2y2)
 
-        else:
+        else:  # pragma: no cover
             sin_theta = 0.0
             cos_theta = 1
 
