@@ -59,10 +59,10 @@ arg_map = {
         "default": "output_file.json",
     },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
-    "disable_water_entropy": {
+    "water_entropy": {
         "type": bool,
-        "help": "If set to True, disables the calculation of water entropy",
-        "default": False,
+        "help": "If set to False, disables the calculation of water entropy",
+        "default": True,
     },
 }
 
