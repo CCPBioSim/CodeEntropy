@@ -577,6 +577,86 @@ class TestEntropyManager(unittest.TestCase):
         results = [entry[3] for entry in df]
         self.assertIn(3.33, results)
 
+    def test_finalize_molecule_results_aggregates_and_logs_total_entropy(self):
+        """
+        Tests that `_finalize_molecule_results` correctly aggregates entropy values per
+        molecule from `molecule_data`, appends a 'Molecule Total' entry, and calls
+        `save_dataframes_as_json` with the expected DataFrame structure.
+        """
+        # Setup
+        args = MagicMock(output_file="mock_output.json")
+        data_logger = DataLogger()
+        data_logger.molecule_data = [
+            ("mol1", "united_atom", "Transvibrational", 1.0),
+            ("mol1", "united_atom", "Rovibrational", 2.0),
+            ("mol1", "united_atom", "Conformational", 3.0),
+            ("mol2", "polymer", "Transvibrational", 4.0),
+        ]
+        data_logger.residue_data = []
+
+        manager = EntropyManager(None, args, None, data_logger, None)
+
+        # Patch save method
+        data_logger.save_dataframes_as_json = MagicMock()
+
+        # Execute
+        manager._finalize_molecule_results()
+
+        # Check that totals were added
+        totals = [
+            entry for entry in data_logger.molecule_data if entry[1] == "Molecule Total"
+        ]
+        self.assertEqual(len(totals), 2)
+
+        # Check correct aggregation
+        mol1_total = next(entry for entry in totals if entry[0] == "mol1")[3]
+        mol2_total = next(entry for entry in totals if entry[0] == "mol2")[3]
+        self.assertEqual(mol1_total, 6.0)
+        self.assertEqual(mol2_total, 4.0)
+
+        # Check save was called
+        data_logger.save_dataframes_as_json.assert_called_once()
+
+    @patch("CodeEntropy.entropy.logger")
+    def test_finalize_molecule_results_skips_invalid_entries(self, mock_logger):
+        """
+        Tests that `_finalize_molecule_results` skips entries with non-numeric entropy
+        values and logs a warning without raising an exception.
+        """
+        args = MagicMock(output_file="mock_output.json")
+        data_logger = DataLogger()
+        data_logger.molecule_data = [
+            ("mol1", "united_atom", "Transvibrational", 1.0),
+            (
+                "mol1",
+                "united_atom",
+                "Rovibrational",
+                "not_a_number",
+            ),  # Should trigger ValueError
+            ("mol1", "united_atom", "Conformational", 2.0),
+        ]
+        data_logger.residue_data = []
+
+        manager = EntropyManager(None, args, None, data_logger, None)
+
+        # Patch save method
+        data_logger.save_dataframes_as_json = MagicMock()
+
+        # Run the method
+        manager._finalize_molecule_results()
+
+        # Check that only valid values were aggregated
+        totals = [
+            entry for entry in data_logger.molecule_data if entry[1] == "Molecule Total"
+        ]
+        self.assertEqual(len(totals), 1)
+        self.assertEqual(totals[0][3], 3.0)  # 1.0 + 2.0
+
+        # Check that a warning was logged
+        mock_logger.warning.assert_called_once_with(
+            "Skipping invalid entry: mol1, not_a_number"
+        )
+
 
 class TestVibrationalEntropy(unittest.TestCase):
     """
