@@ -1,3 +1,6 @@
+import os
+import shutil
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +11,22 @@ class TestMain(unittest.TestCase):
     """
     Unit tests for the main functionality of CodeEntropy.
     """
+
+    def setUp(self):
+        """
+        Set up a temporary directory as the working directory before each test.
+        """
+        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        self._orig_dir = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        """
+        Clean up by removing the temporary directory and restoring the original working
+        directory.
+        """
+        os.chdir(self._orig_dir)
+        shutil.rmtree(self.test_dir)
 
     @patch("CodeEntropy.main.sys.exit")
     @patch("CodeEntropy.main.RunManager")
