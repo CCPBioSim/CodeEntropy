@@ -822,7 +822,7 @@ class OrientationalEntropy(EntropyManager):
         # Replaced molecule with neighbour as this is what the for loop uses
         S_or_total = 0
         for neighbour in neighbours_dict:  # we are going through neighbours
-            if neighbour in []:  # water molecules - call POSEIDON functions
+            if neighbour in ["H2O"]:  # water molecules - call POSEIDON functions
                 pass  # TODO temporary until function is written
             else:
                 # the bound ligand is always going to be a neighbour
@@ -835,16 +835,16 @@ class OrientationalEntropy(EntropyManager):
                     f"S_or_component (log(omega)) for neighbour {neighbour}: "
                     f"{S_or_component}"
                 )
-                S_or_component *= self.GAS_CONST
+                S_or_component *= self._GAS_CONST
                 logger.debug(
                     f"S_or_component after multiplying by GAS_CONST for neighbour "
                     f"{neighbour}: {S_or_component}"
                 )
-            S_or_total += S_or_component
-            logger.debug(
-                f"S_or_total after adding component for neighbour {neighbour}: "
-                f"{S_or_total}"
-            )
+                S_or_total += S_or_component
+                logger.debug(
+                    f"S_or_total after adding component for neighbour {neighbour}: "
+                    f"{S_or_total}"
+                )
         # TODO for future releases
         # implement a case for molecules with hydrogen bonds but to a lesser
         # extent than water
