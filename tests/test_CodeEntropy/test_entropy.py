@@ -123,6 +123,66 @@ class TestEntropyManager(unittest.TestCase):
         residue_types = set(entry[3] for entry in data_logger.residue_data)
         self.assertIn("Conformational", residue_types)
 
+    def test_water_entropy_sets_selection_string_when_all(self):
+        """
+        Tests that when `selection_string` is initially 'all' and water entropy is
+        enabled, the `execute` method sets `selection_string` to 'not water' after
+        calculating water entropy.
+        """
+        mock_universe = MagicMock()
+        mock_universe.select_atoms.return_value.n_atoms = 5
+
+        args = MagicMock(water_entropy=True, selection_string="all")
+        run_manager = MagicMock()
+        level_manager = MagicMock()
+        data_logger = DataLogger()
+
+        manager = EntropyManager(
+            run_manager, args, mock_universe, data_logger, level_manager
+        )
+        manager._get_trajectory_bounds = MagicMock(return_value=(0, 10, 1))
+        manager._get_number_frames = MagicMock(return_value=11)
+        manager._calculate_water_entropy = MagicMock()
+        manager._get_reduced_universe = MagicMock(return_value="reduced")
+        manager._level_manager.select_levels = MagicMock(return_value=(0, []))
+        manager._finalize_molecule_results = MagicMock()
+        manager._data_logger.log_tables = MagicMock()
+
+        manager.execute()
+
+        manager._calculate_water_entropy.assert_called_once()
+        assert args.selection_string == "not water"
+
+    def test_water_entropy_appends_to_custom_selection_string(self):
+        """
+        Tests that when `selection_string` is a custom value and water
+        entropy is enabled, the `execute` method appends ' and not water'
+        to the existing selection string after calculating water entropy.
+        """
+        mock_universe = MagicMock()
+        mock_universe.select_atoms.return_value.n_atoms = 5
+
+        args = MagicMock(water_entropy=True, selection_string="protein")
+        run_manager = MagicMock()
+        level_manager = MagicMock()
+        data_logger = DataLogger()
+
+        manager = EntropyManager(
+            run_manager, args, mock_universe, data_logger, level_manager
+        )
+        manager._get_trajectory_bounds = MagicMock(return_value=(0, 10, 1))
+        manager._get_number_frames = MagicMock(return_value=11)
+        manager._calculate_water_entropy = MagicMock()
+        manager._get_reduced_universe = MagicMock(return_value="reduced")
+        manager._level_manager.select_levels = MagicMock(return_value=(0, []))
+        manager._finalize_molecule_results = MagicMock()
+        manager._data_logger.log_tables = MagicMock()
+
+        manager.execute()
+
+        manager._calculate_water_entropy.assert_called_once()
+        assert args.selection_string == "protein and not water"
+
     def test_get_trajectory_bounds(self):
         """
         Tests that `_get_trajectory_bounds` runs and returns expected types.
