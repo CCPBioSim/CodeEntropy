@@ -99,11 +99,13 @@ class EntropyManager:
                     )
 
                     logger.debug(
-                        "United Atom Level: molecule_data: %s",
+                        "%s level: molecule_data: %s",
+                        level,
                         self._data_logger.molecule_data,
                     )
                     logger.debug(
-                        "United Atom Level: residue_data: %s",
+                        "%s level: residue_data: %s",
+                        level,
                         self._data_logger.residue_data,
                     )
 
@@ -121,11 +123,13 @@ class EntropyManager:
                     )
 
                     logger.debug(
-                        "Vibrational Level: molecule_data: %s",
+                        "%s level: molecule_data: %s",
+                        level,
                         self._data_logger.molecule_data,
                     )
                     logger.debug(
-                        "Vibrational Level: residue_data: %s",
+                        "%s level: residue_data: %s",
+                        level,
                         self._data_logger.residue_data,
                     )
 
@@ -142,11 +146,13 @@ class EntropyManager:
                     )
 
                     logger.debug(
-                        "Confirmational Level: molecule_data: %s",
+                        "%s level: molecule_data: %s",
+                        level,
                         self._data_logger.molecule_data,
                     )
                     logger.debug(
-                        "Confirmational Level: residue_data: %s",
+                        "%s level: residue_data: %s",
+                        level,
                         self._data_logger.residue_data,
                     )
 
