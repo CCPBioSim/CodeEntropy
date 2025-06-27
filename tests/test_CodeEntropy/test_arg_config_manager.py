@@ -137,6 +137,77 @@ class test_arg_config_manager(unittest.TestCase):
         self.assertEqual(args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
         self.assertEqual(args.selection_string, "all")
 
+    @patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=MagicMock(
+            top_traj_file=["/path/to/tpr", "/path/to/trr"],
+            start=10,
+            water_entropy=False,
+        ),
+    )
+    def test_setup_argparse_false_boolean(self, mock_args):
+        """
+        Test that non-boolean arguments are parsed correctly.
+        """
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
+        args = parser.parse_args()
+
+        self.assertEqual(args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
+        self.assertEqual(args.start, 10)
+        self.assertFalse(args.water_entropy)
+
+    def test_str2bool_true_variants(self):
+        """Test that various string representations of True are correctly parsed."""
+        arg_config = ConfigManager()
+
+        self.assertTrue(arg_config.str2bool("true"))
+        self.assertTrue(arg_config.str2bool("True"))
+        self.assertTrue(arg_config.str2bool("t"))
+        self.assertTrue(arg_config.str2bool("yes"))
+        self.assertTrue(arg_config.str2bool("1"))
+
+    def test_str2bool_false_variants(self):
+        """Test that various string representations of False are correctly parsed."""
+        arg_config = ConfigManager()
+
+        self.assertFalse(arg_config.str2bool("false"))
+        self.assertFalse(arg_config.str2bool("False"))
+        self.assertFalse(arg_config.str2bool("f"))
+        self.assertFalse(arg_config.str2bool("no"))
+        self.assertFalse(arg_config.str2bool("0"))
+
+    def test_str2bool_boolean_passthrough(self):
+        """Test that boolean values passed directly are returned unchanged."""
+        arg_config = ConfigManager()
+
+        self.assertTrue(arg_config.str2bool(True))
+        self.assertFalse(arg_config.str2bool(False))
+
+    def test_str2bool_invalid_input(self):
+        """Test that invalid string inputs raise an ArgumentTypeError."""
+        arg_config = ConfigManager()
+
+        with self.assertRaises(Exception) as context:
+            arg_config.str2bool("maybe")
+        self.assertIn("Boolean value expected", str(context.exception))
+
+    def test_str2bool_empty_string(self):
+        """Test that an empty string raises an ArgumentTypeError."""
+        arg_config = ConfigManager()
+
+        with self.assertRaises(Exception) as context:
+            arg_config.str2bool("")
+        self.assertIn("Boolean value expected", str(context.exception))
+
+    def test_str2bool_unexpected_number(self):
+        """Test that unexpected numeric strings raise an ArgumentTypeError."""
+        arg_config = ConfigManager()
+
+        with self.assertRaises(Exception) as context:
+            arg_config.str2bool("2")
+        self.assertIn("Boolean value expected", str(context.exception))
+
     def test_cli_overrides_defaults(self):
         """
         Test if CLI parameters override default values.
@@ -422,6 +493,103 @@ class test_arg_config_manager(unittest.TestCase):
 
         self.assertIsInstance(config, dict)
         self.assertEqual(config, {})
+
+    def test_input_parameters_validation_all_valid(self):
+        """Test that input_parameters_validation passes with all valid inputs."""
+        manager = ConfigManager()
+        u = MagicMock()
+        u.trajectory = [0] * 100
+
+        args = MagicMock(
+            start=10,
+            end=90,
+            step=1,
+            bin_width=30,
+            temperature=298.0,
+            force_partitioning=0.5,
+        )
+
+        with patch.dict(
+            "CodeEntropy.config.arg_config_manager.arg_map",
+            {"force_partitioning": {"default": 0.5}},
+        ):
+            manager.input_parameters_validation(u, args)
+
+    def test_check_input_start_valid(self):
+        """Test that a valid 'start' value does not raise an error."""
+        args = MagicMock(start=50)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        ConfigManager()._check_input_start(u, args)
+
+    def test_check_input_start_invalid(self):
+        """Test that an invalid 'start' value raises a ValueError."""
+        args = MagicMock(start=150)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_start(u, args)
+
+    def test_check_input_end_valid(self):
+        """Test that a valid 'end' value does not raise an error."""
+        args = MagicMock(end=100)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        ConfigManager()._check_input_end(u, args)
+
+    def test_check_input_end_invalid(self):
+        """Test that an 'end' value exceeding trajectory length raises a ValueError."""
+        args = MagicMock(end=101)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_end(u, args)
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_check_input_step_negative(self, mock_logger):
+        """Test that a negative 'step' value triggers a warning."""
+        args = MagicMock(step=-1)
+        ConfigManager()._check_input_step(args)
+        mock_logger.warning.assert_called_once()
+
+    def test_check_input_bin_width_valid(self):
+        """Test that a valid 'bin_width' value does not raise an error."""
+        args = MagicMock(bin_width=180)
+        ConfigManager()._check_input_bin_width(args)
+
+    def test_check_input_bin_width_invalid_low(self):
+        """Test that a negative 'bin_width' value raises a ValueError."""
+        args = MagicMock(bin_width=-10)
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_bin_width(args)
+
+    def test_check_input_bin_width_invalid_high(self):
+        """Test that a 'bin_width' value above 360 raises a ValueError."""
+        args = MagicMock(bin_width=400)
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_bin_width(args)
+
+    def test_check_input_temperature_valid(self):
+        """Test that a valid 'temperature' value does not raise an error."""
+        args = MagicMock(temperature=298.0)
+        ConfigManager()._check_input_temperature(args)
+
+    def test_check_input_temperature_invalid(self):
+        """Test that a negative 'temperature' value raises a ValueError."""
+        args = MagicMock(temperature=-5)
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_temperature(args)
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_check_input_force_partitioning_warning(self, mock_logger):
+        """Test that a non-default 'force_partitioning' value triggers a warning."""
+        args = MagicMock(force_partitioning=0.7)
+        with patch.dict(
+            "CodeEntropy.config.arg_config_manager.arg_map",
+            {"force_partitioning": {"default": 0.5}},
+        ):
+            ConfigManager()._check_input_force_partitioning(args)
+            mock_logger.warning.assert_called_once()
 
 
 if __name__ == "__main__":
