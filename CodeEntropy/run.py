@@ -135,6 +135,8 @@ class RunManager:
                 logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
                 u = mda.Universe(tprfile, trrfile)
 
+                self._config_manager.input_parameters_validation(u, args)
+
                 # Create LevelManager instance
                 level_manager = LevelManager()
 

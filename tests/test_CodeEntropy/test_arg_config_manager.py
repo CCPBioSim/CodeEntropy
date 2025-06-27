@@ -494,6 +494,103 @@ class test_arg_config_manager(unittest.TestCase):
         self.assertIsInstance(config, dict)
         self.assertEqual(config, {})
 
+    def test_input_parameters_validation_all_valid(self):
+        """Test that input_parameters_validation passes with all valid inputs."""
+        manager = ConfigManager()
+        u = MagicMock()
+        u.trajectory = [0] * 100
+
+        args = MagicMock(
+            start=10,
+            end=90,
+            step=1,
+            bin_width=30,
+            temperature=298.0,
+            force_partitioning=0.5,
+        )
+
+        with patch.dict(
+            "CodeEntropy.config.arg_config_manager.arg_map",
+            {"force_partitioning": {"default": 0.5}},
+        ):
+            manager.input_parameters_validation(u, args)
+
+    def test_check_input_start_valid(self):
+        """Test that a valid 'start' value does not raise an error."""
+        args = MagicMock(start=50)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        ConfigManager()._check_input_start(u, args)
+
+    def test_check_input_start_invalid(self):
+        """Test that an invalid 'start' value raises a ValueError."""
+        args = MagicMock(start=150)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_start(u, args)
+
+    def test_check_input_end_valid(self):
+        """Test that a valid 'end' value does not raise an error."""
+        args = MagicMock(end=100)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        ConfigManager()._check_input_end(u, args)
+
+    def test_check_input_end_invalid(self):
+        """Test that an 'end' value exceeding trajectory length raises a ValueError."""
+        args = MagicMock(end=101)
+        u = MagicMock()
+        u.trajectory = [0] * 100
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_end(u, args)
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_check_input_step_negative(self, mock_logger):
+        """Test that a negative 'step' value triggers a warning."""
+        args = MagicMock(step=-1)
+        ConfigManager()._check_input_step(args)
+        mock_logger.warning.assert_called_once()
+
+    def test_check_input_bin_width_valid(self):
+        """Test that a valid 'bin_width' value does not raise an error."""
+        args = MagicMock(bin_width=180)
+        ConfigManager()._check_input_bin_width(args)
+
+    def test_check_input_bin_width_invalid_low(self):
+        """Test that a negative 'bin_width' value raises a ValueError."""
+        args = MagicMock(bin_width=-10)
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_bin_width(args)
+
+    def test_check_input_bin_width_invalid_high(self):
+        """Test that a 'bin_width' value above 360 raises a ValueError."""
+        args = MagicMock(bin_width=400)
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_bin_width(args)
+
+    def test_check_input_temperature_valid(self):
+        """Test that a valid 'temperature' value does not raise an error."""
+        args = MagicMock(temperature=298.0)
+        ConfigManager()._check_input_temperature(args)
+
+    def test_check_input_temperature_invalid(self):
+        """Test that a negative 'temperature' value raises a ValueError."""
+        args = MagicMock(temperature=-5)
+        with self.assertRaises(ValueError):
+            ConfigManager()._check_input_temperature(args)
+
+    @patch("CodeEntropy.config.arg_config_manager.logger")
+    def test_check_input_force_partitioning_warning(self, mock_logger):
+        """Test that a non-default 'force_partitioning' value triggers a warning."""
+        args = MagicMock(force_partitioning=0.7)
+        with patch.dict(
+            "CodeEntropy.config.arg_config_manager.arg_map",
+            {"force_partitioning": {"default": 0.5}},
+        ):
+            ConfigManager()._check_input_force_partitioning(args)
+            mock_logger.warning.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -185,3 +185,62 @@ class ConfigManager:
                 handler.setLevel(logging.INFO)
 
         return args
+
+    def input_parameters_validation(self, u, args):
+        """Check the validity of the user inputs against sensible values"""
+
+        self._check_input_start(u, args)
+        self._check_input_end(u, args)
+        self._check_input_step(args)
+        self._check_input_bin_width(args)
+        self._check_input_temperature(args)
+        self._check_input_force_partitioning(args)
+
+    def _check_input_start(self, u, args):
+        """Check that the input does not exceed the length of the trajectory."""
+        if args.start > len(u.trajectory):
+            raise ValueError(
+                f"Invalid 'start' value: {args.start}. It exceeds the trajectory length"
+                " of {len(u.trajectory)}."
+            )
+
+    def _check_input_end(self, u, args):
+        """Check that the end index does not exceed the trajectory length."""
+        if args.end > len(u.trajectory):
+            raise ValueError(
+                f"Invalid 'end' value: {args.end}. It exceeds the trajectory length of"
+                " {len(u.trajectory)}."
+            )
+
+    def _check_input_step(self, args):
+        """Check that the step value is non-negative."""
+        if args.step < 0:
+            logger.warning(
+                f"Negative 'step' value provided: {args.step}. This may lead to"
+                " unexpected behavior."
+            )
+
+    def _check_input_bin_width(self, args):
+        """Check that the bin width is within the valid range [0, 360]."""
+        if args.bin_width < 0 or args.bin_width > 360:
+            raise ValueError(
+                f"Invalid 'bin_width': {args.bin_width}. It must be between 0 and 360"
+                " degrees."
+            )
+
+    def _check_input_temperature(self, args):
+        """Check that the temperature is non-negative."""
+        if args.temperature < 0:
+            raise ValueError(
+                f"Invalid 'temperature': {args.temperature}. Temperature cannot be"
+                " below 0."
+            )
+
+    def _check_input_force_partitioning(self, args):
+        """Warn if force partitioning is not set to the default value."""
+        default_value = arg_map["force_partitioning"]["default"]
+        if args.force_partitioning != default_value:
+            logger.warning(
+                f"'force_partitioning' is set to {args.force_partitioning},"
+                " which differs from the default ({default_value})."
+            )
