@@ -127,7 +127,7 @@ class RunManager:
                 # Log all inputs for the current run
                 logger.info(f"All input for {run_name}")
                 for arg in vars(args):
-                    logger.info(f" {arg}: {getattr(args, arg) or ''}")
+                    logger.info(f" {arg}: {getattr(args, arg)}")
 
                 # Load MDAnalysis Universe
                 tprfile = args.top_traj_file[0]
