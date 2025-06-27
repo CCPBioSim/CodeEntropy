@@ -85,6 +85,34 @@ class ConfigManager:
 
         return config
 
+    def str2bool(self, value):
+        """
+        Convert a string or boolean input into a boolean value.
+
+        Accepts common string representations of boolean values such as:
+        - True values: "true", "t", "yes", "1"
+        - False values: "false", "f", "no", "0"
+
+        If the input is already a boolean, it is returned as-is.
+        Raises:
+            argparse.ArgumentTypeError: If the input cannot be interpreted as a boolean.
+
+        Args:
+            value (str or bool): The input value to convert.
+
+        Returns:
+            bool: The corresponding boolean value.
+        """
+        if isinstance(value, bool):
+            return value
+        value = value.lower()
+        if value in {"true", "t", "yes", "1"}:
+            return True
+        elif value in {"false", "f", "no", "0"}:
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Boolean value expected (True/False).")
+
     def setup_argparse(self):
         """Setup argument parsing dynamically based on arg_map."""
         parser = argparse.ArgumentParser(
@@ -92,8 +120,19 @@ class ConfigManager:
         )
 
         for arg, properties in self.arg_map.items():
-            kwargs = {key: properties[key] for key in properties if key != "help"}
-            parser.add_argument(f"--{arg}", **kwargs, help=properties.get("help"))
+            help_text = properties.get("help", "")
+            default = properties.get("default", None)
+
+            if properties.get("type") == bool:
+                parser.add_argument(
+                    f"--{arg}",
+                    type=self.str2bool,
+                    default=default,
+                    help=f"{help_text} (default: {default})",
+                )
+            else:
+                kwargs = {k: v for k, v in properties.items() if k != "help"}
+                parser.add_argument(f"--{arg}", **kwargs, help=help_text)
 
         return parser
 
