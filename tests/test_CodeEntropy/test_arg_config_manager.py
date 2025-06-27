@@ -137,6 +137,77 @@ class test_arg_config_manager(unittest.TestCase):
         self.assertEqual(args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
         self.assertEqual(args.selection_string, "all")
 
+    @patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=MagicMock(
+            top_traj_file=["/path/to/tpr", "/path/to/trr"],
+            start=10,
+            water_entropy=False,
+        ),
+    )
+    def test_setup_argparse_false_boolean(self, mock_args):
+        """
+        Test that non-boolean arguments are parsed correctly.
+        """
+        arg_config = ConfigManager()
+        parser = arg_config.setup_argparse()
+        args = parser.parse_args()
+
+        self.assertEqual(args.top_traj_file, ["/path/to/tpr", "/path/to/trr"])
+        self.assertEqual(args.start, 10)
+        self.assertFalse(args.water_entropy)
+
+    def test_str2bool_true_variants(self):
+        """Test that various string representations of True are correctly parsed."""
+        arg_config = ConfigManager()
+
+        self.assertTrue(arg_config.str2bool("true"))
+        self.assertTrue(arg_config.str2bool("True"))
+        self.assertTrue(arg_config.str2bool("t"))
+        self.assertTrue(arg_config.str2bool("yes"))
+        self.assertTrue(arg_config.str2bool("1"))
+
+    def test_str2bool_false_variants(self):
+        """Test that various string representations of False are correctly parsed."""
+        arg_config = ConfigManager()
+
+        self.assertFalse(arg_config.str2bool("false"))
+        self.assertFalse(arg_config.str2bool("False"))
+        self.assertFalse(arg_config.str2bool("f"))
+        self.assertFalse(arg_config.str2bool("no"))
+        self.assertFalse(arg_config.str2bool("0"))
+
+    def test_str2bool_boolean_passthrough(self):
+        """Test that boolean values passed directly are returned unchanged."""
+        arg_config = ConfigManager()
+
+        self.assertTrue(arg_config.str2bool(True))
+        self.assertFalse(arg_config.str2bool(False))
+
+    def test_str2bool_invalid_input(self):
+        """Test that invalid string inputs raise an ArgumentTypeError."""
+        arg_config = ConfigManager()
+
+        with self.assertRaises(Exception) as context:
+            arg_config.str2bool("maybe")
+        self.assertIn("Boolean value expected", str(context.exception))
+
+    def test_str2bool_empty_string(self):
+        """Test that an empty string raises an ArgumentTypeError."""
+        arg_config = ConfigManager()
+
+        with self.assertRaises(Exception) as context:
+            arg_config.str2bool("")
+        self.assertIn("Boolean value expected", str(context.exception))
+
+    def test_str2bool_unexpected_number(self):
+        """Test that unexpected numeric strings raise an ArgumentTypeError."""
+        arg_config = ConfigManager()
+
+        with self.assertRaises(Exception) as context:
+            arg_config.str2bool("2")
+        self.assertIn("Boolean value expected", str(context.exception))
+
     def test_cli_overrides_defaults(self):
         """
         Test if CLI parameters override default values.
