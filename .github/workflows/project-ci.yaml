@@ -76,7 +76,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        mdanalysis-version: ["2.7.0", "2.8.0", "2.9.0", "latest"]
+        mdanalysis-version: ["2.9.0", "latest"]
     name: MDAnalysis Compatibility Tests
     steps:
       - name: Checkout repo
