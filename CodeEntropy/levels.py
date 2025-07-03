@@ -70,7 +70,8 @@ class LevelManager:
         return number_molecules, levels
 
     def get_matrices(
-        self, data_container, level, start, end, step, number_frames, highest_level
+        self, data_container, level, number_frames, highest_level, 
+        force_matrix, torque_matrix
     ):
         """
         Function to create the force matrix needed for the transvibrational entropy
@@ -82,9 +83,6 @@ class LevelManager:
             molecule of interest.
             level : string, which of the polymer, residue, or united atom levels
             are the matrices for.
-            start : int, starting frame, default 0 (first frame)
-            end : int, ending frame, default -1 (last frame)
-            step : int, step for going through trajectories, default 1
 
         Returns
         -------
@@ -100,30 +98,26 @@ class LevelManager:
 
         # initialize force and torque arrays
         weighted_forces = [
-            [0 for x in range(number_frames)] for y in range(number_beads)
-        ]
+            [0 for x in range(number_beads) ]
         weighted_torques = [
-            [0 for x in range(number_frames)] for y in range(number_beads)
-        ]
+            [0 for x in range(number_beads) ]
 
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
-            for timestep in data_container.trajectory[start:end:step]:
-                # Set up axes
-                # translation and rotation use different axes
-                # how the axes are defined depends on the level
-                trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
+            # Set up axes
+            # translation and rotation use different axes
+            # how the axes are defined depends on the level
+            trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
 
-                # Sort out coordinates, forces, and torques for each atom in the bead
-                timestep_index = timestep.frame - start
-                weighted_forces[bead_index][timestep_index] = self.get_weighted_forces(
-                    data_container, list_of_beads[bead_index], trans_axes, highest_level
+            # Sort out coordinates, forces, and torques for each atom in the bead
+            weighted_forces[bead_index] = self.get_weighted_forces(
+                data_container, list_of_beads[bead_index], trans_axes, highest_level
+            )
+            weighted_torques[bead_index] = (
+                self.get_weighted_torques(
+                    data_container, list_of_beads[bead_index], rot_axes
                 )
-                weighted_torques[bead_index][timestep_index] = (
-                    self.get_weighted_torques(
-                        data_container, list_of_beads[bead_index], rot_axes
-                    )
-                )
+            )
 
         # Make covariance matrices - looping over pairs of beads
         # list of pairs of indices
@@ -154,23 +148,27 @@ class LevelManager:
                 torque_submatrix[j][i] = np.transpose(torque_submatrix[i][j])
 
         # use np.block to make submatrices into one matrix
-        force_matrix = np.block(
+        force_block = np.block(
             [
                 [force_submatrix[i][j] for j in range(number_beads)]
                 for i in range(number_beads)
             ]
         )
 
-        torque_matrix = np.block(
+        torque_block = np.block(
             [
                 [torque_submatrix[i][j] for j in range(number_beads)]
                 for i in range(number_beads)
             ]
         )
 
-        # fliter zeros to remove any rows/columns that are all zero
-        force_matrix = self.filter_zero_rows_columns(force_matrix)
-        torque_matrix = self.filter_zero_rows_columns(torque_matrix)
+    #    # fliter zeros to remove any rows/columns that are all zero
+     #   force_matrix = self.filter_zero_rows_columns(force_matrix)
+     #   torque_matrix = self.filter_zero_rows_columns(torque_matrix)
+        
+        # Add forces/torques from this time frame into the matrices
+        force_matrix = np.add(force_matrix, force_block)
+        torque_matrix = np.add(torque_matrix, torque_block)
 
         logger.debug(f"Force Matrix: {force_matrix}")
         logger.debug(f"Torque Matrix: {torque_matrix}")

@@ -63,6 +63,7 @@ class EntropyManager:
 
         reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
+        number_residues = len(reduced_atom.residues)
 
         ve = VibrationalEntropy(
             self._run_manager,
@@ -79,86 +80,102 @@ class EntropyManager:
             self._level_manager,
         )
 
-        for molecule_id in range(number_molecules):
-            mol_container = self._get_molecule_container(reduced_atom, molecule_id)
+        # Initialise force and torque matrices
+        force_matrix_ua = [[] for _ in range(number_residues)]
+        force_matrix_res = [[] for _ in range(number_molecules)]
+        force_matrix_poly = [[] for _ in range(number_molecules)]
+        torque_matrix_ua = [[] for _ in range(number_residues)]
+        torque_matrix_res = [[] for _ in range(number_molecules)]
+        torque_matrix_poly = [[] for _ in range(number_molecules)]
 
-            for level in levels[molecule_id]:
+        for timestep in reduced_atom.trajectory[start:end:step]:
+            time_index = timestep.frame - start
+
+            for molecule_id in range(number_molecules):
+                mol_container = self._get_molecule_container(reduced_atom, molecule_id)
+
+                for level in levels[molecule_id]:
+                    # Identify if level is the highest (molecule) level
+                    highest_level = level == levels[molecule_id][-1]
+
+                    # Get matrices for vibrational entropy calculations
+                    if level == "united_atom":
+                       for res_id, residue in enumerate(mol_container.residues):
+                           res_container = self._run_manager.new_U_select_atom(
+                               mol_container,
+                               f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}",
+                               )
+
+                           force_matrix, torque_matrix = self._level_manager.get_matrices(
+                               res_container,level, number_frames, 
+                               highest_level, force_matrix_ua[res_id],
+                               torque_matrix_ua[res_id]
+                           )
+                           force_matrix_ua[res_id] = force_matrix
+                           torque_matrix_ua[res_id] = torque_matrix
+
+                    elif level == "residue":
+                        force_matrix, torque_matrix = self._level_manager.get_matrices(mol_container,level,number_frames,highest_level, force_matrix_res[molecule_id],torque_matrix_res[molecule_id])
+                        force_matrix_res[molecule_id] = force_matrix
+                        torque_matrix_res[molecule_id] = torque_matrix
+                        
+                    elif level =="polymer":
+                        force_matrix, torque_matrix = self._level_manager.get_matrices(mol_container,level,number_frames,highest_level, force_matrix_poly[molecule_id],torque_matrix_poly[molecule_id])
+                        force_matrix_poly[molecule_id] = force_matrix
+                        torque_matrix_poly[molecule_id] = torque_matrix
+
+                    #TODO When function is ready
+                    # Get environment information for orientational entropy
+                ##    if highest_level:
+                ##        number_neighbours = get_neighbours()
+    
+       # Get states for conformational entropy calculation
+       bin_width = self._args.bin_width
+       for molecule_id in range(number_molecule):
+           mol_container = self._get_molecule_container(reduced_atom, molecule_id)
+           for level in levels[molecule_id]:
+               if level == "united_atom":
+                   for res_id, residue in enumerate(mol_container.residues):
+                       res_container = self._run_manager.new_U_select_atom(
+                           mol_container,
+                           f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}",
+                           )
+                       heavy_res = self._run_manager.new_U_select_atom(
+                           res_container, "not name H*"
+                           )
+
+                       dihedrals = self._level_manager.get_dihedrals(heavy_res, level)
+                       states_ua[res_id] = ce.assign_conformations(heavy_res, dihedrals, number_frames, bin_width, start, end, step)
+
+               if level == "residue":
+                   dihedrals = self._level_manager.get_dihedrals(mol_container, level)
+                   states_res[molecule_id] = ce.assign_conformations(mol_container, dihedrals, number_frames, bin_width, start, end, step)
+
+       # Do the entropy calculations
+       for molecule_id in range(number_molecules):
+           mol_container = self._get_molecule_container(reduced_atom, molecule_id)
+           for level in levels[molecule_id]:
+                # Identify if level is the highest (molecule) level
                 highest_level = level == levels[molecule_id][-1]
-                if level == "united_atom":
-                    self._process_united_atom_level(
-                        molecule_id,
-                        mol_container,
-                        ve,
-                        ce,
-                        level,
-                        start,
-                        end,
-                        step,
-                        number_frames,
-                        highest_level,
-                    )
 
-                    logger.debug(
-                        "%s level: molecule_data: %s",
-                        level,
-                        self._data_logger.molecule_data,
-                    )
-                    logger.debug(
-                        "%s level: residue_data: %s",
-                        level,
-                        self._data_logger.residue_data,
-                    )
+               if level == "united_atom":
+                   for res_id, residue in enumerate(mol_container.residues):
+                       self._process_united_atom_level(molecule_id, res_id, ve, ce, force_matrix_ua[res_id], torque_matrix_ua[res_id], states_ua[res_id], highest)
 
-                elif level in ("polymer", "residue"):
-                    self._process_vibrational_only_levels(
-                        molecule_id,
-                        mol_container,
-                        ve,
-                        level,
-                        start,
-                        end,
-                        step,
-                        number_frames,
-                        highest_level,
-                    )
+               elif level == "residue":
+                   self._process_vibrational_entropy(molecule_id, mol_container, ve, level, force_matrix_res[molecule_id], torque_matrix_res[molecule_id], highest)
+                   self._process_conformational_entropy(molecule_id, mol_container, ce, states_res[molecule_id])
 
-                    logger.debug(
-                        "%s level: molecule_data: %s",
-                        level,
-                        self._data_logger.molecule_data,
-                    )
-                    logger.debug(
-                        "%s level: residue_data: %s",
-                        level,
-                        self._data_logger.residue_data,
-                    )
+               elif level == "polymer":
+                   self._process_vibrational_entropy(molecule_id, mol_container, ve, level, force_matrix_poly[molecule_id], torque_matrix_poly[molecule_id], highest)
+              
+               #TODO when orientational entropy function is ready
+           ##    if highest:
+             ##      self._process_orientational_entropy()
 
-                if level == "residue":
-                    self._process_conformational_residue_level(
-                        molecule_id,
-                        mol_container,
-                        ce,
-                        level,
-                        start,
-                        end,
-                        step,
-                        number_frames,
-                    )
+           self._finalize_molecule_results()
 
-                    logger.debug(
-                        "%s level: molecule_data: %s",
-                        level,
-                        self._data_logger.molecule_data,
-                    )
-                    logger.debug(
-                        "%s level: residue_data: %s",
-                        level,
-                        self._data_logger.residue_data,
-                    )
-
-        self._finalize_molecule_results()
-
-        self._data_logger.log_tables()
+           self._data_logger.log_tables()
 
     def _get_trajectory_bounds(self):
         """
@@ -228,8 +245,8 @@ class EntropyManager:
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
         return self._run_manager.new_U_select_atom(universe, selection_string)
 
-    def _process_united_atom_level(
-        self, mol_id, mol_container, ve, ce, level, start, end, step, n_frames, highest
+    def _process_united_atom_entropy(
+        self, mol_id, res_id, ve, ce, force_matrix, torque_matrix, states, highest
     ):
         """
         Calculates translational, rotational, and conformational entropy at the
@@ -246,21 +263,9 @@ class EntropyManager:
             highest (bool): Whether this is the highest level of resolution for
             the molecule.
         """
-        bin_width = self._args.bin_width
         S_trans, S_rot, S_conf = 0, 0, 0
+
         for residue_id, residue in enumerate(mol_container.residues):
-            res_container = self._run_manager.new_U_select_atom(
-                mol_container,
-                f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}",
-            )
-            heavy_res = self._run_manager.new_U_select_atom(
-                res_container, "not name H*"
-            )
-
-            force_matrix, torque_matrix = self._level_manager.get_matrices(
-                res_container, level, start, end, step, n_frames, highest
-            )
-
             S_trans_res = ve.vibrational_entropy_calculation(
                 force_matrix, "force", self._args.temperature, highest
             )
@@ -268,9 +273,8 @@ class EntropyManager:
                 torque_matrix, "torque", self._args.temperature, highest
             )
 
-            dihedrals = self._level_manager.get_dihedrals(heavy_res, level)
             S_conf_res = ce.conformational_entropy_calculation(
-                heavy_res, dihedrals, bin_width, start, end, step, n_frames
+                mol_id, states
             )
 
             S_trans += S_trans_res
@@ -297,26 +301,24 @@ class EntropyManager:
             residue.resname, level, "Conformational", S_conf
         )
 
-    def _process_vibrational_only_levels(
-        self, mol_id, mol_container, ve, level, start, end, step, n_frames, highest
+    def _process_vibrational_entropy(
+        self, mol_id, mol_container, ve, level, force_matrix, torque_matrix, highest
     ):
         """
-        Calculates vibrational entropy at levels where conformational entropy is
-        not considered.
+        Calculates vibrational entropy.
 
         Args:
             mol_id (int): Molecule ID.
             mol_container (Universe): Selected molecule's universe.
             ve: VibrationalEntropy object.
-            level (str): Current granularity level ('polymer' or 'residue').
-            start, end, step (int): Trajectory frame parameters.
-            n_frames (int): Number of trajectory frames.
+            level (str): Current granularity level.
+            force_matrix : Force covariance matrix
+            torque_matrix : Torque covariance matrix
             highest (bool): Flag indicating if this is the highest granularity
             level.
         """
-        force_matrix, torque_matrix = self._level_manager.get_matrices(
-            mol_container, level, start, end, step, n_frames, highest
-        )
+        force_matrix, torque_matrix = self.force_matrix, self.torque_matrix
+
         S_trans = ve.vibrational_entropy_calculation(
             force_matrix, "force", self._args.temperature, highest
         )
@@ -331,9 +333,7 @@ class EntropyManager:
             residue.resname, level, "Rovibrational", S_rot
         )
 
-    def _process_conformational_residue_level(
-        self, mol_id, mol_container, ce, level, start, end, step, n_frames
-    ):
+    def _process_conformational_entropy(self, mol_id, mol_container, ce, states):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
         analysis).
@@ -346,11 +346,7 @@ class EntropyManager:
             start, end, step (int): Frame bounds.
             n_frames (int): Number of frames used.
         """
-        bin_width = self._args.bin_width
-        dihedrals = self._level_manager.get_dihedrals(mol_container, level)
-        S_conf = ce.conformational_entropy_calculation(
-            mol_container, dihedrals, bin_width, start, end, step, n_frames
-        )
+        S_conf = ce.conformational_entropy_calculation(states)
         residue = mol_container.residues[mol_id]
         self._data_logger.add_results_data(
             residue.resname, level, "Conformational", S_conf
