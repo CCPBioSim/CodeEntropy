@@ -1,0 +1,63 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: CodeEntropy
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Arghya
+    family-names: Chakravorty
+    email: arghyac@umich.edu
+    orcid: 'https://orcid.org/0000-0002-4467-1135'
+    affiliation: University of Michigan
+  - given-names: Jas
+    family-names: Kalayan
+    email: jas.kalayan@stfc.ac.uk
+    affiliation: 'STFC, Scientific Computing'
+    orcid: 'https://orcid.org/0000-0002-6833-1864'
+  - given-names: Donald
+    family-names: Chung-HK
+    email: donald.chung@stfc.ac.uk
+    affiliation: 'STFC, Scientific Computing'
+  - given-names: Sarah
+    family-names: Fegan
+    email: sarah.fegan@stfc.ac.uk
+    affiliation: 'STFC, Scientific Computing'
+    orcid: 'https://orcid.org/0009-0007-1030-228X'
+  - given-names: James
+    family-names: Gebbie-Rayet
+    email: james.gebbie@stfc.ac.uk
+    affiliation: 'STFC, Scientific Computing'
+    orcid: 'https://orcid.org/0000-0001-8271-3431'
+  - given-names: Harry
+    family-names: Swift
+    email: harry.swift@stfc.ac.uk
+    affiliation: 'STFC, Scientific Computing'
+  - given-names: Ioana
+    family-names: Papa
+    email: iapapa1@sheffield.ac.uk
+    affiliation: University of Sheffield
+repository-code: 'https://github.com/CCPBioSim/CodeEntropy'
+url: 'https://ccpbiosim.github.io/CodeEntropy/'
+abstract: >-
+  CodeEntropy is a Python package for calculating
+  configurational entropy from molecular dynamics
+  simulations using the multiscale cell correlation (MCC)
+  method. It enables multiscale analysis of atomic
+  fluctuations to quantify molecular flexibility and
+  disorder.
+keywords:
+  - entropy
+  - configurational entropy
+  - molecular dynamics
+  - MD simulations
+  - multiscale cell correlation
+  - statistical mechanics
+  - biomolecular simulations
+  - protein flexibility
+license: MIT
+version: 0.3.6
+date-released: '2022-07-06'
