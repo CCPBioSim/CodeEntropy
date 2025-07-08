@@ -6,6 +6,13 @@ import numpy as np
 import pandas as pd
 import waterEntropy.recipes.interfacial_solvent as GetSolvent
 from numpy import linalg as la
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,25 +86,72 @@ class EntropyManager:
             self._level_manager,
         )
 
-        for molecule_id in range(number_molecules):
-            mol_container = self._get_molecule_container(reduced_atom, molecule_id)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.1f}%",
+            TimeElapsedColumn(),
+        ) as progress:
 
-            for level in levels[molecule_id]:
-                highest_level = level == levels[molecule_id][-1]
-                if level == "united_atom":
-                    self._process_united_atom_level(
-                        molecule_id,
-                        mol_container,
-                        ve,
-                        ce,
-                        level,
-                        start,
-                        end,
-                        step,
-                        number_frames,
-                        highest_level,
-                    )
+            mol_task = progress.add_task(
+                "[green]Calculating Entropy...",
+                total=number_molecules,
+                title="Molecules",
+            )
 
+            for molecule_id in range(number_molecules):
+                mol_container = self._get_molecule_container(reduced_atom, molecule_id)
+                molecule_levels = levels[molecule_id]
+
+                level_task = progress.add_task(
+                    f"[magenta]Levels for molecule {molecule_id}",
+                    total=len(molecule_levels),
+                    title=f"Mol {molecule_id}",
+                )
+
+                for level in molecule_levels:
+                    highest_level = level == molecule_levels[-1]
+
+                    if level == "united_atom":
+                        self._process_united_atom_level(
+                            molecule_id,
+                            mol_container,
+                            ve,
+                            ce,
+                            level,
+                            start,
+                            end,
+                            step,
+                            number_frames,
+                            highest_level,
+                        )
+                    elif level in ("polymer", "residue"):
+                        self._process_vibrational_only_levels(
+                            molecule_id,
+                            mol_container,
+                            ve,
+                            level,
+                            start,
+                            end,
+                            step,
+                            number_frames,
+                            highest_level,
+                        )
+
+                    if level == "residue":
+                        self._process_conformational_residue_level(
+                            molecule_id,
+                            mol_container,
+                            ce,
+                            level,
+                            start,
+                            end,
+                            step,
+                            number_frames,
+                        )
+
+                    # Log after level processed
                     logger.debug(
                         "%s level: molecule_data: %s",
                         level,
@@ -109,55 +163,11 @@ class EntropyManager:
                         self._data_logger.residue_data,
                     )
 
-                elif level in ("polymer", "residue"):
-                    self._process_vibrational_only_levels(
-                        molecule_id,
-                        mol_container,
-                        ve,
-                        level,
-                        start,
-                        end,
-                        step,
-                        number_frames,
-                        highest_level,
-                    )
+                    progress.advance(level_task)
 
-                    logger.debug(
-                        "%s level: molecule_data: %s",
-                        level,
-                        self._data_logger.molecule_data,
-                    )
-                    logger.debug(
-                        "%s level: residue_data: %s",
-                        level,
-                        self._data_logger.residue_data,
-                    )
-
-                if level == "residue":
-                    self._process_conformational_residue_level(
-                        molecule_id,
-                        mol_container,
-                        ce,
-                        level,
-                        start,
-                        end,
-                        step,
-                        number_frames,
-                    )
-
-                    logger.debug(
-                        "%s level: molecule_data: %s",
-                        level,
-                        self._data_logger.molecule_data,
-                    )
-                    logger.debug(
-                        "%s level: residue_data: %s",
-                        level,
-                        self._data_logger.residue_data,
-                    )
+                progress.advance(mol_task)
 
         self._finalize_molecule_results()
-
         self._data_logger.log_tables()
 
     def _get_trajectory_bounds(self):
