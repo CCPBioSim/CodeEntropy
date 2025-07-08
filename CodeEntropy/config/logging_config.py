@@ -1,12 +1,22 @@
 import logging
 import logging.config
 import os
+import sys
+
+from rich.console import Console
+from rich.logging import RichHandler
 
 
 class LoggingConfig:
+    _console = None
+
     def __init__(self, folder, log_level=logging.INFO):
         log_directory = os.path.join(folder, "logs")
         os.makedirs(log_directory, exist_ok=True)
+
+        self.log_level = log_level
+        self.log_directory = log_directory
+        self.program_out_path = os.path.join(log_directory, "program.out")
 
         self.LOGGING = {
             "version": 1,
@@ -23,14 +33,9 @@ class LoggingConfig:
                 },
             },
             "handlers": {
-                "console": {
-                    "class": "logging.StreamHandler",
-                    "formatter": "simple",
-                    "level": logging.INFO,
-                },
-                "stdout": {
+                "program_out_file": {
                     "class": "logging.FileHandler",
-                    "filename": os.path.join(log_directory, "program.out"),
+                    "filename": self.program_out_path,
                     "formatter": "simple",
                     "level": logging.INFO,
                 },
@@ -61,7 +66,7 @@ class LoggingConfig:
             },
             "loggers": {
                 "": {
-                    "handlers": ["console", "stdout", "logfile", "errorfile"],
+                    "handlers": ["program_out_file", "logfile", "errorfile"],
                     "level": log_level,
                 },
                 "MDAnalysis": {
@@ -78,10 +83,39 @@ class LoggingConfig:
         }
 
     def setup_logging(self):
+        # Configure file-based logging
         logging.config.dictConfig(self.LOGGING)
-        logging.getLogger("MDAnalysis")
-        logging.getLogger("commands")
+
+        # Set up rich handler for terminal output
+        LoggingConfig._console = Console(
+            file=sys.stdout,
+            force_terminal=True,
+            width=120,
+            soft_wrap=True,
+            record=True,
+        )
+
+        rich_handler = RichHandler(
+            console=LoggingConfig._console,
+            markup=True,
+            rich_tracebacks=True,
+            show_time=True,
+            show_level=True,
+            show_path=False,
+        )
+        rich_handler.setLevel(logging.INFO)
+
+        # Attach RichHandler to root logger
+        root_logger = logging.getLogger()
+        root_logger.addHandler(rich_handler)
+
         return logging.getLogger(__name__)
+
+    @classmethod
+    def get_console(cls):
+        if cls._console is None:
+            cls._console = Console()
+        return cls._console
 
     def update_logging_level(self, log_level):
         # Update the root logger level
@@ -102,3 +136,9 @@ class LoggingConfig:
                     if isinstance(handler, logging.FileHandler)
                     else logging.INFO
                 )
+
+    def save_console_output(self):
+        if self._console:
+            print(self.program_out_path)
+            with open(self.program_out_path, "w", encoding="utf-8") as f:
+                f.write(self._console.export_text())

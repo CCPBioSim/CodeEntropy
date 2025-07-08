@@ -2,14 +2,19 @@ import json
 import logging
 import re
 
-from tabulate import tabulate
+from rich.console import Console
+from rich.table import Table
+
+from CodeEntropy.config.logging_config import LoggingConfig
 
 # Set up logger
 logger = logging.getLogger(__name__)
+console = LoggingConfig.get_console()
 
 
 class DataLogger:
-    def __init__(self):
+    def __init__(self, console=None):
+        self.console = console or Console()
         self.molecule_data = []
         self.residue_data = []
 
@@ -39,33 +44,31 @@ class DataLogger:
         self.residue_data.append([resid, resname, level, entropy_type, value])
 
     def log_tables(self):
-        """Log both tables at once"""
-        # Log molecule data
-        if self.molecule_data:
-            logger.info("Molecule Data Table:")
-            table_str = tabulate(
-                self.molecule_data,
-                headers=["Residue Name", "Level", "Type", "Result (J/mol/K)"],
-                tablefmt="grid",
-                numalign="center",
-                stralign="center",
-            )
-            logger.info(f"\n{table_str}")
+        """Display rich tables in terminal"""
 
-        # Log residue data
-        if self.residue_data:
-            logger.info("Residue Data Table:")
-            table_str = tabulate(
-                self.residue_data,
-                headers=[
-                    "Residue ID",
-                    "Residue Name",
-                    "Level",
-                    "Type",
-                    "Result (J/mol/K)",
-                ],
-                tablefmt="grid",
-                numalign="center",
-                stralign="center",
+        if self.molecule_data:
+            table = Table(
+                title="Molecule Entropy Results", show_lines=True, expand=True
             )
-            logger.info(f"\n{table_str}")
+            table.add_column("Residue Name", justify="center", style="bold cyan")
+            table.add_column("Level", justify="center", style="magenta")
+            table.add_column("Type", justify="center", style="green")
+            table.add_column("Result (J/mol/K)", justify="center", style="yellow")
+
+            for row in self.molecule_data:
+                table.add_row(*[str(cell) for cell in row])
+
+            console.print(table)
+
+        if self.residue_data:
+            table = Table(title="Residue Entropy Results", show_lines=True, expand=True)
+            table.add_column("Residue ID", justify="center", style="bold cyan")
+            table.add_column("Residue Name", justify="center", style="cyan")
+            table.add_column("Level", justify="center", style="magenta")
+            table.add_column("Type", justify="center", style="green")
+            table.add_column("Result (J/mol/K)", justify="center", style="yellow")
+
+            for row in self.residue_data:
+                table.add_row(*[str(cell) for cell in row])
+
+            console.print(table)
