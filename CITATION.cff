@@ -13,11 +13,6 @@ authors:
     email: arghyac@umich.edu
     orcid: 'https://orcid.org/0000-0002-4467-1135'
     affiliation: University of Michigan
-  - given-names: Jas
-    family-names: Kalayan
-    email: jas.kalayan@stfc.ac.uk
-    affiliation: 'STFC, Scientific Computing'
-    orcid: 'https://orcid.org/0000-0002-6833-1864'
   - given-names: Donald
     family-names: Chung-HK
     email: donald.chung@stfc.ac.uk
@@ -32,14 +27,30 @@ authors:
     email: james.gebbie@stfc.ac.uk
     affiliation: 'STFC, Scientific Computing'
     orcid: 'https://orcid.org/0000-0001-8271-3431'
-  - given-names: Harry
-    family-names: Swift
-    email: harry.swift@stfc.ac.uk
+  - given-names: Sarah
+    family-names: Harris
+    email: sarah.harris@sheffield.ac.uk
+    affiliation: University of Sheffield
+    orcid: 'https://orcid.org/0000-0002-2812-1651'
+  - given-names: Richard
+    family-names: Henchman
+    email: rhen7213@uni.sydney.edu.au
+    affiliation: University of Sydney
+    orcid: 'https://orcid.org/0000-0002-0461-6625'
+  - given-names: Jas
+    family-names: Kalayan
+    email: jas.kalayan@stfc.ac.uk
     affiliation: 'STFC, Scientific Computing'
+    orcid: 'https://orcid.org/0000-0002-6833-1864'
   - given-names: Ioana
     family-names: Papa
     email: iapapa1@sheffield.ac.uk
     affiliation: University of Sheffield
+    orcid: 'https://orcid.org/0009-0000-2287-4081'
+  - given-names: Harry
+    family-names: Swift
+    email: harry.swift@stfc.ac.uk
+    affiliation: 'STFC, Scientific Computing'
 repository-code: 'https://github.com/CCPBioSim/CodeEntropy'
 url: 'https://ccpbiosim.github.io/CodeEntropy/'
 abstract: >-
