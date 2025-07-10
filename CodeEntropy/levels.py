@@ -70,8 +70,13 @@ class LevelManager:
         return number_molecules, levels
 
     def get_matrices(
-        self, data_container, level, number_frames, highest_level, 
-        force_matrix, torque_matrix
+        self,
+        data_container,
+        level,
+        number_frames,
+        highest_level,
+        force_matrix,
+        torque_matrix,
     ):
         """
         Function to create the force matrix needed for the transvibrational entropy
@@ -97,10 +102,8 @@ class LevelManager:
         number_beads = len(list_of_beads)
 
         # initialize force and torque arrays
-        weighted_forces = [
-            [0 for x in range(number_beads) ]
-        weighted_torques = [
-            [0 for x in range(number_beads) ]
+        weighted_forces = [[0 for x in range(number_beads)]]
+        weighted_torques = [[0 for x in range(number_beads)]]
 
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
@@ -113,10 +116,8 @@ class LevelManager:
             weighted_forces[bead_index] = self.get_weighted_forces(
                 data_container, list_of_beads[bead_index], trans_axes, highest_level
             )
-            weighted_torques[bead_index] = (
-                self.get_weighted_torques(
-                    data_container, list_of_beads[bead_index], rot_axes
-                )
+            weighted_torques[bead_index] = self.get_weighted_torques(
+                data_container, list_of_beads[bead_index], rot_axes
             )
 
         # Make covariance matrices - looping over pairs of beads
@@ -162,10 +163,10 @@ class LevelManager:
             ]
         )
 
-    #    # fliter zeros to remove any rows/columns that are all zero
-     #   force_matrix = self.filter_zero_rows_columns(force_matrix)
-     #   torque_matrix = self.filter_zero_rows_columns(torque_matrix)
-        
+        #    # fliter zeros to remove any rows/columns that are all zero
+        #   force_matrix = self.filter_zero_rows_columns(force_matrix)
+        #   torque_matrix = self.filter_zero_rows_columns(torque_matrix)
+
         # Add forces/torques from this time frame into the matrices
         force_matrix = np.add(force_matrix, force_block)
         torque_matrix = np.add(torque_matrix, torque_block)
