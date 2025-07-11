@@ -79,20 +79,27 @@ class LevelManager:
         torque_matrix,
     ):
         """
-        Function to create the force matrix needed for the transvibrational entropy
-        calculation and the torque matrix for the rovibrational entropy calculation.
+        Compute and accumulate force/torque covariance matrices for a given level.
 
-        Input
-        -----
-            data_container : MDAnalysis universe type with the information on the
-            molecule of interest.
-            level : string, which of the polymer, residue, or united atom levels
-            are the matrices for.
+        Parameters
+        ----------
+        data_container : MDAnalysis.Universe
+            Atom group for a molecule or residue.
+        level : str
+            'polymer', 'residue', or 'united_atom'.
+        number_frames : int
+            Number of frames being processed.
+        highest_level : bool
+            Whether this is the top (polymer) level.
+        force_matrix, torque_matrix : np.ndarray or None
+            Accumulated matrices to add to.
 
         Returns
         -------
-            force_matrix : force covariance matrix for transvibrational entropy
-            torque_matrix : torque convariance matrix for rovibrational entropy
+        force_matrix : np.ndarray
+            Accumulated force covariance matrix.
+        torque_matrix : np.ndarray
+            Accumulated torque covariance matrix.
         """
 
         # Make beads
@@ -102,8 +109,8 @@ class LevelManager:
         number_beads = len(list_of_beads)
 
         # initialize force and torque arrays
-        weighted_forces = [[0 for x in range(number_beads)]]
-        weighted_torques = [[0 for x in range(number_beads)]]
+        weighted_forces = [None for _ in range(number_beads)]
+        weighted_torques = [None for _ in range(number_beads)]
 
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
@@ -125,10 +132,10 @@ class LevelManager:
         pair_list = [(i, j) for i in range(number_beads) for j in range(number_beads)]
 
         force_submatrix = [
-            [0 for x in range(number_beads)] for y in range(number_beads)
+            [0 for _ in range(number_beads)] for _ in range(number_beads)
         ]
         torque_submatrix = [
-            [0 for x in range(number_beads)] for y in range(number_beads)
+            [0 for _ in range(number_beads)] for _ in range(number_beads)
         ]
 
         for i, j in pair_list:
@@ -137,16 +144,17 @@ class LevelManager:
             # for [j][i]
             if i <= j:
                 # calculate the force covariance segment of the matrix
-                force_submatrix[i][j] = self.create_submatrix(
+                f_sub = self.create_submatrix(
                     weighted_forces[i], weighted_forces[j], number_frames
                 )
-                force_submatrix[j][i] = np.transpose(force_submatrix[i][j])
-
-                # calculate the torque covariance segment of the matrix
-                torque_submatrix[i][j] = self.create_submatrix(
+                t_sub = self.create_submatrix(
                     weighted_torques[i], weighted_torques[j], number_frames
                 )
-                torque_submatrix[j][i] = np.transpose(torque_submatrix[i][j])
+
+                force_submatrix[i][j] = f_sub
+                force_submatrix[j][i] = f_sub.T
+                torque_submatrix[i][j] = t_sub
+                torque_submatrix[j][i] = t_sub.T
 
         # use np.block to make submatrices into one matrix
         force_block = np.block(
@@ -163,18 +171,55 @@ class LevelManager:
             ]
         )
 
-        #    # fliter zeros to remove any rows/columns that are all zero
-        #   force_matrix = self.filter_zero_rows_columns(force_matrix)
-        #   torque_matrix = self.filter_zero_rows_columns(torque_matrix)
+        # Accumulate into full matrices, with shape-safe padding if needed
+        if force_matrix is None:
+            force_matrix = np.zeros_like(force_block)
+        elif force_matrix.shape != force_block.shape:
+            force_matrix = self._pad_and_add(force_matrix, force_block)
+        else:
+            force_matrix += force_block
 
-        # Add forces/torques from this time frame into the matrices
-        force_matrix = np.add(force_matrix, force_block)
-        torque_matrix = np.add(torque_matrix, torque_block)
-
-        logger.debug(f"Force Matrix: {force_matrix}")
-        logger.debug(f"Torque Matrix: {torque_matrix}")
+        if torque_matrix is None:
+            torque_matrix = np.zeros_like(torque_block)
+        elif torque_matrix.shape != torque_block.shape:
+            torque_matrix = self._pad_and_add(torque_matrix, torque_block)
+        else:
+            torque_matrix += torque_block
 
         return force_matrix, torque_matrix
+
+    def _pad_and_add(self, A, B):
+        """
+        Pads two 2D numpy arrays with zeros to match their largest dimensions
+        and returns their element-wise sum.
+
+        Both input arrays A and B can have different shapes. This function
+        creates zero-padded versions of A and B with the shape equal to the
+        maximum number of rows and columns from both arrays, then adds them.
+
+        Parameters
+        ----------
+        A : np.ndarray
+            First 2D array to pad and add.
+        B : np.ndarray
+            Second 2D array to pad and add.
+
+        Returns
+        -------
+        np.ndarray
+            A new 2D array containing the element-wise sum of the padded A and B,
+            with shape (max_rows, max_cols).
+        """
+        max_rows = max(A.shape[0], B.shape[0])
+        max_cols = max(A.shape[1], B.shape[1])
+
+        A_pad = np.zeros((max_rows, max_cols))
+        B_pad = np.zeros((max_rows, max_cols))
+
+        A_pad[: A.shape[0], : A.shape[1]] = A
+        B_pad[: B.shape[0], : B.shape[1]] = B
+
+        return A_pad + B_pad
 
     def get_dihedrals(self, data_container, level):
         """
@@ -657,12 +702,8 @@ class LevelManager:
 
         # For each frame calculate the outer product (cross product) of the data from
         # the two beads and add the result to the submatrix
-        for frame in range(number_frames):
-            outer_product_matrix = np.outer(data_i[frame], data_j[frame])
-            submatrix = np.add(submatrix, outer_product_matrix)
-
-        # Divide by the number of frames to get the average
-        submatrix /= number_frames
+        outer_product_matrix = np.outer(data_i, data_j)
+        submatrix = np.add(submatrix, outer_product_matrix)
 
         logger.debug(f"Submatrix: {submatrix}")
 
