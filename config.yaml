@@ -12,4 +12,4 @@ run1:
   thread:
   output_file:
   force_partitioning:
-  disable_water_entropy:
+  water_entropy:

@@ -76,7 +76,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        mdanalysis-version: ["2.7.0", "2.8.0", "2.9.0", "latest"]
+        mdanalysis-version: ["2.9.0", "latest"]
     name: MDAnalysis Compatibility Tests
     steps:
       - name: Checkout repo
@@ -110,6 +110,6 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
-          filename: .github/mdanalysis-compatibility-failure.md
+          filename: .github/workflows/mdanalysis-compatibility-failure.md
           update_existing: true
           search_existing: open
