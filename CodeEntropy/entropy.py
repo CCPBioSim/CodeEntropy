@@ -81,15 +81,15 @@ class EntropyManager:
         )
 
         # Initialise force and torque matrices
-        force_matrix_ua = [[] for _ in range(number_residues)]
-        force_matrix_res = [[] for _ in range(number_molecules)]
-        force_matrix_poly = [[] for _ in range(number_molecules)]
-        torque_matrix_ua = [[] for _ in range(number_residues)]
-        torque_matrix_res = [[] for _ in range(number_molecules)]
-        torque_matrix_poly = [[] for _ in range(number_molecules)]
+        force_matrix_ua = [None for _ in range(number_residues)]
+        force_matrix_res = [None for _ in range(number_molecules)]
+        force_matrix_poly = [None for _ in range(number_molecules)]
+        torque_matrix_ua = [None for _ in range(number_residues)]
+        torque_matrix_res = [None for _ in range(number_molecules)]
+        torque_matrix_poly = [None for _ in range(number_molecules)]
 
-        states_ua = []
-        states_res = []
+        states_ua = [None for _ in range(number_residues)]
+        states_res = [None for _ in range(number_molecules)]
 
         for timestep in reduced_atom.trajectory[start:end:step]:
             # time_index = timestep.frame - start
@@ -172,27 +172,29 @@ class EntropyManager:
                         )
 
                         dihedrals = self._level_manager.get_dihedrals(heavy_res, level)
-                        states_ua[res_id] = ce.assign_conformations(
-                            heavy_res,
-                            dihedrals,
+                        for dihedral in dihedrals:
+                            states_ua[res_id] = ce.assign_conformation(
+                                heavy_res,
+                                dihedral,
+                                number_frames,
+                                bin_width,
+                                start,
+                                end,
+                                step,
+                            )
+
+                if level == "residue":
+                    dihedrals = self._level_manager.get_dihedrals(mol_container, level)
+                    for dihedral in dihedrals:
+                        states_res[molecule_id] = ce.assign_conformation(
+                            mol_container,
+                            dihedral,
                             number_frames,
                             bin_width,
                             start,
                             end,
                             step,
                         )
-
-                if level == "residue":
-                    dihedrals = self._level_manager.get_dihedrals(mol_container, level)
-                    states_res[molecule_id] = ce.assign_conformations(
-                        mol_container,
-                        dihedrals,
-                        number_frames,
-                        bin_width,
-                        start,
-                        end,
-                        step,
-                    )
 
         # Do the entropy calculations
         for molecule_id in range(number_molecules):
