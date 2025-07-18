@@ -1,5 +1,5 @@
 Multiscale Cell Correlation Theory
-==============================
+==================================
 
 This section is to describe the scientific theory behind the methods used in CodeEntropy.
 
@@ -42,17 +42,18 @@ Vibrational Entropy
 
 The vibrational entropy is calculated using the force covariance matrix for the translational contributions to entropy and using the torque covariance matrix for the rotational contributions.
 The eigenvalues of the covariance matrices are use to calculate the frequencies.
-    
+
+.. math::
+   \nu_i = \frac{1}{2\pi} \sqrt{\frac{\lambda_i}{k_BT}}
+
 Then the frequencies are used in the quantum harmonic oscillator equation to calculate the vibrational entropy.
+
+.. math::
+   S_{\mathrm{vib}} = k_B \sum_{i=1}^{3N} \left( \frac{\hbar\nu_i/k_BT}{e^{\hbar\nu_i/k_BT}-1} - \ln\left(1-e^{-\hbar\nu_i/k_BT}\right)\right)
 
 Why Forces and Torques?
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Covarience Matrices
-^^^^^^^^^^^^^^^^^^^
-where do they come from
-
-how are they used
 
 Axes
 ^^^^
@@ -83,6 +84,9 @@ From conformation to entropy
 
 Once the states are defined, the probability of finding the residue or molecule in each state is calculated.
 Then the Boltzmann equation is used to calculate the entropy.
+
+.. math::
+   S_{\mathrm{conf}} = - k_B \sum_{i=1}^{N_{\mathrm{conf}}}p_i\ln{p_i}
 
 Orientational Entropy
 ---------------------

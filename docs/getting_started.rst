@@ -53,7 +53,7 @@ For help
 ^^^^^^^^^^^
 .. code-block:: bash
     
-    CodeEntropy -h
+    CodeEntropy --help
 
 Arguments
 ^^^^^^^^^^^^^
@@ -120,11 +120,30 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - ``bool``
 
 
-Example
+Example #1
 ^^^^^^^^^^
+Example config.yaml file.
+
+.. literalinclude:: config.yaml
+
+You must specify the location of the topology/trajectory file(s) for the top_traj_file variable as there is no default and CodeEntropy cannot run without the data. The temperature variable should be adjusted to the temperature from the simulation. Changing the force_partitioning variable is possible, but not recommended unless you understand what it does and have a good reason to change it.
+
+If you set end to -1, it will stop at the last frame of the trajectory. So, start = 0, end = -1, and step = 1 will use the whole trajectory.
+
+To run CodeEntropy, you want to use the command line and change into the directory where your config.yaml file is located. As long as the file is named config.yaml, CodeEntropy will find it automatically.
 
 .. code-block:: bash
-    
-    # example 1 DNA
 
-    # example 2 lysozyme in water
+  CodeEntropy
+
+Example #2
+^^^^^^^^^^
+To use the same settings as in Example #1, but override trajectory information, you can use the command line flags.
+
+.. code-block:: bash
+
+  CodeEntropy --top_traj_file "md_A4_dna.tpr" "md_A4_dna_xf.trr"
+
+Or as an alternative, you could edit the config.yaml file and use the CodeEntropy command as in the first example.
+
+CodeEntropy creates job* directories for the output, where * is a job number choosen by the so that there are sequentially numbered directories when you rerun CodeEntropy in the same working directory.
