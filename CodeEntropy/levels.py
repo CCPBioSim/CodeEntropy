@@ -127,10 +127,7 @@ class LevelManager:
                 data_container, list_of_beads[bead_index], rot_axes
             )
 
-        # Make covariance matrices - looping over pairs of beads
-        # list of pairs of indices
-        pair_list = [(i, j) for i in range(number_beads) for j in range(number_beads)]
-
+        # Create covariance submatrices
         force_submatrix = [
             [0 for _ in range(number_beads)] for _ in range(number_beads)
         ]
@@ -138,32 +135,26 @@ class LevelManager:
             [0 for _ in range(number_beads)] for _ in range(number_beads)
         ]
 
-        for i, j in pair_list:
-            # for each pair of beads
-            # reducing effort because the matrix for [i][j] is the transpose of the one
-            # for [j][i]
-            if i <= j:
-                # calculate the force covariance segment of the matrix
+        for i in range(number_beads):
+            for j in range(i, number_beads):
                 f_sub = self.create_submatrix(
                     weighted_forces[i], weighted_forces[j], number_frames
                 )
                 t_sub = self.create_submatrix(
                     weighted_torques[i], weighted_torques[j], number_frames
                 )
-
                 force_submatrix[i][j] = f_sub
                 force_submatrix[j][i] = f_sub.T
                 torque_submatrix[i][j] = t_sub
                 torque_submatrix[j][i] = t_sub.T
 
-        # use np.block to make submatrices into one matrix
+        # Convert block matrices to full matrix
         force_block = np.block(
             [
                 [force_submatrix[i][j] for j in range(number_beads)]
                 for i in range(number_beads)
             ]
         )
-
         torque_block = np.block(
             [
                 [torque_submatrix[i][j] for j in range(number_beads)]
@@ -171,55 +162,28 @@ class LevelManager:
             ]
         )
 
-        # Accumulate into full matrices, with shape-safe padding if needed
+        # Enforce consistent shape before accumulation
         if force_matrix is None:
             force_matrix = np.zeros_like(force_block)
         elif force_matrix.shape != force_block.shape:
-            force_matrix = self._pad_and_add(force_matrix, force_block)
+            raise ValueError(
+                f"Inconsistent force matrix shape: existing "
+                f"{force_matrix.shape}, new {force_block.shape}"
+            )
         else:
             force_matrix += force_block
 
         if torque_matrix is None:
             torque_matrix = np.zeros_like(torque_block)
         elif torque_matrix.shape != torque_block.shape:
-            torque_matrix = self._pad_and_add(torque_matrix, torque_block)
+            raise ValueError(
+                f"Inconsistent torque matrix shape: existing "
+                f"{torque_matrix.shape}, new {torque_block.shape}"
+            )
         else:
             torque_matrix += torque_block
 
         return force_matrix, torque_matrix
-
-    def _pad_and_add(self, A, B):
-        """
-        Pads two 2D numpy arrays with zeros to match their largest dimensions
-        and returns their element-wise sum.
-
-        Both input arrays A and B can have different shapes. This function
-        creates zero-padded versions of A and B with the shape equal to the
-        maximum number of rows and columns from both arrays, then adds them.
-
-        Parameters
-        ----------
-        A : np.ndarray
-            First 2D array to pad and add.
-        B : np.ndarray
-            Second 2D array to pad and add.
-
-        Returns
-        -------
-        np.ndarray
-            A new 2D array containing the element-wise sum of the padded A and B,
-            with shape (max_rows, max_cols).
-        """
-        max_rows = max(A.shape[0], B.shape[0])
-        max_cols = max(A.shape[1], B.shape[1])
-
-        A_pad = np.zeros((max_rows, max_cols))
-        B_pad = np.zeros((max_rows, max_cols))
-
-        A_pad[: A.shape[0], : A.shape[1]] = A
-        B_pad[: B.shape[0], : B.shape[1]] = B
-
-        return A_pad + B_pad
 
     def get_dihedrals(self, data_container, level):
         """
