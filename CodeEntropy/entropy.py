@@ -197,6 +197,22 @@ class EntropyManager:
                             step,
                         )
 
+        force_matrix_ua = {k: v / number_frames for k, v in force_matrix_ua.items()}
+        torque_matrix_ua = {k: v / number_frames for k, v in torque_matrix_ua.items()}
+
+        force_matrix_res = [
+            f / number_frames if f is not None else None for f in force_matrix_res
+        ]
+        torque_matrix_res = [
+            t / number_frames if t is not None else None for t in torque_matrix_res
+        ]
+        force_matrix_poly = [
+            f / number_frames if f is not None else None for f in force_matrix_poly
+        ]
+        torque_matrix_poly = [
+            t / number_frames if t is not None else None for t in torque_matrix_poly
+        ]
+
         # Do the entropy calculations
         for molecule_id in range(number_molecules):
             mol_container = self._get_molecule_container(reduced_atom, molecule_id)
