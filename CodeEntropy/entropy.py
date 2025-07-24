@@ -160,11 +160,30 @@ class EntropyManager:
                         force_matrix_poly[molecule_id] = force_matrix
                         torque_matrix_poly[molecule_id] = torque_matrix
 
-        # Get states for conformational entropy calculation
         bin_width = self._args.bin_width
+
+        force_matrix_ua = {k: v / number_frames for k, v in force_matrix_ua.items()}
+        torque_matrix_ua = {k: v / number_frames for k, v in torque_matrix_ua.items()}
+
+        force_matrix_res = [
+            f / number_frames if f is not None else None for f in force_matrix_res
+        ]
+        torque_matrix_res = [
+            t / number_frames if t is not None else None for t in torque_matrix_res
+        ]
+        force_matrix_poly = [
+            f / number_frames if f is not None else None for f in force_matrix_poly
+        ]
+        torque_matrix_poly = [
+            t / number_frames if t is not None else None for t in torque_matrix_poly
+        ]
+
+        # Do the entropy calculations
         for molecule_id in range(number_molecules):
             mol_container = self._get_molecule_container(reduced_atom, molecule_id)
             for level in levels[molecule_id]:
+                highest_level = level == levels[molecule_id][-1]
+
                 if level == "united_atom":
                     for res_id, residue in enumerate(mol_container.residues):
                         key = (molecule_id, res_id)
@@ -192,42 +211,6 @@ class EntropyManager:
                                 step,
                             )
 
-                elif level == "residue":
-                    dihedrals = self._level_manager.get_dihedrals(mol_container, level)
-                    for dihedral in dihedrals:
-                        states_res[molecule_id] = ce.assign_conformation(
-                            mol_container,
-                            dihedral,
-                            number_frames,
-                            bin_width,
-                            start,
-                            end,
-                            step,
-                        )
-
-        force_matrix_ua = {k: v / number_frames for k, v in force_matrix_ua.items()}
-        torque_matrix_ua = {k: v / number_frames for k, v in torque_matrix_ua.items()}
-
-        force_matrix_res = [
-            f / number_frames if f is not None else None for f in force_matrix_res
-        ]
-        torque_matrix_res = [
-            t / number_frames if t is not None else None for t in torque_matrix_res
-        ]
-        force_matrix_poly = [
-            f / number_frames if f is not None else None for f in force_matrix_poly
-        ]
-        torque_matrix_poly = [
-            t / number_frames if t is not None else None for t in torque_matrix_poly
-        ]
-
-        # Do the entropy calculations
-        for molecule_id in range(number_molecules):
-            mol_container = self._get_molecule_container(reduced_atom, molecule_id)
-            for level in levels[molecule_id]:
-                highest_level = level == levels[molecule_id][-1]
-
-                if level == "united_atom":
                     for res_id, residue in enumerate(mol_container.residues):
                         key = (molecule_id, res_id)
                         self._process_united_atom_entropy(
@@ -245,6 +228,19 @@ class EntropyManager:
                         )
 
                 elif level == "residue":
+
+                    dihedrals = self._level_manager.get_dihedrals(mol_container, level)
+                    for dihedral in dihedrals:
+                        states_res[molecule_id] = ce.assign_conformation(
+                            mol_container,
+                            dihedral,
+                            number_frames,
+                            bin_width,
+                            start,
+                            end,
+                            step,
+                        )
+
                     self._process_vibrational_entropy(
                         molecule_id,
                         mol_container,
