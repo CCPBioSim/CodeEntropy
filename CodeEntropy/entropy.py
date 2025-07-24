@@ -93,7 +93,7 @@ class EntropyManager:
         states_res = [None for _ in range(number_molecules)]
 
         for timestep in reduced_atom.trajectory[start:end:step]:
-            # time_index = timestep.frame - start
+            time_index = timestep.frame - start
 
             for molecule_id in range(number_molecules):
                 mol_container = self._get_molecule_container(reduced_atom, molecule_id)
@@ -104,6 +104,7 @@ class EntropyManager:
 
                     # Get matrices for vibrational entropy calculations
                     if level == "united_atom":
+                        mol_container.trajectory[time_index]
                         for res_id, residue in enumerate(mol_container.residues):
                             key = (molecule_id, res_id)
 
@@ -114,6 +115,9 @@ class EntropyManager:
                                     f"{residue.atoms.indices[-1]}"
                                 ),
                             )
+
+                            res_container.trajectory[time_index]
+
                             force_matrix, torque_matrix = (
                                 self._level_manager.get_matrices(
                                     res_container,
@@ -129,6 +133,8 @@ class EntropyManager:
                             torque_matrix_ua[key] = torque_matrix
 
                     elif level == "residue":
+                        mol_container.trajectory[time_index]
+
                         force_matrix, torque_matrix = self._level_manager.get_matrices(
                             mol_container,
                             level,
@@ -141,6 +147,8 @@ class EntropyManager:
                         torque_matrix_res[molecule_id] = torque_matrix
 
                     elif level == "polymer":
+                        mol_container.trajectory[time_index]
+
                         force_matrix, torque_matrix = self._level_manager.get_matrices(
                             mol_container,
                             level,
@@ -233,6 +241,7 @@ class EntropyManager:
                             torque_matrix_ua[key],
                             states_ua[key],
                             highest_level,
+                            number_frames,
                         )
 
                 elif level == "residue":
@@ -246,7 +255,12 @@ class EntropyManager:
                         highest_level,
                     )
                     self._process_conformational_entropy(
-                        molecule_id, mol_container, ce, level, states_res[molecule_id]
+                        molecule_id,
+                        mol_container,
+                        ce,
+                        level,
+                        states_res[molecule_id],
+                        number_frames,
                     )
 
                 elif level == "polymer":
@@ -348,6 +362,7 @@ class EntropyManager:
         torque_matrix,
         states,
         highest,
+        number_frames,
     ):
         """
         Calculates translational, rotational, and conformational entropy at the
@@ -374,7 +389,7 @@ class EntropyManager:
                 torque_matrix, "torque", self._args.temperature, highest
             )
 
-            S_conf_res = ce.conformational_entropy_calculation(mol_id, states)
+            S_conf_res = ce.conformational_entropy_calculation(states, number_frames)
 
             S_trans += S_trans_res
             S_rot += S_rot_res
@@ -416,7 +431,6 @@ class EntropyManager:
             highest (bool): Flag indicating if this is the highest granularity
             level.
         """
-        force_matrix, torque_matrix = self.force_matrix, self.torque_matrix
 
         S_trans = ve.vibrational_entropy_calculation(
             force_matrix, "force", self._args.temperature, highest
@@ -432,7 +446,9 @@ class EntropyManager:
             residue.resname, level, "Rovibrational", S_rot
         )
 
-    def _process_conformational_entropy(self, mol_id, mol_container, ce, level, states):
+    def _process_conformational_entropy(
+        self, mol_id, mol_container, ce, level, states, number_frames
+    ):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
         analysis).
@@ -445,7 +461,7 @@ class EntropyManager:
             start, end, step (int): Frame bounds.
             n_frames (int): Number of frames used.
         """
-        S_conf = ce.conformational_entropy_calculation(states)
+        S_conf = ce.conformational_entropy_calculation(states, number_frames)
         residue = mol_container.residues[mol_id]
         self._data_logger.add_results_data(
             residue.resname, level, "Conformational", S_conf
@@ -813,9 +829,7 @@ class ConformationalEntropy(EntropyManager):
 
         return conformations
 
-    def conformational_entropy_calculation(
-        self, data_container, dihedrals, bin_width, start, end, step, number_frames
-    ):
+    def conformational_entropy_calculation(self, states, number_frames):
         """
         Function to calculate conformational entropies using eq. (7) in Higham,
         S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,
@@ -833,27 +847,6 @@ class ConformationalEntropy(EntropyManager):
         """
 
         S_conf_total = 0
-
-        # For each dihedral, identify the conformation in each frame
-        num_dihedrals = len(dihedrals)
-        conformation = np.zeros((num_dihedrals, number_frames))
-        index = 0
-        for dihedral in dihedrals:
-            conformation[index] = self.assign_conformation(
-                data_container, dihedral, number_frames, bin_width, start, end, step
-            )
-            index += 1
-
-        logger.debug(f"Conformation matrix: {conformation}")
-
-        # For each frame, convert the conformation of all dihedrals into a
-        # state string
-        states = ["" for x in range(number_frames)]
-        for frame_index in range(number_frames):
-            for index in range(num_dihedrals):
-                states[frame_index] += str(conformation[index][frame_index])
-
-        logger.debug(f"States: {states}")
 
         # Count how many times each state occurs, then use the probability
         # to get the entropy
