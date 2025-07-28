@@ -211,21 +211,19 @@ class EntropyManager:
                                 step,
                             )
 
-                    for res_id, residue in enumerate(mol_container.residues):
-                        key = (molecule_id, res_id)
-                        self._process_united_atom_entropy(
-                            molecule_id,
-                            mol_container,
-                            res_id,
-                            ve,
-                            ce,
-                            level,
-                            force_matrix_ua[key],
-                            torque_matrix_ua[key],
-                            states_ua[key],
-                            highest_level,
-                            number_frames,
-                        )
+                    self._process_united_atom_entropy(
+                        molecule_id,
+                        mol_container,
+                        res_id,
+                        ve,
+                        ce,
+                        level,
+                        force_matrix_ua,
+                        torque_matrix_ua,
+                        states_ua,
+                        highest_level,
+                        number_frames,
+                    )
 
                 elif level == "residue":
 
@@ -378,14 +376,19 @@ class EntropyManager:
         S_trans, S_rot, S_conf = 0, 0, 0
 
         for residue_id, residue in enumerate(mol_container.residues):
+
+            key = (mol_id, residue_id)
+
             S_trans_res = ve.vibrational_entropy_calculation(
-                force_matrix, "force", self._args.temperature, highest
+                force_matrix[key], "force", self._args.temperature, highest
             )
             S_rot_res = ve.vibrational_entropy_calculation(
-                torque_matrix, "torque", self._args.temperature, highest
+                torque_matrix[key], "torque", self._args.temperature, highest
             )
 
-            S_conf_res = ce.conformational_entropy_calculation(states, number_frames)
+            S_conf_res = ce.conformational_entropy_calculation(
+                states[key], number_frames
+            )
 
             S_trans += S_trans_res
             S_rot += S_rot_res
@@ -457,7 +460,7 @@ class EntropyManager:
             start, end, step (int): Frame bounds.
             n_frames (int): Number of frames used.
         """
-        S_conf = ce.conformational_entropy_calculation(states, number_frames)
+        S_conf = ce.conformational_entropy_calculation(states[mol_id], number_frames)
         residue = mol_container.residues[mol_id]
         self._data_logger.add_results_data(
             residue.resname, level, "Conformational", S_conf
