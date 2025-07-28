@@ -104,7 +104,6 @@ class EntropyManager:
 
                     # Get matrices for vibrational entropy calculations
                     if level == "united_atom":
-                        mol_container.trajectory[time_index]
                         for res_id, residue in enumerate(mol_container.residues):
                             key = (molecule_id, res_id)
 
