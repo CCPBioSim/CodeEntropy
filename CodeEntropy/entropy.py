@@ -64,7 +64,6 @@ class EntropyManager:
         # Get reduced universe and initialize values
         reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
-        # number_residues = len(reduced_atom.residues)
 
         ve = VibrationalEntropy(
             self._run_manager,
@@ -169,6 +168,7 @@ class EntropyManager:
                 highest_level = level == levels[molecule_id][-1]
 
                 if level == "united_atom":
+                    # get the conformational states
                     for res_id, residue in enumerate(mol_container.residues):
                         key = (molecule_id, res_id)
 
@@ -183,9 +183,15 @@ class EntropyManager:
                             res_container, "not name H*"
                         )
 
+                        # get dihedrals
                         dihedrals = self._level_manager.get_dihedrals(heavy_res, level)
+                        num_dihedrals = len(dihedrals)
+
+                        # assign conformation for each dihedral
+                        conformation = np.zeros((num_dihedrals, number_frames))
+                        dihedral_index = 0
                         for dihedral in dihedrals:
-                            states_ua[key] = ce.assign_conformation(
+                            conformation[dihedral_index] = ce.assign_conformation(
                                 heavy_res,
                                 dihedral,
                                 number_frames,
@@ -194,7 +200,17 @@ class EntropyManager:
                                 end,
                                 step,
                             )
+                            dihedral_index += 1
+                        
+                        # concatenate conformations into state string
+                        states_ua[key] = ["" for x in range(number_frames)]
+                        for frame_index in range(number_frames):
+                            for dihedral_index in range(num_dihedrals):
+                                states_ua[key][frame_index] += str(conformation[dihedral_index][frame_index])
+                        logger.debug(f"States UA {states_ua[key]}")
 
+
+                    # Calculate the united atom entropy
                     self._process_united_atom_entropy(
                         molecule_id,
                         mol_container,
@@ -211,9 +227,15 @@ class EntropyManager:
 
                 elif level == "residue":
 
+                    # get dihedrals
                     dihedrals = self._level_manager.get_dihedrals(mol_container, level)
+                    num_dihedrals = len(dihedrals)
+
+                    # for each dihedral assign conformation
+                    conformation = np.zeros((num_dihedrals, number_frames))
+                    dihedral_index = 0
                     for dihedral in dihedrals:
-                        states_res[molecule_id] = ce.assign_conformation(
+                        conformation[dihedral_index] = ce.assign_conformation(
                             mol_container,
                             dihedral,
                             number_frames,
@@ -222,6 +244,15 @@ class EntropyManager:
                             end,
                             step,
                         )
+                        dihedral_index += 1
+
+                    # concatenate conformations into state string
+                    states_res = ["" for x in range(number_frames)]
+                    for frame_index in range(number_frames):
+                        for dihedral_index in range(num_dihedrals):
+                            states_res[frame_index] += str(conformation[dihedral_index][frame_index])
+                    logger.debug(f"States UA {states_res}")
+
 
                     self._process_vibrational_entropy(
                         molecule_id,
@@ -237,7 +268,7 @@ class EntropyManager:
                         mol_container,
                         ce,
                         level,
-                        states_res[molecule_id],
+                        states_res,
                         number_frames,
                     )
 
@@ -423,10 +454,13 @@ class EntropyManager:
             level.
         """
         number_frames = len(mol_container.trajectory)
+        
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
         force_matrix = force_matrix / number_frames
+        
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
         torque_matrix = torque_matrix / number_frames
+
         S_trans = ve.vibrational_entropy_calculation(
             force_matrix, "force", self._args.temperature, highest
         )
