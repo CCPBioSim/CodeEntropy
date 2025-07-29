@@ -92,6 +92,7 @@ class EntropyManager:
         states_ua = {}
         states_res = [None for _ in range(number_molecules)]
 
+        # Looping over timesteps to build the covariance matrices
         for timestep in reduced_atom.trajectory[start:end:step]:
             time_index = timestep.frame - start
 
@@ -160,22 +161,6 @@ class EntropyManager:
                         torque_matrix_poly[molecule_id] = torque_matrix
 
         bin_width = self._args.bin_width
-
-        force_matrix_ua = {k: v / number_frames for k, v in force_matrix_ua.items()}
-        torque_matrix_ua = {k: v / number_frames for k, v in torque_matrix_ua.items()}
-
-        force_matrix_res = [
-            f / number_frames if f is not None else None for f in force_matrix_res
-        ]
-        torque_matrix_res = [
-            t / number_frames if t is not None else None for t in torque_matrix_res
-        ]
-        force_matrix_poly = [
-            f / number_frames if f is not None else None for f in force_matrix_poly
-        ]
-        torque_matrix_poly = [
-            t / number_frames if t is not None else None for t in torque_matrix_poly
-        ]
 
         # Do the entropy calculations
         for molecule_id in range(number_molecules):
@@ -378,11 +363,19 @@ class EntropyManager:
 
             key = (mol_id, residue_id)
 
+            f_matrix = force_matrix[key]
+            f_matrix = self._level_manager.filter_zero_rows_columns(f_matrix)
+            f_matrix = f_matrix / number_frames
+
+            t_matrix = torque_matrix[key]
+            t_matrix = self._level_manager.filter_zero_rows_columns(t_matrix)
+            t_matrix = t_matrix / number_frames
+
             S_trans_res = ve.vibrational_entropy_calculation(
-                force_matrix[key], "force", self._args.temperature, highest
+                f_matrix, "force", self._args.temperature, highest
             )
             S_rot_res = ve.vibrational_entropy_calculation(
-                torque_matrix[key], "torque", self._args.temperature, highest
+                t_matrix, "torque", self._args.temperature, highest
             )
 
             S_conf_res = ce.conformational_entropy_calculation(
@@ -429,7 +422,11 @@ class EntropyManager:
             highest (bool): Flag indicating if this is the highest granularity
             level.
         """
-
+        number_frames = len(mol_container.trajectory)
+        force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
+        force_matrix = force_matrix / number_frames
+        torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
+        torque_matrix = torque_matrix / number_frames
         S_trans = ve.vibrational_entropy_calculation(
             force_matrix, "force", self._args.temperature, highest
         )
