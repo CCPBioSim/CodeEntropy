@@ -375,15 +375,19 @@ class LevelManager:
                 f"not name H* and bonded index {index}"
             )
 
-            # center at position of heavy atom
-            atom_group = data_container.select_atoms(f"index {index}")
-            center = atom_group.positions[0]
+            if len(atom_set) == 0:
+                # if no bonds to other residues use pricipal axes of residue
+                rot_axes = data_container.residues.principal_axes()
+            else:
+                # center at position of heavy atom
+                atom_group = data_container.select_atoms(f"index {index}")
+                center = atom_group.positions[0]
 
-            # get vector for average position of hydrogens
-            vector = self.get_avg_pos(atom_set, center)
+                # get vector for average position of hydrogens
+                vector = self.get_avg_pos(atom_set, center)
 
-            # use spherical coordinates function to get rotational axes
-            rot_axes = self.get_sphCoord_axes(vector)
+                # use spherical coordinates function to get rotational axes
+                rot_axes = self.get_sphCoord_axes(vector)
 
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
