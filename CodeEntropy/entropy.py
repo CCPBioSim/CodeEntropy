@@ -201,14 +201,15 @@ class EntropyManager:
                                 step,
                             )
                             dihedral_index += 1
-                        
+
                         # concatenate conformations into state string
                         states_ua[key] = ["" for x in range(number_frames)]
                         for frame_index in range(number_frames):
                             for dihedral_index in range(num_dihedrals):
-                                states_ua[key][frame_index] += str(conformation[dihedral_index][frame_index])
+                                states_ua[key][frame_index] += str(
+                                    conformation[dihedral_index][frame_index]
+                                )
                         logger.debug(f"States UA {states_ua[key]}")
-
 
                     # Calculate the united atom entropy
                     self._process_united_atom_entropy(
@@ -250,9 +251,10 @@ class EntropyManager:
                     states_res = ["" for x in range(number_frames)]
                     for frame_index in range(number_frames):
                         for dihedral_index in range(num_dihedrals):
-                            states_res[frame_index] += str(conformation[dihedral_index][frame_index])
+                            states_res[frame_index] += str(
+                                conformation[dihedral_index][frame_index]
+                            )
                     logger.debug(f"States UA {states_res}")
-
 
                     self._process_vibrational_entropy(
                         molecule_id,
@@ -454,10 +456,10 @@ class EntropyManager:
             level.
         """
         number_frames = len(mol_container.trajectory)
-        
+
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
         force_matrix = force_matrix / number_frames
-        
+
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
         torque_matrix = torque_matrix / number_frames
 
