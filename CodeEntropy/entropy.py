@@ -52,8 +52,15 @@ class EntropyManager:
         reduced_atom, number_molecules, levels = self._initialize_molecules()
 
         force_matrices, torque_matrices, states_ua, states_res = (
-            self._build_covariance_matrices(
-                reduced_atom, number_molecules, levels, start, end, step, number_frames
+            self._level_manager.build_covariance_matrices(
+                self,
+                reduced_atom,
+                number_molecules,
+                levels,
+                start,
+                end,
+                step,
+                number_frames,
             )
         )
 
@@ -115,164 +122,6 @@ class EntropyManager:
         reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
         return reduced_atom, number_molecules, levels
-
-    def _build_covariance_matrices(
-        self, reduced_atom, number_molecules, levels, start, end, step, number_frames
-    ):
-        """
-        Construct force and torque covariance matrices for all molecules and levels.
-
-        Parameters:
-            reduced_atom (Universe): The reduced atom selection.
-            number_molecules (int): Number of molecules in the system.
-            levels (list): List of entropy levels per molecule.
-            start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Step size for frame iteration.
-            number_frames (int): Total number of frames to process.
-
-        Returns:
-            tuple: A tuple containing:
-                - force_matrices (dict): Force covariance matrices by level.
-                - torque_matrices (dict): Torque covariance matrices by level.
-                - states_ua (dict): Conformational states at the united-atom level.
-                - states_res (list): Conformational states at the residue level.
-        """
-        force_matrices = {
-            "ua": {},
-            "res": [None] * number_molecules,
-            "poly": [None] * number_molecules,
-        }
-        torque_matrices = {
-            "ua": {},
-            "res": [None] * number_molecules,
-            "poly": [None] * number_molecules,
-        }
-        states_ua = {}
-        states_res = [None] * number_molecules
-
-        for timestep in reduced_atom.trajectory[start:end:step]:
-            time_index = timestep.frame - start
-
-            for mol_id in range(number_molecules):
-                mol = self._get_molecule_container(reduced_atom, mol_id)
-                for level in levels[mol_id]:
-                    self._update_force_torque_matrices(
-                        mol,
-                        mol_id,
-                        level,
-                        levels[mol_id],
-                        time_index,
-                        number_frames,
-                        force_matrices,
-                        torque_matrices,
-                    )
-
-        return force_matrices, torque_matrices, states_ua, states_res
-
-    def _update_force_torque_matrices(
-        self,
-        mol,
-        mol_id,
-        level,
-        level_list,
-        time_index,
-        num_frames,
-        force_matrices,
-        torque_matrices,
-    ):
-        """
-        Update force and torque matrices for a given molecule and entropy level.
-
-        Parameters:
-            mol (AtomGroup): The molecule to process.
-            mol_id (int): Index of the molecule.
-            level (str): Current entropy level ("united_atom", "residue", or "polymer").
-            level_list (list): List of levels for the molecule.
-            time_index (int): Index of the current frame.
-            num_frames (int): Total number of frames.
-            force_matrices (dict): Dictionary of force matrices to update.
-            torque_matrices (dict): Dictionary of torque matrices to update.
-        """
-        highest = level == level_list[-1]
-
-        if level == "united_atom":
-            for res_id, residue in enumerate(mol.residues):
-                key = (mol_id, res_id)
-                res = self._run_manager.new_U_select_atom(
-                    mol, f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}"
-                )
-                res.trajectory[time_index]
-
-                f_mat, t_mat = self._level_manager.get_matrices(
-                    res,
-                    level,
-                    num_frames,
-                    highest,
-                    force_matrices["ua"].get(key),
-                    torque_matrices["ua"].get(key),
-                )
-                force_matrices["ua"][key] = f_mat
-                torque_matrices["ua"][key] = t_mat
-
-        elif level in ["residue", "polymer"]:
-            mol.trajectory[time_index]
-            key = "res" if level == "residue" else "poly"
-            f_mat, t_mat = self._level_manager.get_matrices(
-                mol,
-                level,
-                num_frames,
-                highest,
-                force_matrices[key][mol_id],
-                torque_matrices[key][mol_id],
-            )
-            force_matrices[key][mol_id] = f_mat
-            torque_matrices[key][mol_id] = t_mat
-
-    def _compute_dihedral_conformations(
-        self,
-        selector,
-        level,
-        ce,
-        number_frames,
-        bin_width,
-        start,
-        end,
-        step,
-    ):
-        """
-        Compute dihedral conformations for a given selector and entropy level.
-
-        Parameters:
-            selector (AtomGroup): Atom selection to compute dihedrals for.
-            level (str): Entropy level ("united_atom" or "residue").
-            ce (ConformationalEntropy): Conformational entropy calculator.
-            number_frames (int): Number of frames to process.
-            bin_width (float): Bin width for dihedral angle discretization.
-            start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Step size for frame iteration.
-
-        Returns:
-            tuple: A tuple containing:
-                - states (list): List of conformation strings per frame.
-                - dihedrals (list): List of dihedral angle definitions.
-        """
-        dihedrals = self._level_manager.get_dihedrals(selector, level)
-        num_dihedrals = len(dihedrals)
-
-        conformation = np.zeros((num_dihedrals, number_frames))
-        for i, dihedral in enumerate(dihedrals):
-            conformation[i] = ce.assign_conformation(
-                selector, dihedral, number_frames, bin_width, start, end, step
-            )
-
-        states = [
-            "".join(str(int(conformation[d][f])) for d in range(num_dihedrals))
-            for f in range(number_frames)
-        ]
-
-        return states, dihedrals
 
     def _compute_entropies(
         self,
@@ -346,15 +195,17 @@ class EntropyManager:
                             res_container, "not name H*"
                         )
 
-                        states_ua[key], _ = self._compute_dihedral_conformations(
-                            heavy_res,
-                            level,
-                            ce,
-                            number_frames,
-                            bin_width,
-                            start,
-                            end,
-                            step,
+                        states_ua[key] = (
+                            self._level_manager.compute_dihedral_conformations(
+                                heavy_res,
+                                level,
+                                ce,
+                                number_frames,
+                                bin_width,
+                                start,
+                                end,
+                                step,
+                            )
                         )
 
                     self._process_united_atom_entropy(
@@ -372,7 +223,7 @@ class EntropyManager:
                     )
 
                 elif level == "residue":
-                    states_res, _ = self._compute_dihedral_conformations(
+                    states_res = self._level_manager.compute_dihedral_conformations(
                         mol, level, ce, number_frames, bin_width, start, end, step
                     )
 
