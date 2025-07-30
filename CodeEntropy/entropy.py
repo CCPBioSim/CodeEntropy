@@ -211,7 +211,6 @@ class EntropyManager:
                     self._process_united_atom_entropy(
                         mol_id,
                         mol,
-                        res_id,
                         ve,
                         ce,
                         level,
@@ -329,7 +328,6 @@ class EntropyManager:
         self,
         mol_id,
         mol_container,
-        res_id,
         ve,
         ce,
         level,
