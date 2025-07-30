@@ -377,7 +377,7 @@ class LevelManager:
             trans_axes = data_container.atoms.principal_axes()
             rot_axes = data_container.atoms.principal_axes()
 
-        if level == "residue":
+        elif level == "residue":
             # Translation
             # for residues use principal axes of whole molecule for translation
             trans_axes = data_container.atoms.principal_axes()
@@ -409,7 +409,7 @@ class LevelManager:
                 # use spherical coordinates function to get rotational axes
                 rot_axes = self.get_sphCoord_axes(vector)
 
-        if level == "united_atom":
+        elif level == "united_atom":
             # Translation
             # for united atoms use principal axes of residue for translation
             trans_axes = data_container.residues.principal_axes()

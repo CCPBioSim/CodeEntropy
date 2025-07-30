@@ -108,11 +108,10 @@ class TestLevels(unittest.TestCase):
         force_matrix, torque_matrix = level_manager.get_matrices(
             data_container=data_container,
             level="residue",
-            start=0,
-            end=2,
-            step=1,
             number_frames=2,
-            highest_level="polymer",
+            highest_level=True,
+            force_matrix=None,
+            torque_matrix=None,
         )
 
         # Assertions
@@ -123,10 +122,81 @@ class TestLevels(unittest.TestCase):
 
         # Check that internal methods were called
         self.assertEqual(level_manager.get_beads.call_count, 1)
-        self.assertEqual(level_manager.get_axes.call_count, 4)  # 2 beads × 2 frames
+        self.assertEqual(level_manager.get_axes.call_count, 2)  # 2 beads
         self.assertEqual(
             level_manager.create_submatrix.call_count, 6
         )  # 3 force + 3 torque
+
+    def test_get_matrices_force_shape_mismatch(self):
+        """
+        Test that get_matrices raises a ValueError when the provided force_matrix
+        has a shape mismatch with the computed force block matrix.
+        """
+        level_manager = LevelManager()
+
+        # Mock internal methods
+        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
+        level_manager.get_weighted_forces = MagicMock(
+            return_value=np.array([1.0, 2.0, 3.0])
+        )
+        level_manager.get_weighted_torques = MagicMock(
+            return_value=np.array([0.5, 1.5, 2.5])
+        )
+        level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
+
+        data_container = MagicMock()
+
+        # Incorrect shape for force matrix (should be 6x6 for 2 beads)
+        bad_force_matrix = np.zeros((3, 3))
+        correct_torque_matrix = np.zeros((6, 6))
+
+        with self.assertRaises(ValueError) as context:
+            level_manager.get_matrices(
+                data_container=data_container,
+                level="residue",
+                number_frames=2,
+                highest_level=True,
+                force_matrix=bad_force_matrix,
+                torque_matrix=correct_torque_matrix,
+            )
+
+        self.assertIn("Inconsistent force matrix shape", str(context.exception))
+
+    def test_get_matrices_torque_shape_mismatch(self):
+        """
+        Test that get_matrices raises a ValueError when the provided torque_matrix
+        has a shape mismatch with the computed torque block matrix.
+        """
+        level_manager = LevelManager()
+
+        # Mock internal methods
+        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
+        level_manager.get_weighted_forces = MagicMock(
+            return_value=np.array([1.0, 2.0, 3.0])
+        )
+        level_manager.get_weighted_torques = MagicMock(
+            return_value=np.array([0.5, 1.5, 2.5])
+        )
+        level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
+
+        data_container = MagicMock()
+
+        correct_force_matrix = np.zeros((6, 6))
+        bad_torque_matrix = np.zeros((3, 3))  # Incorrect shape
+
+        with self.assertRaises(ValueError) as context:
+            level_manager.get_matrices(
+                data_container=data_container,
+                level="residue",
+                number_frames=2,
+                highest_level=True,
+                force_matrix=correct_force_matrix,
+                torque_matrix=bad_torque_matrix,
+            )
+
+        self.assertIn("Inconsistent torque matrix shape", str(context.exception))
 
     def test_get_dihedrals_united_atom(self):
         """
@@ -247,6 +317,38 @@ class TestLevels(unittest.TestCase):
             data_container.select_atoms.call_count, 4
         )  # 1 for heavy_atoms + 3 beads
 
+    def test_get_axes_united_atom_no_bonds(self):
+        """
+        Test `get_axes` for 'united_atom' level when no bonded atoms are found.
+        Ensures that rotational axes fall back to residues' principal axes.
+        """
+        level_manager = LevelManager()
+
+        data_container = MagicMock()
+
+        # Mock principal axes for translation and rotation
+        mock_rot_axes = MagicMock(name="rot_axes")
+
+        data_container.residues.principal_axes.return_value = mock_rot_axes
+        data_container.residues.principal_axes.return_value = mock_rot_axes
+        data_container.residues.principal_axes.return_value = mock_rot_axes  # fallback
+
+        # First select_atoms returns empty bonded atom set
+        atom_set = MagicMock()
+        atom_set.__len__.return_value = 0  # triggers fallback
+
+        data_container.select_atoms.side_effect = [atom_set]
+
+        trans_axes, rot_axes = level_manager.get_axes(
+            data_container=data_container, level="united_atom", index=5
+        )
+
+        # Assertions
+        self.assertEqual(trans_axes, mock_rot_axes)
+        self.assertEqual(rot_axes, mock_rot_axes)
+        data_container.residues.principal_axes.assert_called()
+        self.assertEqual(data_container.select_atoms.call_count, 1)
+
     def test_get_axes_polymer_level(self):
         """
         Test `get_axes` for 'polymer' level.
@@ -328,6 +430,8 @@ class TestLevels(unittest.TestCase):
         data_container.residues.principal_axes.return_value = "trans_axes"
 
         atom_set = MagicMock()
+        atom_set.__len__.return_value = 1
+
         atom_group = MagicMock()
         atom_group.positions = [[1.0, 2.0, 3.0]]
 
@@ -660,30 +764,31 @@ class TestLevels(unittest.TestCase):
             "Negative value encountered for moment of inertia", str(context.exception)
         )
 
-    def test_create_submatrix_basic_outer_product_average(self):
+    def test_create_submatrix_basic_outer_product(self):
         """
-        Test with known vectors to verify correct average outer product.
+        Test with known vectors to verify correct outer product.
         """
         level_manager = LevelManager()
 
-        data_i = [np.array([1, 0, 0]), np.array([0, 1, 0])]
-        data_j = [np.array([0, 1, 0]), np.array([1, 0, 0])]
-        number_frames = 2
+        data_i = np.array([1, 0, 0])
+        data_j = np.array([0, 1, 0])
+        number_frames = 1  # Not used in current implementation
 
-        expected = (np.outer(data_i[0], data_j[0]) + np.outer(data_i[1], data_j[1])) / 2
-
+        expected = np.outer(data_i, data_j)
         result = level_manager.create_submatrix(data_i, data_j, number_frames)
-        np.testing.assert_array_almost_equal(result, expected)
+
+        np.testing.assert_array_equal(result, expected)
 
     def test_create_submatrix_zero_vectors_returns_zero_matrix(self):
         """
-        Test that all-zero input vectors should return a zero matrix.
+        Test that all-zero input vectors return a zero matrix.
         """
         level_manager = LevelManager()
 
-        data_i = [np.zeros(3) for _ in range(3)]
-        data_j = [np.zeros(3) for _ in range(3)]
-        result = level_manager.create_submatrix(data_i, data_j, 3)
+        data_i = np.zeros(3)
+        data_j = np.zeros(3)
+        result = level_manager.create_submatrix(data_i, data_j, 1)
+
         np.testing.assert_array_equal(result, np.zeros((3, 3)))
 
     def test_create_submatrix_single_frame(self):
@@ -702,12 +807,13 @@ class TestLevels(unittest.TestCase):
 
     def test_create_submatrix_symmetric_result_when_data_equal(self):
         """
-        Test that if data_i == data_j, the result should be symmetric.
+        Test that if data_i == data_j, the result is symmetric.
         """
         level_manager = LevelManager()
 
-        data = [np.array([1, 2, 3]), np.array([4, 5, 6])]
-        result = level_manager.create_submatrix(data, data, 2)
+        data = np.array([1, 2, 3])
+        result = level_manager.create_submatrix(data, data, 1)
+
         self.assertTrue(np.allclose(result, result.T))  # Check symmetry
 
     def test_filter_zero_rows_columns_no_zeros(self):
