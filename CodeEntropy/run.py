@@ -193,8 +193,6 @@ class RunManager:
             logger = self._logging_config.setup_logging()
             self.show_splash()
 
-            logger.info("Test logger")
-
             config = self._config_manager.load_config("config.yaml")
             if config is None:
                 raise ValueError(
@@ -248,6 +246,8 @@ class RunManager:
                 )
 
                 entropy_manager.execute()
+
+            self._logging_config.save_console_log()
 
         except Exception as e:
             logger.error(f"RunManager encountered an error: {e}", exc_info=True)
