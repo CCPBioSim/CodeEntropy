@@ -18,7 +18,6 @@ def main():
     try:
         run_manager = RunManager(folder=folder)
         run_manager.run_entropy_workflow()
-        run_manager._logging_config.save_console_output()
     except Exception as e:
         logger.critical(f"Fatal error during entropy calculation: {e}", exc_info=True)
         sys.exit(1)
