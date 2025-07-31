@@ -136,9 +136,3 @@ class LoggingConfig:
                     if isinstance(handler, logging.FileHandler)
                     else logging.INFO
                 )
-
-    def save_console_output(self):
-        if self._console:
-            print(self.program_out_path)
-            with open(self.program_out_path, "w", encoding="utf-8") as f:
-                f.write(self._console.export_text())
