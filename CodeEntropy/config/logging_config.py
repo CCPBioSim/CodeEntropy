@@ -1,7 +1,6 @@
 import logging
 import logging.config
 import os
-import sys
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -85,15 +84,6 @@ class LoggingConfig:
     def setup_logging(self):
         # Configure file-based logging
         logging.config.dictConfig(self.LOGGING)
-
-        # Set up rich handler for terminal output
-        LoggingConfig._console = Console(
-            file=sys.stdout,
-            force_terminal=True,
-            width=120,
-            soft_wrap=True,
-            record=True,
-        )
 
         rich_handler = RichHandler(
             console=LoggingConfig._console,
