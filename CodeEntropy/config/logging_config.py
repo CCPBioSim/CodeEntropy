@@ -47,7 +47,7 @@ class LoggingConfig:
                 "errorfile": {
                     "class": "logging.FileHandler",
                     "filename": os.path.join(log_directory, "program.err"),
-                    "formatter": "simple",
+                    "formatter": "detailed",
                     "level": logging.ERROR,
                 },
                 "commandfile": {
