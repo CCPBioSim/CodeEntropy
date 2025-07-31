@@ -47,11 +47,25 @@ class EntropyManager:
         """
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
+        ve = VibrationalEntropy(
+            self._run_manager,
+            self._args,
+            self._universe,
+            self._data_logger,
+            self._level_manager,
+        )
+        ce = ConformationalEntropy(
+            self._run_manager,
+            self._args,
+            self._universe,
+            self._data_logger,
+            self._level_manager,
+        )
 
         self._handle_water_entropy(start, end, step)
         reduced_atom, number_molecules, levels = self._initialize_molecules()
 
-        force_matrices, torque_matrices, states_ua, states_res = (
+        force_matrices, torque_matrices = (
             self._level_manager.build_covariance_matrices(
                 self,
                 reduced_atom,
@@ -61,6 +75,21 @@ class EntropyManager:
                 end,
                 step,
                 number_frames,
+            )
+        )
+
+        states_ua, states_res = (
+            self._level_manager.build_conformational_states(
+                self,
+                reduced_atom,
+                number_molecules,
+                levels,
+                start,
+                end,
+                step,
+                number_frames,
+                self._args.bin_width,
+                ce,
             )
         )
 
@@ -76,6 +105,8 @@ class EntropyManager:
             start,
             end,
             step,
+            ve,
+            ce,
         )
 
         self._finalize_molecule_results()
@@ -136,6 +167,8 @@ class EntropyManager:
         start,
         end,
         step,
+        ve,
+        ce,
     ):
         """
         Compute vibrational and conformational entropies for all molecules and levels.
@@ -163,20 +196,6 @@ class EntropyManager:
             step (int): Step size for frame iteration.
         """
         bin_width = self._args.bin_width
-        ve = VibrationalEntropy(
-            self._run_manager,
-            self._args,
-            self._universe,
-            self._data_logger,
-            self._level_manager,
-        )
-        ce = ConformationalEntropy(
-            self._run_manager,
-            self._args,
-            self._universe,
-            self._data_logger,
-            self._level_manager,
-        )
 
         for mol_id in range(number_molecules):
             mol = self._get_molecule_container(reduced_atom, mol_id)
@@ -184,30 +203,6 @@ class EntropyManager:
                 highest = level == levels[mol_id][-1]
 
                 if level == "united_atom":
-                    for res_id, residue in enumerate(mol.residues):
-                        key = (mol_id, res_id)
-                        res_container = self._run_manager.new_U_select_atom(
-                            mol,
-                            f"index {residue.atoms.indices[0]}:"
-                            f"{residue.atoms.indices[-1]}",
-                        )
-                        heavy_res = self._run_manager.new_U_select_atom(
-                            res_container, "not name H*"
-                        )
-
-                        states_ua[key] = (
-                            self._level_manager.compute_dihedral_conformations(
-                                heavy_res,
-                                level,
-                                ce,
-                                number_frames,
-                                bin_width,
-                                start,
-                                end,
-                                step,
-                            )
-                        )
-
                     self._process_united_atom_entropy(
                         mol_id,
                         mol,
@@ -222,10 +217,6 @@ class EntropyManager:
                     )
 
                 elif level == "residue":
-                    states_res = self._level_manager.compute_dihedral_conformations(
-                        mol, level, ce, number_frames, bin_width, start, end, step
-                    )
-
                     self._process_vibrational_entropy(
                         mol_id,
                         mol,
