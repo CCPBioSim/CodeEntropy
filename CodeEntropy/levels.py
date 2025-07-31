@@ -725,8 +725,8 @@ class LevelManager:
         self,
         entropy_manager,
         reduced_atom,
-        number_molecules,
         levels,
+        groups,
         start,
         end,
         step,
@@ -750,34 +750,37 @@ class LevelManager:
                 - force_matrices (dict): Force covariance matrices by level.
                 - torque_matrices (dict): Torque covariance matrices by level.
         """
+        number_groups = len(groups)
         force_matrices = {
             "ua": {},
-            "res": [None] * number_molecules,
-            "poly": [None] * number_molecules,
+            "res": [None] * number_groups,
+            "poly": [None] * number_groups,
         }
         torque_matrices = {
             "ua": {},
-            "res": [None] * number_molecules,
-            "poly": [None] * number_molecules,
+            "res": [None] * number_groups,
+            "poly": [None] * number_groups,
         }
 
         for timestep in reduced_atom.trajectory[start:end:step]:
             time_index = timestep.frame - start
 
-            for mol_id in range(number_molecules):
-                mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
-                for level in levels[mol_id]:
-                    self.update_force_torque_matrices(
-                        entropy_manager,
-                        mol,
-                        mol_id,
-                        level,
-                        levels[mol_id],
-                        time_index,
-                        number_frames,
-                        force_matrices,
-                        torque_matrices,
-                    )
+            for group_id in groups.keys():
+                molecules = groups[group_id]
+                for mol_id in molecules:
+                    mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
+                    for level in levels[mol_id]:
+                        self.update_force_torque_matrices(
+                            entropy_manager,
+                            mol,
+                            group_id,
+                            level,
+                            levels[mol_id],
+                            time_index,
+                            number_frames,
+                            force_matrices,
+                            torque_matrices,
+                        )
 
         return force_matrices, torque_matrices
 
@@ -785,7 +788,7 @@ class LevelManager:
         self,
         entropy_manager,
         mol,
-        mol_id,
+        group_id,
         level,
         level_list,
         time_index,
@@ -799,7 +802,7 @@ class LevelManager:
         Parameters:
             entropy_manager (EntropyManager): Instance of the EntropyManager
             mol (AtomGroup): The molecule to process.
-            mol_id (int): Index of the molecule.
+            group_id (int): Index of the group.
             level (str): Current entropy level ("united_atom", "residue", or "polymer").
             level_list (list): List of levels for the molecule.
             time_index (int): Index of the current frame.
@@ -811,7 +814,7 @@ class LevelManager:
 
         if level == "united_atom":
             for res_id, residue in enumerate(mol.residues):
-                key = (mol_id, res_id)
+                key = (group_id, res_id)
                 res = entropy_manager._run_manager.new_U_select_atom(
                     mol, f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}"
                 )
@@ -836,11 +839,11 @@ class LevelManager:
                 level,
                 num_frames,
                 highest,
-                force_matrices[key][mol_id],
-                torque_matrices[key][mol_id],
+                force_matrices[key][group_id],
+                torque_matrices[key][group_id],
             )
-            force_matrices[key][mol_id] = f_mat
-            torque_matrices[key][mol_id] = t_mat
+            force_matrices[key][group_id] = f_mat
+            torque_matrices[key][group_id] = t_mat
 
     def filter_zero_rows_columns(self, arg_matrix):
         """
@@ -898,6 +901,7 @@ class LevelManager:
         reduced_atom,
         number_molecules,
         levels,
+        groups,
         start,
         end,
         step,
@@ -924,27 +928,47 @@ class LevelManager:
                 - states_ua (dict): Conformational states at the united-atom level.
                 - states_res (list): Conformational states at the residue level.
         """
+        number_groups = len(groups)
         states_ua = {}
-        states_res = [None] * number_molecules
+        states_res = [None] * number_groups
 
-        for mol_id in range(number_molecules):
-            mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
-            for level in levels[mol_id]:
-                if level == "united_atom":
-                    for res_id, residue in enumerate(mol.residues):
-                        key = (mol_id, res_id)
+        for group_id in groups.keys():
+            molecules = groups[group_id]
+            for mol_id in molecules:
+                mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
+                for level in levels[mol_id]:
+                    if level == "united_atom":
+                        for res_id, residue in enumerate(mol.residues):
+                            key = (group_id, res_id)
 
-                        res_container = entropy_manager._run_manager.new_U_select_atom(
+                            res_container = entropy_manager._run_manager.new_U_select_atom(
+                                mol,
+                                f"index {residue.atoms.indices[0]}:"
+                                f"{residue.atoms.indices[-1]}",
+                            )
+                            heavy_res = entropy_manager._run_manager.new_U_select_atom(
+                                res_container, "not name H*"
+                            )
+
+                            states = self.compute_dihedral_conformations(
+                                heavy_res,
+                                level,
+                                number_frames,
+                                bin_width,
+                                start,
+                                end,
+                                step,
+                                ce,
+                            )
+
+                            if key in states_ua.keys():
+                                states_ua[key].append(states)
+                            else:
+                                states_ua[key] = states
+
+                    if level == "res":
+                        states = self.compute_dihedral_conformations(
                             mol,
-                            f"index {residue.atoms.indices[0]}:"
-                            f"{residue.atoms.indices[-1]}",
-                        )
-                        heavy_res = entropy_manager._run_manager.new_U_select_atom(
-                            res_container, "not name H*"
-                        )
-
-                        states_ua[key] = self.compute_dihedral_conformations(
-                            heavy_res,
                             level,
                             number_frames,
                             bin_width,
@@ -954,16 +978,10 @@ class LevelManager:
                             ce,
                         )
 
-                if level == "res":
-                    states_res = self.compute_dihedral_conformations(
-                        mol,
-                        level,
-                        number_frames,
-                        bin_width,
-                        start,
-                        end,
-                        step,
-                        ce,
-                    )
+                        states_res[group_id] += states
+                            
+
+        logger.debug(f"states_ua {states_ua}")
+        logger.debug(f"states_res {states_res}")
 
         return states_ua, states_res

@@ -16,7 +16,7 @@ class EntropyManager:
     molecular dynamics trajectory.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager):
+    def __init__(self, run_manager, args, universe, data_logger, level_manager, group_molecules):
         """
         Initializes the EntropyManager with required components.
 
@@ -32,6 +32,7 @@ class EntropyManager:
         self._universe = universe
         self._data_logger = data_logger
         self._level_manager = level_manager
+        self._group_molecules = group_molecules
         self._GAS_CONST = 8.3144598484848
 
     def execute(self):
@@ -53,6 +54,7 @@ class EntropyManager:
             self._universe,
             self._data_logger,
             self._level_manager,
+            self._group_molecules,
         )
         ce = ConformationalEntropy(
             self._run_manager,
@@ -60,17 +62,20 @@ class EntropyManager:
             self._universe,
             self._data_logger,
             self._level_manager,
+            self._group_molecules,
         )
 
         self._handle_water_entropy(start, end, step)
-        reduced_atom, number_molecules, levels = self._initialize_molecules()
+        reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
+        number_groups = len(groups)
+        number_frames = len(reduced_atom.trajectory)
 
         force_matrices, torque_matrices = (
             self._level_manager.build_covariance_matrices(
                 self,
                 reduced_atom,
-                number_molecules,
                 levels,
+                groups,
                 start,
                 end,
                 step,
@@ -84,6 +89,7 @@ class EntropyManager:
                 reduced_atom,
                 number_molecules,
                 levels,
+                groups,
                 start,
                 end,
                 step,
@@ -95,16 +101,13 @@ class EntropyManager:
 
         self._compute_entropies(
             reduced_atom,
-            number_molecules,
             levels,
+            groups,
             force_matrices,
             torque_matrices,
             states_ua,
             states_res,
             number_frames,
-            start,
-            end,
-            step,
             ve,
             ce,
         )
@@ -152,21 +155,21 @@ class EntropyManager:
         """
         reduced_atom = self._get_reduced_universe()
         number_molecules, levels = self._level_manager.select_levels(reduced_atom)
-        return reduced_atom, number_molecules, levels
+        grouping = self._args.grouping
+        groups = self._group_molecules.grouping_molecules(reduced_atom, grouping)
+
+        return reduced_atom, number_molecules, levels, groups
 
     def _compute_entropies(
         self,
         reduced_atom,
-        number_molecules,
         levels,
+        groups,
         force_matrices,
         torque_matrices,
         states_ua,
         states_res,
         number_frames,
-        start,
-        end,
-        step,
         ve,
         ce,
     ):
@@ -191,20 +194,15 @@ class EntropyManager:
             states_ua (dict): Dictionary to store united-atom conformational states.
             states_res (list): List to store residue-level conformational states.
             number_frames (int): Total number of trajectory frames to process.
-            start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Step size for frame iteration.
         """
-        bin_width = self._args.bin_width
-
-        for mol_id in range(number_molecules):
-            mol = self._get_molecule_container(reduced_atom, mol_id)
-            for level in levels[mol_id]:
-                highest = level == levels[mol_id][-1]
+        for group_id in groups.keys():
+            mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
+            for level in levels[groups[group_id][0]]:
+                highest = level == levels[groups[group_id][0]][-1]
 
                 if level == "united_atom":
                     self._process_united_atom_entropy(
-                        mol_id,
+                        group_id,
                         mol,
                         ve,
                         ce,
@@ -218,18 +216,17 @@ class EntropyManager:
 
                 elif level == "residue":
                     self._process_vibrational_entropy(
-                        mol_id,
-                        mol,
+                        group_id,
+                        number_frames,
                         ve,
                         level,
-                        force_matrices["res"][mol_id],
-                        torque_matrices["res"][mol_id],
+                        force_matrices["res"][group_id],
+                        torque_matrices["res"][group_id],
                         highest,
                     )
 
                     self._process_conformational_entropy(
-                        mol_id,
-                        mol,
+                        group_id,
                         ce,
                         level,
                         states_res,
@@ -238,12 +235,12 @@ class EntropyManager:
 
                 elif level == "polymer":
                     self._process_vibrational_entropy(
-                        mol_id,
-                        mol,
+                        group_id,
+                        number_frames,
                         ve,
                         level,
-                        force_matrices["poly"][mol_id],
-                        torque_matrices["poly"][mol_id],
+                        force_matrices["poly"][group_id],
+                        torque_matrices["poly"][group_id],
                         highest,
                     )
 
@@ -317,7 +314,7 @@ class EntropyManager:
 
     def _process_united_atom_entropy(
         self,
-        mol_id,
+        group_id,
         mol_container,
         ve,
         ce,
@@ -347,7 +344,7 @@ class EntropyManager:
 
         for residue_id, residue in enumerate(mol_container.residues):
 
-            key = (mol_id, residue_id)
+            key = (group_id, residue_id)
 
             f_matrix = force_matrix[key]
             f_matrix = self._level_manager.filter_zero_rows_columns(f_matrix)
@@ -373,27 +370,27 @@ class EntropyManager:
             S_conf += S_conf_res
 
             self._data_logger.add_residue_data(
-                mol_id, residue.resname, level, "Transvibrational", S_trans_res
+                residue_id, residue.resname, level, "Transvibrational", S_trans_res
             )
             self._data_logger.add_residue_data(
-                mol_id, residue.resname, level, "Rovibrational", S_rot_res
+                residue_id, residue.resname, level, "Rovibrational", S_rot_res
             )
             self._data_logger.add_residue_data(
-                mol_id, residue.resname, level, "Conformational", S_conf_res
+                residue_id, residue.resname, level, "Conformational", S_conf_res
             )
 
         self._data_logger.add_results_data(
-            residue.resname, level, "Transvibrational", S_trans
+            group_id, level, "Transvibrational", S_trans
         )
         self._data_logger.add_results_data(
-            residue.resname, level, "Rovibrational", S_rot
+            group_id, level, "Rovibrational", S_rot
         )
         self._data_logger.add_results_data(
-            residue.resname, level, "Conformational", S_conf
+            group_id, level, "Conformational", S_conf
         )
 
     def _process_vibrational_entropy(
-        self, mol_id, mol_container, ve, level, force_matrix, torque_matrix, highest
+        self, group_id, number_frames, ve, level, force_matrix, torque_matrix, highest
     ):
         """
         Calculates vibrational entropy.
@@ -408,8 +405,6 @@ class EntropyManager:
             highest (bool): Flag indicating if this is the highest granularity
             level.
         """
-        number_frames = len(mol_container.trajectory)
-
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
         force_matrix = force_matrix / number_frames
 
@@ -422,16 +417,16 @@ class EntropyManager:
         S_rot = ve.vibrational_entropy_calculation(
             torque_matrix, "torque", self._args.temperature, highest
         )
-        residue = mol_container.residues[mol_id]
+
         self._data_logger.add_results_data(
-            residue.resname, level, "Transvibrational", S_trans
+            group_id, level, "Transvibrational", S_trans
         )
         self._data_logger.add_results_data(
-            residue.resname, level, "Rovibrational", S_rot
+            group_id, level, "Rovibrational", S_rot
         )
 
     def _process_conformational_entropy(
-        self, mol_id, mol_container, ce, level, states, number_frames
+        self, group_id, ce, level, states, number_frames
     ):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
@@ -445,10 +440,10 @@ class EntropyManager:
             start, end, step (int): Frame bounds.
             n_frames (int): Number of frames used.
         """
-        S_conf = ce.conformational_entropy_calculation(states[mol_id], number_frames)
-        residue = mol_container.residues[mol_id]
+        S_conf = ce.conformational_entropy_calculation(states[group_id], number_frames)
+
         self._data_logger.add_results_data(
-            residue.resname, level, "Conformational", S_conf
+            group_id, level, "Conformational", S_conf
         )
 
     def _finalize_molecule_results(self):
@@ -599,12 +594,12 @@ class VibrationalEntropy(EntropyManager):
     vibrational modes and thermodynamic properties.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager):
+    def __init__(self, run_manager, args, universe, data_logger, level_manager, group_molecules):
         """
         Initializes the VibrationalEntropy manager with all required components and
         defines physical constants used in vibrational entropy calculations.
         """
-        super().__init__(run_manager, args, universe, data_logger, level_manager)
+        super().__init__(run_manager, args, universe, data_logger, level_manager, group_molecules)
         self._PLANCK_CONST = 6.62607004081818e-34
 
     def frequency_calculation(self, lambdas, temp):
@@ -723,12 +718,12 @@ class ConformationalEntropy(EntropyManager):
     analysis using statistical mechanics principles.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager):
+    def __init__(self, run_manager, args, universe, data_logger, level_manager, group_molecules):
         """
         Initializes the ConformationalEntropy manager with all required components and
         sets the gas constant used in conformational entropy calculations.
         """
-        super().__init__(run_manager, args, universe, data_logger, level_manager)
+        super().__init__(run_manager, args, universe, data_logger, level_manager, group_molecules)
 
     def assign_conformation(
         self, data_container, dihedral, number_frames, bin_width, start, end, step
@@ -760,7 +755,7 @@ class ConformationalEntropy(EntropyManager):
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
-        for timestep in data_container.trajectory[start:end:step]:
+        for timestep in data_container.trajectory[start:end+1:step]:
             timestep_index = timestep.frame - start
             value = dihedral.value()
             # we want postive values in range 0 to 360 to make the peak assignment
