@@ -941,10 +941,12 @@ class LevelManager:
                         for res_id, residue in enumerate(mol.residues):
                             key = (group_id, res_id)
 
-                            res_container = entropy_manager._run_manager.new_U_select_atom(
-                                mol,
-                                f"index {residue.atoms.indices[0]}:"
-                                f"{residue.atoms.indices[-1]}",
+                            res_container = (
+                                entropy_manager._run_manager.new_U_select_atom(
+                                    mol,
+                                    f"index {residue.atoms.indices[0]}:"
+                                    f"{residue.atoms.indices[-1]}",
+                                )
                             )
                             heavy_res = entropy_manager._run_manager.new_U_select_atom(
                                 res_container, "not name H*"
@@ -979,7 +981,6 @@ class LevelManager:
                         )
 
                         states_res[group_id] += states
-                            
 
         logger.debug(f"states_ua {states_ua}")
         logger.debug(f"states_res {states_res}")

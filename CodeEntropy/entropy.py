@@ -16,7 +16,9 @@ class EntropyManager:
     molecular dynamics trajectory.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager, group_molecules):
+    def __init__(
+        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+    ):
         """
         Initializes the EntropyManager with required components.
 
@@ -67,36 +69,31 @@ class EntropyManager:
 
         self._handle_water_entropy(start, end, step)
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-        number_groups = len(groups)
         number_frames = len(reduced_atom.trajectory)
 
-        force_matrices, torque_matrices = (
-            self._level_manager.build_covariance_matrices(
-                self,
-                reduced_atom,
-                levels,
-                groups,
-                start,
-                end,
-                step,
-                number_frames,
-            )
+        force_matrices, torque_matrices = self._level_manager.build_covariance_matrices(
+            self,
+            reduced_atom,
+            levels,
+            groups,
+            start,
+            end,
+            step,
+            number_frames,
         )
 
-        states_ua, states_res = (
-            self._level_manager.build_conformational_states(
-                self,
-                reduced_atom,
-                number_molecules,
-                levels,
-                groups,
-                start,
-                end,
-                step,
-                number_frames,
-                self._args.bin_width,
-                ce,
-            )
+        states_ua, states_res = self._level_manager.build_conformational_states(
+            self,
+            reduced_atom,
+            number_molecules,
+            levels,
+            groups,
+            start,
+            end,
+            step,
+            number_frames,
+            self._args.bin_width,
+            ce,
         )
 
         self._compute_entropies(
@@ -379,15 +376,9 @@ class EntropyManager:
                 residue_id, residue.resname, level, "Conformational", S_conf_res
             )
 
-        self._data_logger.add_results_data(
-            group_id, level, "Transvibrational", S_trans
-        )
-        self._data_logger.add_results_data(
-            group_id, level, "Rovibrational", S_rot
-        )
-        self._data_logger.add_results_data(
-            group_id, level, "Conformational", S_conf
-        )
+        self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
+        self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
+        self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
 
     def _process_vibrational_entropy(
         self, group_id, number_frames, ve, level, force_matrix, torque_matrix, highest
@@ -418,12 +409,8 @@ class EntropyManager:
             torque_matrix, "torque", self._args.temperature, highest
         )
 
-        self._data_logger.add_results_data(
-            group_id, level, "Transvibrational", S_trans
-        )
-        self._data_logger.add_results_data(
-            group_id, level, "Rovibrational", S_rot
-        )
+        self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
+        self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
 
     def _process_conformational_entropy(
         self, group_id, ce, level, states, number_frames
@@ -442,9 +429,7 @@ class EntropyManager:
         """
         S_conf = ce.conformational_entropy_calculation(states[group_id], number_frames)
 
-        self._data_logger.add_results_data(
-            group_id, level, "Conformational", S_conf
-        )
+        self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
 
     def _finalize_molecule_results(self):
         """
@@ -594,12 +579,16 @@ class VibrationalEntropy(EntropyManager):
     vibrational modes and thermodynamic properties.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager, group_molecules):
+    def __init__(
+        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+    ):
         """
         Initializes the VibrationalEntropy manager with all required components and
         defines physical constants used in vibrational entropy calculations.
         """
-        super().__init__(run_manager, args, universe, data_logger, level_manager, group_molecules)
+        super().__init__(
+            run_manager, args, universe, data_logger, level_manager, group_molecules
+        )
         self._PLANCK_CONST = 6.62607004081818e-34
 
     def frequency_calculation(self, lambdas, temp):
@@ -718,12 +707,16 @@ class ConformationalEntropy(EntropyManager):
     analysis using statistical mechanics principles.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager, group_molecules):
+    def __init__(
+        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+    ):
         """
         Initializes the ConformationalEntropy manager with all required components and
         sets the gas constant used in conformational entropy calculations.
         """
-        super().__init__(run_manager, args, universe, data_logger, level_manager, group_molecules)
+        super().__init__(
+            run_manager, args, universe, data_logger, level_manager, group_molecules
+        )
 
     def assign_conformation(
         self, data_container, dihedral, number_frames, bin_width, start, end, step
@@ -755,7 +748,7 @@ class ConformationalEntropy(EntropyManager):
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
-        for timestep in data_container.trajectory[start:end+1:step]:
+        for timestep in data_container.trajectory[start : end + 1 : step]:
             timestep_index = timestep.frame - start
             value = dihedral.value()
             # we want postive values in range 0 to 360 to make the peak assignment
