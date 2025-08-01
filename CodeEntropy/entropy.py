@@ -748,7 +748,7 @@ class ConformationalEntropy(EntropyManager):
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
-        for timestep in data_container.trajectory[start : end + 1 : step]:
+        for timestep in data_container.trajectory[start:end:step]:
             timestep_index = timestep.frame - start
             value = dihedral.value()
             # we want postive values in range 0 to 360 to make the peak assignment
