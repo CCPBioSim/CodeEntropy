@@ -51,7 +51,6 @@ class TestMain(unittest.TestCase):
         """
         mock_universe = MagicMock()
 
-        # Use numpy arrays for .names to allow numpy-like comparison
         fragment0 = MagicMock()
         fragment0.names = np.array(["H", "O", "H"])
         fragment1 = MagicMock()
