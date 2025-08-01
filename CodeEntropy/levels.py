@@ -978,7 +978,10 @@ class LevelManager:
                             ce,
                         )
 
-                        states_res[group_id] += states
+                        if states_res[group_id] is None:
+                            states_res[group_id] = states
+                        else:
+                            states_res[group_id] += states
 
         logger.debug(f"states_ua {states_ua}")
         logger.debug(f"states_res {states_res}")

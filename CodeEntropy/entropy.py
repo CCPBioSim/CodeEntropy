@@ -69,7 +69,6 @@ class EntropyManager:
 
         self._handle_water_entropy(start, end, step)
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-        number_frames = len(reduced_atom.trajectory)
 
         force_matrices, torque_matrices = self._level_manager.build_covariance_matrices(
             self,
@@ -85,7 +84,6 @@ class EntropyManager:
         states_ua, states_res = self._level_manager.build_conformational_states(
             self,
             reduced_atom,
-            number_molecules,
             levels,
             groups,
             start,
@@ -847,12 +845,16 @@ class OrientationalEntropy(EntropyManager):
     and orientational degrees of freedom.
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, level_manager):
+    def __init__(
+        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+    ):
         """
         Initializes the OrientationalEntropy manager with all required components and
         sets the gas constant used in orientational entropy calculations.
         """
-        super().__init__(run_manager, args, universe, data_logger, level_manager)
+        super().__init__(
+            run_manager, args, universe, data_logger, level_manager, group_molecules
+        )
 
     def orientational_entropy_calculation(self, neighbours_dict):
         """
