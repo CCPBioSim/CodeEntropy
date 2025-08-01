@@ -64,6 +64,11 @@ arg_map = {
         "help": "If set to False, disables the calculation of water entropy",
         "default": True,
     },
+    "grouping": {
+        "type": str,
+        "help": "How to group molecules for averaging",
+        "default": "each",
+    },
 }
 
 
