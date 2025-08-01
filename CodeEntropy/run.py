@@ -10,8 +10,8 @@ from CodeEntropy.config.arg_config_manager import ConfigManager
 from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy import EntropyManager
-from CodeEntropy.levels import LevelManager
 from CodeEntropy.group_molecules import GroupMolecules
+from CodeEntropy.levels import LevelManager
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,6 @@ class RunManager:
                     data_logger=self._data_logger,
                     level_manager=level_manager,
                     group_molecules=group_molecules,
-                    
                 )
 
                 entropy_manager.execute()

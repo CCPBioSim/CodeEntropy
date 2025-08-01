@@ -1,7 +1,7 @@
 import logging
-import MDAnalysis as mda
 
 logger = logging.getLogger(__name__)
+
 
 class GroupMolecules:
     """
@@ -57,7 +57,7 @@ class GroupMolecules:
 
     def _by_molecules(self, universe):
         """
-        Group molecules by chemical type. 
+        Group molecules by chemical type.
         Based on number of atoms and atom names.
         """
 
