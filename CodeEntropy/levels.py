@@ -899,7 +899,6 @@ class LevelManager:
         self,
         entropy_manager,
         reduced_atom,
-        number_molecules,
         levels,
         groups,
         start,
@@ -916,7 +915,6 @@ class LevelManager:
         Parameters:
             entropy_manager (EntropyManager): Instance of the EntropyManager
             reduced_atom (Universe): The reduced atom selection.
-            number_molecules (int): Number of molecules in the system.
             levels (list): List of entropy levels per molecule.
             start (int): Start frame index.
             end (int): End frame index.
