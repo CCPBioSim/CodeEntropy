@@ -46,7 +46,7 @@ class LevelManager:
 
         # fragments is MDAnalysis terminology for what chemists would call molecules
         number_molecules = len(data_container.atoms.fragments)
-        logger.debug("The number of molecules is {}.".format(number_molecules))
+        logger.debug(f"The number of molecules is {number_molecules}.")
 
         fragments = data_container.atoms.fragments
         levels = [[] for _ in range(number_molecules)]
@@ -70,26 +70,36 @@ class LevelManager:
         return number_molecules, levels
 
     def get_matrices(
-        self, data_container, level, start, end, step, number_frames, highest_level
+        self,
+        data_container,
+        level,
+        number_frames,
+        highest_level,
+        force_matrix,
+        torque_matrix,
     ):
         """
-        Function to create the force matrix needed for the transvibrational entropy
-        calculation and the torque matrix for the rovibrational entropy calculation.
+        Compute and accumulate force/torque covariance matrices for a given level.
 
-        Input
-        -----
-            data_container : MDAnalysis universe type with the information on the
-            molecule of interest.
-            level : string, which of the polymer, residue, or united atom levels
-            are the matrices for.
-            start : int, starting frame, default 0 (first frame)
-            end : int, ending frame, default -1 (last frame)
-            step : int, step for going through trajectories, default 1
+        Parameters
+        ----------
+        data_container : MDAnalysis.Universe
+            Atom group for a molecule or residue.
+        level : str
+            'polymer', 'residue', or 'united_atom'.
+        number_frames : int
+            Number of frames being processed.
+        highest_level : bool
+            Whether this is the top (polymer) level.
+        force_matrix, torque_matrix : np.ndarray or None
+            Accumulated matrices to add to.
 
         Returns
         -------
-            force_matrix : force covariance matrix for transvibrational entropy
-            torque_matrix : torque convariance matrix for rovibrational entropy
+        force_matrix : np.ndarray
+            Accumulated force covariance matrix.
+        torque_matrix : np.ndarray
+            Accumulated torque covariance matrix.
         """
 
         # Make beads
@@ -99,81 +109,79 @@ class LevelManager:
         number_beads = len(list_of_beads)
 
         # initialize force and torque arrays
-        weighted_forces = [
-            [0 for x in range(number_frames)] for y in range(number_beads)
-        ]
-        weighted_torques = [
-            [0 for x in range(number_frames)] for y in range(number_beads)
-        ]
+        weighted_forces = [None for _ in range(number_beads)]
+        weighted_torques = [None for _ in range(number_beads)]
 
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
-            for timestep in data_container.trajectory[start:end:step]:
-                # Set up axes
-                # translation and rotation use different axes
-                # how the axes are defined depends on the level
-                trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
+            # Set up axes
+            # translation and rotation use different axes
+            # how the axes are defined depends on the level
+            trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
 
-                # Sort out coordinates, forces, and torques for each atom in the bead
-                timestep_index = timestep.frame - start
-                weighted_forces[bead_index][timestep_index] = self.get_weighted_forces(
-                    data_container, list_of_beads[bead_index], trans_axes, highest_level
-                )
-                weighted_torques[bead_index][timestep_index] = (
-                    self.get_weighted_torques(
-                        data_container, list_of_beads[bead_index], rot_axes
-                    )
-                )
+            # Sort out coordinates, forces, and torques for each atom in the bead
+            weighted_forces[bead_index] = self.get_weighted_forces(
+                data_container, list_of_beads[bead_index], trans_axes, highest_level
+            )
+            weighted_torques[bead_index] = self.get_weighted_torques(
+                data_container, list_of_beads[bead_index], rot_axes
+            )
 
-        # Make covariance matrices - looping over pairs of beads
-        # list of pairs of indices
-        pair_list = [(i, j) for i in range(number_beads) for j in range(number_beads)]
-
+        # Create covariance submatrices
         force_submatrix = [
-            [0 for x in range(number_beads)] for y in range(number_beads)
+            [0 for _ in range(number_beads)] for _ in range(number_beads)
         ]
         torque_submatrix = [
-            [0 for x in range(number_beads)] for y in range(number_beads)
+            [0 for _ in range(number_beads)] for _ in range(number_beads)
         ]
 
-        for i, j in pair_list:
-            # for each pair of beads
-            # reducing effort because the matrix for [i][j] is the transpose of the one
-            # for [j][i]
-            if i <= j:
-                # calculate the force covariance segment of the matrix
-                force_submatrix[i][j] = self.create_submatrix(
+        for i in range(number_beads):
+            for j in range(i, number_beads):
+                f_sub = self.create_submatrix(
                     weighted_forces[i], weighted_forces[j], number_frames
                 )
-                force_submatrix[j][i] = np.transpose(force_submatrix[i][j])
-
-                # calculate the torque covariance segment of the matrix
-                torque_submatrix[i][j] = self.create_submatrix(
+                t_sub = self.create_submatrix(
                     weighted_torques[i], weighted_torques[j], number_frames
                 )
-                torque_submatrix[j][i] = np.transpose(torque_submatrix[i][j])
+                force_submatrix[i][j] = f_sub
+                force_submatrix[j][i] = f_sub.T
+                torque_submatrix[i][j] = t_sub
+                torque_submatrix[j][i] = t_sub.T
 
-        # use np.block to make submatrices into one matrix
-        force_matrix = np.block(
+        # Convert block matrices to full matrix
+        force_block = np.block(
             [
                 [force_submatrix[i][j] for j in range(number_beads)]
                 for i in range(number_beads)
             ]
         )
-
-        torque_matrix = np.block(
+        torque_block = np.block(
             [
                 [torque_submatrix[i][j] for j in range(number_beads)]
                 for i in range(number_beads)
             ]
         )
 
-        # fliter zeros to remove any rows/columns that are all zero
-        force_matrix = self.filter_zero_rows_columns(force_matrix)
-        torque_matrix = self.filter_zero_rows_columns(torque_matrix)
+        # Enforce consistent shape before accumulation
+        if force_matrix is None:
+            force_matrix = np.zeros_like(force_block)
+        elif force_matrix.shape != force_block.shape:
+            raise ValueError(
+                f"Inconsistent force matrix shape: existing "
+                f"{force_matrix.shape}, new {force_block.shape}"
+            )
+        else:
+            force_matrix += force_block
 
-        logger.debug(f"Force Matrix: {force_matrix}")
-        logger.debug(f"Torque Matrix: {torque_matrix}")
+        if torque_matrix is None:
+            torque_matrix = np.zeros_like(torque_block)
+        elif torque_matrix.shape != torque_block.shape:
+            raise ValueError(
+                f"Inconsistent torque matrix shape: existing "
+                f"{torque_matrix.shape}, new {torque_block.shape}"
+            )
+        else:
+            torque_matrix += torque_block
 
         return force_matrix, torque_matrix
 
@@ -253,6 +261,50 @@ class LevelManager:
 
         return dihedrals
 
+    def compute_dihedral_conformations(
+        self,
+        selector,
+        level,
+        number_frames,
+        bin_width,
+        start,
+        end,
+        step,
+        ce,
+    ):
+        """
+        Compute dihedral conformations for a given selector and entropy level.
+
+        Parameters:
+            selector (AtomGroup): Atom selection to compute dihedrals for.
+            level (str): Entropy level ("united_atom" or "residue").
+            number_frames (int): Number of frames to process.
+            bin_width (float): Bin width for dihedral angle discretization.
+            start (int): Start frame index.
+            end (int): End frame index.
+            step (int): Step size for frame iteration.
+
+        Returns:
+            tuple: A tuple containing:
+                - states (list): List of conformation strings per frame.
+                - dihedrals (list): List of dihedral angle definitions.
+        """
+        dihedrals = self.get_dihedrals(selector, level)
+        num_dihedrals = len(dihedrals)
+
+        conformation = np.zeros((num_dihedrals, number_frames))
+        for i, dihedral in enumerate(dihedrals):
+            conformation[i] = ce.assign_conformation(
+                selector, dihedral, number_frames, bin_width, start, end, step
+            )
+
+        states = [
+            "".join(str(int(conformation[d][f])) for d in range(num_dihedrals))
+            for f in range(number_frames)
+        ]
+
+        return states
+
     def get_beads(self, data_container, level):
         """
         Function to define beads depending on the level in the hierarchy.
@@ -324,7 +376,7 @@ class LevelManager:
             trans_axes = data_container.atoms.principal_axes()
             rot_axes = data_container.atoms.principal_axes()
 
-        if level == "residue":
+        elif level == "residue":
             # Translation
             # for residues use principal axes of whole molecule for translation
             trans_axes = data_container.atoms.principal_axes()
@@ -356,7 +408,7 @@ class LevelManager:
                 # use spherical coordinates function to get rotational axes
                 rot_axes = self.get_sphCoord_axes(vector)
 
-        if level == "united_atom":
+        elif level == "united_atom":
             # Translation
             # for united atoms use principal axes of residue for translation
             trans_axes = data_container.residues.principal_axes()
@@ -367,15 +419,19 @@ class LevelManager:
                 f"not name H* and bonded index {index}"
             )
 
-            # center at position of heavy atom
-            atom_group = data_container.select_atoms(f"index {index}")
-            center = atom_group.positions[0]
+            if len(atom_set) == 0:
+                # if no bonds to other residues use pricipal axes of residue
+                rot_axes = data_container.residues.principal_axes()
+            else:
+                # center at position of heavy atom
+                atom_group = data_container.select_atoms(f"index {index}")
+                center = atom_group.positions[0]
 
-            # get vector for average position of hydrogens
-            vector = self.get_avg_pos(atom_set, center)
+                # get vector for average position of hydrogens
+                vector = self.get_avg_pos(atom_set, center)
 
-            # use spherical coordinates function to get rotational axes
-            rot_axes = self.get_sphCoord_axes(vector)
+                # use spherical coordinates function to get rotational axes
+                rot_axes = self.get_sphCoord_axes(vector)
 
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
@@ -658,16 +714,136 @@ class LevelManager:
 
         # For each frame calculate the outer product (cross product) of the data from
         # the two beads and add the result to the submatrix
-        for frame in range(number_frames):
-            outer_product_matrix = np.outer(data_i[frame], data_j[frame])
-            submatrix = np.add(submatrix, outer_product_matrix)
-
-        # Divide by the number of frames to get the average
-        submatrix /= number_frames
+        outer_product_matrix = np.outer(data_i, data_j)
+        submatrix = np.add(submatrix, outer_product_matrix)
 
         logger.debug(f"Submatrix: {submatrix}")
 
         return submatrix
+
+    def build_covariance_matrices(
+        self,
+        entropy_manager,
+        reduced_atom,
+        levels,
+        groups,
+        start,
+        end,
+        step,
+        number_frames,
+    ):
+        """
+        Construct force and torque covariance matrices for all molecules and levels.
+
+        Parameters:
+            entropy_manager (EntropyManager): Instance of the EntropyManager
+            reduced_atom (Universe): The reduced atom selection.
+            number_molecules (int): Number of molecules in the system.
+            levels (list): List of entropy levels per molecule.
+            start (int): Start frame index.
+            end (int): End frame index.
+            step (int): Step size for frame iteration.
+            number_frames (int): Total number of frames to process.
+
+        Returns:
+            tuple: A tuple containing:
+                - force_matrices (dict): Force covariance matrices by level.
+                - torque_matrices (dict): Torque covariance matrices by level.
+        """
+        number_groups = len(groups)
+        force_matrices = {
+            "ua": {},
+            "res": [None] * number_groups,
+            "poly": [None] * number_groups,
+        }
+        torque_matrices = {
+            "ua": {},
+            "res": [None] * number_groups,
+            "poly": [None] * number_groups,
+        }
+
+        for timestep in reduced_atom.trajectory[start:end:step]:
+            time_index = timestep.frame - start
+
+            for group_id in groups.keys():
+                molecules = groups[group_id]
+                for mol_id in molecules:
+                    mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
+                    for level in levels[mol_id]:
+                        self.update_force_torque_matrices(
+                            entropy_manager,
+                            mol,
+                            group_id,
+                            level,
+                            levels[mol_id],
+                            time_index,
+                            number_frames,
+                            force_matrices,
+                            torque_matrices,
+                        )
+
+        return force_matrices, torque_matrices
+
+    def update_force_torque_matrices(
+        self,
+        entropy_manager,
+        mol,
+        group_id,
+        level,
+        level_list,
+        time_index,
+        num_frames,
+        force_matrices,
+        torque_matrices,
+    ):
+        """
+        Update force and torque matrices for a given molecule and entropy level.
+
+        Parameters:
+            entropy_manager (EntropyManager): Instance of the EntropyManager
+            mol (AtomGroup): The molecule to process.
+            group_id (int): Index of the group.
+            level (str): Current entropy level ("united_atom", "residue", or "polymer").
+            level_list (list): List of levels for the molecule.
+            time_index (int): Index of the current frame.
+            num_frames (int): Total number of frames.
+            force_matrices (dict): Dictionary of force matrices to update.
+            torque_matrices (dict): Dictionary of torque matrices to update.
+        """
+        highest = level == level_list[-1]
+
+        if level == "united_atom":
+            for res_id, residue in enumerate(mol.residues):
+                key = (group_id, res_id)
+                res = entropy_manager._run_manager.new_U_select_atom(
+                    mol, f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}"
+                )
+                res.trajectory[time_index]
+
+                f_mat, t_mat = self.get_matrices(
+                    res,
+                    level,
+                    num_frames,
+                    highest,
+                    force_matrices["ua"].get(key),
+                    torque_matrices["ua"].get(key),
+                )
+                force_matrices["ua"][key] = f_mat
+                torque_matrices["ua"][key] = t_mat
+
+        elif level in ["residue", "polymer"]:
+            mol.trajectory[time_index]
+            key = "res" if level == "residue" else "poly"
+            f_mat, t_mat = self.get_matrices(
+                mol,
+                level,
+                num_frames,
+                highest,
+                force_matrices[key][group_id],
+                torque_matrices[key][group_id],
+            )
+            force_matrices[key][group_id] = f_mat
+            torque_matrices[key][group_id] = t_mat
 
     def filter_zero_rows_columns(self, arg_matrix):
         """
@@ -718,3 +894,96 @@ class LevelManager:
         logger.debug(f"arg_matrix: {arg_matrix}")
 
         return arg_matrix
+
+    def build_conformational_states(
+        self,
+        entropy_manager,
+        reduced_atom,
+        levels,
+        groups,
+        start,
+        end,
+        step,
+        number_frames,
+        bin_width,
+        ce,
+    ):
+        """
+        Construct the conformational states for each molecule at
+        relevant levels.
+
+        Parameters:
+            entropy_manager (EntropyManager): Instance of the EntropyManager
+            reduced_atom (Universe): The reduced atom selection.
+            levels (list): List of entropy levels per molecule.
+            start (int): Start frame index.
+            end (int): End frame index.
+            step (int): Step size for frame iteration.
+            number_frames (int): Total number of frames to process.
+
+        Returns:
+            tuple: A tuple containing:
+                - states_ua (dict): Conformational states at the united-atom level.
+                - states_res (list): Conformational states at the residue level.
+        """
+        number_groups = len(groups)
+        states_ua = {}
+        states_res = [None] * number_groups
+
+        for group_id in groups.keys():
+            molecules = groups[group_id]
+            for mol_id in molecules:
+                mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
+                for level in levels[mol_id]:
+                    if level == "united_atom":
+                        for res_id, residue in enumerate(mol.residues):
+                            key = (group_id, res_id)
+
+                            res_container = (
+                                entropy_manager._run_manager.new_U_select_atom(
+                                    mol,
+                                    f"index {residue.atoms.indices[0]}:"
+                                    f"{residue.atoms.indices[-1]}",
+                                )
+                            )
+                            heavy_res = entropy_manager._run_manager.new_U_select_atom(
+                                res_container, "not name H*"
+                            )
+
+                            states = self.compute_dihedral_conformations(
+                                heavy_res,
+                                level,
+                                number_frames,
+                                bin_width,
+                                start,
+                                end,
+                                step,
+                                ce,
+                            )
+
+                            if key in states_ua.keys():
+                                states_ua[key].append(states)
+                            else:
+                                states_ua[key] = states
+
+                    if level == "res":
+                        states = self.compute_dihedral_conformations(
+                            mol,
+                            level,
+                            number_frames,
+                            bin_width,
+                            start,
+                            end,
+                            step,
+                            ce,
+                        )
+
+                        if states_res[group_id] is None:
+                            states_res[group_id] = states
+                        else:
+                            states_res[group_id] += states
+
+        logger.debug(f"states_ua {states_ua}")
+        logger.debug(f"states_res {states_res}")
+
+        return states_ua, states_res
