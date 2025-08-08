@@ -733,40 +733,58 @@ class LevelManager:
         number_frames,
     ):
         """
-        Construct force and torque covariance matrices for all molecules and levels.
+        Construct average force and torque covariance matrices for all molecules and
+        entropy levels.
 
-        Parameters:
-            entropy_manager (EntropyManager): Instance of the EntropyManager
-            reduced_atom (Universe): The reduced atom selection.
-            number_molecules (int): Number of molecules in the system.
-            levels (list): List of entropy levels per molecule.
-            start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Step size for frame iteration.
-            number_frames (int): Total number of frames to process.
+        Parameters
+        ----------
+        entropy_manager : EntropyManager
+            Instance of the EntropyManager.
+        reduced_atom : Universe
+            The reduced atom selection.
+        levels : dict
+            Dictionary mapping molecule IDs to lists of entropy levels.
+        groups : dict
+            Dictionary mapping group IDs to lists of molecule IDs.
+        start : int
+            Start frame index.
+        end : int
+            End frame index.
+        step : int
+            Step size for frame iteration.
+        number_frames : int
+            Total number of frames to process.
 
-        Returns:
-            tuple: A tuple containing:
-                - force_matrices (dict): Force covariance matrices by level.
-                - torque_matrices (dict): Torque covariance matrices by level.
+        Returns
+        -------
+        tuple
+            force_avg : dict
+                Averaged force covariance matrices by entropy level.
+            torque_avg : dict
+                Averaged torque covariance matrices by entropy level.
         """
         number_groups = len(groups)
-        force_matrices = {
+
+        force_avg = {
             "ua": {},
             "res": [None] * number_groups,
             "poly": [None] * number_groups,
         }
-        torque_matrices = {
+        torque_avg = {
             "ua": {},
             "res": [None] * number_groups,
             "poly": [None] * number_groups,
+        }
+        frame_counts = {
+            "ua": {},
+            "res": np.zeros(number_groups, dtype=int),
+            "poly": np.zeros(number_groups, dtype=int),
         }
 
         for timestep in reduced_atom.trajectory[start:end:step]:
             time_index = timestep.frame - start
 
-            for group_id in groups.keys():
-                molecules = groups[group_id]
+            for group_id, molecules in groups.items():
                 for mol_id in molecules:
                     mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
                     for level in levels[mol_id]:
@@ -778,11 +796,12 @@ class LevelManager:
                             levels[mol_id],
                             time_index,
                             number_frames,
-                            force_matrices,
-                            torque_matrices,
+                            force_avg,
+                            torque_avg,
+                            frame_counts,
                         )
 
-        return force_matrices, torque_matrices
+        return force_avg, torque_avg
 
     def update_force_torque_matrices(
         self,
@@ -793,22 +812,55 @@ class LevelManager:
         level_list,
         time_index,
         num_frames,
-        force_matrices,
-        torque_matrices,
+        force_avg,
+        torque_avg,
+        frame_counts,
     ):
         """
-        Update force and torque matrices for a given molecule and entropy level.
+        Update the running averages of force and torque covariance matrices
+        for a given molecule and entropy level.
 
-        Parameters:
-            entropy_manager (EntropyManager): Instance of the EntropyManager
-            mol (AtomGroup): The molecule to process.
-            group_id (int): Index of the group.
-            level (str): Current entropy level ("united_atom", "residue", or "polymer").
-            level_list (list): List of levels for the molecule.
-            time_index (int): Index of the current frame.
-            num_frames (int): Total number of frames.
-            force_matrices (dict): Dictionary of force matrices to update.
-            torque_matrices (dict): Dictionary of torque matrices to update.
+        This function computes the force and torque covariance matrices for the
+        current frame and updates the existing averages in-place using the incremental
+        mean formula:
+
+            new_avg = old_avg + (value - old_avg) / n
+
+        where n is the number of frames processed so far for that molecule/level
+        combination. This ensures that the averages are maintained without storing
+        all previous frame data.
+
+        Parameters
+        ----------
+        entropy_manager : EntropyManager
+            Instance of the EntropyManager.
+        mol : AtomGroup
+            The molecule to process.
+        group_id : int
+            Index of the group to which the molecule belongs.
+        level : str
+            Current entropy level ("united_atom", "residue", or "polymer").
+        level_list : list
+            List of entropy levels for the molecule.
+        time_index : int
+            Index of the current frame relative to the start of the trajectory slice.
+        num_frames : int
+            Total number of frames to process.
+        force_avg : dict
+            Dictionary holding the running average force matrices, keyed by entropy
+            level.
+        torque_avg : dict
+            Dictionary holding the running average torque matrices, keyed by entropy
+            level.
+        frame_counts : dict
+            Dictionary holding the count of frames processed for each molecule/level
+            combination.
+
+        Returns
+        -------
+        None
+            Updates are performed in-place on `force_avg`, `torque_avg`, and
+            `frame_counts`.
         """
         highest = level == level_list[-1]
 
@@ -825,11 +877,19 @@ class LevelManager:
                     level,
                     num_frames,
                     highest,
-                    force_matrices["ua"].get(key),
-                    torque_matrices["ua"].get(key),
+                    None if key not in force_avg["ua"] else force_avg["ua"][key],
+                    None if key not in torque_avg["ua"] else torque_avg["ua"][key],
                 )
-                force_matrices["ua"][key] = f_mat
-                torque_matrices["ua"][key] = t_mat
+
+                if key not in force_avg["ua"]:
+                    force_avg["ua"][key] = f_mat.copy()
+                    torque_avg["ua"][key] = t_mat.copy()
+                    frame_counts["ua"][key] = 1
+                else:
+                    frame_counts["ua"][key] += 1
+                    n = frame_counts["ua"][key]
+                    force_avg["ua"][key] += (f_mat - force_avg["ua"][key]) / n
+                    torque_avg["ua"][key] += (t_mat - torque_avg["ua"][key]) / n
 
         elif level in ["residue", "polymer"]:
             mol.trajectory[time_index]
@@ -839,11 +899,23 @@ class LevelManager:
                 level,
                 num_frames,
                 highest,
-                force_matrices[key][group_id],
-                torque_matrices[key][group_id],
+                None if force_avg[key][group_id] is None else force_avg[key][group_id],
+                (
+                    None
+                    if torque_avg[key][group_id] is None
+                    else torque_avg[key][group_id]
+                ),
             )
-            force_matrices[key][group_id] = f_mat
-            torque_matrices[key][group_id] = t_mat
+
+            if force_avg[key][group_id] is None:
+                force_avg[key][group_id] = f_mat.copy()
+                torque_avg[key][group_id] = t_mat.copy()
+                frame_counts[key][group_id] = 1
+            else:
+                frame_counts[key][group_id] += 1
+                n = frame_counts[key][group_id]
+                force_avg[key][group_id] += (f_mat - force_avg[key][group_id]) / n
+                torque_avg[key][group_id] += (t_mat - torque_avg[key][group_id]) / n
 
     def filter_zero_rows_columns(self, arg_matrix):
         """
