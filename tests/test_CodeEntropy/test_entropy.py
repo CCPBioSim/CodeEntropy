@@ -204,6 +204,58 @@ class TestEntropyManager(unittest.TestCase):
         )
         self.assertEqual(args.selection_string, "protein and not water")
 
+    def test_initialize_molecules(self):
+        """
+        Test _initialize_molecules returns expected tuple by mocking internal methods.
+
+        - Ensures _get_reduced_universe is called and its return is used.
+        - Ensures _level_manager.select_levels is called with the reduced atom
+        selection.
+        - Ensures _group_molecules.grouping_molecules is called with the reduced atom
+        and grouping arg.
+        - Verifies the returned tuple matches the mocked values.
+        """
+
+        args = MagicMock(
+            bin_width=0.1, temperature=300, selection_string="all", water_entropy=False
+        )
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+        manager = EntropyManager(
+            run_manager, args, MagicMock(), data_logger, level_manager, group_molecules
+        )
+
+        # Mock dependencies
+        manager._get_reduced_universe = MagicMock(return_value="mock_reduced_atom")
+        manager._level_manager = MagicMock()
+        manager._level_manager.select_levels = MagicMock(
+            return_value=(5, ["level1", "level2"])
+        )
+        manager._group_molecules = MagicMock()
+        manager._group_molecules.grouping_molecules = MagicMock(
+            return_value=["groupA", "groupB"]
+        )
+        manager._args = MagicMock()
+        manager._args.grouping = "custom_grouping"
+
+        # Call the method under test
+        result = manager._initialize_molecules()
+
+        # Assert calls
+        manager._get_reduced_universe.assert_called_once()
+        manager._level_manager.select_levels.assert_called_once_with(
+            "mock_reduced_atom"
+        )
+        manager._group_molecules.grouping_molecules.assert_called_once_with(
+            "mock_reduced_atom", "custom_grouping"
+        )
+
+        # Assert return value
+        expected = ("mock_reduced_atom", 5, ["level1", "level2"], ["groupA", "groupB"])
+        self.assertEqual(result, expected)
+
     def test_get_trajectory_bounds(self):
         """
         Tests that `_get_trajectory_bounds` runs and returns expected types.
@@ -658,6 +710,184 @@ class TestEntropyManager(unittest.TestCase):
 
         results = [entry[3] for entry in df]
         self.assertIn(3.33, results)
+
+    def test_compute_entropies_united_atom(self):
+        """
+        Test that _process_united_atom_entropy is called correctly for 'united_atom'
+        level with highest=False when it's the only level.
+        """
+        args = MagicMock(bin_width=0.1)
+        run_manager = MagicMock()
+        level_manager = MagicMock()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+        manager = EntropyManager(
+            run_manager, args, MagicMock(), data_logger, level_manager, group_molecules
+        )
+
+        reduced_atom = MagicMock()
+        number_frames = 10
+        groups = {0: [0]}
+        levels = [["united_atom"]]  # single level
+
+        force_matrices = {"ua": {0: "force_ua"}}
+        torque_matrices = {"ua": {0: "torque_ua"}}
+        states_ua = {}
+        states_res = []
+
+        mol_mock = MagicMock()
+        mol_mock.residues = []
+        manager._get_molecule_container = MagicMock(return_value=mol_mock)
+        manager._process_united_atom_entropy = MagicMock()
+
+        ve = MagicMock()
+        ce = MagicMock()
+
+        manager._compute_entropies(
+            reduced_atom,
+            levels,
+            groups,
+            force_matrices,
+            torque_matrices,
+            states_ua,
+            states_res,
+            number_frames,
+            ve,
+            ce,
+        )
+
+        manager._process_united_atom_entropy.assert_called_once_with(
+            0,
+            mol_mock,
+            ve,
+            ce,
+            "united_atom",
+            force_matrices["ua"],
+            torque_matrices["ua"],
+            states_ua,
+            True,  # highest is True since only level
+            number_frames,
+        )
+
+    def test_compute_entropies_residue(self):
+        """
+        Test that _process_vibrational_entropy and _process_conformational_entropy
+        are called correctly for 'residue' level with highest=True when it's the
+        only level.
+        """
+        args = MagicMock(bin_width=0.1)
+        run_manager = MagicMock()
+        level_manager = MagicMock()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+        manager = EntropyManager(
+            run_manager, args, MagicMock(), data_logger, level_manager, group_molecules
+        )
+
+        reduced_atom = MagicMock()
+        number_frames = 10
+        groups = {0: [0]}
+        levels = [["residue"]]  # single level
+
+        force_matrices = {"res": {0: "force_res"}}
+        torque_matrices = {"res": {0: "torque_res"}}
+        states_ua = {}
+        states_res = ["states_res"]
+
+        mol_mock = MagicMock()
+        mol_mock.residues = []
+        manager._get_molecule_container = MagicMock(return_value=mol_mock)
+        manager._process_vibrational_entropy = MagicMock()
+        manager._process_conformational_entropy = MagicMock()
+
+        ve = MagicMock()
+        ce = MagicMock()
+
+        manager._compute_entropies(
+            reduced_atom,
+            levels,
+            groups,
+            force_matrices,
+            torque_matrices,
+            states_ua,
+            states_res,
+            number_frames,
+            ve,
+            ce,
+        )
+
+        manager._process_vibrational_entropy.assert_called_once_with(
+            0,
+            number_frames,
+            ve,
+            "residue",
+            force_matrices["res"][0],
+            torque_matrices["res"][0],
+            True,
+        )
+
+        manager._process_conformational_entropy.assert_called_once_with(
+            0,
+            ce,
+            "residue",
+            states_res,
+            number_frames,
+        )
+
+    def test_compute_entropies_polymer(self):
+        """
+        Test that _process_vibrational_entropy is called correctly for 'polymer' level
+        with highest=True when it's the only level.
+        """
+        args = MagicMock(bin_width=0.1)
+        run_manager = MagicMock()
+        level_manager = MagicMock()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+        manager = EntropyManager(
+            run_manager, args, MagicMock(), data_logger, level_manager, group_molecules
+        )
+
+        reduced_atom = MagicMock()
+        number_frames = 10
+        groups = {0: [0]}
+        levels = [["polymer"]]  # single level
+
+        force_matrices = {"poly": {0: "force_poly"}}
+        torque_matrices = {"poly": {0: "torque_poly"}}
+        states_ua = {}
+        states_res = []
+
+        mol_mock = MagicMock()
+        mol_mock.residues = []
+        manager._get_molecule_container = MagicMock(return_value=mol_mock)
+        manager._process_vibrational_entropy = MagicMock()
+
+        ve = MagicMock()
+        ce = MagicMock()
+
+        manager._compute_entropies(
+            reduced_atom,
+            levels,
+            groups,
+            force_matrices,
+            torque_matrices,
+            states_ua,
+            states_res,
+            number_frames,
+            ve,
+            ce,
+        )
+
+        manager._process_vibrational_entropy.assert_called_once_with(
+            0,
+            number_frames,
+            ve,
+            "polymer",
+            force_matrices["poly"][0],
+            torque_matrices["poly"][0],
+            True,
+        )
 
     def test_finalize_molecule_results_aggregates_and_logs_total_entropy(self):
         """
@@ -1232,6 +1462,37 @@ class TestConformationalEntropy(unittest.TestCase):
         assert len(result) == 6
         assert np.all(result >= 0)
         assert np.issubdtype(result.dtype, np.floating)
+
+    def test_conformational_entropy_calculation(self):
+        """
+        Test `conformational_entropy_calculation` method to verify
+        correct entropy calculation from a simple discrete state array.
+        """
+
+        # Setup managers and arguments
+        args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+
+        ce = ConformationalEntropy(
+            run_manager, args, MagicMock(), data_logger, level_manager, group_molecules
+        )
+
+        # Create a simple array of states with known counts
+        states = np.array([0, 0, 1, 1, 1, 2])  # 2x state 0, 3x state 1, 1x state 2
+        number_frames = len(states)
+
+        # Manually compute expected entropy
+        probs = np.array([2 / 6, 3 / 6, 1 / 6])
+        expected_entropy = -np.sum(probs * np.log(probs)) * ce._GAS_CONST
+
+        # Run the method under test
+        result = ce.conformational_entropy_calculation(states, number_frames)
+
+        # Assert the result is close to expected entropy
+        self.assertAlmostEqual(result, expected_entropy, places=6)
 
 
 class TestOrientationalEntropy(unittest.TestCase):

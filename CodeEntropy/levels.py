@@ -1,6 +1,13 @@
 import logging
 
 import numpy as np
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -762,25 +769,62 @@ class LevelManager:
             "poly": [None] * number_groups,
         }
 
-        for timestep in reduced_atom.trajectory[start:end:step]:
-            time_index = timestep.frame - start
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
+            TimeElapsedColumn(),
+        ) as progress:
 
-            for group_id in groups.keys():
-                molecules = groups[group_id]
-                for mol_id in molecules:
-                    mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
-                    for level in levels[mol_id]:
-                        self.update_force_torque_matrices(
-                            entropy_manager,
-                            mol,
-                            group_id,
-                            level,
-                            levels[mol_id],
-                            time_index,
-                            number_frames,
-                            force_matrices,
-                            torque_matrices,
+            total_timesteps = len(reduced_atom.trajectory[start:end:step])
+            total_molecules = total_timesteps * sum(
+                len(mols) for mols in groups.values()
+            )
+            total_levels = total_timesteps * sum(
+                len(levels[mol_id]) for mols in groups.values() for mol_id in mols
+            )
+
+            timestep_task = progress.add_task(
+                "[green]Processing Timesteps...",
+                total=total_timesteps,
+                title="Timestep",
+            )
+            mol_task = progress.add_task(
+                "[cyan]Processing Molecules...",
+                total=total_molecules,
+                title="Molecules",
+            )
+            level_task = progress.add_task(
+                "[magenta]Processing Levels...", total=total_levels, title="Levels"
+            )
+
+            for timestep in reduced_atom.trajectory[start:end:step]:
+                time_index = timestep.frame - start
+
+                for group_id, molecules in groups.items():
+                    for mol_id in molecules:
+                        mol = entropy_manager._get_molecule_container(
+                            reduced_atom, mol_id
                         )
+
+                        for level in levels[mol_id]:
+                            self.update_force_torque_matrices(
+                                entropy_manager,
+                                mol,
+                                group_id,
+                                level,
+                                levels[mol_id],
+                                time_index,
+                                number_frames,
+                                force_matrices,
+                                torque_matrices,
+                            )
+                            progress.advance(level_task)
+
+                        progress.advance(mol_task)
+
+                progress.advance(timestep_task)
 
         return force_matrices, torque_matrices
 

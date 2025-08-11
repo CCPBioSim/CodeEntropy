@@ -3,11 +3,11 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import patch
 
 import pandas as pd
 
 from CodeEntropy.config.data_logger import DataLogger
+from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.main import main
 
 
@@ -120,12 +120,10 @@ class TestDataLogger(unittest.TestCase):
         self.assertEqual(data["molecule_data"][0]["Type"], "Transvibrational (J/mol/K)")
         self.assertEqual(data["residue_data"][0]["Residue"], 0)
 
-    @patch("CodeEntropy.config.data_logger.logger")
-    def test_log_tables(self, mock_logger):
-        """
-        Test that log_tables logs formatted molecule and residue tables using the
-        logger.
-        """
+    def test_log_tables_rich_output(self):
+        console = LoggingConfig.get_console()
+        console.clear_live()
+
         self.logger.add_results_data(
             0, "united_atom", "Transvibrational", 653.4041220313459
         )
@@ -135,9 +133,9 @@ class TestDataLogger(unittest.TestCase):
 
         self.logger.log_tables()
 
-        calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        self.assertTrue(any("Molecule Data Table:" in c for c in calls))
-        self.assertTrue(any("Residue Data Table:" in c for c in calls))
+        output = console.export_text()
+        assert "Molecule Entropy Results" in output
+        assert "Residue Entropy Results" in output
 
 
 if __name__ == "__main__":
