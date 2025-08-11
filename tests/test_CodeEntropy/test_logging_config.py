@@ -2,6 +2,7 @@ import logging
 import os
 import tempfile
 import unittest
+from unittest.mock import MagicMock
 
 from CodeEntropy.config.logging_config import LoggingConfig
 
@@ -13,6 +14,9 @@ class TestLoggingConfig(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.log_dir = os.path.join(self.temp_dir.name, "logs")
         self.logging_config = LoggingConfig(folder=self.temp_dir.name)
+
+        self.mock_text = "Test console output"
+        self.logging_config.console.export_text = MagicMock(return_value=self.mock_text)
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -31,20 +35,17 @@ class TestLoggingConfig(unittest.TestCase):
         """Ensure log file paths are configured correctly in the logging config"""
         self.logging_config.setup_logging()
 
-        # Map actual output files to their corresponding handler keys
+        # Map expected filenames to the corresponding handler keys in LoggingConfig
         expected_handlers = {
-            "program.out": "stdout",
-            "program.log": "logfile",
-            "program.err": "errorfile",
-            "program.com": "commandfile",
-            "mdanalysis.log": "mdanalysis_log",
+            "program.log": "main",
+            "program.err": "error",
+            "program.com": "command",
+            "mdanalysis.log": "mdanalysis",
         }
 
         for filename, handler_key in expected_handlers.items():
-            expected_path = os.path.join(self.log_dir, filename)
-            actual_path = self.logging_config.LOGGING["handlers"][handler_key][
-                "filename"
-            ]
+            expected_path = os.path.join(self.logging_config.log_dir, filename)
+            actual_path = self.logging_config.handlers[handler_key].baseFilename
             self.assertEqual(actual_path, expected_path)
 
     def test_update_logging_level(self):
@@ -67,9 +68,7 @@ class TestLoggingConfig(unittest.TestCase):
     def test_mdanalysis_and_command_loggers_exist(self):
         """Ensure specialized loggers are set up with correct configuration"""
         log_level = logging.DEBUG
-        self.logging_config = LoggingConfig(
-            folder=self.temp_dir.name, log_level=log_level
-        )
+        self.logging_config = LoggingConfig(folder=self.temp_dir.name, level=log_level)
         self.logging_config.setup_logging()
 
         mda_logger = logging.getLogger("MDAnalysis")
@@ -79,6 +78,26 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertEqual(cmd_logger.level, logging.INFO)
         self.assertFalse(mda_logger.propagate)
         self.assertFalse(cmd_logger.propagate)
+
+    def test_save_console_log_writes_file(self):
+        """
+        Test that save_console_log creates a log file in the expected location
+        and writes the console's recorded output correctly.
+        """
+        filename = "test_log.txt"
+        self.logging_config.save_console_log(filename)
+
+        output_path = os.path.join(self.temp_dir.name, "logs", filename)
+        # Check file exists
+        self.assertTrue(os.path.exists(output_path))
+
+        # Read content and check it matches mocked export_text output
+        with open(output_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertEqual(content, self.mock_text)
+
+        # Ensure export_text was called once
+        self.logging_config.console.export_text.assert_called_once()
 
 
 if __name__ == "__main__":

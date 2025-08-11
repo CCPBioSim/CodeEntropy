@@ -198,6 +198,58 @@ class TestLevels(unittest.TestCase):
 
         self.assertIn("Inconsistent torque matrix shape", str(context.exception))
 
+    def test_get_matrices_torque_accumulation(self):
+        """
+        Test that get_matrices properly accumulates into an existing torque_matrix
+        when it has the correct shape.
+        """
+        level_manager = LevelManager()
+
+        # Mock internal methods to produce 2 beads, 3D each
+        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
+        level_manager.get_weighted_forces = MagicMock(
+            return_value=np.array([1.0, 2.0, 3.0])
+        )
+        level_manager.get_weighted_torques = MagicMock(
+            return_value=np.array([0.5, 1.5, 2.5])
+        )
+        level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
+
+        data_container = MagicMock()
+
+        # Initialize force and torque matrices with zeros of expected shape
+        initial_force_matrix = np.zeros((6, 6))
+        initial_torque_matrix = np.zeros((6, 6))
+
+        # Call get_matrices once
+        force_matrix_1, torque_matrix_1 = level_manager.get_matrices(
+            data_container=data_container,
+            level="residue",
+            number_frames=2,
+            highest_level=True,
+            force_matrix=initial_force_matrix.copy(),
+            torque_matrix=initial_torque_matrix.copy(),
+        )
+
+        # Call get_matrices a second time with the matrices returned from first call
+        force_matrix_2, torque_matrix_2 = level_manager.get_matrices(
+            data_container=data_container,
+            level="residue",
+            number_frames=2,
+            highest_level=True,
+            force_matrix=force_matrix_1.copy(),
+            torque_matrix=torque_matrix_1.copy(),
+        )
+
+        # The difference between second and first call should be close to first call
+        torque_difference = torque_matrix_2 - torque_matrix_1
+        force_difference = force_matrix_2 - force_matrix_1
+
+        # Check that difference is close to torque_matrix_1
+        self.assertTrue(np.allclose(torque_difference, torque_matrix_1, atol=1e-8))
+        self.assertTrue(np.allclose(force_difference, force_matrix_1, atol=1e-8))
+
     def test_get_dihedrals_united_atom(self):
         """
         Test `get_dihedrals` for 'united_atom' level.
@@ -256,6 +308,62 @@ class TestLevels(unittest.TestCase):
 
         # Should result in no resdies
         self.assertEqual(result, [])
+
+    def test_compute_dihedral_conformations(self):
+        """
+        Test `compute_dihedral_conformations` to ensure it correctly calls
+        `assign_conformation` on each dihedral and returns the expected
+        list of conformation strings.
+        """
+
+        # Setup
+        level_manager = LevelManager()
+
+        # Mock selector (can be anything since we're mocking internals)
+        selector = MagicMock()
+
+        # Mock dihedrals: pretend we have 3 dihedrals
+        mocked_dihedrals = ["d1", "d2", "d3"]
+        level_manager.get_dihedrals = MagicMock(return_value=mocked_dihedrals)
+
+        # Mock the conformation entropy (ce) object with assign_conformation method
+        ce = MagicMock()
+        # For each dihedral, assign_conformation returns a numpy array of ints
+        ce.assign_conformation = MagicMock(
+            side_effect=[
+                np.array([0, 1, 2]),
+                np.array([1, 0, 1]),
+                np.array([2, 2, 0]),
+            ]
+        )
+
+        number_frames = 3
+        bin_width = 10
+        start = 0
+        end = 3
+        step = 1
+        level = "residue"
+
+        # Call the method
+        states = level_manager.compute_dihedral_conformations(
+            selector, level, number_frames, bin_width, start, end, step, ce
+        )
+
+        # Expected states per frame
+        expected_states = [
+            "012",  # frame 0: d1=0, d2=1, d3=2
+            "102",  # frame 1: d1=1, d2=0, d3=2
+            "210",  # frame 2: d1=2, d2=1, d3=0
+        ]
+
+        # Verify the call count matches the number of dihedrals
+        self.assertEqual(ce.assign_conformation.call_count, len(mocked_dihedrals))
+
+        # Verify returned states are as expected
+        self.assertEqual(states, expected_states)
+
+        # Verify get_dihedrals was called once with correct arguments
+        level_manager.get_dihedrals.assert_called_once_with(selector, level)
 
     def test_get_beads_polymer_level(self):
         """
@@ -815,6 +923,168 @@ class TestLevels(unittest.TestCase):
         result = level_manager.create_submatrix(data, data, 1)
 
         self.assertTrue(np.allclose(result, result.T))  # Check symmetry
+
+    def test_build_covariance_matrices_atomic(self):
+        """
+        Test `build_covariance_matrices` to ensure it correctly orchestrates
+        calls and returns dictionaries with the expected structure.
+
+        This test mocks dependencies including the entropy_manager, reduced_atom
+        trajectory, levels, groups, and internal method
+        `update_force_torque_matrices`.
+        """
+
+        # Instantiate your class (replace YourClass with actual class name)
+        instance = LevelManager()
+
+        # Mock entropy_manager and _get_molecule_container
+        entropy_manager = MagicMock()
+        entropy_manager._get_molecule_container = MagicMock(
+            side_effect=lambda reduced_atom, mol_id: f"mol_{mol_id}"
+        )
+
+        # Mock reduced_atom with trajectory yielding two timesteps
+        timestep1 = MagicMock()
+        timestep1.frame = 0
+        timestep2 = MagicMock()
+        timestep2.frame = 1
+        reduced_atom = MagicMock()
+        reduced_atom.trajectory.__getitem__.return_value = [timestep1, timestep2]
+
+        # Setup groups and levels dictionaries
+        groups = {"ua": ["mol1", "mol2"]}
+        levels = {"mol1": ["level1", "level2"], "mol2": ["level1"]}
+
+        # Mock update_force_torque_matrices to just track calls
+        instance.update_force_torque_matrices = MagicMock()
+
+        # Call the method under test
+        force_matrices, torque_matrices = instance.build_covariance_matrices(
+            entropy_manager=entropy_manager,
+            reduced_atom=reduced_atom,
+            levels=levels,
+            groups=groups,
+            start=0,
+            end=2,
+            step=1,
+            number_frames=2,
+        )
+
+        # Assert returned matrices are dictionaries with correct keys
+        self.assertIsInstance(force_matrices, dict)
+        self.assertIsInstance(torque_matrices, dict)
+        self.assertSetEqual(set(force_matrices.keys()), {"ua", "res", "poly"})
+        self.assertSetEqual(set(torque_matrices.keys()), {"ua", "res", "poly"})
+
+        # Assert 'res' and 'poly' entries are lists of correct length
+        self.assertIsInstance(force_matrices["res"], list)
+        self.assertIsInstance(force_matrices["poly"], list)
+        self.assertEqual(len(force_matrices["res"]), len(groups))
+        self.assertEqual(len(force_matrices["poly"]), len(groups))
+
+        # Check _get_molecule_container call count: 2 timesteps * 2 molecules = 4 calls
+        self.assertEqual(entropy_manager._get_molecule_container.call_count, 4)
+
+        # Check update_force_torque_matrices call count:
+        self.assertEqual(instance.update_force_torque_matrices.call_count, 6)
+
+    def test_update_force_torque_matrices(self):
+        """
+        Test `update_force_torque_matrices` for both 'united_atom' and 'residue' levels.
+
+        Verifies that the method correctly updates force and torque matrices in the
+        appropriate dictionary entries, calls internal methods as expected, and handles
+        both united atom (per residue) and residue/polymer (whole molecule) cases.
+        """
+        instance = LevelManager()
+
+        entropy_manager = MagicMock()
+        run_manager = MagicMock()
+        entropy_manager._run_manager = run_manager
+
+        # Mock for new_U_select_atom that returns a mock residue group with .trajectory
+        mock_residue_group = MagicMock()
+        mock_residue_group.trajectory.__getitem__.return_value = None
+
+        run_manager.new_U_select_atom.return_value = mock_residue_group
+
+        # Mock molecule and its residues
+        mock_residue1 = MagicMock()
+        mock_residue1.atoms.indices = [0, 2]
+        mock_residue2 = MagicMock()
+        mock_residue2.atoms.indices = [3, 5]
+
+        mol = MagicMock()
+        mol.residues = [mock_residue1, mock_residue2]
+        mol.trajectory.__getitem__.return_value = None
+
+        # Setup fake matrices to return from get_matrices
+        f_mat_mock = np.array([[1]])
+        t_mat_mock = np.array([[2]])
+
+        instance.get_matrices = MagicMock(return_value=(f_mat_mock, t_mat_mock))
+
+        force_matrices = {"ua": {}, "res": [None], "poly": [None]}
+        torque_matrices = {"ua": {}, "res": [None], "poly": [None]}
+
+        # Test for 'united_atom' level (highest = True)
+        instance.update_force_torque_matrices(
+            entropy_manager=entropy_manager,
+            mol=mol,
+            group_id=0,
+            level="united_atom",
+            level_list=["residue", "united_atom"],  # last is "united_atom"
+            time_index=5,
+            num_frames=10,
+            force_matrices=force_matrices,
+            torque_matrices=torque_matrices,
+        )
+
+        # Check that new_U_select_atom was called twice (once per residue)
+        self.assertEqual(run_manager.new_U_select_atom.call_count, 2)
+
+        # Check that get_matrices was called twice (once per residue)
+        self.assertEqual(instance.get_matrices.call_count, 2)
+
+        # Check keys inserted in force_matrices and torque_matrices for 'ua'
+        expected_keys = [(0, 0), (0, 1)]  # group_id=0, residues 0 and 1
+        self.assertTrue(all(key in force_matrices["ua"] for key in expected_keys))
+        self.assertTrue(all(key in torque_matrices["ua"] for key in expected_keys))
+
+        # Check matrices assigned correctly
+        for key in expected_keys:
+            np.testing.assert_array_equal(force_matrices["ua"][key], f_mat_mock)
+            np.testing.assert_array_equal(torque_matrices["ua"][key], t_mat_mock)
+
+        # Reset mocks for next test
+        run_manager.reset_mock()
+        instance.get_matrices.reset_mock()
+
+        # Test for 'residue' level (not highest)
+        force_matrices = {"ua": {}, "res": [None], "poly": [None]}
+        torque_matrices = {"ua": {}, "res": [None], "poly": [None]}
+
+        instance.update_force_torque_matrices(
+            entropy_manager=entropy_manager,
+            mol=mol,
+            group_id=0,
+            level="residue",
+            level_list=["residue", "united_atom"],
+            time_index=3,
+            num_frames=10,
+            force_matrices=force_matrices,
+            torque_matrices=torque_matrices,
+        )
+
+        # mol.trajectory should be accessed
+        mol.trajectory.__getitem__.assert_called_with(3)
+
+        # get_matrices called once
+        instance.get_matrices.assert_called_once()
+
+        # force_matrices["res"][0] and torque_matrices["res"][0] assigned
+        np.testing.assert_array_equal(force_matrices["res"][0], f_mat_mock)
+        np.testing.assert_array_equal(torque_matrices["res"][0], t_mat_mock)
 
     def test_filter_zero_rows_columns_no_zeros(self):
         """
