@@ -613,12 +613,9 @@ class VibrationalEntropy(EntropyManager):
         lambdas = np.array(lambdas)  # Ensure input is a NumPy array
         logger.debug(f"Eigenvalues (lambdas): {lambdas}")
 
-        # Check for negatives and raise an error if any are found
-        if np.any(lambdas < 0):
-            logger.error(f"Negative eigenvalues encountered: {lambdas[lambdas < 0]}")
-            raise ValueError(
-                f"Negative eigenvalues encountered: {lambdas[lambdas < 0]}"
-            )
+        # Check for negatives and raise a warning if any are found
+        if np.any(lambdas <= 0):
+            logger.warning(f"Negative eigenvalues encountered: {lambdas[lambdas <= 0]}")
 
         # Compute frequencies safely
         frequencies = 1 / (2 * pi) * np.sqrt(lambdas / kT)
