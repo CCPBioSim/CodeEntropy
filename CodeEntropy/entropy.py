@@ -343,11 +343,9 @@ class EntropyManager:
 
             f_matrix = force_matrix[key]
             f_matrix = self._level_manager.filter_zero_rows_columns(f_matrix)
-            f_matrix = f_matrix / number_frames
 
             t_matrix = torque_matrix[key]
             t_matrix = self._level_manager.filter_zero_rows_columns(t_matrix)
-            t_matrix = t_matrix / number_frames
 
             S_trans_res = ve.vibrational_entropy_calculation(
                 f_matrix, "force", self._args.temperature, highest
@@ -395,10 +393,8 @@ class EntropyManager:
             level.
         """
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
-        force_matrix = force_matrix / number_frames
 
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
-        torque_matrix = torque_matrix / number_frames
 
         S_trans = ve.vibrational_entropy_calculation(
             force_matrix, "force", self._args.temperature, highest

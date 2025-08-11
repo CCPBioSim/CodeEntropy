@@ -171,7 +171,7 @@ class LevelManager:
                 f"{force_matrix.shape}, new {force_block.shape}"
             )
         else:
-            force_matrix += force_block
+            force_matrix = force_block
 
         if torque_matrix is None:
             torque_matrix = np.zeros_like(torque_block)
@@ -181,7 +181,7 @@ class LevelManager:
                 f"{torque_matrix.shape}, new {torque_block.shape}"
             )
         else:
-            torque_matrix += torque_block
+            torque_matrix = torque_block
 
         return force_matrix, torque_matrix
 
