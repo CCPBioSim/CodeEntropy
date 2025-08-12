@@ -616,6 +616,7 @@ class VibrationalEntropy(EntropyManager):
         # Check for negatives and raise a warning if any are found
         if np.any(lambdas <= 0):
             logger.warning(f"Negative eigenvalues encountered: {lambdas[lambdas <= 0]}")
+            lambdas[lambdas <= 0] = 0
 
         # Compute frequencies safely
         frequencies = 1 / (2 * pi) * np.sqrt(lambdas / kT)
