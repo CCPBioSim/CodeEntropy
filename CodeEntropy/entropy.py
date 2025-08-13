@@ -406,12 +406,8 @@ class EntropyManager:
         """
         Sorient_dict, _, vibrations, _ = (
             GetSolvent.get_interfacial_water_orient_entropy(
-                universe, 
-                start, 
-                end, 
-                step, 
-                self._args.temperature, 
-                parallel=True)
+                universe, start, end, step, self._args.temperature, parallel=True
+            )
         )
 
         # Log per-residue entropy using helper functions
