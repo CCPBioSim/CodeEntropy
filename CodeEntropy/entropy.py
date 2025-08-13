@@ -613,18 +613,17 @@ class VibrationalEntropy(EntropyManager):
         lambdas = np.array(lambdas)  # Ensure input is a NumPy array
         logger.debug(f"Eigenvalues (lambdas): {lambdas}")
 
-        for idx, val in enumerate(lambdas):
-            if not np.isreal(val):
-                logger.warning(f"[Index {idx}] Complex eigenvalue excluded: {val}")
-            elif val <= 0 or np.isclose(val, 0, atol=1e-07):
-                logger.warning(
-                    f"[Index {idx}] "
-                    f"Non-positive or near-zero eigenvalue excluded: {val}"
-                )
-
+        lambdas = np.real_if_close(lambdas, tol=1000)
         valid_mask = (
             np.isreal(lambdas) & (lambdas > 0) & (~np.isclose(lambdas, 0, atol=1e-07))
         )
+
+        if len(lambdas) > np.count_nonzero(valid_mask):
+            logger.warning(
+                f"{len(lambdas) - np.count_nonzero(valid_mask)} "
+                f"invalid eigenvalues excluded (complex, non-positive, or near-zero)."
+            )
+
         lambdas = lambdas[valid_mask].real
 
         # Compute frequencies safely
