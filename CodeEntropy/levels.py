@@ -781,8 +781,8 @@ class LevelManager:
             "poly": np.zeros(number_groups, dtype=int),
         }
 
-        for timestep in reduced_atom.trajectory[start:end:step]:
-            time_index = timestep.frame - start
+        indices = list(range(start, end, step))
+        for time_index, _ in zip(indices, reduced_atom.trajectory[start:end:step]):
 
             for group_id, molecules in groups.items():
                 for mol_id in molecules:
@@ -794,7 +794,7 @@ class LevelManager:
                             group_id,
                             level,
                             levels[mol_id],
-                            time_index,
+                            time_index - start,
                             number_frames,
                             force_avg,
                             torque_avg,
