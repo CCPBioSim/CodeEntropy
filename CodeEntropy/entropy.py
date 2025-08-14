@@ -354,12 +354,17 @@ class EntropyManager:
                 t_matrix, "torque", self._args.temperature, highest
             )
 
-            if any(states[key]):
-                S_conf_res = ce.conformational_entropy_calculation(
-                    states[key], number_frames
-                )
-            else:
-                S_conf_res = 0
+            values = states[key]
+
+            contains_non_empty_states = (
+                np.any(values) if isinstance(values, np.ndarray) else any(values)
+            )
+
+            S_conf_res = (
+                ce.conformational_entropy_calculation(values, number_frames)
+                if contains_non_empty_states
+                else 0
+            )
 
             S_trans += S_trans_res
             S_rot += S_rot_res
@@ -424,12 +429,22 @@ class EntropyManager:
             start, end, step (int): Frame bounds.
             n_frames (int): Number of frames used.
         """
-        if states[group_id]:
-            S_conf = ce.conformational_entropy_calculation(
-                states[group_id], number_frames
+        group_states = states[group_id] if group_id < len(states) else None
+
+        if group_states is not None:
+            contains_state_data = (
+                group_states.any()
+                if isinstance(group_states, np.ndarray)
+                else any(group_states)
             )
         else:
-            S_conf = 0
+            contains_state_data = False
+
+        S_conf = (
+            ce.conformational_entropy_calculation(group_states, number_frames)
+            if contains_state_data
+            else 0
+        )
 
         self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
 
