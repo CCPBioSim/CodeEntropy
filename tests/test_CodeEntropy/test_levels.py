@@ -264,7 +264,6 @@ class TestLevels(unittest.TestCase):
         """
         level_manager = LevelManager()
 
-        # Mock get_dihedrals to return an empty list
         level_manager.get_dihedrals = MagicMock(return_value=[])
 
         selector = MagicMock()
@@ -280,7 +279,6 @@ class TestLevels(unittest.TestCase):
             ce=MagicMock(),
         )
 
-        # Match current behavior: returns only states (empty list)
         self.assertEqual(result, [])
 
     def test_get_beads_polymer_level(self):
