@@ -38,9 +38,9 @@ dependencies = [
     "psutil==5.9.5",
     "PyYAML==6.0.2",
     "python-json-logger==3.3.0",
-    "waterEntropy==1.1.0",
     "rich==14.0.0",
-    "art==6.5"
+    "art==6.5",
+    "waterEntropy==1.2.0"
 ]
 
 [project.urls]
