@@ -481,8 +481,10 @@ class EntropyManager:
             end (int): End frame.
             step (int): Step size.
         """
-        Sorient_dict, _, vibrations, _ = (
-            GetSolvent.get_interfacial_water_orient_entropy(universe, start, end, step)
+        Sorient_dict, _, vibrations, _, _ = (
+            GetSolvent.get_interfacial_water_orient_entropy(
+                universe, start, end, step, self._args.temperature, parallel=True
+            )
         )
 
         # Log per-residue entropy using helper functions
