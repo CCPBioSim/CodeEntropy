@@ -290,18 +290,27 @@ class LevelManager:
                 - dihedrals (list): List of dihedral angle definitions.
         """
         dihedrals = self.get_dihedrals(selector, level)
-        num_dihedrals = len(dihedrals)
 
-        conformation = np.zeros((num_dihedrals, number_frames))
-        for i, dihedral in enumerate(dihedrals):
-            conformation[i] = ce.assign_conformation(
-                selector, dihedral, number_frames, bin_width, start, end, step
-            )
+        if len(dihedrals) == 0:
+            logger.debug("No dihedrals found; skipping conformation assignment.")
+            states = []
+        else:
+            num_dihedrals = len(dihedrals)
+            conformation = np.zeros((num_dihedrals, number_frames))
 
-        states = [
-            "".join(str(int(conformation[d][f])) for d in range(num_dihedrals))
-            for f in range(number_frames)
-        ]
+            for i, dihedral in enumerate(dihedrals):
+                conformation[i] = ce.assign_conformation(
+                    selector, dihedral, number_frames, bin_width, start, end, step
+                )
+
+            states = [
+                state
+                for state in (
+                    "".join(str(int(conformation[d][f])) for d in range(num_dihedrals))
+                    for f in range(number_frames)
+                )
+                if state
+            ]
 
         return states
 
