@@ -1073,6 +1073,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             None,
             mock_vibrations,
             None,
+            None,
         )
 
         mock_universe = MagicMock()
@@ -1101,6 +1102,7 @@ class TestVibrationalEntropy(unittest.TestCase):
                 translational_S={("ACE_1", "WAT"): 10.0},
                 rotational_S={("ACE_1", "WAT"): 2.0},
             ),
+            None,
             None,
         )
 
