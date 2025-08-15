@@ -33,12 +33,13 @@ keywords = ["entropy", "macromolecular systems", "MD simulation"]
 requires-python = ">=3.11"
 dependencies = [
     "numpy==2.2.3",
-    "mdanalysis>=2.7.0",
+    "mdanalysis>=2.9.0",
     "pandas==2.2.3",
     "psutil==5.9.5",
     "PyYAML==6.0.2",
     "python-json-logger==3.3.0",
-    "tabulate==0.9.0"
+    "tabulate==0.9.0",
+    "waterEntropy==1.2.0"
 ]
 
 [project.urls]

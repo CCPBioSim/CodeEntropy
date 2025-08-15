@@ -10,6 +10,7 @@ from CodeEntropy.config.arg_config_manager import ConfigManager
 from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy import EntropyManager
+from CodeEntropy.group_molecules import GroupMolecules
 from CodeEntropy.levels import LevelManager
 
 logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class RunManager:
                 # Log all inputs for the current run
                 logger.info(f"All input for {run_name}")
                 for arg in vars(args):
-                    logger.info(f" {arg}: {getattr(args, arg) or ''}")
+                    logger.info(f" {arg}: {getattr(args, arg)}")
 
                 # Load MDAnalysis Universe
                 tprfile = args.top_traj_file[0]
@@ -135,8 +136,13 @@ class RunManager:
                 logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
                 u = mda.Universe(tprfile, trrfile)
 
+                self._config_manager.input_parameters_validation(u, args)
+
                 # Create LevelManager instance
                 level_manager = LevelManager()
+
+                # Create GroupMolecules instance
+                group_molecules = GroupMolecules()
 
                 # Inject all dependencies into EntropyManager
                 entropy_manager = EntropyManager(
@@ -145,6 +151,7 @@ class RunManager:
                     universe=u,
                     data_logger=self._data_logger,
                     level_manager=level_manager,
+                    group_molecules=group_molecules,
                 )
 
                 entropy_manager.execute()

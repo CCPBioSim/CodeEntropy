@@ -10,6 +10,10 @@ CodeEntropy
 ==============================
 CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
 
+<p align="center">
+<img src="https://github.com/CCPBioSim/branding/blob/fbf562b1f5a9bf34440d0a537548591bad0bd206/logos/biosim-codeentropy_logo_grey.png" alt="CodeEntropy logo" width="300"/>
+</p>
+
 See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest/) for more information.
 
 ## Copyright
