@@ -71,8 +71,8 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - Default
      - Type
    * - ``--top_traj_file`` 
-     - Path to Structure/topology file(``AMBER PRMTOP``, ``GROMACS TPR`` or topology file with MDAnalysis readable dihedral information (not officially supported)) followed by Trajectory file(s) (``GROMAC TRR`` or ``AMBER NETCDF``) You will need to output the **coordinates** and **forces** to the **same file** . 
-     - Required
+     - Path to Structure/topology file followed by Trajectory file(s). Any MDAnalysis readable files should work  (for example ``GROMACS TPR and TRR`` or ``AMBER PRMTOP and NETCDF``). You will need to output the **coordinates** and **forces** to the **same file** . 
+     - Required, no default value
      - list of ``str`` 
    * - ``--selection_string``
      - Selection string for CodeEntropy such as protein or resid, refer to ``MDAnalysis.select_atoms`` for more information.
@@ -102,10 +102,6 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - Enable verbose output
      - ``False``
      - ``bool``
-   * - ``--thread``
-     - How many multiprocess to use.
-     - ``1``: for single core execution
-     - ``int``
    * - ``--outfile``
      - Name of the file where the text format output will be written.
      - ``outfile.out``
@@ -118,6 +114,10 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy
      - ``False``
      - ``bool``
+   * - ``--grouping``
+     - How to group molecules for averaging
+     - ``molecules``
+     - ``str``
 
 
 Example #1
@@ -147,3 +147,4 @@ To use the same settings as in Example #1, but override trajectory information, 
 Or as an alternative, you could edit the config.yaml file and use the CodeEntropy command as in the first example.
 
 CodeEntropy creates job* directories for the output, where * is a job number choosen by the so that there are sequentially numbered directories when you rerun CodeEntropy in the same working directory.
+Each job* directory contains the output json file and a subdirectory with the log files.
