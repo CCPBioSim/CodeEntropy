@@ -222,7 +222,7 @@ class TestEntropyManager(unittest.TestCase):
         self.assertIsInstance(entropy_manager._args.end, int)
         self.assertIsInstance(entropy_manager._args.step, int)
 
-        self.assertEqual(entropy_manager._get_trajectory_bounds(), (0, -1, 1))
+        self.assertEqual(entropy_manager._get_trajectory_bounds(), (0, 0, 1))
 
     @patch(
         "argparse.ArgumentParser.parse_args",
