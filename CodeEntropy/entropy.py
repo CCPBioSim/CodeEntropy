@@ -247,7 +247,7 @@ class EntropyManager:
             Tuple of (start, end, step) frame indices.
         """
         start = self._args.start or 0
-        end = self._args.end or -1
+        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
         step = self._args.step or 1
 
         return start, end, step
@@ -343,11 +343,9 @@ class EntropyManager:
 
             f_matrix = force_matrix[key]
             f_matrix = self._level_manager.filter_zero_rows_columns(f_matrix)
-            f_matrix = f_matrix / number_frames
 
             t_matrix = torque_matrix[key]
             t_matrix = self._level_manager.filter_zero_rows_columns(t_matrix)
-            t_matrix = t_matrix / number_frames
 
             S_trans_res = ve.vibrational_entropy_calculation(
                 f_matrix, "force", self._args.temperature, highest
@@ -356,8 +354,16 @@ class EntropyManager:
                 t_matrix, "torque", self._args.temperature, highest
             )
 
-            S_conf_res = ce.conformational_entropy_calculation(
-                states[key], number_frames
+            values = states[key]
+
+            contains_non_empty_states = (
+                np.any(values) if isinstance(values, np.ndarray) else any(values)
+            )
+
+            S_conf_res = (
+                ce.conformational_entropy_calculation(values, number_frames)
+                if contains_non_empty_states
+                else 0
             )
 
             S_trans += S_trans_res
@@ -395,10 +401,8 @@ class EntropyManager:
             level.
         """
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
-        force_matrix = force_matrix / number_frames
 
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
-        torque_matrix = torque_matrix / number_frames
 
         S_trans = ve.vibrational_entropy_calculation(
             force_matrix, "force", self._args.temperature, highest
@@ -425,7 +429,22 @@ class EntropyManager:
             start, end, step (int): Frame bounds.
             n_frames (int): Number of frames used.
         """
-        S_conf = ce.conformational_entropy_calculation(states[group_id], number_frames)
+        group_states = states[group_id] if group_id < len(states) else None
+
+        if group_states is not None:
+            contains_state_data = (
+                group_states.any()
+                if isinstance(group_states, np.ndarray)
+                else any(group_states)
+            )
+        else:
+            contains_state_data = False
+
+        S_conf = (
+            ce.conformational_entropy_calculation(group_states, number_frames)
+            if contains_state_data
+            else 0
+        )
 
         self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
 
@@ -619,12 +638,18 @@ class VibrationalEntropy(EntropyManager):
         lambdas = np.array(lambdas)  # Ensure input is a NumPy array
         logger.debug(f"Eigenvalues (lambdas): {lambdas}")
 
-        # Check for negatives and raise an error if any are found
-        if np.any(lambdas < 0):
-            logger.error(f"Negative eigenvalues encountered: {lambdas[lambdas < 0]}")
-            raise ValueError(
-                f"Negative eigenvalues encountered: {lambdas[lambdas < 0]}"
+        lambdas = np.real_if_close(lambdas, tol=1000)
+        valid_mask = (
+            np.isreal(lambdas) & (lambdas > 0) & (~np.isclose(lambdas, 0, atol=1e-07))
+        )
+
+        if len(lambdas) > np.count_nonzero(valid_mask):
+            logger.warning(
+                f"{len(lambdas) - np.count_nonzero(valid_mask)} "
+                f"invalid eigenvalues excluded (complex, non-positive, or near-zero)."
             )
+
+        lambdas = lambdas[valid_mask].real
 
         # Compute frequencies safely
         frequencies = 1 / (2 * pi) * np.sqrt(lambdas / kT)
@@ -748,8 +773,11 @@ class ConformationalEntropy(EntropyManager):
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
-        for timestep in data_container.trajectory[start:end:step]:
-            timestep_index = timestep.frame - start
+        indices = list(range(start, end, step))
+        for timestep_index, _ in zip(
+            indices, data_container.trajectory[start:end:step]
+        ):
+            timestep_index = timestep_index - start
             value = dihedral.value()
             # we want postive values in range 0 to 360 to make the peak assignment
             # work using the fact that dihedrals have circular symetry
