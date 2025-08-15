@@ -247,7 +247,11 @@ class EntropyManager:
             Tuple of (start, end, step) frame indices.
         """
         start = self._args.start or 0
-        end = self._args.end or -1
+        end = (
+            len(self._universe.trajectory) - 1
+            if self._args.end == -1
+            else self._args.end
+        )
         step = self._args.step or 1
 
         return start, end, step
