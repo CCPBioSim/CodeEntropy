@@ -257,6 +257,30 @@ class TestLevels(unittest.TestCase):
         # Should result in no resdies
         self.assertEqual(result, [])
 
+    def test_compute_dihedral_conformations_no_dihedrals(self):
+        """
+        Test `compute_dihedral_conformations` when no dihedrals are found.
+        Ensures it returns an empty list of states.
+        """
+        level_manager = LevelManager()
+
+        level_manager.get_dihedrals = MagicMock(return_value=[])
+
+        selector = MagicMock()
+
+        result = level_manager.compute_dihedral_conformations(
+            selector=selector,
+            level="united_atom",
+            number_frames=10,
+            bin_width=10.0,
+            start=0,
+            end=10,
+            step=1,
+            ce=MagicMock(),
+        )
+
+        self.assertEqual(result, [])
+
     def test_get_beads_polymer_level(self):
         """
         Test `get_beads` for 'polymer' level.
