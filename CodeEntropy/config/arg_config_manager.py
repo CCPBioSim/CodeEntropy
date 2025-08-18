@@ -1,4 +1,5 @@
 import argparse
+import glob
 import logging
 import os
 
@@ -77,16 +78,26 @@ class ConfigManager:
         self.arg_map = arg_map
 
     def load_config(self, file_path):
-        """Load YAML configuration file."""
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Configuration file '{file_path}' not found.")
+        """Load YAML configuration file from the given directory."""
+        yaml_files = glob.glob(os.path.join(file_path, "*.yaml"))
 
-        with open(file_path, "r") as file:
-            config = yaml.safe_load(file)
+        if not yaml_files:
+            logger.warning(
+                f"No YAML configuration files found in directory: {file_path}. "
+                "Expected a file with extension '.yaml'. "
+                "Proceeding with default configuration: {'run1': {}}."
+            )
+            return {"run1": {}}
 
-            # If YAML content is empty, return an empty dictionary
-            if config is None:
-                config = {}
+        try:
+            with open(yaml_files[0], "r") as file:
+                config = yaml.safe_load(file)
+                logger.info(f"Loaded configuration from: {yaml_files[0]}")
+                if config is None:
+                    config = {"run1": {}}
+        except Exception as e:
+            logger.error(f"Failed to load config file: {e}")
+            config = {"run1": {}}
 
         return config
 
