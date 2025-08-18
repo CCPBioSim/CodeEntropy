@@ -9,7 +9,7 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       matrix:
@@ -17,10 +17,10 @@ jobs:
     name: Run tests
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v5.0.0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -36,14 +36,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v5.0.0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5.6.0
         with:
-          python-version: 3.12
+          python-version: 3.13
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -52,14 +52,14 @@ jobs:
         run: cd docs && make
 
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v5.0.0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5.6.0
         with:
-          python-version: 3.11
+          python-version: 3.13
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -71,7 +71,7 @@ jobs:
 
   mdanalysis-compatibility:
     if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       matrix:
@@ -80,10 +80,10 @@ jobs:
     name: MDAnalysis Compatibility Tests
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v5.0.0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
 
