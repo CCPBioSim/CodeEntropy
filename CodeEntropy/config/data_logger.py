@@ -50,7 +50,7 @@ class DataLogger:
             table = Table(
                 title="Molecule Entropy Results", show_lines=True, expand=True
             )
-            table.add_column("Residue Name", justify="center", style="bold cyan")
+            table.add_column("Residue ID", justify="center", style="bold cyan")
             table.add_column("Level", justify="center", style="magenta")
             table.add_column("Type", justify="center", style="green")
             table.add_column("Result (J/mol/K)", justify="center", style="yellow")
