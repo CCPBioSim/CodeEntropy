@@ -274,7 +274,7 @@ class TestEntropyManager(unittest.TestCase):
         self.assertIsInstance(entropy_manager._args.end, int)
         self.assertIsInstance(entropy_manager._args.step, int)
 
-        self.assertEqual(entropy_manager._get_trajectory_bounds(), (0, -1, 1))
+        self.assertEqual(entropy_manager._get_trajectory_bounds(), (0, 0, 1))
 
     @patch(
         "argparse.ArgumentParser.parse_args",
@@ -1035,7 +1035,7 @@ class TestVibrationalEntropy(unittest.TestCase):
 
         Ensures that the method returns 0 when the input eigenvalue (lambda) is zero.
         """
-        lambdas = 0
+        lambdas = [0]
         temp = 298
 
         run_manager = RunManager("mock_folder")
@@ -1045,7 +1045,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         )
         frequencies = ve.frequency_calculation(lambdas, temp)
 
-        assert frequencies == 0
+        assert np.allclose(frequencies, [0.0])
 
     def test_frequency_calculation_positive(self):
         """
@@ -1072,30 +1072,75 @@ class TestVibrationalEntropy(unittest.TestCase):
             [1899594266400.4016, 2013894687315.6213, 2195940987139.7097]
         )
 
-    def test_frequency_calculation_negative(self):
+    def test_frequency_calculation_filters_invalid(self):
         """
-        Test `frequency_calculation` with a negative eigenvalue.
+        Test `frequency_calculation` filters out invalid eigenvalues.
 
-        Ensures that the method raises a `ValueError` when any eigenvalue is negative,
-        as this is physically invalid for frequency calculations.
+        Ensures that negative, complex, and near-zero eigenvalues are excluded,
+        and frequencies are calculated only for valid ones.
         """
-        lambdas = np.array([585495.0917897299, -658074.5130064893, 782425.305888707])
+        lambdas = np.array(
+            [585495.0917897299, -658074.5130064893, 0.0, 782425.305888707]
+        )
         temp = 298
 
         # Create a mock RunManager and set return value for get_KT2J
-        run_manager = RunManager("temp_folder")
-        run_manager.get_KT2J
+        run_manager = MagicMock()
+        run_manager.get_KT2J.return_value = 2.479e-21  # example value in Joules
 
         # Instantiate VibrationalEntropy with mocks
         ve = VibrationalEntropy(
             run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
         )
 
-        # Assert that ValueError is raised due to negative eigenvalue
-        with self.assertRaises(ValueError) as context:
-            ve.frequency_calculation(lambdas, temp)
+        # Call the method
+        frequencies = ve.frequency_calculation(lambdas, temp)
 
-        self.assertIn("Negative eigenvalues", str(context.exception))
+        # Expected: only two valid eigenvalues used
+        expected_lambdas = np.array([585495.0917897299, 782425.305888707])
+        expected_frequencies = (
+            1
+            / (2 * np.pi)
+            * np.sqrt(expected_lambdas / run_manager.get_KT2J.return_value)
+        )
+
+        # Assert frequencies match expected
+        np.testing.assert_allclose(frequencies, expected_frequencies, rtol=1e-5)
+
+    def test_frequency_calculation_filters_invalid_with_warning(self):
+        """
+        Test `frequency_calculation` filters out invalid eigenvalues and logs a warning.
+
+        Ensures that negative, complex, and near-zero eigenvalues are excluded,
+        and a warning is logged about the exclusions.
+        """
+        lambdas = np.array(
+            [585495.0917897299, -658074.5130064893, 0.0, 782425.305888707]
+        )
+        temp = 298
+
+        run_manager = MagicMock()
+        run_manager.get_KT2J.return_value = 2.479e-21  # example value
+
+        ve = VibrationalEntropy(
+            run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
+        )
+
+        with self.assertLogs("CodeEntropy.entropy", level="WARNING") as cm:
+            frequencies = ve.frequency_calculation(lambdas, temp)
+
+        # Check that warning was logged
+        warning_messages = "\n".join(cm.output)
+        self.assertIn("invalid eigenvalues excluded", warning_messages)
+
+        # Check that only valid frequencies are returned
+        expected_lambdas = np.array([585495.0917897299, 782425.305888707])
+        expected_frequencies = (
+            1
+            / (2 * np.pi)
+            * np.sqrt(expected_lambdas / run_manager.get_KT2J.return_value)
+        )
+        np.testing.assert_allclose(frequencies, expected_frequencies, rtol=1e-5)
 
     def test_vibrational_entropy_calculation_force_not_highest(self):
         """

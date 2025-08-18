@@ -67,7 +67,7 @@ arg_map = {
     "grouping": {
         "type": str,
         "help": "How to group molecules for averaging",
-        "default": "each",
+        "default": "molecules",
     },
 }
 

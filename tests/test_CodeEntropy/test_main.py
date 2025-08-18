@@ -109,7 +109,7 @@ class TestMain(unittest.TestCase):
 
         citation_path = os.path.join(self.test_dir, "CITATION.cff")
         with open(citation_path, "w") as f:
-            f.write("run1:\n" "  selection_string: resid 1\n")
+            f.write("run1:\n" "  end: 60\n" "  selection_string: resid 1\n")
 
         result = subprocess.run(
             [
