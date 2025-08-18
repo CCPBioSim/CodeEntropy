@@ -205,21 +205,28 @@ class EntropyManager:
             TimeElapsedColumn(),
         ) as progress:
 
-            mol_task = progress.add_task(
+            task = progress.add_task(
                 "[green]Calculating Entropy...",
                 total=len(groups),
-                title="Molecules",
+                title="Starting...",
             )
+
             for group_id in groups.keys():
                 mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
 
-                level_task = progress.add_task(
-                    f"[magenta]Levels for molecule {group_id}",
-                    total=len(levels),
-                    title=f"Mol {group_id}",
-                )
+                resname = mol.atoms[0].resname
+                resid = mol.atoms[0].resid
+                segid = mol.atoms[0].segid
+
+                mol_label = f"{resname}_{resid} (segid {segid})"
 
                 for level in levels[groups[group_id][0]]:
+                    progress.update(
+                        task,
+                        title=f"Calculating entropy values | "
+                        f"Molecule: {mol_label} | "
+                        f"Level: {level}",
+                    )
                     highest = level == levels[groups[group_id][0]][-1]
 
                     if level == "united_atom":
@@ -266,9 +273,7 @@ class EntropyManager:
                             highest,
                         )
 
-                    progress.advance(level_task)
-
-                progress.advance(mol_task)
+                progress.advance(task)
 
     def _get_trajectory_bounds(self):
         """
