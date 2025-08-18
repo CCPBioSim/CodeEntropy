@@ -68,28 +68,50 @@ class test_arg_config_manager(unittest.TestCase):
             "water_entropy: False"
         ).return_value
 
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("os.path.exists", return_value=True)
-    def test_load_config(self, mock_exists, mock_file):
+    @patch("builtins.open")
+    @patch("glob.glob", return_value=["config.yaml"])
+    def test_load_config(self, mock_glob, mock_file):
         """
         Test loading a valid configuration file.
         """
-        arg_config = ConfigManager()
+        # Setup the mock file content
         self.setup_file(mock_file)
-        config = arg_config.load_config(self.config_file)
+
+        arg_config = ConfigManager()
+        config = arg_config.load_config("/some/path")
+
         self.assertIn("run1", config)
         self.assertEqual(
             config["run1"]["top_traj_file"], ["/path/to/tpr", "/path/to/trr"]
         )
+        self.assertEqual(config["run1"]["selection_string"], "all")
+        self.assertEqual(config["run1"]["start"], 0)
+        self.assertEqual(config["run1"]["end"], -1)
+        self.assertEqual(config["run1"]["step"], 1)
+        self.assertEqual(config["run1"]["bin_width"], 30)
+        self.assertEqual(config["run1"]["tempra"], 298.0)
+        self.assertFalse(config["run1"]["verbose"])
+        self.assertEqual(config["run1"]["thread"], 1)
+        self.assertEqual(config["run1"]["output_file"], "output_file.json")
+        self.assertEqual(config["run1"]["force_partitioning"], 0.5)
+        self.assertFalse(config["run1"]["water_entropy"])
+
+    @patch("glob.glob", return_value=[])
+    def test_load_config_no_yaml_files(self, mock_glob):
+        arg_config = ConfigManager()
+        config = arg_config.load_config("/some/path")
+        self.assertEqual(config, {"run1": {}})
 
     @patch("builtins.open", side_effect=FileNotFoundError)
-    def test_load_config_file_not_found(self, mock_file):
+    @patch("glob.glob", return_value=["config.yaml"])
+    def test_load_config_file_not_found(self, mock_glob, mock_open):
         """
-        Test loading a configuration file that does not exist.
+        Test loading a configuration file that exists but cannot be opened.
+        Should return default config instead of raising an error.
         """
         arg_config = ConfigManager()
-        with self.assertRaises(FileNotFoundError):
-            arg_config.load_config(self.config_file)
+        config = arg_config.load_config("/some/path")
+        self.assertEqual(config, {"run1": {}})
 
     @patch.object(ConfigManager, "load_config", return_value=None)
     def test_no_cli_no_yaml(self, mock_load_config):
@@ -480,19 +502,17 @@ class test_arg_config_manager(unittest.TestCase):
         self.assertEqual(args.end, -10)
 
     @patch("builtins.open", new_callable=mock_open, read_data="--- \n")
-    @patch("os.path.exists", return_value=True)
-    def test_empty_yaml_config(self, mock_exists, mock_file):
+    @patch("glob.glob", return_value=["config.yaml"])
+    def test_empty_yaml_config(self, mock_glob, mock_file):
         """
         Test behavior when an empty YAML file is provided.
-        Should use defaults or raise an appropriate error.
+        Should return default config {'run1': {}}.
         """
-
         arg_config = ConfigManager()
-
-        config = arg_config.load_config(self.config_file)
+        config = arg_config.load_config("/some/path")
 
         self.assertIsInstance(config, dict)
-        self.assertEqual(config, {})
+        self.assertEqual(config, {"run1": {}})
 
     def test_input_parameters_validation_all_valid(self):
         """Test that input_parameters_validation passes with all valid inputs."""
