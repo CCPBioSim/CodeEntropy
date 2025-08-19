@@ -3,6 +3,7 @@ import os
 import pickle
 
 import MDAnalysis as mda
+import requests
 import yaml
 from art import text2art
 from MDAnalysis.analysis.base import AnalysisFromFunction
@@ -95,71 +96,91 @@ class RunManager:
         # Return the path of the newly created folder
         return new_folder_path
 
-    def load_citation_data(self, path="CITATION.cff"):
-        """"""
-        with open(path, "r", encoding="utf-8") as file:
-            return yaml.safe_load(file)
+    def load_citation_data(self):
+        """
+        Load CITATION.cff from GitHub into memory.
+        Return empty dict if offline.
+        """
+        url = (
+            "https://raw.githubusercontent.com/CCPBioSim/"
+            "CodeEntropy/refs/heads/main/CITATION.cffs"
+        )
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return yaml.safe_load(response.text)
+        except requests.exceptions.RequestException:
+            return None
 
     def show_splash(self):
-        """"""
+        """Render splash screen with optional citation metadata."""
         citation = self.load_citation_data()
 
-        # ASCII Title
-        ascii_title = text2art(citation.get("title", "CodeEntropy"))
-        ascii_render = Align.center(Text(ascii_title, style="bold white"))
+        if citation:
+            # ASCII Title
+            ascii_title = text2art(citation.get("title", "CodeEntropy"))
+            ascii_render = Align.center(Text(ascii_title, style="bold white"))
 
-        # Metadata
-        version = citation.get("version", "?")
-        release_date = citation.get("date-released", "?")
-        url = citation.get("url", citation.get("repository-code", ""))
+            # Metadata
+            version = citation.get("version", "?")
+            release_date = citation.get("date-released", "?")
+            url = citation.get("url", citation.get("repository-code", ""))
 
-        version_text = Align.center(
-            Text(f"Version {version} | Released {release_date}", style="green")
-        )
-        url_text = Align.center(Text(url, style="blue underline"))
+            version_text = Align.center(
+                Text(f"Version {version} | Released {release_date}", style="green")
+            )
+            url_text = Align.center(Text(url, style="blue underline"))
 
-        # Description block
-        abstract = citation.get("abstract", "No description available.")
-        description_title = Align.center(
-            Text("Description", style="bold magenta underline")
-        )
-        description_body = Align.center(
-            Padding(Text(abstract, style="white", justify="left"), (0, 4))
-        )
+            # Description block
+            abstract = citation.get("abstract", "No description available.")
+            description_title = Align.center(
+                Text("Description", style="bold magenta underline")
+            )
+            description_body = Align.center(
+                Padding(Text(abstract, style="white", justify="left"), (0, 4))
+            )
 
-        # Contributors table
-        contributors_title = Align.center(
-            Text("Contributors", style="bold magenta underline")
-        )
+            # Contributors table
+            contributors_title = Align.center(
+                Text("Contributors", style="bold magenta underline")
+            )
 
-        author_table = Table(
-            show_header=True, header_style="bold yellow", box=None, pad_edge=False
-        )
-        author_table.add_column("Name", style="bold", justify="center")
-        author_table.add_column("Affiliation", justify="center")
+            author_table = Table(
+                show_header=True, header_style="bold yellow", box=None, pad_edge=False
+            )
+            author_table.add_column("Name", style="bold", justify="center")
+            author_table.add_column("Affiliation", justify="center")
 
-        for author in citation.get("authors", []):
-            name = (
-                f"{author.get('given-names', '')} {author.get('family-names', '')}"
-            ).strip()
-            affiliation = author.get("affiliation", "")
-            author_table.add_row(name, affiliation)
+            for author in citation.get("authors", []):
+                name = (
+                    f"{author.get('given-names', '')} {author.get('family-names', '')}"
+                ).strip()
+                affiliation = author.get("affiliation", "")
+                author_table.add_row(name, affiliation)
 
-        contributors_table = Align.center(Padding(author_table, (0, 4)))
+            contributors_table = Align.center(Padding(author_table, (0, 4)))
 
-        # Full layout
-        splash_content = Group(
-            ascii_render,
-            Rule(style="cyan"),
-            version_text,
-            url_text,
-            Text(),
-            description_title,
-            description_body,
-            Text(),
-            contributors_title,
-            contributors_table,
-        )
+            # Full layout
+            splash_content = Group(
+                ascii_render,
+                Rule(style="cyan"),
+                version_text,
+                url_text,
+                Text(),
+                description_title,
+                description_body,
+                Text(),
+                contributors_title,
+                contributors_table,
+            )
+        else:
+            # ASCII Title
+            ascii_title = text2art("CodeEntropy")
+            ascii_render = Align.center(Text(ascii_title, style="bold white"))
+
+            splash_content = Group(
+                ascii_render,
+            )
 
         splash_panel = Panel(
             splash_content,
