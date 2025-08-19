@@ -14,6 +14,9 @@
    .. autosummary::
    
       ~LevelManager.__init__
+      ~LevelManager.build_conformational_states
+      ~LevelManager.build_covariance_matrices
+      ~LevelManager.compute_dihedral_conformations
       ~LevelManager.create_submatrix
       ~LevelManager.filter_zero_rows_columns
       ~LevelManager.get_avg_pos
@@ -25,6 +28,7 @@
       ~LevelManager.get_weighted_forces
       ~LevelManager.get_weighted_torques
       ~LevelManager.select_levels
+      ~LevelManager.update_force_torque_matrices
    
    
 

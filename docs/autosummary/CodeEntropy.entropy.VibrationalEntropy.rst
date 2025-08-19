@@ -22,11 +22,4 @@
 
    
    
-   .. rubric:: Attributes
-
-   .. autosummary::
-   
-      ~VibrationalEntropy.residue_results_df
-      ~VibrationalEntropy.results_df
-   
    

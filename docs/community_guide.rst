@@ -19,7 +19,7 @@ Developer's Information
 CodeEntropy uses the Python programming language.
 
 Running tests
------------------------------
+--------------
 To run the full test suite, simply install ``pytest`` and run in root directory of the repository:
 
 .. code-block:: bash
@@ -38,3 +38,11 @@ To only run the a specific test, e.g.:
 .. code-block:: bash
 
     pytest CodeEntropy/tests/test_CodeEntropy/test_levels.py::test_select_levels
+
+ Including your code into the CodeEntropy repository
+ ---------------------------------------------------
+In order to add to CodeEntropy, a pull request must be created.
+Code cannot be committed directly to the main branch.
+
+All pull requests will be reviewed by at least one of the core development team.
+
