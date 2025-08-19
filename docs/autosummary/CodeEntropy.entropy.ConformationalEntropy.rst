@@ -22,11 +22,4 @@
 
    
    
-   .. rubric:: Attributes
-
-   .. autosummary::
-   
-      ~ConformationalEntropy.residue_results_df
-      ~ConformationalEntropy.results_df
-   
    

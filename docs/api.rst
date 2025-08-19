@@ -28,14 +28,18 @@ Level Manager
     CodeEntropy.levels.LevelManager.select_levels
     CodeEntropy.levels.LevelManager.get_matrices
     CodeEntropy.levels.LevelManager.get_dihedrals
+    CodeEntropy.levels.LevelManager.compute_dihedral_conformations
     CodeEntropy.levels.LevelManager.get_beads
     CodeEntropy.levels.LevelManager.get_axes
     CodeEntropy.levels.LevelManager.get_avg_pos
-    CodeEntropy.levels.LevelManager.get_shpCoord_axes
+    CodeEntropy.levels.LevelManager.get_sphCoord_axes
     CodeEntropy.levels.LevelManager.get_weighted_forces
     CodeEntropy.levels.LevelManager.get_weighted_torques
     CodeEntropy.levels.LevelManager.create_submatrix
+    CodeEntropy.levels.LevelManager.build_covariance_matrices
+    CodeEntropy.levels.LevelManager.update_force_torque_matrices
     CodeEntropy.levels.LevelManager.filter_zero_rows_columns
+    CodeEntropy.levels.LevelManager.build_conformational_states
 
 Entropy Manager
 ---------------
@@ -64,9 +68,3 @@ Conformational Entropy
    CodeEntropy.entropy.ConformationalEntropy.assign_conformation
    CodeEntropy.entropy.ConformationalEntropy.conformational_entropy_calculation
 
-Orientational Entropy
-^^^^^^^^^^^^^^^^^^^^^
-.. autosummary::
-   :toctree: autosummary
-
-   CodeEntropy.entropy.OrientationalEntropy
