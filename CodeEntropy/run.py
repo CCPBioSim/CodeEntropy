@@ -103,7 +103,7 @@ class RunManager:
         """
         url = (
             "https://raw.githubusercontent.com/CCPBioSim/"
-            "CodeEntropy/refs/heads/main/CITATION.cffs"
+            "CodeEntropy/refs/heads/main/CITATION.cff"
         )
         try:
             response = requests.get(url, timeout=10)
