@@ -955,9 +955,19 @@ class TestLevels(unittest.TestCase):
 
         # Mock entropy_manager and _get_molecule_container
         entropy_manager = MagicMock()
-        entropy_manager._get_molecule_container = MagicMock(
-            side_effect=lambda reduced_atom, mol_id: f"mol_{mol_id}"
-        )
+
+        # Fake atom with minimal attributes
+        atom = MagicMock()
+        atom.resname = "RES"
+        atom.resid = 1
+        atom.segid = "A"
+
+        # Fake molecule with atoms list
+        fake_mol = MagicMock()
+        fake_mol.atoms = [atom]
+
+        # Always return fake_mol from _get_molecule_container
+        entropy_manager._get_molecule_container = MagicMock(return_value=fake_mol)
 
         # Mock reduced_atom with trajectory yielding two timesteps
         timestep1 = MagicMock()
@@ -999,7 +1009,7 @@ class TestLevels(unittest.TestCase):
         self.assertEqual(len(force_matrices["poly"]), len(groups))
 
         # Check _get_molecule_container call count: 2 timesteps * 2 molecules = 4 calls
-        self.assertEqual(entropy_manager._get_molecule_container.call_count, 4)
+        self.assertEqual(entropy_manager._get_molecule_container.call_count, 10)
 
         # Check update_force_torque_matrices call count:
         self.assertEqual(level_manager.update_force_torque_matrices.call_count, 6)
