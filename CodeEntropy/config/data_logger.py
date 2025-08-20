@@ -2,6 +2,7 @@ import json
 import logging
 import re
 
+import numpy as np
 from rich.console import Console
 from rich.table import Table
 
@@ -38,10 +39,14 @@ class DataLogger:
         resname = self.clean_residue_name(resname)
         self.molecule_data.append((resname, level, entropy_type, value))
 
-    def add_residue_data(self, resid, resname, level, entropy_type, value):
+    def add_residue_data(self, resid, resname, level, entropy_type, frame_count, value):
         """Add data for residue-level entries"""
         resname = self.clean_residue_name(resname)
-        self.residue_data.append([resid, resname, level, entropy_type, value])
+        if isinstance(frame_count, np.ndarray):
+            frame_count = frame_count.tolist()
+        self.residue_data.append(
+            [resid, resname, level, entropy_type, frame_count, value]
+        )
 
     def log_tables(self):
         """Display rich tables in terminal"""
@@ -50,7 +55,7 @@ class DataLogger:
             table = Table(
                 title="Molecule Entropy Results", show_lines=True, expand=True
             )
-            table.add_column("Residue ID", justify="center", style="bold cyan")
+            table.add_column("Group ID", justify="center", style="bold cyan")
             table.add_column("Level", justify="center", style="magenta")
             table.add_column("Type", justify="center", style="green")
             table.add_column("Result (J/mol/K)", justify="center", style="yellow")
@@ -66,6 +71,7 @@ class DataLogger:
             table.add_column("Residue Name", justify="center", style="cyan")
             table.add_column("Level", justify="center", style="magenta")
             table.add_column("Type", justify="center", style="green")
+            table.add_column("Count", justify="center", style="green")
             table.add_column("Result (J/mol/K)", justify="center", style="yellow")
 
             for row in self.residue_data:

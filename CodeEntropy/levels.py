@@ -850,7 +850,7 @@ class LevelManager:
                                 group_id,
                                 level,
                                 levels[mol_id],
-                                time_index - start,
+                                time_index,
                                 number_frames,
                                 force_avg,
                                 torque_avg,
@@ -859,7 +859,7 @@ class LevelManager:
 
                             progress.advance(task)
 
-        return force_avg, torque_avg
+        return force_avg, torque_avg, frame_counts
 
     def update_force_torque_matrices(
         self,
@@ -974,6 +974,8 @@ class LevelManager:
                 n = frame_counts[key][group_id]
                 force_avg[key][group_id] += (f_mat - force_avg[key][group_id]) / n
                 torque_avg[key][group_id] += (t_mat - torque_avg[key][group_id]) / n
+
+        return frame_counts
 
     def filter_zero_rows_columns(self, arg_matrix):
         """
@@ -1113,7 +1115,6 @@ class LevelManager:
                                         res_container, "not name H*"
                                     )
                                 )
-
                                 states = self.compute_dihedral_conformations(
                                     heavy_res,
                                     level,
