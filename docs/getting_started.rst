@@ -17,7 +17,7 @@ Run the following at the root directory of this repository
 Input
 ----------
 For supported format (any topology and trajectory formats that can be read by `MDAnalysis <https://userguide.mdanalysis.org/stable/formats/index.html>`_) you will need to output the **coordinates** and **forces** to the **same file**.
-
+Please consult the documentation for your MD simulation code if you need help outputting the forces.
 
 Units
 ------------
