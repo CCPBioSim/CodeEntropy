@@ -32,6 +32,8 @@ Model. 60 (2020), pp. 5540–5551.
 [6] Jas Kalayan et al. “Total Free Energy Analysis of Fully Hydrated Proteins”.
 In: Proteins 91 (2023), pp. 74–90.
 
+Additional application examples
+-------------------------------
 [7] Hafiz Saqib Ali et al."Energy-entropy method using Multiscale Cell Correlation to calculate binding free energies in the SAMPL8 Host-Guest Challenge". In: Journal of Computer Aided Molecular Design 35 (2021), 911-921.
 
 [8] Fabio Falcioni et al. "Energy-entropy prediction of octanol-water logP of SAMPL7 N-acylsulfonamide bioisosters". In Journal of Computer Aided Molecular Design 35 (2021) 831-840.
@@ -43,7 +45,8 @@ Hierarchy
    
 Atoms are grouped into beads. 
 The levels refer to the size of the beads and the different entropy terms are calculated at each level, taking care to avoid over counting.
-This is done at three different levels of the hierarchy - united atom, residues, and polymers. Not all molecules have all the levels of hierarchy, for example water has only the united atom level, benzene would have united atoms and residue, and a protein would have all three levels.
+This is done at three different levels of the hierarchy - united atom, residues, and polymers.
+Not all molecules have all the levels of hierarchy, for example water has only the united atom level, benzene would have united atoms and residue, and a protein would have all three levels.
 
 Vibrational Entropy
 -------------------
@@ -59,48 +62,42 @@ Then the frequencies are used in the quantum harmonic oscillator equation to cal
 .. math::
    S_{\mathrm{vib}} = k_B \sum_{i=1}^{3N} \left( \frac{\hbar\nu_i/k_BT}{e^{\hbar\nu_i/k_BT}-1} - \ln\left(1-e^{-\hbar\nu_i/k_BT}\right)\right)
 
-Why Forces and Torques?
-^^^^^^^^^^^^^^^^^^^^^^^
 
-
-Axes
-^^^^
-It is important that the forces and torques are transformed into local coordinate systems, so that the covariance matrices represent the motions within the molecule not the diffusion of the molecule through the simulation box. The axes for this transformation are calculated for each bead in each time step.
+Forces and torques on each bead are transformed into the bead's local coordinate frame at every time step to ensure that anisotropy in each direction is captured and not averaged over.
+The axes for this transformation are calculated for each bead in each time step.
 
 For the polymer level, the translational and rotational axes are defined as the principal axes of the molecule.
 
-For the residue level, there are two situations. When the residue is not bonded to any other residues, the translational and rotational axes are defined as the principal axes of the residue. When the residue is part of a larger polymer, the translational axes are defined as the principal axes of the polymer, and the rotational axes are defined from the average position of the bonds to neighbouring residues.
+For the residue level, there are two situations. 
+When the residue is not bonded to any other residues, the translational and rotational axes are the principal axes of the molecule.
+When the residue is part of a larger polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the average position of the bonds to neighbouring residues.
 
 For the united atom level, the translational axes are defined as the principal axes of the residue and the rotational axes are defined from the average position of the bonds to neighbouring heavy atoms.
+If there are no bonds to other heavy atoms, the principal axes of the molecule are used.
 
 Conformational Entropy
 ----------------------
 
-This is a topographical term based on the intramolecular conformational states.
+This term is based on the intramolecular conformational states.
 
-Defining dihedrals
-^^^^^^^^^^^^^^^^^^
-The united atom level dihedrals are defined as a chemist would expect, but only using the heavy atoms no hydrogens are involved. 
-The MDAnalysis package is used to find the united atom level dihedrals and calculate all the dihedral values.
+The united atom level dihedrals are defined for every linear sequence of four bonded atoms, but only using the heavy atoms no hydrogens are involved. 
+The MDAnalysis package is used to identify and calculate the united atom dihedral values.
 
-For the residue level dihedrals, the bond between the first and second residues and the bond between the third and fourth residues are found. The four atoms at the ends of these two bonds are used as points for the dihedral angle calculation.
+For the residue level dihedrals, the bond between the first and second residues and the bond between the third and fourth residues are found. 
+The four atoms at the ends of these two bonds are used as points for the dihedral angle calculation.
 
-For each dihedral, the set of values from the trajectory frames is used to create histograms and identify peaks. Then at each frame, the dihedral is assigned to its nearest peak and a state is created from the peaks of every dihedral in the residue (for united atom level) or molecule (for residue level).
-
-From conformation to entropy
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+To discretise dihedrals, a histogram is constructed from each set of dihedral values and peaks are identified. 
+Then at each timestep, every dihedral is assigned to its nearest peak and a state is created from all the assigned peaks in the residue (for united atom level) or molecule (for residue level).
 Once the states are defined, the probability of finding the residue or molecule in each state is calculated.
-Then the Boltzmann equation is used to calculate the entropy.
+Then the Boltzmann equation is used to calculate the entropy:
 
 .. math::
    S_{\mathrm{conf}} = - k_B \sum_{i=1}^{N_{\mathrm{conf}}}p_i\ln{p_i}
 
 Orientational Entropy
 ---------------------
-
-This is the second topographical entropy term.
-Orientational entropy is the term that comes from the molecule's environment. The different environments are the different states for the molecule, and the statistics can be used to calculate the entropy.
+Orientational entropy is the term that comes from the molecule's environment (or the intermolecular configuration). 
+The different environments are the different states for the molecule, and the statistics can be used to calculate the entropy.
 The simplest part is counting the number of neighbours, but symmetry should be accounted for in determining the number of orientations.
 
 For water, the hydrogen bonds are very important and the number of hydrogen bond donors and acceptors in the shell around the water molecule affects the number of unique orientations.
