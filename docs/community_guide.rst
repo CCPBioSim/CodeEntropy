@@ -3,9 +3,9 @@ Community guidelines
 
 Contribute to the software
 -----------------------------
-To contribute to CodeEntropy, fork the repository and create a pull request when you want to share and push your changes upstream.
+To contribute to CodeEntropy, see the Developer's Information section below.
 
-Report Issue
+Report Issues
 -----------------
 Create an issue ticket on GitHub and the team will review it as soon as possible. Please send us the input file as well.
 
@@ -39,10 +39,13 @@ To only run the a specific test, e.g.:
 
     pytest CodeEntropy/tests/test_CodeEntropy/test_levels.py::test_select_levels
 
- Including your code into the CodeEntropy repository
- ---------------------------------------------------
-In order to add to CodeEntropy, a pull request must be created.
+Including your code into the CodeEntropy repository
+---------------------------------------------------
+Any bugs, problems, or feature requests should get an issue on the GitHub repostitory that clearly explains the situation.
 Code cannot be committed directly to the main branch.
+New branches should be named after the issue that is being worked on.
 
+In order to add code to the main branch of CodeEntropy, a pull request must be created.
 All pull requests will be reviewed by at least one of the core development team.
-
+Up to date documentation and tests for all new code will be required before a pull request is approved.
+Please use the pull request template, clearly explaining the purpose and effect of the pull request will aid in reviewing them quickly and accurately.

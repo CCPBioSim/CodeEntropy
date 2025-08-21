@@ -4,15 +4,29 @@ Getting Started
 Requirements
 ----------------
 
-* Python > 3.9
+* Python >= 3.11
 
 Installation
 ----------------
-Run the following at the root directory of this repository
+To install the released version:
 
 .. code-block:: bash
     
     pip install CodeEntropy
+
+To install the latest development version:
+
+.. code-block:: bash
+
+    git clone https://github.com/CCPBioSim/CodeEntropy.git
+
+.. code-block:: bash
+
+    cd CodeEntropy
+
+.. code-block:: bash
+
+    pip install .
 
 Input
 ----------
@@ -148,3 +162,11 @@ Or as an alternative, you could edit the config.yaml file and use the CodeEntrop
 
 CodeEntropy creates job* directories for the output, where * is a job number choosen by the so that there are sequentially numbered directories when you rerun CodeEntropy in the same working directory.
 Each job* directory contains the output json file and a subdirectory with the log files.
+
+Data Files
+^^^^^^^^^^
+The example files mentioned above can be downloaded.
+
+`Lysozyme example (~1.2GB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/lysozyme_example.tar>`_
+
+`DNA fragment example (~1MB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/dna_example.tar>`_
