@@ -57,6 +57,7 @@ class EntropyManager:
         """
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
+
         ve = VibrationalEntropy(
             self._run_manager,
             self._args,
@@ -74,15 +75,35 @@ class EntropyManager:
             self._group_molecules,
         )
 
-        self._handle_water_entropy(start, end, step)
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
+
+        water_atoms = self._universe.select_atoms("water")
+        water_resids = set(res.resid for res in water_atoms.residues)
+
+        water_groups = {
+            gid: g
+            for gid, g in groups.items()
+            if any(
+                res.resid in water_resids
+                for mol in [self._universe.atoms.fragments[i] for i in g]
+                for res in mol.residues
+            )
+        }
+        nonwater_groups = {
+            gid: g for gid, g in groups.items() if gid not in water_groups
+        }
+
+        if self._args.water_entropy and water_groups:
+            self._handle_water_entropy(start, end, step, water_groups)
+        else:
+            nonwater_groups.update(water_groups)
 
         force_matrices, torque_matrices, frame_counts = (
             self._level_manager.build_covariance_matrices(
                 self,
                 reduced_atom,
                 levels,
-                groups,
+                nonwater_groups,
                 start,
                 end,
                 step,
@@ -94,7 +115,7 @@ class EntropyManager:
             self,
             reduced_atom,
             levels,
-            groups,
+            nonwater_groups,
             start,
             end,
             step,
@@ -106,7 +127,7 @@ class EntropyManager:
         self._compute_entropies(
             reduced_atom,
             levels,
-            groups,
+            nonwater_groups,
             force_matrices,
             torque_matrices,
             states_ua,
@@ -120,33 +141,50 @@ class EntropyManager:
         self._finalize_molecule_results()
         self._data_logger.log_tables()
 
-    def _handle_water_entropy(self, start, end, step):
+    def _handle_water_entropy(self, start, end, step, water_groups):
         """
-        Compute and exclude water entropy from the system if applicable.
+        Compute water entropy for each water group, log data, and update selection
+        string to exclude water from further analysis.
 
-        If water molecules are present and water entropy calculation is enabled,
-        this method computes their entropy and updates the selection string to
-        exclude water from further analysis.
-
-        Parameters:
-            start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Step size for frame iteration.
+        Args:
+            start (int): Start frame index
+            end (int): End frame index
+            step (int): Step size
+            water_groups (dict): {group_id: [atom indices]} for water
         """
-        has_water = self._universe.select_atoms("water").n_atoms > 0
-        if has_water and self._args.water_entropy:
-            self._calculate_water_entropy(self._universe, start, end, step)
-            self._args.selection_string = (
-                self._args.selection_string + " and not water"
-                if self._args.selection_string != "all"
-                else "not water"
+        if not water_groups or not self._args.water_entropy:
+            return
+
+        for group_id, atom_indices in water_groups.items():
+            water_selection = self._universe.atoms[atom_indices]
+
+            water_residues = [
+                res for res in water_selection.residues if res.resname == "WAT"
+            ]
+
+            residue_group = "_".join(sorted({res.resname for res in water_residues}))
+            residue_count = len(water_residues)
+            atom_count = len(water_selection.atoms)
+            self._data_logger.add_group_label(
+                group_id, residue_group, residue_count, atom_count
             )
-            logger.debug(
-                "WaterEntropy: molecule_data: %s", self._data_logger.molecule_data
+
+            self._calculate_water_entropy(
+                universe=self._universe,
+                start=start,
+                end=end,
+                step=step,
+                group_id=group_id,
             )
-            logger.debug(
-                "WaterEntropy: residue_data: %s", self._data_logger.residue_data
-            )
+
+        self._args.selection_string = (
+            self._args.selection_string + " and not water"
+            if self._args.selection_string != "all"
+            else "not water"
+        )
+
+        logger.debug(f"WaterEntropy: molecule_data: {self._data_logger.molecule_data}")
+        logger.debug(f"WaterEntropy: residue_data: {self._data_logger.residue_data}")
 
     def _initialize_molecules(self):
         """
@@ -252,6 +290,7 @@ class EntropyManager:
                     elif level == "residue":
                         self._process_vibrational_entropy(
                             group_id,
+                            mol,
                             number_frames,
                             ve,
                             level,
@@ -262,6 +301,7 @@ class EntropyManager:
 
                         self._process_conformational_entropy(
                             group_id,
+                            mol,
                             ce,
                             level,
                             states_res,
@@ -271,6 +311,7 @@ class EntropyManager:
                     elif level == "polymer":
                         self._process_vibrational_entropy(
                             group_id,
+                            mol,
                             number_frames,
                             ve,
                             level,
@@ -405,7 +446,7 @@ class EntropyManager:
             S_conf += S_conf_res
 
             self._data_logger.add_residue_data(
-                residue_id,
+                group_id,
                 residue.resname,
                 level,
                 "Transvibrational",
@@ -413,7 +454,7 @@ class EntropyManager:
                 S_trans_res,
             )
             self._data_logger.add_residue_data(
-                residue_id,
+                group_id,
                 residue.resname,
                 level,
                 "Rovibrational",
@@ -421,7 +462,7 @@ class EntropyManager:
                 S_rot_res,
             )
             self._data_logger.add_residue_data(
-                residue_id,
+                group_id,
                 residue.resname,
                 level,
                 "Conformational",
@@ -433,9 +474,19 @@ class EntropyManager:
         self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
         self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
 
+        residue_group = "_".join(
+            sorted(set(res.resname for res in mol_container.residues))
+        )
+        residue_count = len(mol_container.residues)
+        atom_count = len(mol_container.atoms)
+        self._data_logger.add_group_label(
+            group_id, residue_group, residue_count, atom_count
+        )
+
     def _process_vibrational_entropy(
         self,
         group_id,
+        mol_container,
         number_frames,
         ve,
         level,
@@ -471,8 +522,17 @@ class EntropyManager:
         self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
         self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
 
+        residue_group = "_".join(
+            sorted(set(res.resname for res in mol_container.residues))
+        )
+        residue_count = len(mol_container.residues)
+        atom_count = len(mol_container.atoms)
+        self._data_logger.add_group_label(
+            group_id, residue_group, residue_count, atom_count
+        )
+
     def _process_conformational_entropy(
-        self, group_id, ce, level, states, number_frames
+        self, group_id, mol_container, ce, level, states, number_frames
     ):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
@@ -502,8 +562,16 @@ class EntropyManager:
             if contains_state_data
             else 0
         )
-
         self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
+
+        residue_group = "_".join(
+            sorted(set(res.resname for res in mol_container.residues))
+        )
+        residue_count = len(mol_container.residues)
+        atom_count = len(mol_container.atoms)
+        self._data_logger.add_group_label(
+            group_id, residue_group, residue_count, atom_count
+        )
 
     def _finalize_molecule_results(self):
         """
@@ -522,7 +590,6 @@ class EntropyManager:
                 except ValueError:
                     logger.warning(f"Skipping invalid entry: {mol_id}, {result}")
 
-        # Write totals into molecule_data
         for mol_id in entropy_by_molecule.keys():
             total_entropy = entropy_by_molecule[mol_id]
 
@@ -535,7 +602,6 @@ class EntropyManager:
                 )
             )
 
-        # Save to file
         self._data_logger.save_dataframes_as_json(
             pd.DataFrame(
                 self._data_logger.molecule_data,
@@ -549,7 +615,7 @@ class EntropyManager:
             pd.DataFrame(
                 self._data_logger.residue_data,
                 columns=[
-                    "Residue ID",
+                    "Group ID",
                     "Residue Name",
                     "Level",
                     "Type",
@@ -560,15 +626,10 @@ class EntropyManager:
             self._args.output_file,
         )
 
-    def _calculate_water_entropy(self, universe, start, end, step):
+    def _calculate_water_entropy(self, universe, start, end, step, group_id=None):
         """
-        Calculates orientational and vibrational entropy for water molecules.
-
-        Args:
-            universe: MDAnalysis Universe object.
-            start (int): Start frame.
-            end (int): End frame.
-            step (int): Step size.
+        Calculate water entropy and map all waters to a single group ID.
+        Aggregates entropy components per water group.
         """
         Sorient_dict, _, vibrations, _, water_count = (
             GetSolvent.get_interfacial_water_orient_entropy(
@@ -576,14 +637,15 @@ class EntropyManager:
             )
         )
 
-        # Log per-residue entropy using helper functions
-        self._calculate_water_orientational_entropy(Sorient_dict, water_count)
-        self._calculate_water_vibrational_translational_entropy(vibrations, water_count)
-        self._calculate_water_vibrational_rotational_entropy(vibrations, water_count)
+        self._calculate_water_orientational_entropy(Sorient_dict, group_id, water_count)
+        self._calculate_water_vibrational_translational_entropy(
+            vibrations, group_id, water_count
+        )
+        self._calculate_water_vibrational_rotational_entropy(
+            vibrations, group_id, water_count
+        )
 
-        # Aggregate entropy components per molecule
         results = {}
-
         for row in self._data_logger.residue_data:
             mol_id = row[1]
             entropy_type = row[3].split()[0]
@@ -598,73 +660,57 @@ class EntropyManager:
 
             results[mol_id][entropy_type] += value
 
-        # Log per-molecule entropy components and total
         for mol_id, components in results.items():
             total = 0.0
             for entropy_type in ["Orientational", "Transvibrational", "Rovibrational"]:
                 S_component = components[entropy_type]
                 self._data_logger.add_results_data(
-                    mol_id, "water", entropy_type, S_component
+                    group_id, "water", entropy_type, S_component
                 )
                 total += S_component
 
-    def _calculate_water_orientational_entropy(self, Sorient_dict, water_count):
+    def _calculate_water_orientational_entropy(
+        self, Sorient_dict, group_id, water_count
+    ):
         """
-        Logs orientational entropy values directly from Sorient_dict.
+        Aggregate all orientational entropy for waters into a single group.
         """
+        total_S = 0.0
         for resid, resname_dict in Sorient_dict.items():
             for resname, values in resname_dict.items():
                 if isinstance(values, list) and len(values) == 2:
                     Sor, count = values
-                    self._data_logger.add_residue_data(
-                        resid, resname, "Water", "Orientational", water_count, Sor
-                    )
+                    total_S += Sor
+
+        self._data_logger.add_residue_data(
+            group_id, "WAT", "Water", "Orientational", water_count, total_S
+        )
 
     def _calculate_water_vibrational_translational_entropy(
-        self, vibrations, water_count
+        self, vibrations, group_id, water_count
     ):
-        """
-        Logs summed translational entropy values per residue-solvent pair.
-        """
+        total_S = 0.0
         for (solute_id, _), entropy in vibrations.translational_S.items():
             if isinstance(entropy, (list, np.ndarray)):
                 entropy = float(np.sum(entropy))
+            total_S += entropy
 
-            if "_" in solute_id:
-                resname, resid_str = solute_id.rsplit("_", 1)
-                try:
-                    resid = int(resid_str)
-                except ValueError:
-                    resid = -1
-            else:
-                resname = solute_id
-                resid = -1
+        self._data_logger.add_residue_data(
+            group_id, "WAT", "Water", "Transvibrational", water_count, total_S
+        )
 
-            self._data_logger.add_residue_data(
-                resid, resname, "Water", "Transvibrational", water_count, entropy
-            )
-
-    def _calculate_water_vibrational_rotational_entropy(self, vibrations, water_count):
-        """
-        Logs summed rotational entropy values per residue-solvent pair.
-        """
+    def _calculate_water_vibrational_rotational_entropy(
+        self, vibrations, group_id, water_count
+    ):
+        total_S = 0.0
         for (solute_id, _), entropy in vibrations.rotational_S.items():
             if isinstance(entropy, (list, np.ndarray)):
                 entropy = float(np.sum(entropy))
+            total_S += entropy
 
-            if "_" in solute_id:
-                resname, resid_str = solute_id.rsplit("_", 1)
-                try:
-                    resid = int(resid_str)
-                except ValueError:
-                    resid = -1
-            else:
-                resname = solute_id
-                resid = -1
-
-            self._data_logger.add_residue_data(
-                resid, resname, "Water", "Rovibrational", water_count, entropy
-            )
+        self._data_logger.add_residue_data(
+            group_id, "WAT", "Water", "Rovibrational", water_count, total_S
+        )
 
 
 class VibrationalEntropy(EntropyManager):
