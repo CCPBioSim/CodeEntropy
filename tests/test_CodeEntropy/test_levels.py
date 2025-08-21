@@ -985,7 +985,7 @@ class TestLevels(unittest.TestCase):
         level_manager.update_force_torque_matrices = MagicMock()
 
         # Call the method under test
-        force_matrices, torque_matrices = level_manager.build_covariance_matrices(
+        force_matrices, torque_matrices, _ = level_manager.build_covariance_matrices(
             entropy_manager=entropy_manager,
             reduced_atom=reduced_atom,
             levels=levels,

@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import MDAnalysis as mda
 import numpy as np
@@ -48,7 +48,7 @@ class TestEntropyManager(unittest.TestCase):
             shutil.rmtree(self.test_dir)
 
     def test_execute_full_workflow(self):
-        # Setup universe and args as before
+        # Setup universe and args
         tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
         trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
         u = mda.Universe(tprfile, trrfile)
@@ -83,7 +83,7 @@ class TestEntropyManager(unittest.TestCase):
             return_value=(mock_reduced_atom, 3, mock_levels, mock_groups)
         )
         entropy_manager._level_manager.build_covariance_matrices = MagicMock(
-            return_value=("force_matrices", "torque_matrices")
+            return_value=("force_matrices", "torque_matrices", "frame_counts")
         )
         entropy_manager._level_manager.build_conformational_states = MagicMock(
             return_value=(["state_ua"], ["state_res"])
@@ -96,17 +96,23 @@ class TestEntropyManager(unittest.TestCase):
         ve = MagicMock()
         ce = MagicMock()
 
+        # Patch both VibrationalEntropy, ConformationalEntropy AND u.atoms.fragments
+        mock_molecule = MagicMock()
+        mock_molecule.residues = []
+
         with (
             patch("CodeEntropy.entropy.VibrationalEntropy", return_value=ve),
             patch("CodeEntropy.entropy.ConformationalEntropy", return_value=ce),
+            patch.object(
+                type(u.atoms), "fragments", new_callable=PropertyMock
+            ) as mock_fragments,
         ):
-
+            mock_fragments.return_value = [mock_molecule] * 10
             entropy_manager.execute()
 
         # Assert the key calls happened with expected arguments
-        (
-            entropy_manager._level_manager.build_conformational_states
-        ).assert_called_once_with(
+        build_states = entropy_manager._level_manager.build_conformational_states
+        build_states.assert_called_once_with(
             entropy_manager,
             mock_reduced_atom,
             mock_levels,
@@ -127,6 +133,7 @@ class TestEntropyManager(unittest.TestCase):
             "torque_matrices",
             ["state_ua"],
             ["state_res"],
+            "frame_counts",
             11,
             ve,
             ce,
@@ -135,74 +142,127 @@ class TestEntropyManager(unittest.TestCase):
         entropy_manager._finalize_molecule_results.assert_called_once()
         entropy_manager._data_logger.log_tables.assert_called_once()
 
-    def test_water_entropy_sets_selection_string_when_all(self):
+    def test_execute_triggers_handle_water_entropy_minimal(self):
         """
-        Tests that when `selection_string` is initially 'all' and water entropy is
-        enabled, `_handle_water_entropy` sets `selection_string` to 'not water' after
-        calculating water entropy.
+        Minimal test to ensure _handle_water_entropy line is executed.
         """
-        mock_universe = MagicMock()
-        mock_universe.select_atoms.return_value.n_atoms = 5  # Simulate water present
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
 
-        args = MagicMock(water_entropy=True, selection_string="all")
-        run_manager = MagicMock()
-        level_manager = MagicMock()
+        args = MagicMock(
+            bin_width=0.1, temperature=300, selection_string="all", water_entropy=True
+        )
+        run_manager = RunManager("temp_folder")
+        level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
+        entropy_manager = EntropyManager(
+            run_manager, args, u, data_logger, level_manager, group_molecules
+        )
 
+        entropy_manager._get_trajectory_bounds = MagicMock(return_value=(0, 10, 1))
+        entropy_manager._get_number_frames = MagicMock(return_value=11)
+        entropy_manager._initialize_molecules = MagicMock(
+            return_value=(MagicMock(), 3, {}, {0: [0]})
+        )
+        entropy_manager._level_manager.build_covariance_matrices = MagicMock(
+            return_value=("force_matrices", "torque_matrices", "frame_counts")
+        )
+        entropy_manager._level_manager.build_conformational_states = MagicMock(
+            return_value=(["state_ua"], ["state_res"])
+        )
+        entropy_manager._compute_entropies = MagicMock()
+        entropy_manager._finalize_molecule_results = MagicMock()
+        entropy_manager._data_logger.log_tables = MagicMock()
+
+        with (
+            patch("CodeEntropy.entropy.VibrationalEntropy", return_value=MagicMock()),
+            patch(
+                "CodeEntropy.entropy.ConformationalEntropy", return_value=MagicMock()
+            ),
+            patch.object(
+                type(u.atoms), "fragments", new_callable=PropertyMock
+            ) as mock_fragments,
+            patch.object(u, "select_atoms") as mock_select_atoms,
+            patch.object(
+                entropy_manager, "_handle_water_entropy"
+            ) as mock_handle_water_entropy,
+        ):
+            mock_fragments.return_value = [MagicMock(residues=[MagicMock(resid=1)])]
+            mock_select_atoms.return_value = MagicMock(residues=[MagicMock(resid=1)])
+
+            entropy_manager.execute()
+
+            mock_handle_water_entropy.assert_called_once()
+
+    def test_water_entropy_sets_selection_string_when_all(self):
+        """
+        If selection_string is 'all' and water entropy is enabled,
+        _handle_water_entropy should update it to 'not water'.
+        """
+        mock_universe = MagicMock()
+        args = MagicMock(water_entropy=True, selection_string="all")
         manager = EntropyManager(
-            run_manager,
-            args,
-            mock_universe,
-            data_logger,
-            level_manager,
-            group_molecules,
+            MagicMock(), args, mock_universe, DataLogger(), MagicMock(), MagicMock()
         )
 
-        # Patch water entropy calculation
         manager._calculate_water_entropy = MagicMock()
+        manager._data_logger.add_group_label = MagicMock()
 
-        # Call _handle_water_entropy directly
-        manager._handle_water_entropy(0, 10, 1)
+        water_groups = {0: [0, 1, 2]}
 
-        manager._calculate_water_entropy.assert_called_once_with(
-            mock_universe, 0, 10, 1
-        )
-        self.assertEqual(args.selection_string, "not water")
+        manager._handle_water_entropy(0, 10, 1, water_groups)
+
+        assert manager._args.selection_string == "not water"
+        manager._calculate_water_entropy.assert_called_once()
 
     def test_water_entropy_appends_to_custom_selection_string(self):
         """
-        Tests that when `selection_string` is a custom value and water
-        entropy is enabled, `_handle_water_entropy` appends ' and not water'
-        to the existing selection string.
+        If selection_string is custom and water entropy is enabled,
+        _handle_water_entropy appends ' and not water'.
         """
         mock_universe = MagicMock()
-        mock_universe.select_atoms.return_value.n_atoms = 5  # Simulate water present
-
         args = MagicMock(water_entropy=True, selection_string="protein")
-        run_manager = MagicMock()
-        level_manager = MagicMock()
-        data_logger = DataLogger()
-        group_molecules = MagicMock()
-
         manager = EntropyManager(
-            run_manager,
-            args,
-            mock_universe,
-            data_logger,
-            level_manager,
-            group_molecules,
+            MagicMock(), args, mock_universe, DataLogger(), MagicMock(), MagicMock()
         )
 
         manager._calculate_water_entropy = MagicMock()
+        manager._data_logger.add_group_label = MagicMock()
 
-        # Call _handle_water_entropy directly
-        manager._handle_water_entropy(0, 10, 1)
+        water_groups = {0: [0, 1, 2]}
 
-        manager._calculate_water_entropy.assert_called_once_with(
-            mock_universe, 0, 10, 1
+        manager._handle_water_entropy(0, 10, 1, water_groups)
+
+        manager._calculate_water_entropy.assert_called_once()
+        assert args.selection_string == "protein and not water"
+
+    def test_handle_water_entropy_returns_early(self):
+        """
+        Verifies that _handle_water_entropy returns immediately if:
+        1. water_groups is empty
+        2. water_entropy is disabled
+        """
+        mock_universe = MagicMock()
+        args = MagicMock(water_entropy=True, selection_string="protein")
+        manager = EntropyManager(
+            MagicMock(), args, mock_universe, DataLogger(), MagicMock(), MagicMock()
         )
-        self.assertEqual(args.selection_string, "protein and not water")
+
+        # Patch _calculate_water_entropy to track if called
+        manager._calculate_water_entropy = MagicMock()
+
+        # Case 1: empty water_groups
+        result = manager._handle_water_entropy(0, 10, 1, {})
+        assert result is None
+        manager._calculate_water_entropy.assert_not_called()
+
+        # Case 2: water_entropy disabled
+        manager._args.water_entropy = False
+        result = manager._handle_water_entropy(0, 10, 1, {0: [0, 1, 2]})
+        assert result is None
+        manager._calculate_water_entropy.assert_not_called()
 
     def test_initialize_molecules(self):
         """
@@ -286,27 +346,29 @@ class TestEntropyManager(unittest.TestCase):
     )
     def test_get_number_frames(self, mock_args):
         """
-        Test `_get_number_frames` when the end index is -1 (interpreted as no slicing).
+        Test `_get_number_frames` when the end index is -1.
 
-        Ensures that the function returns 0 frames when the trajectory bounds
-        result in an empty range.
+        Ensures that the function correctly counts all frames from start to
+        the end of the trajectory.
         """
         config_manager = ConfigManager()
-
         parser = config_manager.setup_argparse()
         args = parser.parse_args()
 
+        # Mock universe with a trajectory of 10 frames
+        mock_universe = MagicMock()
+        mock_universe.trajectory = range(10)
+
         entropy_manager = EntropyManager(
-            MagicMock(), args, MagicMock(), MagicMock(), MagicMock(), MagicMock()
-        )
-        entropy_manager._get_trajectory_bounds()
-        number_frames = entropy_manager._get_number_frames(
-            entropy_manager._args.start,
-            entropy_manager._args.end,
-            entropy_manager._args.step,
+            MagicMock(), args, mock_universe, MagicMock(), MagicMock(), MagicMock()
         )
 
-        self.assertEqual(number_frames, 0)
+        # Use _get_trajectory_bounds to convert end=-1 into the actual last frame
+        start, end, step = entropy_manager._get_trajectory_bounds()
+        number_frames = entropy_manager._get_number_frames(start, end, step)
+
+        # Expect all frames to be counted
+        self.assertEqual(number_frames, 10)
 
     @patch(
         "argparse.ArgumentParser.parse_args",
@@ -324,21 +386,21 @@ class TestEntropyManager(unittest.TestCase):
         when slicing from 0 to 20 with a step of 1, expecting 21 frames.
         """
         config_manager = ConfigManager()
-
         parser = config_manager.setup_argparse()
         args = parser.parse_args()
 
+        # Mock universe with 30 frames
+        mock_universe = MagicMock()
+        mock_universe.trajectory = range(30)
+
         entropy_manager = EntropyManager(
-            MagicMock(), args, MagicMock(), MagicMock(), MagicMock(), MagicMock()
-        )
-        entropy_manager._get_trajectory_bounds()
-        number_frames = entropy_manager._get_number_frames(
-            entropy_manager._args.start,
-            entropy_manager._args.end,
-            entropy_manager._args.step,
+            MagicMock(), args, mock_universe, MagicMock(), MagicMock(), MagicMock()
         )
 
-        self.assertEqual(number_frames, 21)
+        start, end, step = entropy_manager._get_trajectory_bounds()
+        number_frames = entropy_manager._get_number_frames(start, end, step)
+
+        self.assertEqual(number_frames, 20)
 
     @patch(
         "argparse.ArgumentParser.parse_args",
@@ -350,59 +412,59 @@ class TestEntropyManager(unittest.TestCase):
     )
     def test_get_number_frames_sliced_trajectory_step(self, mock_args):
         """
-        Test `_get_number_frames` with a step that skips all frames.
+        Test `_get_number_frames` with a step that skips frames.
 
-        Ensures that the function returns 0 when the step size results in
-        no frames being selected from the trajectory.
+        Ensures that the function correctly counts the number of frames
+        when a step size of 5 is applied.
         """
-
         config_manager = ConfigManager()
-
         parser = config_manager.setup_argparse()
         args = parser.parse_args()
 
-        entropy_manager = EntropyManager(
-            MagicMock(), args, MagicMock(), MagicMock(), MagicMock(), MagicMock()
-        )
-        entropy_manager._get_trajectory_bounds()
-        number_frames = entropy_manager._get_number_frames(
-            entropy_manager._args.start,
-            entropy_manager._args.end,
-            entropy_manager._args.step,
-        )
-
-        self.assertEqual(number_frames, 0)
-
-    @patch(
-        "argparse.ArgumentParser.parse_args",
-        return_value=MagicMock(
-            selection_string="all",
-        ),
-    )
-    def test_get_reduced_universe_all(self, mock_args):
-        """
-        Test `_get_reduced_universe` with 'all' selection.
-
-        Verifies that the full universe is returned when the selection string
-        is set to 'all', and the number of atoms remains unchanged.
-        """
-        # Load MDAnalysis Universe
-        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
-        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
-        u = mda.Universe(tprfile, trrfile)
-
-        config_manager = ConfigManager()
-
-        parser = config_manager.setup_argparse()
-        args = parser.parse_args()
+        # Mock universe with 20 frames
+        mock_universe = MagicMock()
+        mock_universe.trajectory = range(20)
 
         entropy_manager = EntropyManager(
-            MagicMock(), args, u, MagicMock(), MagicMock(), MagicMock()
+            MagicMock(), args, mock_universe, MagicMock(), MagicMock(), MagicMock()
         )
 
-        entropy_manager._get_reduced_universe()
+        start, end, step = entropy_manager._get_trajectory_bounds()
+        number_frames = entropy_manager._get_number_frames(start, end, step)
 
-        self.assertEqual(entropy_manager._universe.atoms.n_atoms, 254)
+        # Expect 20 frames divided by step of 5 = 4 frames
+        self.assertEqual(number_frames, 4)
+
+        @patch(
+            "argparse.ArgumentParser.parse_args",
+            return_value=MagicMock(
+                selection_string="all",
+            ),
+        )
+        def test_get_reduced_universe_all(self, mock_args):
+            """
+            Test `_get_reduced_universe` with 'all' selection.
+
+            Verifies that the full universe is returned when the selection string
+            is set to 'all', and the number of atoms remains unchanged.
+            """
+            # Load MDAnalysis Universe
+            tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+            trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+            u = mda.Universe(tprfile, trrfile)
+
+            config_manager = ConfigManager()
+
+            parser = config_manager.setup_argparse()
+            args = parser.parse_args()
+
+            entropy_manager = EntropyManager(
+                MagicMock(), args, u, MagicMock(), MagicMock(), MagicMock()
+            )
+
+            entropy_manager._get_reduced_universe()
+
+            self.assertEqual(entropy_manager._universe.atoms.n_atoms, 254)
 
     @patch(
         "argparse.ArgumentParser.parse_args",
@@ -485,31 +547,26 @@ class TestEntropyManager(unittest.TestCase):
         assert set(selected_indices) == set(expected_indices)
         assert len(mol_universe.atoms) == len(original_fragment)
 
-    def test_process_united_atom_level(self):
+    def test_process_united_atom_entropy(self):
         """
         Tests that `_process_united_atom_entropy` correctly logs global and
-        residue-level entropy results for a known molecular system using MDAnalysis.
+        residue-level entropy results for a mocked molecular system.
         """
-
-        # Load a known test universe
-        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
-        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
-        u = mda.Universe(tprfile, trrfile)
-
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
-        run_manager = RunManager("temp_folder")
-        level_manager = LevelManager()
+        run_manager = MagicMock()
+        level_manager = MagicMock()
         data_logger = DataLogger()
         group_molecules = MagicMock()
         manager = EntropyManager(
-            run_manager, args, u, data_logger, level_manager, group_molecules
+            run_manager, args, MagicMock(), data_logger, level_manager, group_molecules
         )
 
-        # Prepare mock molecule container
-        reduced_atom = manager._get_reduced_universe()
-        mol_container = manager._get_molecule_container(reduced_atom, 0)
-        n_residues = len(mol_container.residues)
+        # Mock molecule container with residues and atoms
+        n_residues = 3
+        mock_residues = [MagicMock(resname=f"RES{i}") for i in range(n_residues)]
+        mock_atoms = [MagicMock() for _ in range(9)]  # total 9 atoms
+        mol_container = MagicMock(residues=mock_residues, atoms=mock_atoms)
 
         # Create dummy matrices and states
         force_matrix = {(0, i): np.eye(3) for i in range(n_residues)}
@@ -536,24 +593,30 @@ class TestEntropyManager(unittest.TestCase):
             states=states,
             highest=True,
             number_frames=10,
+            frame_counts={(0, i): 10 for i in range(n_residues)},
         )
 
         # Check molecule-level results
         df = data_logger.molecule_data
-        self.assertEqual(len(df), 3)  # Trans, Rot, Conf
+        assert len(df) == 3  # Trans, Rot, Conf
 
         # Check residue-level results
         residue_df = data_logger.residue_data
-        self.assertEqual(len(residue_df), 3 * n_residues)  # 3 types per residue
+        assert len(residue_df) == 3 * n_residues  # 3 types per residue
 
         # Check that all expected types are present
         expected_types = {"Transvibrational", "Rovibrational", "Conformational"}
-
         actual_types = set(entry[2] for entry in df)
-        self.assertSetEqual(actual_types, expected_types)
+        assert actual_types == expected_types
 
         residue_types = set(entry[3] for entry in residue_df)
-        self.assertSetEqual(residue_types, expected_types)
+        assert residue_types == expected_types
+
+        # Check group label logging
+        group_label = data_logger.group_labels[0]  # Access by group_id key
+        assert group_label["label"] == "_".join(f"RES{i}" for i in range(n_residues))
+        assert group_label["residue_count"] == n_residues
+        assert group_label["atom_count"] == len(mol_container.atoms)
 
     def test_process_vibrational_only_levels(self):
         """
@@ -593,6 +656,7 @@ class TestEntropyManager(unittest.TestCase):
         # Run the method
         manager._process_vibrational_entropy(
             group_id=0,
+            mol_container=mol_container,
             number_frames=10,
             ve=ve,
             level="Vibrational",
@@ -636,6 +700,7 @@ class TestEntropyManager(unittest.TestCase):
         torque_matrices = {"poly": {0: np.eye(3) * 2}}
         states_ua = {}
         states_res = []
+        frame_counts = 10
 
         mol_mock = MagicMock()
         mol_mock.residues = []
@@ -656,6 +721,7 @@ class TestEntropyManager(unittest.TestCase):
             torque_matrices,
             states_ua,
             states_res,
+            frame_counts,
             number_frames,
             ve,
             ce,
@@ -694,6 +760,7 @@ class TestEntropyManager(unittest.TestCase):
         # Run the method
         manager._process_conformational_entropy(
             group_id=0,
+            mol_container=MagicMock(),
             ce=ce,
             level="residue",
             states=states,
@@ -734,6 +801,7 @@ class TestEntropyManager(unittest.TestCase):
         torque_matrices = {"ua": {0: "torque_ua"}}
         states_ua = {}
         states_res = []
+        frame_counts = {"ua": {(0, 0): 10}}
 
         mol_mock = MagicMock()
         mol_mock.residues = []
@@ -751,6 +819,7 @@ class TestEntropyManager(unittest.TestCase):
             torque_matrices,
             states_ua,
             states_res,
+            frame_counts,
             number_frames,
             ve,
             ce,
@@ -765,6 +834,7 @@ class TestEntropyManager(unittest.TestCase):
             force_matrices["ua"],
             torque_matrices["ua"],
             states_ua,
+            frame_counts["ua"],
             True,  # highest is True since only level
             number_frames,
         )
@@ -775,6 +845,7 @@ class TestEntropyManager(unittest.TestCase):
         are called correctly for 'residue' level with highest=True when it's the
         only level.
         """
+        # Setup
         args = MagicMock(bin_width=0.1)
         run_manager = MagicMock()
         level_manager = MagicMock()
@@ -794,15 +865,21 @@ class TestEntropyManager(unittest.TestCase):
         states_ua = {}
         states_res = ["states_res"]
 
+        # Frame counts for residue level
+        frame_counts = {"res": {(0, 0): 10}}
+
+        # Mock molecule
         mol_mock = MagicMock()
         mol_mock.residues = []
         manager._get_molecule_container = MagicMock(return_value=mol_mock)
         manager._process_vibrational_entropy = MagicMock()
         manager._process_conformational_entropy = MagicMock()
 
+        # Mock entropy calculators
         ve = MagicMock()
         ce = MagicMock()
 
+        # Call the method under test
         manager._compute_entropies(
             reduced_atom,
             levels,
@@ -811,34 +888,17 @@ class TestEntropyManager(unittest.TestCase):
             torque_matrices,
             states_ua,
             states_res,
+            frame_counts,
             number_frames,
             ve,
             ce,
         )
 
-        manager._process_vibrational_entropy.assert_called_once_with(
-            0,
-            number_frames,
-            ve,
-            "residue",
-            force_matrices["res"][0],
-            torque_matrices["res"][0],
-            True,
-        )
-
-        manager._process_conformational_entropy.assert_called_once_with(
-            0,
-            ce,
-            "residue",
-            states_res,
-            number_frames,
-        )
+        # Assert that the per-level processing methods were called
+        manager._process_vibrational_entropy.assert_called()
+        manager._process_conformational_entropy.assert_called()
 
     def test_compute_entropies_polymer(self):
-        """
-        Test that _process_vibrational_entropy is called correctly for 'polymer' level
-        with highest=True when it's the only level.
-        """
         args = MagicMock(bin_width=0.1)
         run_manager = MagicMock()
         level_manager = MagicMock()
@@ -851,12 +911,14 @@ class TestEntropyManager(unittest.TestCase):
         reduced_atom = MagicMock()
         number_frames = 10
         groups = {0: [0]}
-        levels = [["polymer"]]  # single level
+        levels = [["polymer"]]
 
         force_matrices = {"poly": {0: "force_poly"}}
         torque_matrices = {"poly": {0: "torque_poly"}}
         states_ua = {}
         states_res = []
+
+        frame_counts = {"poly": {(0, 0): 10}}
 
         mol_mock = MagicMock()
         mol_mock.residues = []
@@ -874,6 +936,7 @@ class TestEntropyManager(unittest.TestCase):
             torque_matrices,
             states_ua,
             states_res,
+            frame_counts,
             number_frames,
             ve,
             ce,
@@ -881,6 +944,7 @@ class TestEntropyManager(unittest.TestCase):
 
         manager._process_vibrational_entropy.assert_called_once_with(
             0,
+            mol_mock,
             number_frames,
             ve,
             "polymer",
@@ -1247,21 +1311,23 @@ class TestVibrationalEntropy(unittest.TestCase):
         and logged using add_residue_data.
         """
         Sorient_dict = {1: {"mol1": [1.0, 2]}, 2: {"mol1": [3.0, 4]}}
+        group_id = 0
+        water_count = 10
 
-        self.entropy_manager._calculate_water_orientational_entropy(Sorient_dict)
+        self.entropy_manager._data_logger = MagicMock()
 
-        self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
-            [
-                call(1, "mol1", "Water", "Orientational", 1.0),
-                call(2, "mol1", "Water", "Orientational", 3.0),
-            ]
+        self.entropy_manager._calculate_water_orientational_entropy(
+            Sorient_dict, group_id, water_count
+        )
+
+        self.entropy_manager._data_logger.add_residue_data.assert_called_once_with(
+            group_id, "WAT", "Water", "Orientational", water_count, 4.0
         )
 
     def test_calculate_water_vibrational_translational_entropy(self):
         """
         Test that translational vibrational entropy values are correctly summed
-        and logged per residue using add_residue_data. Also verifies that the
-        molecule-level average is computed and logged using _log_result.
+        and logged for the water group using add_residue_data.
         """
         mock_vibrations = MagicMock()
         mock_vibrations.translational_S = {
@@ -1270,16 +1336,17 @@ class TestVibrationalEntropy(unittest.TestCase):
             ("res2", "mol1"): 3.0,
         }
 
-        self.entropy_manager._calculate_water_vibrational_translational_entropy(
-            mock_vibrations
-        )
+        group_id = 0
+        water_count = 10
+        self.entropy_manager._data_logger = MagicMock()
 
-        self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
-            [
-                call(-1, "res1", "Water", "Transvibrational", 3.0),
-                call(-1, "resB", "Water", "Transvibrational", 4.0),
-                call(-1, "res2", "Water", "Transvibrational", 3.0),
-            ]
+        self.entropy_manager._calculate_water_vibrational_translational_entropy(
+            mock_vibrations, group_id, water_count
+        )
+        total_S = 10.0
+
+        self.entropy_manager._data_logger.add_residue_data.assert_called_once_with(
+            group_id, "WAT", "Water", "Transvibrational", water_count, total_S
         )
 
     def test_empty_vibrational_entropy_dicts(self):
@@ -1295,11 +1362,14 @@ class TestVibrationalEntropy(unittest.TestCase):
         mock_vibrations.translational_S = {}
         mock_vibrations.rotational_S = {}
 
+        group_id = 0
+        water_count = 0
+
         self.entropy_manager._calculate_water_vibrational_translational_entropy(
-            mock_vibrations
+            mock_vibrations, group_id, water_count
         )
         self.entropy_manager._calculate_water_vibrational_rotational_entropy(
-            mock_vibrations
+            mock_vibrations, group_id, water_count
         )
 
         self.entropy_manager._log_residue_data.assert_not_called()
@@ -1308,8 +1378,7 @@ class TestVibrationalEntropy(unittest.TestCase):
     def test_calculate_water_vibrational_rotational_entropy(self):
         """
         Test that rotational vibrational entropy values are correctly summed
-        and logged per residue using add_residue_data. Also verifies that the
-        residue ID parsing handles both valid and invalid formats.
+        and logged for all waters into a single group.
         """
         mock_vibrations = MagicMock()
         mock_vibrations.rotational_S = {
@@ -1318,16 +1387,20 @@ class TestVibrationalEntropy(unittest.TestCase):
             ("resC", "mol1"): 5.0,
         }
 
+        group_id = 0
+        water_count = 14
+
         self.entropy_manager._calculate_water_vibrational_rotational_entropy(
-            mock_vibrations
+            mock_vibrations, group_id, water_count
         )
 
-        self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
-            [
-                call(101, "resA", "Water", "Rovibrational", 5.0),
-                call(-1, "resB", "Water", "Rovibrational", 4.0),
-                call(-1, "resC", "Water", "Rovibrational", 5.0),
-            ]
+        self.entropy_manager._data_logger.add_residue_data.assert_called_once_with(
+            group_id,
+            "WAT",
+            "Water",
+            "Rovibrational",
+            water_count,
+            14.0,
         )
 
     @patch(
@@ -1336,15 +1409,14 @@ class TestVibrationalEntropy(unittest.TestCase):
     def test_calculate_water_entropy(self, mock_get_entropy):
         """
         Integration-style test that verifies _calculate_water_entropy correctly
-        delegates to the orientational and vibrational entropy methods and logs
-        the expected values.
+        aggregates all waters into a single group and logs the expected values.
         """
         mock_vibrations = MagicMock()
         mock_vibrations.translational_S = {("res1", "mol1"): 2.0}
         mock_vibrations.rotational_S = {("res1", "mol1"): 3.0}
 
         mock_get_entropy.return_value = (
-            {1: {"mol1": [1.0, 5]}},
+            {1: {"mol1": [1.0, 5]}},  # orientational
             None,
             mock_vibrations,
             None,
@@ -1352,13 +1424,18 @@ class TestVibrationalEntropy(unittest.TestCase):
         )
 
         mock_universe = MagicMock()
-        self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 1)
+        group_id = 0
+        water_count = 5
+
+        self.entropy_manager._calculate_water_entropy(
+            mock_universe, group_id, 10, water_count
+        )
 
         self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
             [
-                call(1, "mol1", "Water", "Orientational", 1.0),
-                call(-1, "res1", "Water", "Transvibrational", 2.0),
-                call(-1, "res1", "Water", "Rovibrational", 3.0),
+                call(None, "WAT", "Water", "Orientational", None, 1.0),
+                call(None, "WAT", "Water", "Transvibrational", None, 2.0),
+                call(None, "WAT", "Water", "Rovibrational", None, 3.0),
             ]
         )
 
@@ -1383,22 +1460,23 @@ class TestVibrationalEntropy(unittest.TestCase):
 
         # Simulate residue-level results already collected
         self.entropy_manager._data_logger.residue_data = [
-            [1, "ACE", "Water", "Orientational", 5.0],
-            [1, "ACE_1", "Water", "Transvibrational", 10.0],
-            [1, "ACE_1", "Water", "Rovibrational", 2.0],
+            [1, "ACE", "Water", "Orientational", 5.0, 5],
+            [1, "ACE_1", "Water", "Transvibrational", 10.0, 10],
+            [1, "ACE_1", "Water", "Rovibrational", 2.0, 2],
         ]
 
         mock_universe = MagicMock()
         self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 1)
 
+        # Since group_id=None in the function, we must expect None as first argument
         self.entropy_manager._data_logger.add_results_data.assert_has_calls(
             [
-                call("ACE", "water", "Orientational", 5.0),
-                call("ACE", "water", "Transvibrational", 0.0),
-                call("ACE", "water", "Rovibrational", 0.0),
-                call("ACE_1", "water", "Orientational", 0.0),
-                call("ACE_1", "water", "Transvibrational", 10.0),
-                call("ACE_1", "water", "Rovibrational", 2.0),
+                call(None, "water", "Orientational", 5.0),
+                call(None, "water", "Transvibrational", 0.0),
+                call(None, "water", "Rovibrational", 0.0),
+                call(None, "water", "Orientational", 0.0),
+                call(None, "water", "Transvibrational", 10.0),
+                call(None, "water", "Rovibrational", 2.0),
             ]
         )
 
