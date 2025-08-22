@@ -956,7 +956,7 @@ class TestEntropyManager(unittest.TestCase):
     def test_finalize_molecule_results_aggregates_and_logs_total_entropy(self):
         """
         Tests that `_finalize_molecule_results` correctly aggregates entropy values per
-        molecule from `molecule_data`, appends a 'Molecule Total' entry, and calls
+        molecule from `molecule_data`, appends a 'Group Total' entry, and calls
         `save_dataframes_as_json` with the expected DataFrame structure.
         """
         # Setup
@@ -980,7 +980,7 @@ class TestEntropyManager(unittest.TestCase):
 
         # Check that totals were added
         totals = [
-            entry for entry in data_logger.molecule_data if entry[1] == "Molecule Total"
+            entry for entry in data_logger.molecule_data if entry[1] == "Group Total"
         ]
         self.assertEqual(len(totals), 2)
 
@@ -1023,7 +1023,7 @@ class TestEntropyManager(unittest.TestCase):
 
         # Check that only valid values were aggregated
         totals = [
-            entry for entry in data_logger.molecule_data if entry[1] == "Molecule Total"
+            entry for entry in data_logger.molecule_data if entry[1] == "Group Total"
         ]
         self.assertEqual(len(totals), 1)
         self.assertEqual(totals[0][3], 3.0)  # 1.0 + 2.0
@@ -1308,219 +1308,201 @@ class TestVibrationalEntropy(unittest.TestCase):
     def test_calculate_water_orientational_entropy(self):
         """
         Test that orientational entropy values are correctly extracted from Sorient_dict
-        and logged using add_residue_data.
+        and logged per residue.
         """
         Sorient_dict = {1: {"mol1": [1.0, 2]}, 2: {"mol1": [3.0, 4]}}
         group_id = 0
-        water_count = 10
 
         self.entropy_manager._data_logger = MagicMock()
 
         self.entropy_manager._calculate_water_orientational_entropy(
-            Sorient_dict, group_id, water_count
+            Sorient_dict, group_id
         )
 
-        self.entropy_manager._data_logger.add_residue_data.assert_called_once_with(
-            group_id, "WAT", "Water", "Orientational", water_count, 4.0
+        expected_calls = [
+            call(group_id, "mol1", "Water", "Orientational", 2, 1.0),
+            call(group_id, "mol1", "Water", "Orientational", 4, 3.0),
+        ]
+
+        self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
+            expected_calls, any_order=False
         )
+        assert self.entropy_manager._data_logger.add_residue_data.call_count == 2
 
     def test_calculate_water_vibrational_translational_entropy(self):
-        """
-        Test that translational vibrational entropy values are correctly summed
-        and logged for the water group using add_residue_data.
-        """
         mock_vibrations = MagicMock()
         mock_vibrations.translational_S = {
-            ("res1", "mol1"): [1.0, 2.0],
-            ("resB_invalid", "mol1"): 4.0,
-            ("res2", "mol1"): 3.0,
+            ("res1", 10): [1.0, 2.0],
+            ("resB_invalid", 10): 4.0,
+            ("res2", 10): 3.0,
+        }
+        mock_covariances = MagicMock()
+        mock_covariances.counts = {
+            ("res1", "WAT"): 10,
+            # resB_invalid and res2 will use default count = 1
         }
 
         group_id = 0
-        water_count = 10
         self.entropy_manager._data_logger = MagicMock()
 
         self.entropy_manager._calculate_water_vibrational_translational_entropy(
-            mock_vibrations, group_id, water_count
+            mock_vibrations, group_id, mock_covariances
         )
-        total_S = 10.0
 
-        self.entropy_manager._data_logger.add_residue_data.assert_called_once_with(
-            group_id, "WAT", "Water", "Transvibrational", water_count, total_S
+        expected_calls = [
+            call(group_id, "res1", "Water", "Transvibrational", 10, 3.0),
+            call(group_id, "resB", "Water", "Transvibrational", 1, 4.0),
+            call(group_id, "res2", "Water", "Transvibrational", 1, 3.0),
+        ]
+
+        self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
+            expected_calls, any_order=False
         )
+        assert self.entropy_manager._data_logger.add_residue_data.call_count == 3
+
+    def test_calculate_water_vibrational_rotational_entropy(self):
+        mock_vibrations = MagicMock()
+        mock_vibrations.rotational_S = {
+            ("resA_101", 14): [2.0, 3.0],
+            ("resB_invalid", 14): 4.0,
+            ("resC", 14): 5.0,
+        }
+        mock_covariances = MagicMock()
+        mock_covariances.counts = {("resA_101", "WAT"): 14}
+
+        group_id = 0
+        self.entropy_manager._data_logger = MagicMock()
+
+        self.entropy_manager._calculate_water_vibrational_rotational_entropy(
+            mock_vibrations, group_id, mock_covariances
+        )
+
+        expected_calls = [
+            call(group_id, "resA", "Water", "Rovibrational", 14, 5.0),
+            call(group_id, "resB", "Water", "Rovibrational", 1, 4.0),
+            call(group_id, "resC", "Water", "Rovibrational", 1, 5.0),
+        ]
+
+        self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
+            expected_calls, any_order=False
+        )
+        assert self.entropy_manager._data_logger.add_residue_data.call_count == 3
 
     def test_empty_vibrational_entropy_dicts(self):
-        """
-        Test that no logging occurs when both translational and rotational
-        entropy dictionaries are empty. Ensures that the methods handle empty
-        input gracefully without errors or unnecessary logging.
-        """
-        self.entropy_manager._log_residue_data = MagicMock()
-        self.entropy_manager._log_result = MagicMock()
-
         mock_vibrations = MagicMock()
         mock_vibrations.translational_S = {}
         mock_vibrations.rotational_S = {}
 
         group_id = 0
-        water_count = 0
+        mock_covariances = MagicMock()
+        mock_covariances.counts = {}
+
+        self.entropy_manager._data_logger = MagicMock()
 
         self.entropy_manager._calculate_water_vibrational_translational_entropy(
-            mock_vibrations, group_id, water_count
+            mock_vibrations, group_id, mock_covariances
         )
         self.entropy_manager._calculate_water_vibrational_rotational_entropy(
-            mock_vibrations, group_id, water_count
+            mock_vibrations, group_id, mock_covariances
         )
 
-        self.entropy_manager._log_residue_data.assert_not_called()
-        self.entropy_manager._log_result.assert_not_called()
-
-    def test_calculate_water_vibrational_rotational_entropy(self):
-        """
-        Test that rotational vibrational entropy values are correctly summed
-        and logged for all waters into a single group.
-        """
-        mock_vibrations = MagicMock()
-        mock_vibrations.rotational_S = {
-            ("resA_101", "mol1"): [2.0, 3.0],
-            ("resB_invalid", "mol1"): 4.0,
-            ("resC", "mol1"): 5.0,
-        }
-
-        group_id = 0
-        water_count = 14
-
-        self.entropy_manager._calculate_water_vibrational_rotational_entropy(
-            mock_vibrations, group_id, water_count
-        )
-
-        self.entropy_manager._data_logger.add_residue_data.assert_called_once_with(
-            group_id,
-            "WAT",
-            "Water",
-            "Rovibrational",
-            water_count,
-            14.0,
-        )
+        self.entropy_manager._data_logger.add_residue_data.assert_not_called()
 
     @patch(
         "waterEntropy.recipes.interfacial_solvent.get_interfacial_water_orient_entropy"
     )
     def test_calculate_water_entropy(self, mock_get_entropy):
-        """
-        Integration-style test that verifies _calculate_water_entropy correctly
-        aggregates all waters into a single group and logs the expected values.
-        """
         mock_vibrations = MagicMock()
         mock_vibrations.translational_S = {("res1", "mol1"): 2.0}
         mock_vibrations.rotational_S = {("res1", "mol1"): 3.0}
 
         mock_get_entropy.return_value = (
             {1: {"mol1": [1.0, 5]}},  # orientational
-            None,
+            MagicMock(counts={("res1", "WAT"): 1}),
             mock_vibrations,
             None,
-            None,
+            1,
         )
 
         mock_universe = MagicMock()
-        group_id = 0
-        water_count = 5
+        self.entropy_manager._data_logger = MagicMock()
 
-        self.entropy_manager._calculate_water_entropy(
-            mock_universe, group_id, 10, water_count
-        )
+        self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 5)
+
+        expected_calls = [
+            call(None, "mol1", "Water", "Orientational", 5, 1.0),
+            call(None, "res1", "Water", "Transvibrational", 1, 2.0),
+            call(None, "res1", "Water", "Rovibrational", 1, 3.0),
+        ]
 
         self.entropy_manager._data_logger.add_residue_data.assert_has_calls(
-            [
-                call(None, "WAT", "Water", "Orientational", None, 1.0),
-                call(None, "WAT", "Water", "Transvibrational", None, 2.0),
-                call(None, "WAT", "Water", "Rovibrational", None, 3.0),
-            ]
+            expected_calls, any_order=False
         )
+        assert self.entropy_manager._data_logger.add_residue_data.call_count == 3
 
     @patch(
         "waterEntropy.recipes.interfacial_solvent.get_interfacial_water_orient_entropy"
     )
     def test_calculate_water_entropy_minimal(self, mock_get_entropy):
-        """
-        Verifies that _calculate_water_entropy correctly logs entropy components
-        and total for a single molecule with minimal data.
-        """
+        mock_vibrations = MagicMock()
+        mock_vibrations.translational_S = {("ACE_1", "WAT"): 10.0}
+        mock_vibrations.rotational_S = {("ACE_1", "WAT"): 2.0}
+
         mock_get_entropy.return_value = (
-            {},
+            {},  # no orientational entropy
+            MagicMock(counts={("ACE_1", "WAT"): 1}),
+            mock_vibrations,
             None,
-            MagicMock(
-                translational_S={("ACE_1", "WAT"): 10.0},
-                rotational_S={("ACE_1", "WAT"): 2.0},
-            ),
-            None,
-            None,
+            1,
         )
 
-        # Simulate residue-level results already collected
-        self.entropy_manager._data_logger.residue_data = [
-            [1, "ACE", "Water", "Orientational", 5.0, 5],
-            [1, "ACE_1", "Water", "Transvibrational", 10.0, 10],
-            [1, "ACE_1", "Water", "Rovibrational", 2.0, 2],
-        ]
+        mock_logger = MagicMock()
+        self.entropy_manager._data_logger = mock_logger
 
+        mock_residue = MagicMock(resnames=["WAT"])
+        mock_selection = MagicMock(residues=mock_residue, atoms=[MagicMock()])
         mock_universe = MagicMock()
-        self.entropy_manager._calculate_water_entropy(mock_universe, 0, 10, 1)
+        mock_universe.select_atoms.return_value = mock_selection
 
-        # Since group_id=None in the function, we must expect None as first argument
-        self.entropy_manager._data_logger.add_results_data.assert_has_calls(
-            [
-                call(None, "water", "Orientational", 5.0),
-                call(None, "water", "Transvibrational", 0.0),
-                call(None, "water", "Rovibrational", 0.0),
-                call(None, "water", "Orientational", 0.0),
-                call(None, "water", "Transvibrational", 10.0),
-                call(None, "water", "Rovibrational", 2.0),
-            ]
+        self.entropy_manager._calculate_water_entropy(
+            mock_universe, 0, 10, 1, group_id=None
+        )
+
+        mock_logger.add_group_label.assert_called_once_with(
+            None, "WAT", len(mock_selection.residues), len(mock_selection.atoms)
         )
 
     @patch(
         "waterEntropy.recipes.interfacial_solvent.get_interfacial_water_orient_entropy"
     )
     def test_calculate_water_entropy_adds_resname(self, mock_get_entropy):
-        """
-        Test _calculate_water_entropy with Sorient_dict containing a water residue
-        so that residue_names.add(resname) is executed.
-        """
-        # Mock vibrations object
         mock_vibrations = MagicMock()
         mock_vibrations.translational_S = {("res1", "WAT"): 2.0}
         mock_vibrations.rotational_S = {("res1", "WAT"): 3.0}
 
-        # Sorient_dict contains a water residue key "WAT"
         mock_get_entropy.return_value = (
             {1: {"WAT": [1.0, 5]}},  # orientational
-            None,
+            MagicMock(counts={("res1", "WAT"): 1}),
             mock_vibrations,
             None,
-            1,  # water_count
+            1,
         )
 
-        # Mock universe.select_atoms to return a selection containing "WAT"
         mock_water_selection = MagicMock()
         mock_residues_group = MagicMock()
-        mock_residues_group.resnames = ["WAT"]  # this is key
+        mock_residues_group.resnames = ["WAT"]
         mock_water_selection.residues = mock_residues_group
-        mock_water_selection.atoms = [1, 2, 3]  # mock atom count
+        mock_water_selection.atoms = [1, 2, 3]
         mock_universe = MagicMock()
         mock_universe.select_atoms.return_value = mock_water_selection
-        mock_universe.trajectory = [1, 2]  # 2 frames
 
         group_id = 0
+        self.entropy_manager._data_logger = MagicMock()
 
-        # Call the function
-        self.entropy_manager._data_logger = MagicMock()  # mock logger
         self.entropy_manager._calculate_water_entropy(
             mock_universe, start=0, end=1, step=1, group_id=group_id
         )
 
-        # Check that residue_group is "WAT" and residue_names.add was triggered
         self.entropy_manager._data_logger.add_group_label.assert_called_with(
             group_id,
             "WAT",
