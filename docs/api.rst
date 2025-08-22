@@ -1,81 +1,70 @@
 API Documentation
 =================
 
-MDAnalysis Helper
--------------------
+Main
+----
+.. autosummary::
+    :toctree: autosummary
+
+    CodeEntropy.main.main
+
+Run Manager
+------------
+.. autosummary::
+    :toctree: autosummary
+
+    CodeEntropy.run.RunManager
+    CodeEntropy.run.RunManager.create_job_folder
+    CodeEntropy.run.RunManager.run_entropy_workflow
+    CodeEntropy.run.RunManager.new_U_select_frame
+    CodeEntropy.run.RunManager.new_U_select_atom
+
+Level Manager
+-------------
+.. autosummary::
+    :toctree: autosummary
+
+    CodeEntropy.levels.LevelManager
+    CodeEntropy.levels.LevelManager.select_levels
+    CodeEntropy.levels.LevelManager.get_matrices
+    CodeEntropy.levels.LevelManager.get_dihedrals
+    CodeEntropy.levels.LevelManager.compute_dihedral_conformations
+    CodeEntropy.levels.LevelManager.get_beads
+    CodeEntropy.levels.LevelManager.get_axes
+    CodeEntropy.levels.LevelManager.get_avg_pos
+    CodeEntropy.levels.LevelManager.get_sphCoord_axes
+    CodeEntropy.levels.LevelManager.get_weighted_forces
+    CodeEntropy.levels.LevelManager.get_weighted_torques
+    CodeEntropy.levels.LevelManager.create_submatrix
+    CodeEntropy.levels.LevelManager.build_covariance_matrices
+    CodeEntropy.levels.LevelManager.update_force_torque_matrices
+    CodeEntropy.levels.LevelManager.filter_zero_rows_columns
+    CodeEntropy.levels.LevelManager.build_conformational_states
+
+Entropy Manager
+---------------
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.IO.MDAUniverseHelper.new_U_select_frame
-   CodeEntropy.IO.MDAUniverseHelper.new_U_select_atom
-   CodeEntropy.IO.MDAUniverseHelper.write_universe
-   CodeEntropy.IO.MDAUniverseHelper.read_universe
+   CodeEntropy.entropy.EntropyManager
+   CodeEntropy.entropy.EntropyManager.execute
 
-Solute
--------
-
-Import Data
-^^^^^^^^^^^^^^^
+Vibrational Entropy
+^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.ClassCollection.DataContainer.DataContainer
-
-Solute Entropy Calculation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Whole Molecule Level
-""""""""""""""""""""""""
-
-.. autosummary::
-   :toctree: autosummary
-
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_whole_molecule_level
-
-Residue Level
-""""""""""""""""""""
-
-.. autosummary::
-   :toctree: autosummary
+   CodeEntropy.entropy.VibrationalEntropy
+   CodeEntropy.entropy.VibrationalEntropy.frequency_calculation
+   CodeEntropy.entropy.VibrationalEntropy.vibrational_entropy_calculation
    
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_residue_level
-   
-United-Atom Level
-"""""""""""""""""""
 
-.. autosummary::
-   :toctree: autosummary
-      
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_UA_level
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_entropy_UA_level_multiprocess
-
-Topographical Level
-""""""""""""""""""""""""
-.. autosummary::
-   :toctree: autosummary
-   
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy0_SC
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy0_BB
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy1_SC
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy1_BB
-   CodeEntropy.FunctionCollection.EntropyFunctions.compute_topographical_entropy_AEM
-
-Solvent
---------
-
-Import Data
-^^^^^^^^^^^^^^^
+Conformational Entropy
+^^^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
    :toctree: autosummary
 
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon_mp
+   CodeEntropy.entropy.ConformationalEntropy
+   CodeEntropy.entropy.ConformationalEntropy.assign_conformation
+   CodeEntropy.entropy.ConformationalEntropy.conformational_entropy_calculation
 
-Run Analysis
-^^^^^^^^^^^^^^^^
-
-.. autosummary::
-   :toctree: autosummary
-
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon.run_analysis
-   CodeEntropy.ClassCollection.PoseidonClass.Poseidon_mp.run_analysis

@@ -8,7 +8,7 @@
 
 CodeEntropy
 ==============================
-CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for calculating entropy
+CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics.
 
 <p align="center">
 <img src="https://github.com/CCPBioSim/branding/blob/fbf562b1f5a9bf34440d0a537548591bad0bd206/logos/biosim-codeentropy_logo_grey.png" alt="CodeEntropy logo" width="300"/>
@@ -18,13 +18,12 @@ See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest
 
 ## Copyright
 
-Copyright (c) 2022, DonaldChung-HK, CCPBioSim
+Copyright (c) 2025 CCPBioSim
 
 
 ## Acknowledgements
  
-Project based on the 
+Project based on 
 
-- [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.6.
 - [arghya90/CodeEntropy](https://github.com/arghya90/CodeEntropy) version 0.3
 - [jkalayan/PoseidonBeta](https://github.com/jkalayan/PoseidonBeta)

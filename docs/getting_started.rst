@@ -4,23 +4,34 @@ Getting Started
 Requirements
 ----------------
 
-* Python > 3.9
-* gcc
-* g++
+* Python >= 3.11
 
 Installation
 ----------------
-Run the following at the root directory of this repository
+To install the released version:
 
 .. code-block:: bash
     
     pip install CodeEntropy
 
+To install the latest development version:
+
+.. code-block:: bash
+
+    git clone https://github.com/CCPBioSim/CodeEntropy.git
+
+.. code-block:: bash
+
+    cd CodeEntropy
+
+.. code-block:: bash
+
+    pip install .
+
 Input
 ----------
-For supported format (AMBER NETCDF and GROMACS TRR) you will need to output the **coordinates** and **forces** to the **same file**.
-
-For unsupported format see :ref:`load-custom` for ideas on how to load custom data into MDanalysis universe and convert to supported format.
+For supported format (any topology and trajectory formats that can be read by `MDAnalysis <https://userguide.mdanalysis.org/stable/formats/index.html>`_) you will need to output the **coordinates** and **forces** to the **same file**.
+Please consult the documentation for your MD simulation code if you need help outputting the forces.
 
 Units
 ------------
@@ -31,7 +42,7 @@ The program assumes the following default unit
    :class: tight-table
    :header-rows: 1
    
-   * - Qunatity
+   * - Quantity
      - Unit
    * - Length
      - Å
@@ -48,18 +59,21 @@ Quick start guide
 --------------------
 .. Warning::
 
-     This doesn't work on Windows!!!
+    CodeEntropy has not been tested on Windows
 
-A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropyPoseidon``
+A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropy``
 
 For help
 ^^^^^^^^^^^
 .. code-block:: bash
     
-    CodeEntropyPoseidon -h
+    CodeEntropy --help
 
 Arguments
 ^^^^^^^^^^^^^
+Arguments should go in a config.yaml file.
+The values in the yaml file can be overridden by command line arguments.
+The top_traj_file argument is necessary to identify your simulation data, the others can use default values.
 
 .. list-table:: Arguments
    :widths: 20 30 10 10
@@ -70,122 +84,89 @@ Arguments
      - Description
      - Default
      - Type
-   * - ``-f``, ``--top_traj_file`` 
-     - Path to Structure/topology file(``AMBER PRMTOP``, ``GROMACS TPR`` or topology file with MDAnalysis readable dihedral information (not officially supported)) followed by Trajectory file(s) (``GROMAC TRR`` or ``AMBER NETCDF``) You will need to output the **coordinates** and **forces** to the **same file** . 
-     - Required
+   * - ``--top_traj_file`` 
+     - Path to Structure/topology file followed by Trajectory file(s). Any MDAnalysis readable files should work  (for example ``GROMACS TPR and TRR`` or ``AMBER PRMTOP and NETCDF``). You will need to output the **coordinates** and **forces** to the **same file** . 
+     - Required, no default value
      - list of ``str`` 
-   * - ``-l``, ``--selectString``
+   * - ``--selection_string``
      - Selection string for CodeEntropy such as protein or resid, refer to ``MDAnalysis.select_atoms`` for more information.
      - ``"all"``: select all atom in trajectory
      - ``str``
-   * - ``-b``, ``--begin``
+   * - ``--start``
      - Start analysing the trajectory from this frame index.
      - ``0``: From begining
      - ``int``
-   * - ``-e``, ``--end``
+   * - ``--end``
      - Stop analysing the trajectory at this frame index
      - ``-1``: end of trajectory
      - ``int``
-   * - ``-d``, ``--step``
-     - Steps between frame
+   * - ``--step``
+     - Interval between two consecutive frame indices to be read
      - ``1``
      - ``int``
-   * - ``-k``, ``--tempra``
+   * - ``--bin_width``
+     - Bin width in degrees for making the dihedral angle histogram
+     - ``30``
+     - ``int``
+   * - ``--temperature``
      - Temperature for entropy calculation (K)
      - ``298.0``
      - ``float``
-   * -  ``-t``, ``--thread``
-     - How many multiprocess to use.
-     - ``1``: for single core execution
-     - ``int``
-   * - ``-o``, ``--out``
+   * - ``--verbose``
+     - Enable verbose output
+     - ``False``
+     - ``bool``
+   * - ``--outfile``
      - Name of the file where the text format output will be written.
      - ``outfile.out``
      - ``str``
-   * - ``-v``, ``--csvout``
-     - Name of the file where the total entropy output will be written.
-     - ``outfile.csv``
-     - ``str`` 
-   * - ``-r``, ``--resout``
-     - Name of the file where the residue entropy output will be written.
-     - ``res_outfile.csv``
+   * - ``--force_partitioning``
+     - Factor for partitioning forces when there are weak correlations
+     - ``0.5``
+     - ``float``
+   * - ``--water_entropy``
+     - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy
+     - ``False``
+     - ``bool``
+   * - ``--grouping``
+     - How to group molecules for averaging
+     - ``molecules``
      - ``str``
-   * - ``-m``, ``--mout``
-     - Name of the file where certain matrices will be written.
-     - ``None``
-     - ``str``
-   * - ``-n``, ``--nmd`` 
-     - Name of the file where VMD compatible NMD format files with mode information will be printed.
-     - ``None``
-     - ``str``
-   * - ``-a``, ``--rotationalaxis``
-     - The 3 atom name in each residue for rotational and translational axis.
-     - ``['C', 'CA', 'N']`` : for protein 
-     - list of ``str``
-   * - ``-c``, ``--cutShell``
-     -  Include cutoff shell analysis, add cutoff distance in angstrom. 
-     - ``None`` \: will ust the RAD Algorithm. See Higham, Jonathan, and Richard H Henchman. “Locally adaptive method to define coordination shell.” The Journal of chemical physics vol. 145,8 (2016): 084108. doi:10.1063/1.4961439
-     - list of ``str``
-   * - ``-p``, ``--pureAtomNum``
-     - Reference molecule resid for system of pure liquid.
-     - ``1``
-     - ``int``
-   * - ``-x``, ``--excludedResnames`` 
-     - Exclude a list of molecule names from nearest non-like analysis.
-     - ``None``
-     - list of ``str``
-   * - ``-w``, ``--water``
-     - Resname for water molecules. 
-     - ``'Wat'``
-     - list of ``str``
-   * - ``-s``, ``--solvent``
-     - Include resname of solvent molecules (case-sensitive).
-     - ``None``
-     - list of ``str``
-   * - ``--wm``
-     - Do entropy calculation at whole molecule level (The whole molecule is treated as one single bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--res``
-     - Do entropy calculation at residue level (A residue as a whole represents a bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--uatom``
-     - Do entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--topog``
-     - Compute the topographical entropy using :  
-        * 1 : pLogP method (will separate between backbone and side chain)
-        * 2 : Corr. pLogP method (will separate between backbone and side chain)
-        * 3 : Corr. pLogP after adaptive enumeration of states
-     -  ``0`` : no topographical analysis 
-     -  ``int``
-   * - ``--solwm``
-     - Do solution entropy calculation at residue level (The whole molecule is treated as one single bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--solres``
-     - Do solution entropy calculation at residue level (A residue as a whole represents a bead.
-     - Flag, activate when included
-     - Flag
-   * - ``--soluatom``
-     - Do solution entropy calculation at united atom level (A heavy atom and its covalently bonded H-atoms for an united atom and represent a bead.).
-     - Flag, activate when included
-     - Flag
-   * - ``--solContact``
-     - Do solute contact calculation.
-     - Flag, activate when included
-     - Flag
 
 
-Example
+Example #1
 ^^^^^^^^^^
+Example config.yaml file.
+
+.. literalinclude:: config.yaml
+
+You must specify the location of the topology/trajectory file(s) for the top_traj_file variable as there is no default and CodeEntropy cannot run without the data. The temperature variable should be adjusted to the temperature from the simulation. Changing the force_partitioning variable is possible, but not recommended unless you understand what it does and have a good reason to change it.
+
+If you set end to -1, it will stop at the last frame of the trajectory. So, start = 0, end = -1, and step = 1 will use the whole trajectory.
+
+To run CodeEntropy, you want to use the command line and change into the directory where your config.yaml file is located. As long as the file is named config.yaml, CodeEntropy will find it automatically.
 
 .. code-block:: bash
-    
-    # example 1 DNA
-    CodeEntropyPoseidon -f "Example/data/md_A4_dna.tpr" "Example/data/md_A4_dna_xf.trr" -a "C5'" "C4'" "C3'" -l "all" -t 8 --wm --res --uatom --topog 3
 
-    # example 2 lysozyme in water
-    CodeEntropyPoseidon -f "Example/data/1AKI_prod_60.tpr" "Example/data/1AKI_prod_60.trr" -l "protein" -b 1 -e 30 -d 2 --wm --res --uatom --topog 1 --solwm --solres --soluatom --solContact
+  CodeEntropy
+
+Example #2
+^^^^^^^^^^
+To use the same settings as in Example #1, but override trajectory information, you can use the command line flags.
+
+.. code-block:: bash
+
+  CodeEntropy --top_traj_file "md_A4_dna.tpr" "md_A4_dna_xf.trr"
+
+Or as an alternative, you could edit the config.yaml file and use the CodeEntropy command as in the first example.
+
+CodeEntropy creates job* directories for the output, where * is a job number choosen by the so that there are sequentially numbered directories when you rerun CodeEntropy in the same working directory.
+Each job* directory contains the output json file and a subdirectory with the log files.
+
+Data Files
+^^^^^^^^^^
+The example files mentioned above can be downloaded.
+
+`Lysozyme example (~1.2GB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/lysozyme_example.tar>`_
+
+`DNA fragment example (~1MB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/dna_example.tar>`_
