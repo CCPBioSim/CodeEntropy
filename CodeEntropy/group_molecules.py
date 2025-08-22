@@ -61,6 +61,11 @@ class GroupMolecules:
         for molecule_i in range(number_molecules):
             molecule_groups[molecule_i] = [molecule_i]
 
+        number_groups = len(molecule_groups)
+
+        logger.debug(f"Number of molecule groups: {number_groups}")
+        logger.debug(f"Molecule groups are: {molecule_groups}")
+
         return molecule_groups
 
     def _by_molecules(self, universe):
@@ -100,5 +105,10 @@ class GroupMolecules:
                         molecule_groups[molecule_j] = []
                         molecule_groups[molecule_j].append(molecule_i)
                     break
+
+        number_groups = len(molecule_groups)
+
+        logger.debug(f"Number of molecule groups: {number_groups}")
+        logger.debug(f"Molecule groups are: {molecule_groups}")
 
         return molecule_groups

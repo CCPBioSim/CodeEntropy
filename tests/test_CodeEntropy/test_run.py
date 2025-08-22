@@ -2,9 +2,13 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from io import StringIO
+from unittest.mock import MagicMock, mock_open, patch
 
 import numpy as np
+import requests
+import yaml
+from rich.console import Console
 
 from CodeEntropy.run import RunManager
 
@@ -20,6 +24,14 @@ class TestRunManager(unittest.TestCase):
         Set up a temporary directory as the working directory before each test.
         """
         self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        self.config_file = os.path.join(self.test_dir, "CITATION.cff")
+
+        # Create a mock config file
+        with patch("builtins.open", new_callable=mock_open) as mock_file:
+            self.setup_citation_file(mock_file)
+            with open(self.config_file, "w") as f:
+                f.write(mock_file.return_value.read())
+
         self._orig_dir = os.getcwd()
         os.chdir(self.test_dir)
 
@@ -30,6 +42,18 @@ class TestRunManager(unittest.TestCase):
         """
         os.chdir(self._orig_dir)
         shutil.rmtree(self.test_dir)
+
+    def setup_citation_file(self, mock_file):
+        """
+        Mock the contents of the CITATION.cff file.
+        """
+        citation_content = """\
+    authors:
+    - given-names: Alice
+      family-names: Smith
+    """
+
+        mock_file.return_value = mock_open(read_data=citation_content).return_value
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -102,6 +126,130 @@ class TestRunManager(unittest.TestCase):
         self.assertEqual(new_folder_path, expected_path)
         mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
 
+    @patch("requests.get")
+    def test_load_citation_data_success(self, mock_get):
+        """Should return parsed dict when CITATION.cff loads successfully."""
+        mock_yaml = """
+        authors:
+          - given-names: Alice
+            family-names: Smith
+        title: TestProject
+        version: 1.0
+        date-released: 2025-01-01
+        """
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = mock_yaml
+        mock_get.return_value = mock_response
+
+        instance = RunManager("dummy")
+        data = instance.load_citation_data()
+
+        self.assertIsInstance(data, dict)
+        self.assertEqual(data["title"], "TestProject")
+        self.assertEqual(data["authors"][0]["given-names"], "Alice")
+
+    @patch("requests.get")
+    def test_load_citation_data_network_error(self, mock_get):
+        """Should return None if network request fails."""
+        mock_get.side_effect = requests.exceptions.ConnectionError("Network down")
+
+        instance = RunManager("dummy")
+        data = instance.load_citation_data()
+
+        self.assertIsNone(data)
+
+    @patch("requests.get")
+    def test_load_citation_data_http_error(self, mock_get):
+        """Should return None if HTTP response is non-200."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError()
+        mock_get.return_value = mock_response
+
+        instance = RunManager("dummy")
+        data = instance.load_citation_data()
+
+        self.assertIsNone(data)
+
+    @patch("requests.get")
+    def test_load_citation_data_invalid_yaml(self, mock_get):
+        """Should raise YAML error if file content is invalid YAML."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "invalid: [oops"
+        mock_get.return_value = mock_response
+
+        instance = RunManager("dummy")
+
+        with self.assertRaises(yaml.YAMLError):
+            instance.load_citation_data()
+
+    @patch.object(RunManager, "load_citation_data")
+    def test_show_splash_with_citation(self, mock_load):
+        """Should render full splash screen when citation data is present."""
+        mock_load.return_value = {
+            "title": "TestProject",
+            "version": "1.0",
+            "date-released": "2025-01-01",
+            "url": "https://example.com",
+            "abstract": "This is a test abstract.",
+            "authors": [
+                {"given-names": "Alice", "family-names": "Smith", "affiliation": "Uni"}
+            ],
+        }
+
+        buf = StringIO()
+        test_console = Console(file=buf, force_terminal=False, width=80)
+
+        instance = RunManager("dummy")
+        with patch("CodeEntropy.run.console", test_console):
+            instance.show_splash()
+
+        output = buf.getvalue()
+
+        self.assertIn("Version 1.0", output)
+        self.assertIn("2025-01-01", output)
+        self.assertIn("https://example.com", output)
+        self.assertIn("This is a test abstract.", output)
+        self.assertIn("Alice Smith", output)
+
+    @patch.object(RunManager, "load_citation_data", return_value=None)
+    def test_show_splash_without_citation(self, mock_load):
+        """Should render minimal splash screen when no citation data."""
+        buf = StringIO()
+        test_console = Console(file=buf, force_terminal=False, width=80)
+
+        instance = RunManager("dummy")
+        with patch("CodeEntropy.run.console", test_console):
+            instance.show_splash()
+
+        output = buf.getvalue()
+
+        self.assertNotIn("Version", output)
+        self.assertNotIn("Contributors", output)
+        self.assertIn("Welcome to CodeEntropy", output)
+
+    @patch.object(RunManager, "load_citation_data")
+    def test_show_splash_missing_fields(self, mock_load):
+        """Should gracefully handle missing optional fields in citation data."""
+        mock_load.return_value = {
+            "title": "PartialProject",
+            # no version, no date, no authors, no abstract
+        }
+
+        buf = StringIO()
+        test_console = Console(file=buf, force_terminal=False, width=80)
+
+        instance = RunManager("dummy")
+        with patch("CodeEntropy.run.console", test_console):
+            instance.show_splash()
+
+        output = buf.getvalue()
+
+        self.assertIn("Version ?", output)
+        self.assertIn("No description available.", output)
+
     def test_run_entropy_workflow(self):
         """
         Test the run_entropy_workflow method to ensure it initializes and executes
@@ -110,6 +258,7 @@ class TestRunManager(unittest.TestCase):
         run_manager = RunManager("folder")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
+        run_manager.load_citation_data = MagicMock()
         run_manager._data_logger = MagicMock()
         run_manager.folder = self.test_dir
 
@@ -123,6 +272,23 @@ class TestRunManager(unittest.TestCase):
                 "output_file": "output.json",
                 "verbose": True,
             }
+        }
+
+        run_manager.load_citation_data.return_value = {
+            "cff-version": "1.2.0",
+            "title": "CodeEntropy",
+            "message": (
+                "If you use this software, please cite it using the "
+                "metadata from this file."
+            ),
+            "type": "software",
+            "authors": [
+                {
+                    "given-names": "Forename",
+                    "family-names": "Sirname",
+                    "email": "test@email.ac.uk",
+                }
+            ],
         }
 
         mock_args = MagicMock()
@@ -155,6 +321,7 @@ class TestRunManager(unittest.TestCase):
         run_manager = RunManager("folder")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
+        run_manager.load_citation_data = MagicMock()
         run_manager._data_logger = MagicMock()
         run_manager.folder = self.test_dir
 
@@ -163,6 +330,23 @@ class TestRunManager(unittest.TestCase):
 
         run_manager._config_manager.load_config.return_value = {
             "invalid_run": "this_should_be_a_dict"
+        }
+
+        run_manager.load_citation_data.return_value = {
+            "cff-version": "1.2.0",
+            "title": "CodeEntropy",
+            "message": (
+                "If you use this software, please cite it using the "
+                "metadata from this file."
+            ),
+            "type": "software",
+            "authors": [
+                {
+                    "given-names": "Forename",
+                    "family-names": "Sirname",
+                    "email": "test@email.ac.uk",
+                }
+            ],
         }
 
         mock_args = MagicMock()
@@ -186,6 +370,7 @@ class TestRunManager(unittest.TestCase):
         run_manager = RunManager("folder")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
+        run_manager.load_citation_data = MagicMock()
         run_manager._data_logger = MagicMock()
         run_manager.folder = self.test_dir
 
@@ -198,6 +383,23 @@ class TestRunManager(unittest.TestCase):
                 "output_file": "output.json",
                 "verbose": False,
             }
+        }
+
+        run_manager.load_citation_data.return_value = {
+            "cff-version": "1.2.0",
+            "title": "CodeEntropy",
+            "message": (
+                "If you use this software, please cite it using the "
+                "metadata from this file."
+            ),
+            "type": "software",
+            "authors": [
+                {
+                    "given-names": "Forename",
+                    "family-names": "Sirname",
+                    "email": "test@email.ac.uk",
+                }
+            ],
         }
 
         mock_args = MagicMock()
@@ -220,6 +422,7 @@ class TestRunManager(unittest.TestCase):
         run_manager = RunManager("folder")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
+        run_manager.load_citation_data = MagicMock()
         run_manager._data_logger = MagicMock()
         run_manager.folder = self.test_dir
 
@@ -232,6 +435,23 @@ class TestRunManager(unittest.TestCase):
                 "output_file": "output.json",
                 "verbose": False,
             }
+        }
+
+        run_manager.load_citation_data.return_value = {
+            "cff-version": "1.2.0",
+            "title": "CodeEntropy",
+            "message": (
+                "If you use this software, please cite it using the "
+                "metadata from this file."
+            ),
+            "type": "software",
+            "authors": [
+                {
+                    "given-names": "Forename",
+                    "family-names": "Sirname",
+                    "email": "test@email.ac.uk",
+                }
+            ],
         }
 
         mock_args = MagicMock()
