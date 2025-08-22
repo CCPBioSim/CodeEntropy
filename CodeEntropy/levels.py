@@ -35,7 +35,8 @@ class LevelManager:
         that will be used in the entropy calculations.
 
         Args:
-            arg_DataContainer: MDAnalysis universe object containing the system of interest
+            arg_DataContainer: MDAnalysis universe object containing the system of
+            interest
 
         Returns:
              number_molecules (int): Number of molecules in the system.
@@ -84,7 +85,8 @@ class LevelManager:
           level (str): 'polymer', 'residue', or 'united_atom'.
           number_frames (int): Number of frames being processed.
           highest_level (bool): Whether this is the top (largest bead size) level.
-          force_matrix, torque_matrix (np.ndarray or None): Accumulated matrices to add to.
+          force_matrix, torque_matrix (np.ndarray or None): Accumulated matrices to add
+          to.
 
         Returns:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
@@ -126,12 +128,8 @@ class LevelManager:
 
         for i in range(number_beads):
             for j in range(i, number_beads):
-                f_sub = self.create_submatrix(
-                    weighted_forces[i], weighted_forces[j]
-                )
-                t_sub = self.create_submatrix(
-                    weighted_torques[i], weighted_torques[j]
-                )
+                f_sub = self.create_submatrix(weighted_forces[i], weighted_forces[j])
+                t_sub = self.create_submatrix(weighted_torques[i], weighted_torques[j])
                 force_submatrix[i][j] = f_sub
                 force_submatrix[j][i] = f_sub.T
                 torque_submatrix[i][j] = t_sub
@@ -330,7 +328,7 @@ class LevelManager:
                 atom_group = "resindex " + str(residue)
                 list_of_beads.append(data_container.select_atoms(atom_group))
 
-        #NOTE this could cause problems for hydrogen or helium molecules
+        # NOTE this could cause problems for hydrogen or helium molecules
         if level == "united_atom":
             list_of_beads = []
             heavy_atoms = data_container.select_atoms("not name H*")
@@ -570,11 +568,12 @@ class LevelManager:
            bead : The part of the molecule to be considered.
            trans_axes (np.ndarray): The axes relative to which the forces are located.
            highest_level (bool): Is this the largest level of the length scale hierarchy
-           force_partitioning (float): Factor to adjust force contributions to avoid over 
-             counting correlated forces, default is 0.5.
+           force_partitioning (float): Factor to adjust force contributions to avoid
+           over counting correlated forces, default is 0.5.
 
         Returns:
-            weighted_force (np.ndarray): The mass-weighted sum of the forces in the bead.
+            weighted_force (np.ndarray): The mass-weighted sum of the forces in the
+            bead.
         """
 
         forces_trans = np.zeros((3,))
