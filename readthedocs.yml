@@ -3,7 +3,9 @@
 version: 2
 
 build:
-  image: latest
+  os: latest
+  tools:
+    python: "3.13"
 
 python:
   version: 3.13
