@@ -818,7 +818,7 @@ class LevelManager:
                 title="Starting...",
             )
 
-            indices = list(range(start, end, step))
+            indices = list(range(number_frames))
             for time_index, _ in zip(indices, reduced_atom.trajectory[start:end:step]):
                 for group_id, molecules in groups.items():
                     for mol_id in molecules:
