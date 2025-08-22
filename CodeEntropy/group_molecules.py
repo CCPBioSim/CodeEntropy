@@ -50,7 +50,7 @@ class GroupMolecules:
 
         number_groups = len(molecule_groups)
 
-        logger.info(f"Number of molecule groups: {number_groups}")
+        logger.debug(f"Number of molecule groups: {number_groups}")
         logger.debug(f"Molecule groups are: {molecule_groups}")
 
         return molecule_groups
@@ -85,7 +85,7 @@ class GroupMolecules:
 
         number_groups = len(molecule_groups)
 
-        logger.info(f"Number of molecule groups: {number_groups}")
+        logger.debug(f"Number of molecule groups: {number_groups}")
         logger.debug(f"Molecule groups are: {molecule_groups}")
 
         return molecule_groups
