@@ -897,7 +897,7 @@ class ConformationalEntropy(EntropyManager):
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
-        indices = list(range(start, end, step))
+        indices = list(range(number_frames))
         for timestep_index, _ in zip(
             indices, data_container.trajectory[start:end:step]
         ):
