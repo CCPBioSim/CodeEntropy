@@ -565,7 +565,8 @@ class TestEntropyManager(unittest.TestCase):
         # Mock molecule container with residues and atoms
         n_residues = 3
         mock_residues = [MagicMock(resname=f"RES{i}") for i in range(n_residues)]
-        mock_atoms = [MagicMock() for _ in range(9)]  # total 9 atoms
+        mock_atoms_per_mol = 3
+        mock_atoms = [MagicMock() for _ in range(mock_atoms_per_mol)]  # per molecule
         mol_container = MagicMock(residues=mock_residues, atoms=mock_atoms)
 
         # Create dummy matrices and states
@@ -580,6 +581,14 @@ class TestEntropyManager(unittest.TestCase):
             1.0 if t == "force" else 2.0
         )
         ce.conformational_entropy_calculation.return_value = 3.0
+
+        # Manually add the group label so group_id=0 exists
+        data_logger.add_group_label(
+            0,
+            "_".join(f"RES{i}" for i in range(n_residues)),  # label
+            n_residues,  # residue_count
+            len(mock_atoms) * n_residues,  # total atoms for the group
+        )
 
         # Run the method
         manager._process_united_atom_entropy(
@@ -616,7 +625,7 @@ class TestEntropyManager(unittest.TestCase):
         group_label = data_logger.group_labels[0]  # Access by group_id key
         assert group_label["label"] == "_".join(f"RES{i}" for i in range(n_residues))
         assert group_label["residue_count"] == n_residues
-        assert group_label["atom_count"] == len(mol_container.atoms)
+        assert group_label["atom_count"] == len(mock_atoms) * n_residues
 
     def test_process_vibrational_only_levels(self):
         """
