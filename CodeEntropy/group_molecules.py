@@ -98,7 +98,9 @@ class GroupMolecules:
                 # atom names as molecule_j, then index i is added to group j
                 # The index of molecule_j is the group key, the keys are
                 # all integers, but may not be consecutive numbers.
-                if number_atoms_i == number_atoms_j and (names_i == names_j).all:
+                if number_atoms_i == number_atoms_j and all(
+                    i == j for i, j in zip(names_i, names_j)
+                ):
                     if molecule_j in molecule_groups.keys():
                         molecule_groups[molecule_j].append(molecule_i)
                     else:
