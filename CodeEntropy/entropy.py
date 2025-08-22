@@ -252,14 +252,17 @@ class EntropyManager:
             for group_id in groups.keys():
                 mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
 
-                residue_group = "_".join(sorted(set(res.resname for res in mol.residues)))
+                residue_group = "_".join(
+                    sorted(set(res.resname for res in mol.residues))
+                )
                 group_residue_count = len(groups[group_id])
                 group_atom_count = 0
                 for mol_id in groups[group_id]:
                     each_mol = self._get_molecule_container(reduced_atom, mol_id)
                     group_atom_count += len(each_mol.atoms)
                 self._data_logger.add_group_label(
-                    group_id, residue_group, group_residue_count, group_atom_count)
+                    group_id, residue_group, group_residue_count, group_atom_count
+                )
 
                 resname = mol.atoms[0].resname
                 resid = mol.atoms[0].resid
