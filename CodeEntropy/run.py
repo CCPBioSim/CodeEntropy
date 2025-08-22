@@ -95,12 +95,9 @@ class RunManager:
         try:
             logger = self._logging_config.setup_logging()
 
-            config = self._config_manager.load_config("config.yaml")
-            if config is None:
-                raise ValueError(
-                    "No configuration file found, and no CLI arguments were provided."
-                )
+            current_directory = os.getcwd()
 
+            config = self._config_manager.load_config(current_directory)
             parser = self._config_manager.setup_argparse()
             args, _ = parser.parse_known_args()
             args.output_file = os.path.join(self.folder, args.output_file)
