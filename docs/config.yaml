@@ -1,0 +1,14 @@
+---
+
+run1:
+  top_traj_file: ["1AKI_prod.tpr", "1AKI_prod.trr"]
+  selection_string: 'all'
+  start: 0
+  end: 500
+  step: 1
+  bin_width: 30
+  temperature: 300
+  verbose: True
+  force_partitioning: 0.5
+  water_entropy: False
+  grouping: 'molecules'

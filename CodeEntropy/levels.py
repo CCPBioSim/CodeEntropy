@@ -41,14 +41,13 @@ class LevelManager:
         The level refers to the size of the bead (atom or collection of atoms)
         that will be used in the entropy calculations.
 
-        Input
-        -----
-        arg_DataContainer : MDAnalysis universe object containing the system of interest
+        Args:
+            arg_DataContainer: MDAnalysis universe object containing the system of
+            interest
 
-        Returns
-        -------
-        number_molecules : integer
-        levels : array of strings for each molecule
+        Returns:
+             number_molecules (int): Number of molecules in the system.
+             levels (array): Strings describing the length scales for each molecule.
         """
 
         # fragments is MDAnalysis terminology for what chemists would call molecules
@@ -88,25 +87,17 @@ class LevelManager:
         """
         Compute and accumulate force/torque covariance matrices for a given level.
 
-        Parameters
-        ----------
-        data_container : MDAnalysis.Universe
-            Atom group for a molecule or residue.
-        level : str
-            'polymer', 'residue', or 'united_atom'.
-        number_frames : int
-            Number of frames being processed.
-        highest_level : bool
-            Whether this is the top (polymer) level.
-        force_matrix, torque_matrix : np.ndarray or None
-            Accumulated matrices to add to.
+        Parameters:
+          data_container (MDAnalysis.Universe): Data for a molecule or residue.
+          level (str): 'polymer', 'residue', or 'united_atom'.
+          number_frames (int): Number of frames being processed.
+          highest_level (bool): Whether this is the top (largest bead size) level.
+          force_matrix, torque_matrix (np.ndarray or None): Accumulated matrices to add
+          to.
 
-        Returns
-        -------
-        force_matrix : np.ndarray
-            Accumulated force covariance matrix.
-        torque_matrix : np.ndarray
-            Accumulated torque covariance matrix.
+        Returns:
+          force_matrix (np.ndarray): Accumulated force covariance matrix.
+          torque_matrix (np.ndarray): Accumulated torque covariance matrix.
         """
 
         # Make beads
@@ -144,12 +135,8 @@ class LevelManager:
 
         for i in range(number_beads):
             for j in range(i, number_beads):
-                f_sub = self.create_submatrix(
-                    weighted_forces[i], weighted_forces[j], number_frames
-                )
-                t_sub = self.create_submatrix(
-                    weighted_torques[i], weighted_torques[j], number_frames
-                )
+                f_sub = self.create_submatrix(weighted_forces[i], weighted_forces[j])
+                t_sub = self.create_submatrix(weighted_torques[i], weighted_torques[j])
                 force_submatrix[i][j] = f_sub
                 force_submatrix[j][i] = f_sub.T
                 torque_submatrix[i][j] = t_sub
@@ -195,20 +182,18 @@ class LevelManager:
     def get_dihedrals(self, data_container, level):
         """
         Define the set of dihedrals for use in the conformational entropy function.
-        If residue level, the dihedrals are defined from the atoms
+        If united atom level, the dihedrals are defined from the heavy atoms
         (4 bonded atoms for 1 dihedral).
-        If polymer level, use the bonds between residues to cast dihedrals.
+        If residue level, use the bonds between residues to cast dihedrals.
         Note: not using improper dihedrals only ones with 4 atoms/residues
         in a linear arrangement.
 
-        Input
-        -----
-        data_container : system information
-        level : level of the hierarchy (should be residue or polymer)
+        Args:
+          data_container (MDAnalysis.Universe): system information
+          level (str): level of the hierarchy (should be residue or polymer)
 
-        Output
-        ------
-        dihedrals : set of dihedrals
+        Returns:
+           dihedrals (array): set of dihedrals
         """
         # Start with empty array
         dihedrals = []
@@ -290,18 +275,21 @@ class LevelManager:
             start (int): Start frame index.
             end (int): End frame index.
             step (int): Step size for frame iteration.
+            ce : Conformational Entropy class
 
         Returns:
-            tuple: A tuple containing:
-                - states (list): List of conformation strings per frame.
-                - dihedrals (list): List of dihedral angle definitions.
+            states (list): List of conformation strings per frame.
         """
+        # Identify the dihedral angles in the residue/molecule
         dihedrals = self.get_dihedrals(selector, level)
 
+        # When there are no dihedrals, there is only one possible conformation
+        # so the conformational states are not relevant
         if len(dihedrals) == 0:
             logger.debug("No dihedrals found; skipping conformation assignment.")
             states = []
         else:
+            # Identify the conformational label for each dihedral at each frame
             num_dihedrals = len(dihedrals)
             conformation = np.zeros((num_dihedrals, number_frames))
 
@@ -310,6 +298,8 @@ class LevelManager:
                     selector, dihedral, number_frames, bin_width, start, end, step
                 )
 
+            # for all the dihedrals available concatenate the label of each
+            # dihedral into the state for that frame
             states = [
                 state
                 for state in (
@@ -325,14 +315,12 @@ class LevelManager:
         """
         Function to define beads depending on the level in the hierarchy.
 
-        Input
-        -----
-        data_container : the MDAnalysis universe
-        level : the heirarchy level (polymer, residue, or united atom)
+        Args:
+           data_container (MDAnalysis.Universe): the molecule data
+           level (str): the heirarchy level (polymer, residue, or united atom)
 
-        Output
-        ------
-        list_of_beads : the relevent beads
+        Returns:
+           list_of_beads : the relevent beads
         """
 
         if level == "polymer":
@@ -347,6 +335,7 @@ class LevelManager:
                 atom_group = "resindex " + str(residue)
                 list_of_beads.append(data_container.select_atoms(atom_group))
 
+        # NOTE this could cause problems for hydrogen or helium molecules
         if level == "united_atom":
             list_of_beads = []
             heavy_atoms = data_container.select_atoms("not name H*")
@@ -374,16 +363,14 @@ class LevelManager:
         to define the axes, or if the unit is not bonded to others of the
         same level the prinicpal axes of the unit are used.
 
-        Input
-        -----
-        data_container : the information about the molecule and trajectory
-        level : the level (united atom, residue, or polymer) of interest
-        index : residue index (integer)
+        Args:
+          data_container (MDAnalysis.Universe): the molecule and trajectory data
+          level (str): the level (united atom, residue, or polymer) of interest
+          index (int): residue index
 
-        Output
-        ------
-        trans_axes : translational axes
-        rot_axes : rotational axes
+        Returns:
+          trans_axes : translational axes
+          rot_axes : rotational axes
         """
         index = int(index)
 
@@ -458,14 +445,12 @@ class LevelManager:
         """
         Function to get the average position of a set of atoms.
 
-        Input
-        -----
-        atoms : MDAnalysis atom group
-        center : position for center of rotation
+        Args:
+            atom_set : MDAnalysis atom group
+            center : position for center of rotation
 
-        Output
-        ------
-        avg_position : three dimensional vector
+        Returns:
+            avg_position : three dimensional vector
         """
         # start with an empty vector
         avg_position = np.zeros((3))
@@ -484,8 +469,8 @@ class LevelManager:
 
         else:
             # if no atoms in set the unit has no bonds to restrict its rotational
-            # motion, so we can use a random vector to get the spherical
-            # coordinates axes
+            # motion, so we can use a random vector to get spherical
+            # coordinate axes
             avg_position = np.random.random(3)
 
         # transform the average position to a coordinate system with the origin
@@ -501,6 +486,12 @@ class LevelManager:
         For a given vector in space, treat it is a radial vector rooted at
         0,0,0 and derive a curvilinear coordinate system according to the
         rules of polar spherical coordinates
+
+        Args:
+            arg_r: 3 dimensional vector
+
+        Returns:
+            spherical_basis: axes set (3 vectors)
         """
 
         x2y2 = arg_r[0] ** 2 + arg_r[1] ** 2
@@ -579,14 +570,17 @@ class LevelManager:
         """
         Function to calculate the mass weighted forces for a given bead.
 
-        Input
-        -----
-        bead : the part of the system to be considered
-        trans_axes : the axes relative to which the forces are located
+        Args:
+           data_container (MDAnalysis.Universe): Contains atomic positions and forces.
+           bead : The part of the molecule to be considered.
+           trans_axes (np.ndarray): The axes relative to which the forces are located.
+           highest_level (bool): Is this the largest level of the length scale hierarchy
+           force_partitioning (float): Factor to adjust force contributions to avoid
+           over counting correlated forces, default is 0.5.
 
-        Output
-        ------
-        weighted_force : the mass weighted sum of the forces in the bead
+        Returns:
+            weighted_force (np.ndarray): The mass-weighted sum of the forces in the
+            bead.
         """
 
         forces_trans = np.zeros((3,))
@@ -648,7 +642,7 @@ class LevelManager:
 
         Returns
         -------
-        np.ndarray
+        weighted_torque : np.ndarray
             The mass-weighted sum of the torques in the bead.
         """
 
@@ -711,16 +705,16 @@ class LevelManager:
 
         return weighted_torque
 
-    def create_submatrix(self, data_i, data_j, number_frames):
+    def create_submatrix(self, data_i, data_j):
         """
         Function for making covariance matrices.
 
-        Input
+        Args
         -----
         data_i : values for bead i
-        data_j : valuees for bead j
+        data_j : values for bead j
 
-        Output
+        Returns
         ------
         submatrix : 3x3 matrix for the covariance between i and j
         """
@@ -922,14 +916,23 @@ class LevelManager:
         """
         highest = level == level_list[-1]
 
+        # United atom level calculations are done separately for each residue
+        # This allows information per residue to be output and keeps the
+        # matrices from becoming too large
         if level == "united_atom":
             for res_id, residue in enumerate(mol.residues):
                 key = (group_id, res_id)
                 res = entropy_manager._run_manager.new_U_select_atom(
                     mol, f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}"
                 )
+
+                # This is to get MDAnalysis to get the information from the
+                # correct frame of the trajectory
                 res.trajectory[time_index]
 
+                # Build the matrices, adding data from each timestep
+                # Being careful for the first timestep when data has not yet
+                # been added to the matrices
                 f_mat, t_mat = self.get_matrices(
                     res,
                     level,
@@ -950,8 +953,15 @@ class LevelManager:
                     torque_avg["ua"][key] += (t_mat - torque_avg["ua"][key]) / n
 
         elif level in ["residue", "polymer"]:
+            # This is to get MDAnalysis to get the information from the
+            # correct frame of the trajectory
             mol.trajectory[time_index]
+
             key = "res" if level == "residue" else "poly"
+
+            # Build the matrices, adding data from each timestep
+            # Being careful for the first timestep when data has not yet
+            # been added to the matrices
             f_mat, t_mat = self.get_matrices(
                 mol,
                 level,
@@ -981,13 +991,11 @@ class LevelManager:
         """
         function for removing rows and columns that contain only zeros from a matrix
 
-        Input
-        -----
-        arg_matrix : matrix
+        Args:
+            arg_matrix : matrix
 
-        Output
-        ------
-        arg_matrix : the reduced size matrix
+        Returns:
+            arg_matrix : the reduced size matrix
         """
 
         # record the initial size
@@ -1048,10 +1056,13 @@ class LevelManager:
             entropy_manager (EntropyManager): Instance of the EntropyManager
             reduced_atom (Universe): The reduced atom selection.
             levels (list): List of entropy levels per molecule.
+            groups (dict): Groups for averaging over molecules.
             start (int): Start frame index.
             end (int): End frame index.
             step (int): Step size for frame iteration.
             number_frames (int): Total number of frames to process.
+            bin_width (int): Width of histogram bins.
+            ce: Conformational Entropy object
 
         Returns:
             tuple: A tuple containing:
