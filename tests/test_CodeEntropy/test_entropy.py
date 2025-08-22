@@ -1480,6 +1480,54 @@ class TestVibrationalEntropy(unittest.TestCase):
             ]
         )
 
+    @patch(
+        "waterEntropy.recipes.interfacial_solvent.get_interfacial_water_orient_entropy"
+    )
+    def test_calculate_water_entropy_adds_resname(self, mock_get_entropy):
+        """
+        Test _calculate_water_entropy with Sorient_dict containing a water residue
+        so that residue_names.add(resname) is executed.
+        """
+        # Mock vibrations object
+        mock_vibrations = MagicMock()
+        mock_vibrations.translational_S = {("res1", "WAT"): 2.0}
+        mock_vibrations.rotational_S = {("res1", "WAT"): 3.0}
+
+        # Sorient_dict contains a water residue key "WAT"
+        mock_get_entropy.return_value = (
+            {1: {"WAT": [1.0, 5]}},  # orientational
+            None,
+            mock_vibrations,
+            None,
+            1,  # water_count
+        )
+
+        # Mock universe.select_atoms to return a selection containing "WAT"
+        mock_water_selection = MagicMock()
+        mock_residues_group = MagicMock()
+        mock_residues_group.resnames = ["WAT"]  # this is key
+        mock_water_selection.residues = mock_residues_group
+        mock_water_selection.atoms = [1, 2, 3]  # mock atom count
+        mock_universe = MagicMock()
+        mock_universe.select_atoms.return_value = mock_water_selection
+        mock_universe.trajectory = [1, 2]  # 2 frames
+
+        group_id = 0
+
+        # Call the function
+        self.entropy_manager._data_logger = MagicMock()  # mock logger
+        self.entropy_manager._calculate_water_entropy(
+            mock_universe, start=0, end=1, step=1, group_id=group_id
+        )
+
+        # Check that residue_group is "WAT" and residue_names.add was triggered
+        self.entropy_manager._data_logger.add_group_label.assert_called_with(
+            group_id,
+            "WAT",
+            len(mock_water_selection.residues),
+            len(mock_water_selection.atoms),
+        )
+
     # TODO test for error handling on invalid inputs
 
 

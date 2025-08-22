@@ -156,18 +156,6 @@ class EntropyManager:
             return
 
         for group_id, atom_indices in water_groups.items():
-            water_selection = self._universe.atoms[atom_indices]
-
-            water_residues = [
-                res for res in water_selection.residues if res.resname == "WAT"
-            ]
-
-            residue_group = "_".join(sorted({res.resname for res in water_residues}))
-            residue_count = len(water_residues)
-            atom_count = len(water_selection.atoms)
-            self._data_logger.add_group_label(
-                group_id, residue_group, residue_count, atom_count
-            )
 
             self._calculate_water_entropy(
                 universe=self._universe,
@@ -657,17 +645,31 @@ class EntropyManager:
                     "Transvibrational": 0.0,
                     "Rovibrational": 0.0,
                 }
-
             results[mol_id][entropy_type] += value
 
         for mol_id, components in results.items():
-            total = 0.0
             for entropy_type in ["Orientational", "Transvibrational", "Rovibrational"]:
                 S_component = components[entropy_type]
                 self._data_logger.add_results_data(
                     group_id, "water", entropy_type, S_component
                 )
-                total += S_component
+
+        water_selection = universe.select_atoms("resname WAT")
+        actual_water_residues = len(water_selection.residues)
+
+        residue_names = set()
+        for res_dict in Sorient_dict.values():
+            for resname in res_dict.keys():
+                if resname.upper() in water_selection.residues.resnames:
+                    residue_names.add(resname)
+
+        residue_group = "_".join(sorted(residue_names)) if residue_names else "WAT"
+        residue_count = actual_water_residues
+        atom_count = len(water_selection.atoms)
+
+        self._data_logger.add_group_label(
+            group_id, residue_group, residue_count, atom_count
+        )
 
     def _calculate_water_orientational_entropy(
         self, Sorient_dict, group_id, water_count
