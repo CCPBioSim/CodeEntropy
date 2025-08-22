@@ -6,4 +6,4 @@ applicable set of tools for computing entropy of macromolecular systems from the
 forces sampled in a MD simulation.
 """
 
-__version__ = "0.3.6"
+__version__ = "1.0.0"
