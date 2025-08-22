@@ -2,7 +2,7 @@ Frequently asked questions
 ==============================
 
 Why do I get a ``WARNING`` about invalid eigenvalues?
---------------------------------------------------
+-----------------------------------------------------
 
 Insufficient sampling might introduce noise and cause matrix elements to deviate to values that would not reflect the uncorrelated nature of force-force covariance of distantly positioned residues.Try increasing the sampling time. This is especially true at the residue level. 
 
