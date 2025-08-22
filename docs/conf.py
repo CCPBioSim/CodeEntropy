@@ -15,6 +15,7 @@
 # Incase the project was not installed
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -23,11 +24,16 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "CodeEntropy"
-copyright = (
-    "2022, DonaldChung-HK. Project structure based on the "
-    "Computational Molecular Science Python Cookiecutter version 1.6"
+copyright_first_year = "2022"
+copyright_owners = "CCPBioSim"
+author = "CCPBioSim"
+current_year = str(time.localtime().tm_year)
+copyright_year_string = (
+    current_year
+    if current_year == copyright_first_year
+    else f"{copyright_first_year}-{current_year}"
 )
-author = "DonaldChung-HK"
+copyright = f"{copyright_year_string}, {copyright_owners}. All rights reserved"
 
 # The short X.Y version
 version = ""
@@ -53,6 +59,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
     "nbsphinx",
+    "sphinx_copybutton",
 ]
 
 autosummary_generate = True
@@ -93,7 +100,8 @@ pygments_style = "default"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
+html_logo = "images/biosim-codeentropy_logo_grey.svg"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
