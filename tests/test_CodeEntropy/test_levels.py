@@ -896,10 +896,9 @@ class TestLevels(unittest.TestCase):
 
         data_i = np.array([1, 0, 0])
         data_j = np.array([0, 1, 0])
-        number_frames = 1  # Not used in current implementation
 
         expected = np.outer(data_i, data_j)
-        result = level_manager.create_submatrix(data_i, data_j, number_frames)
+        result = level_manager.create_submatrix(data_i, data_j)
 
         np.testing.assert_array_equal(result, expected)
 
@@ -911,7 +910,7 @@ class TestLevels(unittest.TestCase):
 
         data_i = np.zeros(3)
         data_j = np.zeros(3)
-        result = level_manager.create_submatrix(data_i, data_j, 1)
+        result = level_manager.create_submatrix(data_i, data_j)
 
         np.testing.assert_array_equal(result, np.zeros((3, 3)))
 
@@ -926,7 +925,7 @@ class TestLevels(unittest.TestCase):
         vec_j = np.array([4, 5, 6])
         expected = np.outer(vec_i, vec_j)
 
-        result = level_manager.create_submatrix([vec_i], [vec_j], 1)
+        result = level_manager.create_submatrix([vec_i], [vec_j])
         np.testing.assert_array_almost_equal(result, expected)
 
     def test_create_submatrix_symmetric_result_when_data_equal(self):
@@ -936,7 +935,7 @@ class TestLevels(unittest.TestCase):
         level_manager = LevelManager()
 
         data = np.array([1, 2, 3])
-        result = level_manager.create_submatrix(data, data, 1)
+        result = level_manager.create_submatrix(data, data)
 
         self.assertTrue(np.allclose(result, result.T))  # Check symmetry
 
