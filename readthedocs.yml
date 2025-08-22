@@ -6,11 +6,12 @@ build:
   image: latest
 
 python:
-  version: 3.8
+  version: 3.13
   install:
     - method: pip
       path: .
-    - requirements: docs/requirements.txt
+    - requirements: docs
 
-conda:
-  environment: docs/requirements.yaml
+sphinx:
+  # Path to your Sphinx configuration file.
+  configuration: docs/source/conf.py
