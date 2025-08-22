@@ -6,8 +6,18 @@ import numpy as np
 import pandas as pd
 import waterEntropy.recipes.interfacial_solvent as GetSolvent
 from numpy import linalg as la
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
+
+from CodeEntropy.config.logging_config import LoggingConfig
 
 logger = logging.getLogger(__name__)
+console = LoggingConfig.get_console()
 
 
 class EntropyManager:
@@ -50,6 +60,11 @@ class EntropyManager:
         """
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
+
+        console.print(
+            f"Analyzing a total of {number_frames} frames in this calculation."
+        )
+
         ve = VibrationalEntropy(
             self._run_manager,
             self._args,
@@ -67,25 +82,47 @@ class EntropyManager:
             self._group_molecules,
         )
 
-        self._handle_water_entropy(start, end, step)
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
 
-        force_matrices, torque_matrices = self._level_manager.build_covariance_matrices(
-            self,
-            reduced_atom,
-            levels,
-            groups,
-            start,
-            end,
-            step,
-            number_frames,
+        water_atoms = self._universe.select_atoms("water")
+        water_resids = set(res.resid for res in water_atoms.residues)
+
+        water_groups = {
+            gid: g
+            for gid, g in groups.items()
+            if any(
+                res.resid in water_resids
+                for mol in [self._universe.atoms.fragments[i] for i in g]
+                for res in mol.residues
+            )
+        }
+        nonwater_groups = {
+            gid: g for gid, g in groups.items() if gid not in water_groups
+        }
+
+        if self._args.water_entropy and water_groups:
+            self._handle_water_entropy(start, end, step, water_groups)
+        else:
+            nonwater_groups.update(water_groups)
+
+        force_matrices, torque_matrices, frame_counts = (
+            self._level_manager.build_covariance_matrices(
+                self,
+                reduced_atom,
+                levels,
+                nonwater_groups,
+                start,
+                end,
+                step,
+                number_frames,
+            )
         )
 
         states_ua, states_res = self._level_manager.build_conformational_states(
             self,
             reduced_atom,
             levels,
-            groups,
+            nonwater_groups,
             start,
             end,
             step,
@@ -97,11 +134,12 @@ class EntropyManager:
         self._compute_entropies(
             reduced_atom,
             levels,
-            groups,
+            nonwater_groups,
             force_matrices,
             torque_matrices,
             states_ua,
             states_res,
+            frame_counts,
             number_frames,
             ve,
             ce,
@@ -110,33 +148,38 @@ class EntropyManager:
         self._finalize_molecule_results()
         self._data_logger.log_tables()
 
-    def _handle_water_entropy(self, start, end, step):
+    def _handle_water_entropy(self, start, end, step, water_groups):
         """
-        Compute and exclude water entropy from the system if applicable.
+        Compute water entropy for each water group, log data, and update selection
+        string to exclude water from further analysis.
 
-        If water molecules are present and water entropy calculation is enabled,
-        this method computes their entropy and updates the selection string to
-        exclude water from further analysis.
-
-        Parameters:
-            start (int): Start frame index.
-            end (int): End frame index.
-            step (int): Step size for frame iteration.
+        Args:
+            start (int): Start frame index
+            end (int): End frame index
+            step (int): Step size
+            water_groups (dict): {group_id: [atom indices]} for water
         """
-        has_water = self._universe.select_atoms("water").n_atoms > 0
-        if has_water and self._args.water_entropy:
-            self._calculate_water_entropy(self._universe, start, end, step)
-            self._args.selection_string = (
-                self._args.selection_string + " and not water"
-                if self._args.selection_string != "all"
-                else "not water"
+        if not water_groups or not self._args.water_entropy:
+            return
+
+        for group_id, atom_indices in water_groups.items():
+
+            self._calculate_water_entropy(
+                universe=self._universe,
+                start=start,
+                end=end,
+                step=step,
+                group_id=group_id,
             )
-            logger.debug(
-                "WaterEntropy: molecule_data: %s", self._data_logger.molecule_data
-            )
-            logger.debug(
-                "WaterEntropy: residue_data: %s", self._data_logger.residue_data
-            )
+
+        self._args.selection_string = (
+            self._args.selection_string + " and not water"
+            if self._args.selection_string != "all"
+            else "not water"
+        )
+
+        logger.debug(f"WaterEntropy: molecule_data: {self._data_logger.molecule_data}")
+        logger.debug(f"WaterEntropy: residue_data: {self._data_logger.residue_data}")
 
     def _initialize_molecules(self):
         """
@@ -164,6 +207,7 @@ class EntropyManager:
         torque_matrices,
         states_ua,
         states_res,
+        frame_counts,
         number_frames,
         ve,
         ce,
@@ -188,56 +232,102 @@ class EntropyManager:
             torque_matrices (dict): Precomputed torque covariance matrices.
             states_ua (dict): Dictionary to store united-atom conformational states.
             states_res (list): List to store residue-level conformational states.
+            frames_count (dict): Dictionary to store the frame counts
             number_frames (int): Total number of trajectory frames to process.
         """
-        for group_id in groups.keys():
-            mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
-            for level in levels[groups[group_id][0]]:
-                highest = level == levels[groups[group_id][0]][-1]
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.1f}%",
+            TimeElapsedColumn(),
+        ) as progress:
 
-                if level == "united_atom":
-                    self._process_united_atom_entropy(
-                        group_id,
-                        mol,
-                        ve,
-                        ce,
-                        level,
-                        force_matrices["ua"],
-                        torque_matrices["ua"],
-                        states_ua,
-                        highest,
-                        number_frames,
-                    )
+            task = progress.add_task(
+                "[green]Calculating Entropy...",
+                total=len(groups),
+                title="Starting...",
+            )
 
-                elif level == "residue":
-                    self._process_vibrational_entropy(
-                        group_id,
-                        number_frames,
-                        ve,
-                        level,
-                        force_matrices["res"][group_id],
-                        torque_matrices["res"][group_id],
-                        highest,
-                    )
+            for group_id in groups.keys():
+                mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
 
-                    self._process_conformational_entropy(
-                        group_id,
-                        ce,
-                        level,
-                        states_res,
-                        number_frames,
-                    )
+                residue_group = "_".join(
+                    sorted(set(res.resname for res in mol.residues))
+                )
+                group_residue_count = len(groups[group_id])
+                group_atom_count = 0
+                for mol_id in groups[group_id]:
+                    each_mol = self._get_molecule_container(reduced_atom, mol_id)
+                    group_atom_count += len(each_mol.atoms)
+                self._data_logger.add_group_label(
+                    group_id, residue_group, group_residue_count, group_atom_count
+                )
 
-                elif level == "polymer":
-                    self._process_vibrational_entropy(
-                        group_id,
-                        number_frames,
-                        ve,
-                        level,
-                        force_matrices["poly"][group_id],
-                        torque_matrices["poly"][group_id],
-                        highest,
+                resname = mol.atoms[0].resname
+                resid = mol.atoms[0].resid
+                segid = mol.atoms[0].segid
+
+                mol_label = f"{resname}_{resid} (segid {segid})"
+
+                for level in levels[groups[group_id][0]]:
+                    progress.update(
+                        task,
+                        title=f"Calculating entropy values | "
+                        f"Molecule: {mol_label} | "
+                        f"Level: {level}",
                     )
+                    highest = level == levels[groups[group_id][0]][-1]
+
+                    if level == "united_atom":
+                        self._process_united_atom_entropy(
+                            group_id,
+                            mol,
+                            ve,
+                            ce,
+                            level,
+                            force_matrices["ua"],
+                            torque_matrices["ua"],
+                            states_ua,
+                            frame_counts["ua"],
+                            highest,
+                            number_frames,
+                        )
+
+                    elif level == "residue":
+                        self._process_vibrational_entropy(
+                            group_id,
+                            mol,
+                            number_frames,
+                            ve,
+                            level,
+                            force_matrices["res"][group_id],
+                            torque_matrices["res"][group_id],
+                            highest,
+                        )
+
+                        self._process_conformational_entropy(
+                            group_id,
+                            mol,
+                            ce,
+                            level,
+                            states_res,
+                            number_frames,
+                        )
+
+                    elif level == "polymer":
+                        self._process_vibrational_entropy(
+                            group_id,
+                            mol,
+                            number_frames,
+                            ve,
+                            level,
+                            force_matrices["poly"][group_id],
+                            torque_matrices["poly"][group_id],
+                            highest,
+                        )
+
+                progress.advance(task)
 
     def _get_trajectory_bounds(self):
         """
@@ -264,16 +354,6 @@ class EntropyManager:
         Returns:
             int: Total number of frames considered.
         """
-        trajectory_length = len(self._universe.trajectory)
-
-        if start == 0 and end == -1 and step == 1:
-            return trajectory_length
-
-        if end == -1:
-            end = trajectory_length
-        else:
-            end += 1
-
         return math.floor((end - start) / step)
 
     def _get_reduced_universe(self):
@@ -317,6 +397,7 @@ class EntropyManager:
         force_matrix,
         torque_matrix,
         states,
+        frame_counts,
         highest,
         number_frames,
     ):
@@ -332,6 +413,7 @@ class EntropyManager:
             level (str): Granularity level (should be 'united_atom').
             start, end, step (int): Trajectory frame parameters.
             n_frames (int): Number of trajectory frames.
+            frame_counts: Number of frames counted
             highest (bool): Whether this is the highest level of resolution for
             the molecule.
         """
@@ -371,21 +453,50 @@ class EntropyManager:
             S_conf += S_conf_res
 
             self._data_logger.add_residue_data(
-                residue_id, residue.resname, level, "Transvibrational", S_trans_res
+                group_id,
+                residue.resname,
+                level,
+                "Transvibrational",
+                frame_counts[key],
+                S_trans_res,
             )
             self._data_logger.add_residue_data(
-                residue_id, residue.resname, level, "Rovibrational", S_rot_res
+                group_id,
+                residue.resname,
+                level,
+                "Rovibrational",
+                frame_counts[key],
+                S_rot_res,
             )
             self._data_logger.add_residue_data(
-                residue_id, residue.resname, level, "Conformational", S_conf_res
+                group_id,
+                residue.resname,
+                level,
+                "Conformational",
+                frame_counts[key],
+                S_conf_res,
             )
 
         self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
         self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
         self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
 
+        residue_group = "_".join(
+            sorted(set(res.resname for res in mol_container.residues))
+        )
+
+        logger.debug(f"residue_group {residue_group}")
+
     def _process_vibrational_entropy(
-        self, group_id, number_frames, ve, level, force_matrix, torque_matrix, highest
+        self,
+        group_id,
+        mol_container,
+        number_frames,
+        ve,
+        level,
+        force_matrix,
+        torque_matrix,
+        highest,
     ):
         """
         Calculates vibrational entropy.
@@ -397,6 +508,7 @@ class EntropyManager:
             level (str): Current granularity level.
             force_matrix : Force covariance matrix
             torque_matrix : Torque covariance matrix
+            frame_count:
             highest (bool): Flag indicating if this is the highest granularity
             level.
         """
@@ -414,8 +526,17 @@ class EntropyManager:
         self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
         self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
 
+        residue_group = "_".join(
+            sorted(set(res.resname for res in mol_container.residues))
+        )
+        residue_count = len(mol_container.residues)
+        atom_count = len(mol_container.atoms)
+        self._data_logger.add_group_label(
+            group_id, residue_group, residue_count, atom_count
+        )
+
     def _process_conformational_entropy(
-        self, group_id, ce, level, states, number_frames
+        self, group_id, mol_container, ce, level, states, number_frames
     ):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
@@ -445,149 +566,191 @@ class EntropyManager:
             if contains_state_data
             else 0
         )
-
         self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
+
+        residue_group = "_".join(
+            sorted(set(res.resname for res in mol_container.residues))
+        )
+        residue_count = len(mol_container.residues)
+        atom_count = len(mol_container.atoms)
+        self._data_logger.add_group_label(
+            group_id, residue_group, residue_count, atom_count
+        )
 
     def _finalize_molecule_results(self):
         """
-        Aggregates and logs total entropy per molecule using residue_data grouped by
-        resid.
+        Aggregates and logs total entropy and frame counts per molecule.
         """
         entropy_by_molecule = defaultdict(float)
-
-        for mol_id, level, entropy_type, result in self._data_logger.molecule_data:
-            if level != "Molecule Total":
+        for (
+            mol_id,
+            level,
+            entropy_type,
+            result,
+        ) in self._data_logger.molecule_data:
+            if level != "Group Total":
                 try:
                     entropy_by_molecule[mol_id] += float(result)
                 except ValueError:
                     logger.warning(f"Skipping invalid entry: {mol_id}, {result}")
 
-        for mol_id, total_entropy in entropy_by_molecule.items():
+        for mol_id in entropy_by_molecule.keys():
+            total_entropy = entropy_by_molecule[mol_id]
+
             self._data_logger.molecule_data.append(
-                (mol_id, "Molecule Total", "Molecule Total Entropy", total_entropy)
+                (
+                    mol_id,
+                    "Group Total",
+                    "Group Total Entropy",
+                    total_entropy,
+                )
             )
 
-        # Save to file
         self._data_logger.save_dataframes_as_json(
             pd.DataFrame(
                 self._data_logger.molecule_data,
-                columns=["Molecule ID", "Level", "Type", "Result (J/mol/K)"],
+                columns=[
+                    "Group ID",
+                    "Level",
+                    "Type",
+                    "Result (J/mol/K)",
+                ],
             ),
             pd.DataFrame(
                 self._data_logger.residue_data,
                 columns=[
-                    "Residue ID",
+                    "Group ID",
                     "Residue Name",
                     "Level",
                     "Type",
+                    "Frame Count",
                     "Result (J/mol/K)",
                 ],
             ),
             self._args.output_file,
         )
 
-    def _calculate_water_entropy(self, universe, start, end, step):
+    def _calculate_water_entropy(self, universe, start, end, step, group_id=None):
         """
-        Calculates orientational and vibrational entropy for water molecules.
+        Calculate and aggregate the entropy of water molecules in a simulation.
 
-        Args:
-            universe: MDAnalysis Universe object.
-            start (int): Start frame.
-            end (int): End frame.
-            step (int): Step size.
+        This function computes orientational, translational, and rotational
+        entropy components for all water molecules, aggregates them per residue,
+        and maps all waters to a single group ID. It also logs the total results
+        and labels the water group in the data logger.
+
+        Parameters
+        ----------
+        universe : MDAnalysis.Universe
+            The simulation universe containing water molecules.
+        start : int
+            The starting frame for analysis.
+        end : int
+            The ending frame for analysis.
+        step : int
+            Frame interval for analysis.
+        group_id : int or str, optional
+            The group ID to which all water molecules will be assigned.
         """
-        Sorient_dict, _, vibrations, _, _ = (
+        Sorient_dict, covariances, vibrations, _, water_count = (
             GetSolvent.get_interfacial_water_orient_entropy(
                 universe, start, end, step, self._args.temperature, parallel=True
             )
         )
 
-        # Log per-residue entropy using helper functions
-        self._calculate_water_orientational_entropy(Sorient_dict)
-        self._calculate_water_vibrational_translational_entropy(vibrations)
-        self._calculate_water_vibrational_rotational_entropy(vibrations)
+        self._calculate_water_orientational_entropy(Sorient_dict, group_id)
+        self._calculate_water_vibrational_translational_entropy(
+            vibrations, group_id, covariances
+        )
+        self._calculate_water_vibrational_rotational_entropy(
+            vibrations, group_id, covariances
+        )
 
-        # Aggregate entropy components per molecule
-        results = {}
+        water_selection = universe.select_atoms("resname WAT")
+        actual_water_residues = len(water_selection.residues)
+        residue_names = {
+            resname
+            for res_dict in Sorient_dict.values()
+            for resname in res_dict.keys()
+            if resname.upper() in water_selection.residues.resnames
+        }
 
-        for row in self._data_logger.residue_data:
-            mol_id = row[1]
-            entropy_type = row[3].split()[0]
-            value = float(row[4])
+        residue_group = "_".join(sorted(residue_names)) if residue_names else "WAT"
+        self._data_logger.add_group_label(
+            group_id, residue_group, actual_water_residues, len(water_selection.atoms)
+        )
 
-            if mol_id not in results:
-                results[mol_id] = {
-                    "Orientational": 0.0,
-                    "Transvibrational": 0.0,
-                    "Rovibrational": 0.0,
-                }
-
-            results[mol_id][entropy_type] += value
-
-        # Log per-molecule entropy components and total
-        for mol_id, components in results.items():
-            total = 0.0
-            for entropy_type in ["Orientational", "Transvibrational", "Rovibrational"]:
-                S_component = components[entropy_type]
-                self._data_logger.add_results_data(
-                    mol_id, "water", entropy_type, S_component
-                )
-                total += S_component
-
-    def _calculate_water_orientational_entropy(self, Sorient_dict):
+    def _calculate_water_orientational_entropy(self, Sorient_dict, group_id):
         """
-        Logs orientational entropy values directly from Sorient_dict.
+        Aggregate orientational entropy for all water molecules into a single group.
+
+        Parameters
+        ----------
+        Sorient_dict : dict
+            Dictionary containing orientational entropy values per residue.
+        group_id : int or str
+            The group ID to which the water residues belong.
+        covariances : object
+            Covariance object.
         """
         for resid, resname_dict in Sorient_dict.items():
             for resname, values in resname_dict.items():
                 if isinstance(values, list) and len(values) == 2:
                     Sor, count = values
                     self._data_logger.add_residue_data(
-                        resid, resname, "Water", "Orientational", Sor
+                        group_id, resname, "Water", "Orientational", count, Sor
                     )
 
-    def _calculate_water_vibrational_translational_entropy(self, vibrations):
+    def _calculate_water_vibrational_translational_entropy(
+        self, vibrations, group_id, covariances
+    ):
         """
-        Logs summed translational entropy values per residue-solvent pair.
+        Aggregate translational vibrational entropy for all water molecules.
+
+        Parameters
+        ----------
+        vibrations : object
+            Object containing translational entropy data (vibrations.translational_S).
+        group_id : int or str
+            The group ID for the water residues.
+        covariances : object
+            Covariance object.
         """
+
         for (solute_id, _), entropy in vibrations.translational_S.items():
             if isinstance(entropy, (list, np.ndarray)):
                 entropy = float(np.sum(entropy))
 
-            if "_" in solute_id:
-                resname, resid_str = solute_id.rsplit("_", 1)
-                try:
-                    resid = int(resid_str)
-                except ValueError:
-                    resid = -1
-            else:
-                resname = solute_id
-                resid = -1
-
+            count = covariances.counts.get((solute_id, "WAT"), 1)
+            resname = solute_id.rsplit("_", 1)[0] if "_" in solute_id else solute_id
             self._data_logger.add_residue_data(
-                resid, resname, "Water", "Transvibrational", entropy
+                group_id, resname, "Water", "Transvibrational", count, entropy
             )
 
-    def _calculate_water_vibrational_rotational_entropy(self, vibrations):
+    def _calculate_water_vibrational_rotational_entropy(
+        self, vibrations, group_id, covariances
+    ):
         """
-        Logs summed rotational entropy values per residue-solvent pair.
+        Aggregate rotational vibrational entropy for all water molecules.
+
+        Parameters
+        ----------
+        vibrations : object
+            Object containing rotational entropy data (vibrations.rotational_S).
+        group_id : int or str
+            The group ID for the water residues.
+        covariances : object
+            Covariance object.
         """
         for (solute_id, _), entropy in vibrations.rotational_S.items():
             if isinstance(entropy, (list, np.ndarray)):
                 entropy = float(np.sum(entropy))
 
-            if "_" in solute_id:
-                resname, resid_str = solute_id.rsplit("_", 1)
-                try:
-                    resid = int(resid_str)
-                except ValueError:
-                    resid = -1
-            else:
-                resname = solute_id
-                resid = -1
+            count = covariances.counts.get((solute_id, "WAT"), 1)
 
+            resname = solute_id.rsplit("_", 1)[0] if "_" in solute_id else solute_id
             self._data_logger.add_residue_data(
-                resid, resname, "Water", "Rovibrational", entropy
+                group_id, resname, "Water", "Rovibrational", count, entropy
             )
 
 
@@ -773,11 +936,11 @@ class ConformationalEntropy(EntropyManager):
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
-        indices = list(range(start, end, step))
+        indices = list(range(number_frames))
         for timestep_index, _ in zip(
             indices, data_container.trajectory[start:end:step]
         ):
-            timestep_index = timestep_index - start
+            timestep_index = timestep_index
             value = dihedral.value()
             # we want postive values in range 0 to 360 to make the peak assignment
             # work using the fact that dihedrals have circular symetry
