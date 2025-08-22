@@ -3,8 +3,18 @@ import os
 import pickle
 
 import MDAnalysis as mda
+import requests
+import yaml
+from art import text2art
 from MDAnalysis.analysis.base import AnalysisFromFunction
 from MDAnalysis.coordinates.memory import MemoryReader
+from rich.align import Align
+from rich.console import Group
+from rich.padding import Padding
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.table import Table
+from rich.text import Text
 
 from CodeEntropy.config.arg_config_manager import ConfigManager
 from CodeEntropy.config.data_logger import DataLogger
@@ -14,6 +24,7 @@ from CodeEntropy.group_molecules import GroupMolecules
 from CodeEntropy.levels import LevelManager
 
 logger = logging.getLogger(__name__)
+console = LoggingConfig.get_console()
 
 
 class RunManager:
@@ -85,6 +96,114 @@ class RunManager:
         # Return the path of the newly created folder
         return new_folder_path
 
+    def load_citation_data(self):
+        """
+        Load CITATION.cff from GitHub into memory.
+        Return empty dict if offline.
+        """
+        url = (
+            "https://raw.githubusercontent.com/CCPBioSim/"
+            "CodeEntropy/refs/heads/main/CITATION.cff"
+        )
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return yaml.safe_load(response.text)
+        except requests.exceptions.RequestException:
+            return None
+
+    def show_splash(self):
+        """Render splash screen with optional citation metadata."""
+        citation = self.load_citation_data()
+
+        if citation:
+            # ASCII Title
+            ascii_title = text2art(citation.get("title", "CodeEntropy"))
+            ascii_render = Align.center(Text(ascii_title, style="bold white"))
+
+            # Metadata
+            version = citation.get("version", "?")
+            release_date = citation.get("date-released", "?")
+            url = citation.get("url", citation.get("repository-code", ""))
+
+            version_text = Align.center(
+                Text(f"Version {version} | Released {release_date}", style="green")
+            )
+            url_text = Align.center(Text(url, style="blue underline"))
+
+            # Description block
+            abstract = citation.get("abstract", "No description available.")
+            description_title = Align.center(
+                Text("Description", style="bold magenta underline")
+            )
+            description_body = Align.center(
+                Padding(Text(abstract, style="white", justify="left"), (0, 4))
+            )
+
+            # Contributors table
+            contributors_title = Align.center(
+                Text("Contributors", style="bold magenta underline")
+            )
+
+            author_table = Table(
+                show_header=True, header_style="bold yellow", box=None, pad_edge=False
+            )
+            author_table.add_column("Name", style="bold", justify="center")
+            author_table.add_column("Affiliation", justify="center")
+
+            for author in citation.get("authors", []):
+                name = (
+                    f"{author.get('given-names', '')} {author.get('family-names', '')}"
+                ).strip()
+                affiliation = author.get("affiliation", "")
+                author_table.add_row(name, affiliation)
+
+            contributors_table = Align.center(Padding(author_table, (0, 4)))
+
+            # Full layout
+            splash_content = Group(
+                ascii_render,
+                Rule(style="cyan"),
+                version_text,
+                url_text,
+                Text(),
+                description_title,
+                description_body,
+                Text(),
+                contributors_title,
+                contributors_table,
+            )
+        else:
+            # ASCII Title
+            ascii_title = text2art("CodeEntropy")
+            ascii_render = Align.center(Text(ascii_title, style="bold white"))
+
+            splash_content = Group(
+                ascii_render,
+            )
+
+        splash_panel = Panel(
+            splash_content,
+            title="[bold bright_cyan]Welcome to CodeEntropy",
+            title_align="center",
+            border_style="bright_cyan",
+            padding=(1, 4),
+            expand=True,
+        )
+
+        console.print(splash_panel)
+
+    def print_args_table(self, args):
+        table = Table(title="Run Configuration", expand=True)
+
+        table.add_column("Argument", style="cyan", no_wrap=True)
+        table.add_column("Value", style="magenta")
+
+        for arg in vars(args):
+            table.add_row(arg, str(getattr(args, arg)))
+
+        console.print(table)
+
     def run_entropy_workflow(self):
         """
         Runs the entropy analysis workflow by setting up logging, loading configuration
@@ -94,6 +213,7 @@ class RunManager:
         """
         try:
             logger = self._logging_config.setup_logging()
+            self.show_splash()
 
             current_directory = os.getcwd()
 
@@ -122,10 +242,7 @@ class RunManager:
                 if not getattr(args, "selection_string", None):
                     raise ValueError("Missing 'selection_string' argument.")
 
-                # Log all inputs for the current run
-                logger.info(f"All input for {run_name}")
-                for arg in vars(args):
-                    logger.info(f" {arg}: {getattr(args, arg)}")
+                self.print_args_table(args)
 
                 # Load MDAnalysis Universe
                 tprfile = args.top_traj_file[0]
@@ -152,6 +269,8 @@ class RunManager:
                 )
 
                 entropy_manager.execute()
+
+            self._logging_config.save_console_log()
 
         except Exception as e:
             logger.error(f"RunManager encountered an error: {e}", exc_info=True)

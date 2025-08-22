@@ -1,6 +1,13 @@
 import logging
 
 import numpy as np
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -778,36 +785,75 @@ class LevelManager:
             "res": [None] * number_groups,
             "poly": [None] * number_groups,
         }
+
+        total_steps = len(reduced_atom.trajectory[start:end:step])
+        total_items = (
+            sum(len(levels[mol_id]) for mols in groups.values() for mol_id in mols)
+            * total_steps
+        )
+
         frame_counts = {
             "ua": {},
             "res": np.zeros(number_groups, dtype=int),
             "poly": np.zeros(number_groups, dtype=int),
         }
 
-        # for each timestep, loop over the groups (and within each group
-        # the molecules belonging to the group) to build the force and torque
-        # covariance matrices
-        indices = list(range(start, end, step))
-        for time_index, _ in zip(indices, reduced_atom.trajectory[start:end:step]):
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
+            TimeElapsedColumn(),
+        ) as progress:
 
-            for group_id, molecules in groups.items():
-                for mol_id in molecules:
-                    mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
-                    for level in levels[mol_id]:
-                        self.update_force_torque_matrices(
-                            entropy_manager,
-                            mol,
-                            group_id,
-                            level,
-                            levels[mol_id],
-                            time_index - start,
-                            number_frames,
-                            force_avg,
-                            torque_avg,
-                            frame_counts,
+            task = progress.add_task(
+                "[green]Processing...",
+                total=total_items,
+                title="Starting...",
+            )
+
+            indices = list(range(number_frames))
+            for time_index, _ in zip(indices, reduced_atom.trajectory[start:end:step]):
+                for group_id, molecules in groups.items():
+                    for mol_id in molecules:
+                        mol = entropy_manager._get_molecule_container(
+                            reduced_atom, mol_id
                         )
+                        for level in levels[mol_id]:
+                            mol = entropy_manager._get_molecule_container(
+                                reduced_atom, mol_id
+                            )
 
-        return force_avg, torque_avg
+                            resname = mol.atoms[0].resname
+                            resid = mol.atoms[0].resid
+                            segid = mol.atoms[0].segid
+
+                            mol_label = f"{resname}_{resid} (segid {segid})"
+
+                            progress.update(
+                                task,
+                                title=f"Building covariance matrices | "
+                                f"Timestep {time_index} | "
+                                f"Molecule: {mol_label} | "
+                                f"Level: {level}",
+                            )
+
+                            self.update_force_torque_matrices(
+                                entropy_manager,
+                                mol,
+                                group_id,
+                                level,
+                                levels[mol_id],
+                                time_index,
+                                number_frames,
+                                force_avg,
+                                torque_avg,
+                                frame_counts,
+                            )
+
+                            progress.advance(task)
+
+        return force_avg, torque_avg, frame_counts
 
     def update_force_torque_matrices(
         self,
@@ -939,6 +985,8 @@ class LevelManager:
                 force_avg[key][group_id] += (f_mat - force_avg[key][group_id]) / n
                 torque_avg[key][group_id] += (t_mat - torque_avg[key][group_id]) / n
 
+        return frame_counts
+
     def filter_zero_rows_columns(self, arg_matrix):
         """
         function for removing rows and columns that contain only zeros from a matrix
@@ -1025,28 +1073,78 @@ class LevelManager:
         states_ua = {}
         states_res = [None] * number_groups
 
-        for group_id in groups.keys():
-            molecules = groups[group_id]
-            for mol_id in molecules:
-                mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
-                for level in levels[mol_id]:
-                    if level == "united_atom":
-                        for res_id, residue in enumerate(mol.residues):
-                            key = (group_id, res_id)
+        total_items = sum(
+            len(levels[mol_id]) for mols in groups.values() for mol_id in mols
+        )
 
-                            res_container = (
-                                entropy_manager._run_manager.new_U_select_atom(
-                                    mol,
-                                    f"index {residue.atoms.indices[0]}:"
-                                    f"{residue.atoms.indices[-1]}",
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
+            TimeElapsedColumn(),
+        ) as progress:
+
+            task = progress.add_task(
+                "[green]Building Conformational States...",
+                total=total_items,
+                title="Starting...",
+            )
+
+            for group_id in groups.keys():
+                molecules = groups[group_id]
+                for mol_id in molecules:
+                    mol = entropy_manager._get_molecule_container(reduced_atom, mol_id)
+
+                    resname = mol.atoms[0].resname
+                    resid = mol.atoms[0].resid
+                    segid = mol.atoms[0].segid
+
+                    mol_label = f"{resname}_{resid} (segid {segid})"
+
+                    for level in levels[mol_id]:
+                        progress.update(
+                            task,
+                            title=f"Building conformational states | "
+                            f"Molecule: {mol_label} | "
+                            f"Level: {level}",
+                        )
+
+                        if level == "united_atom":
+                            for res_id, residue in enumerate(mol.residues):
+                                key = (group_id, res_id)
+
+                                res_container = (
+                                    entropy_manager._run_manager.new_U_select_atom(
+                                        mol,
+                                        f"index {residue.atoms.indices[0]}:"
+                                        f"{residue.atoms.indices[-1]}",
+                                    )
                                 )
-                            )
-                            heavy_res = entropy_manager._run_manager.new_U_select_atom(
-                                res_container, "not name H*"
-                            )
+                                heavy_res = (
+                                    entropy_manager._run_manager.new_U_select_atom(
+                                        res_container, "not name H*"
+                                    )
+                                )
+                                states = self.compute_dihedral_conformations(
+                                    heavy_res,
+                                    level,
+                                    number_frames,
+                                    bin_width,
+                                    start,
+                                    end,
+                                    step,
+                                    ce,
+                                )
 
+                                if key in states_ua:
+                                    states_ua[key].append(states)
+                                else:
+                                    states_ua[key] = states
+
+                        elif level == "res":
                             states = self.compute_dihedral_conformations(
-                                heavy_res,
+                                mol,
                                 level,
                                 number_frames,
                                 bin_width,
@@ -1056,27 +1154,12 @@ class LevelManager:
                                 ce,
                             )
 
-                            if key in states_ua.keys():
-                                states_ua[key].append(states)
+                            if states_res[group_id] is None:
+                                states_res[group_id] = states
                             else:
-                                states_ua[key] = states
+                                states_res[group_id] += states
 
-                    if level == "res":
-                        states = self.compute_dihedral_conformations(
-                            mol,
-                            level,
-                            number_frames,
-                            bin_width,
-                            start,
-                            end,
-                            step,
-                            ce,
-                        )
-
-                        if states_res[group_id] is None:
-                            states_res[group_id] = states
-                        else:
-                            states_res[group_id] += states
+                        progress.advance(task)
 
         logger.debug(f"states_ua {states_ua}")
         logger.debug(f"states_res {states_res}")

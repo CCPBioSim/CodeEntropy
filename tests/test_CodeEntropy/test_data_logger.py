@@ -3,11 +3,12 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 
 from CodeEntropy.config.data_logger import DataLogger
+from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.main import main
 
 
@@ -57,7 +58,7 @@ class TestDataLogger(unittest.TestCase):
         )
         self.assertEqual(
             self.logger.molecule_data,
-            [("0", "united_atom", "Transvibrational", 653.4041220313459)],
+            [(0, "united_atom", "Transvibrational", 653.4041220313459)],
         )
 
     def test_add_residue_data(self):
@@ -65,11 +66,24 @@ class TestDataLogger(unittest.TestCase):
         Test that add_residue_data correctly appends a residue-level entry.
         """
         self.logger.add_residue_data(
-            0, "DA", "united_atom", "Transvibrational", 122.61216935211893
+            0, "DA", "united_atom", "Transvibrational", 10, 122.61216935211893
         )
         self.assertEqual(
             self.logger.residue_data,
-            [[0, "DA", "united_atom", "Transvibrational", 122.61216935211893]],
+            [[0, "DA", "united_atom", "Transvibrational", 10, 122.61216935211893]],
+        )
+
+    def test_add_residue_data_with_numpy_array(self):
+        """
+        Test that add_residue_data correctly converts a NumPy array to a list.
+        """
+        frame_array = np.array([10])
+        self.logger.add_residue_data(
+            1, "DT", "united_atom", "Transvibrational", frame_array, 98.123456789
+        )
+        self.assertEqual(
+            self.logger.residue_data,
+            [[1, "DT", "united_atom", "Transvibrational", [10], 98.123456789]],
         )
 
     def test_save_dataframes_as_json(self):
@@ -120,24 +134,24 @@ class TestDataLogger(unittest.TestCase):
         self.assertEqual(data["molecule_data"][0]["Type"], "Transvibrational (J/mol/K)")
         self.assertEqual(data["residue_data"][0]["Residue"], 0)
 
-    @patch("CodeEntropy.config.data_logger.logger")
-    def test_log_tables(self, mock_logger):
-        """
-        Test that log_tables logs formatted molecule and residue tables using the
-        logger.
-        """
+    def test_log_tables_rich_output(self):
+        console = LoggingConfig.get_console()
+        console.clear_live()
+
         self.logger.add_results_data(
             0, "united_atom", "Transvibrational", 653.4041220313459
         )
         self.logger.add_residue_data(
-            0, "DA", "united_atom", "Transvibrational", 122.61216935211893
+            0, "DA", "united_atom", "Transvibrational", 10, 122.61216935211893
         )
+        self.logger.add_group_label(0, "DA", 10, 100)
 
         self.logger.log_tables()
 
-        calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        self.assertTrue(any("Molecule Data Table:" in c for c in calls))
-        self.assertTrue(any("Residue Data Table:" in c for c in calls))
+        output = console.export_text()
+        assert "Molecule Entropy Results" in output
+        assert "Residue Entropy Results" in output
+        assert "Group ID to Residue Label Mapping" in output
 
 
 if __name__ == "__main__":

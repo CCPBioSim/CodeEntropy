@@ -82,11 +82,6 @@ class ConfigManager:
         yaml_files = glob.glob(os.path.join(file_path, "*.yaml"))
 
         if not yaml_files:
-            logger.warning(
-                f"No YAML configuration files found in directory: {file_path}. "
-                "Expected a file with extension '.yaml'. "
-                "Proceeding with default configuration: {'run1': {}}."
-            )
             return {"run1": {}}
 
         try:
