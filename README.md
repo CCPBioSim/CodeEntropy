@@ -23,7 +23,7 @@ Copyright (c) 2025 CCPBioSim
 
 ## Acknowledgements
  
-Project based on the 
+Project based on 
 
 - [arghya90/CodeEntropy](https://github.com/arghya90/CodeEntropy) version 0.3
 - [jkalayan/PoseidonBeta](https://github.com/jkalayan/PoseidonBeta)
