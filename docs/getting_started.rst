@@ -59,7 +59,7 @@ Quick start guide
 --------------------
 .. Warning::
 
-     This doesn't work on Windows!!!
+    CodeEntropy has not been tested on Windows
 
 A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropy``
 
