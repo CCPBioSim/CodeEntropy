@@ -28,7 +28,8 @@ class EntropyManager:
             universe: MDAnalysis universe representing the simulation system.
             data_logger: Logger for storing and exporting entropy data.
             level_manager: Provides level-specific data such as matrices and dihedrals.
-            group_molecules: includes the grouping functions for averaging over molecules.
+            group_molecules: includes the grouping functions for averaging over
+            molecules.
         """
         self._run_manager = run_manager
         self._args = args
@@ -374,9 +375,9 @@ class EntropyManager:
             ve: VibrationalEntropy object.
             ce: ConformationalEntropy object.
             level (str): Granularity level (should be "united_atom").
-            force_matrix (dict): The force covariance matrices for the united 
-            torque_matrix (dict): The torque covariance matrices for the united 
-             atom residues.  
+            force_matrix (dict): The force covariance matrices for the united
+            torque_matrix (dict): The torque covariance matrices for the united
+             atom residues.
             states (dict): The united atom conformational states
             highest (bool): Whether this is the highest level of resolution for
              the molecule.
@@ -608,7 +609,7 @@ class EntropyManager:
         Logs orientational entropy values directly from Sorient_dict.
 
         Args:
-            Sorient_dict (dict): 
+            Sorient_dict (dict):
         """
         for resid, resname_dict in Sorient_dict.items():
             for resname, values in resname_dict.items():
@@ -843,7 +844,8 @@ class ConformationalEntropy(EntropyManager):
             step (int): spacing between frames, will default to 1
 
         Returns:
-            conformations (array): A timeseries with integer labels describing the state at each point in time.
+            conformations (array): A timeseries with integer labels describing the
+            state at each point in time.
 
         """
         conformations = np.zeros(number_frames)
