@@ -117,3 +117,10 @@ Example/data/*.csv
 # trajectory file too big
 Example/data/1AKI_prod.trr
 Example/data/1AKI_prod.tpr
+
+# output directories, log file and outputs
+job*
+*.json
+*.err
+*.com
+*.txt
