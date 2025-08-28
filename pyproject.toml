@@ -27,7 +27,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
-    "Development Status :: 4 - Beta"
+    "Development Status :: 5 - Production/Stable"
 ]
 keywords = ["entropy", "macromolecular systems", "MD simulation"]
 requires-python = ">=3.11"
