@@ -7,23 +7,28 @@ build-backend = "flit_core.buildapi"
 # See https://www.python.org/dev/peps/pep-0621/
 name = "CodeEntropy"
 dynamic = ["version"]
-description = "CodeEntropy tool with POSEIDON code integrated to form a complete and generally applicable set of tools for computing entropy of macromolecular systems from the forces sampled in a MD simulation."
+description = "CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics."
 authors = [
     {name = "Arghya 'Argo' Chakravorty", email = "arghyac@umich.edu"},
-    {name = "Jas Kalayan", email = "jas.kalayan@stfc.ac.uk"},
     {name = "Donald Chung-HK", email = "donald.chung@stfc.ac.uk"},
     {name = "Sarah Fegan", email = "sarah.fegan@stfc.ac.uk"},
-    {name = "Ioana Papa", email = "iapapa1@SHEFFIELD.AC.UK"},
-    {name = "Harry Swift", email = "harry.swift@stfc.ac.uk"}
+    {name = "James Gebbie-Rayet", email = "james.gebbie@stfc.ac.uk"},
+    {name = "Sarah Harris", email="sarah.harris@sheffield.ac.uk"},
+    {name = "Richard Henchman", email="rhen7213@uni.sydney.edu.au"},
+    {name = "Jonathan Higham", email="j.higham4@lancaster.ac.uk"},
+    {name = "Jas Kalayan", email = "jas.kalayan@stfc.ac.uk"},
+    {name = "Ioana Papa", email = "iapapa1@sheffield.ac.uk"},
 ]
 maintainers = [
-    {name = "Sarah Fegan", email = "sarah.fegan@stfc.ac.uk"},
     {name = "Harry Swift", email = "harry.swift@stfc.ac.uk"}
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
     "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
@@ -45,7 +50,9 @@ dependencies = [
 ]
 
 [project.urls]
-Source = "https://github.com/CCPBioSim/CodeEntropy"
+Homepage = "https://ccpbiosim.github.io/CodeEntropy/"
+Repository = "https://github.com/CCPBioSim/CodeEntropy"
+Documentation = "https://codeentropy.readthedocs.io"
 
 [project.optional-dependencies]
 testing = [
