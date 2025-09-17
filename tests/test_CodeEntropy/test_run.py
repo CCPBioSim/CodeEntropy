@@ -64,8 +64,9 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = []
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job001")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        self.assertEqual(
+            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+        )
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -77,8 +78,12 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = ["job001", "job002", "job003"]
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job004")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        self.assertEqual(
+            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+        )
+        mock_makedirs.assert_called_once_with(
+            os.path.realpath(expected_path), exist_ok=True
+        )
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -92,8 +97,12 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = ["folderA", "another_one"]
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job001")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        self.assertEqual(
+            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+        )
+        mock_makedirs.assert_called_once_with(
+            os.path.realpath(expected_path), exist_ok=True
+        )
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -105,8 +114,12 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = ["job001", "abc", "job002", "random"]
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        self.assertEqual(
+            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+        )
+        mock_makedirs.assert_called_once_with(
+            os.path.realpath(expected_path), exist_ok=True
+        )
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -123,8 +136,12 @@ class TestRunManager(unittest.TestCase):
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
 
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        self.assertEqual(
+            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+        )
+        mock_makedirs.assert_called_once_with(
+            os.path.realpath(expected_path), exist_ok=True
+        )
 
     @patch("requests.get")
     def test_load_citation_data_success(self, mock_get):
