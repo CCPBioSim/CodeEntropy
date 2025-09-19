@@ -1,38 +1,18 @@
-import os
-import shutil
-import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 
 from CodeEntropy.levels import LevelManager
-from CodeEntropy.main import main
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestLevels(unittest.TestCase):
+class TestLevels(BaseTestCase):
     """
-    Unit tests for the functionality of Levels.
+    Unit tests for Levels.
     """
 
     def setUp(self):
-        """
-        Set up test environment.
-        """
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
-        self.code_entropy = main
-
-        # Change to test directory
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        """
-        Clean up after each test.
-        """
-        os.chdir(self._orig_dir)
-        if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        super().setUp()
 
     def test_select_levels(self):
         """

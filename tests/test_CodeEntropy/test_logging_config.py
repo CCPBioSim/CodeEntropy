@@ -1,25 +1,24 @@
 import logging
 import os
-import tempfile
 import unittest
 from unittest.mock import MagicMock
 
 from CodeEntropy.config.logging_config import LoggingConfig
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestLoggingConfig(unittest.TestCase):
+class TestLoggingConfig(BaseTestCase):
+    """
+    Unit tests for LoggingConfig.
+    """
 
     def setUp(self):
-        # Use a temporary directory for logs
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.log_dir = os.path.join(self.temp_dir.name, "logs")
-        self.logging_config = LoggingConfig(folder=self.temp_dir.name)
+        super().setUp()
+        self.log_dir = self.logs_path
+        self.logging_config = LoggingConfig(folder=self.test_dir)
 
         self.mock_text = "Test console output"
         self.logging_config.console.export_text = MagicMock(return_value=self.mock_text)
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
 
     def test_log_directory_created(self):
         """Check if the log directory is created upon init"""
