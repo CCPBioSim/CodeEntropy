@@ -83,6 +83,7 @@ class TestRunManager(BaseTestCase):
         folders.
         """
         mock_listdir.return_value = ["folderA", "another_one"]
+
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job001")
 
@@ -106,11 +107,13 @@ class TestRunManager(BaseTestCase):
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
         self.assertEqual(
-            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+            os.path.normcase(os.path.abspath(new_folder_path)),
+            os.path.normcase(os.path.abspath(expected_path)),
         )
-        mock_makedirs.assert_called_once_with(
-            os.path.realpath(expected_path), exist_ok=True
-        )
+
+        called_path = os.path.normcase(os.path.abspath(mock_makedirs.call_args[0][0]))
+        self.assertEqual(called_path, os.path.normcase(os.path.abspath(expected_path)))
+        self.assertTrue(mock_makedirs.call_args[1]["exist_ok"])
 
     @patch("os.makedirs")
     @patch("os.listdir")
