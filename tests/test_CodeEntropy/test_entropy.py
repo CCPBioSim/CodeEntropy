@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import shutil
@@ -31,6 +32,10 @@ class TestEntropyManager(BaseTestCase):
     def setUp(self):
         super().setUp()
         self.test_data_dir = os.path.dirname(data.__file__)
+
+        # Disable MDAnalysis and commands file logging entirely
+        logging.getLogger("MDAnalysis").handlers = [logging.NullHandler()]
+        logging.getLogger("commands").handlers = [logging.NullHandler()]
 
     def test_execute_full_workflow(self):
         # Setup universe and args

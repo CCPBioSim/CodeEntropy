@@ -102,6 +102,8 @@ class TestMain(BaseTestCase):
         result = subprocess.run(
             [
                 sys.executable,
+                "-X",
+                "utf8",
                 "-m",
                 "CodeEntropy.main",
                 "--top_traj_file",
@@ -110,7 +112,7 @@ class TestMain(BaseTestCase):
             ],
             cwd=self.test_dir,
             capture_output=True,
-            text=True,
+            encoding="utf-8",
         )
 
         self.assertEqual(result.returncode, 0)

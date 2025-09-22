@@ -67,7 +67,7 @@ class TestLoggingConfig(BaseTestCase):
     def test_mdanalysis_and_command_loggers_exist(self):
         """Ensure specialized loggers are set up with correct configuration"""
         log_level = logging.DEBUG
-        self.logging_config = LoggingConfig(folder=self.temp_dir.name, level=log_level)
+        self.logging_config = LoggingConfig(folder=self.test_dir, level=log_level)
         self.logging_config.setup_logging()
 
         mda_logger = logging.getLogger("MDAnalysis")
@@ -86,7 +86,7 @@ class TestLoggingConfig(BaseTestCase):
         filename = "test_log.txt"
         self.logging_config.save_console_log(filename)
 
-        output_path = os.path.join(self.temp_dir.name, "logs", filename)
+        output_path = os.path.join(self.test_dir, "logs", filename)
         # Check file exists
         self.assertTrue(os.path.exists(output_path))
 
