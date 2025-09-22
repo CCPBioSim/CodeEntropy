@@ -1,7 +1,4 @@
 import json
-import os
-import shutil
-import tempfile
 import unittest
 
 import numpy as np
@@ -10,37 +7,19 @@ import pandas as pd
 from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.main import main
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestDataLogger(unittest.TestCase):
+class TestDataLogger(BaseTestCase):
     """
-    Unit tests for the DataLogger class. These tests verify the
-    correct behavior of data logging, JSON export, and table
-    logging functionalities.
+    Unit tests for the DataLogger class.
     """
 
     def setUp(self):
-        """
-        Set up a temporary test environment before each test.
-        Creates a temporary directory and initializes a DataLogger instance.
-        """
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        super().setUp()
         self.code_entropy = main
-
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
         self.logger = DataLogger()
         self.output_file = "test_output.json"
-
-    def tearDown(self):
-        """
-        Clean up the test environment after each test.
-        Removes the temporary directory and restores the original working directory.
-        """
-        os.chdir(self._orig_dir)
-        if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
 
     def test_init(self):
         """

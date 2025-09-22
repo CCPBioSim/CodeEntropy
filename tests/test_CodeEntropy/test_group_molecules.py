@@ -1,36 +1,20 @@
-import os
-import shutil
-import tempfile
 import unittest
 from unittest.mock import MagicMock
 
 import numpy as np
 
 from CodeEntropy.group_molecules import GroupMolecules
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestMain(unittest.TestCase):
+class TestGroupMolecules(BaseTestCase):
     """
-    Unit tests for the functionality of GroupMolecules class.
+    Unit tests for GroupMolecules.
     """
 
     def setUp(self):
-        """
-        Set up a temporary directory as the working directory before each test.
-        Initialize GroupMolecules instance.
-        """
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
+        super().setUp()
         self.group_molecules = GroupMolecules()
-
-    def tearDown(self):
-        """
-        Clean up by removing the temporary directory and restoring the original working
-        directory.
-        """
-        os.chdir(self._orig_dir)
-        shutil.rmtree(self.test_dir)
 
     def test_by_none_returns_individual_groups(self):
         """

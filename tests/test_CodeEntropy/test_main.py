@@ -2,33 +2,21 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
 from CodeEntropy.main import main
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestMain(unittest.TestCase):
+class TestMain(BaseTestCase):
     """
     Unit tests for the main functionality of CodeEntropy.
     """
 
     def setUp(self):
-        """
-        Set up a temporary directory as the working directory before each test.
-        """
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        """
-        Clean up by removing the temporary directory and restoring the original working
-        directory.
-        """
-        os.chdir(self._orig_dir)
-        shutil.rmtree(self.test_dir)
+        super().setUp()
+        self.code_entropy = main
 
     @patch("CodeEntropy.main.sys.exit")
     @patch("CodeEntropy.main.RunManager")
@@ -41,7 +29,7 @@ class TestMain(unittest.TestCase):
         mock_RunManager.return_value = mock_run_manager_instance
 
         # Simulate that RunManager.create_job_folder returns a folder
-        mock_RunManager.create_job_folder.return_value = "dummy_folder"
+        mock_RunManager.create_job_folder.return_value = "mock_folder/job001"
 
         # Simulate the successful completion of the run_entropy_workflow method
         mock_run_manager_instance.run_entropy_workflow.return_value = None
@@ -71,7 +59,7 @@ class TestMain(unittest.TestCase):
         mock_RunManager.return_value = mock_run_manager_instance
 
         # Simulate that RunManager.create_job_folder returns a folder
-        mock_RunManager.create_job_folder.return_value = "dummy_folder"
+        mock_RunManager.create_job_folder.return_value = "mock_folder/job001"
 
         # Simulate an exception in the run_entropy_workflow method
         mock_run_manager_instance.run_entropy_workflow.side_effect = Exception(
@@ -114,6 +102,8 @@ class TestMain(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
+                "-X",
+                "utf8",
                 "-m",
                 "CodeEntropy.main",
                 "--top_traj_file",
@@ -122,7 +112,7 @@ class TestMain(unittest.TestCase):
             ],
             cwd=self.test_dir,
             capture_output=True,
-            text=True,
+            encoding="utf-8",
         )
 
         self.assertEqual(result.returncode, 0)

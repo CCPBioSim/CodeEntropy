@@ -1,27 +1,24 @@
 import argparse
 import logging
 import os
-import shutil
-import tempfile
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
 import tests.data as data
 from CodeEntropy.config.arg_config_manager import ConfigManager
 from CodeEntropy.main import main
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class test_arg_config_manager(unittest.TestCase):
+class TestArgConfigManager(BaseTestCase):
     """
     Unit tests for the ConfigManager.
     """
 
     def setUp(self):
-        """
-        Setup test data and output directories.
-        """
+        super().setUp()
+
         self.test_data_dir = os.path.dirname(data.__file__)
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
         self.config_file = os.path.join(self.test_dir, "config.yaml")
 
         # Create a mock config file
@@ -29,18 +26,6 @@ class test_arg_config_manager(unittest.TestCase):
             self.setup_file(mock_file)
             with open(self.config_file, "w") as f:
                 f.write(mock_file.return_value.read())
-
-        # Change to test directory
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        """
-        Clean up after each test.
-        """
-        os.chdir(self._orig_dir)
-        if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
 
     def list_data_files(self):
         """

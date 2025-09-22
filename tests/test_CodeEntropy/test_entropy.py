@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import shutil
@@ -20,32 +21,21 @@ from CodeEntropy.entropy import (
 from CodeEntropy.levels import LevelManager
 from CodeEntropy.main import main
 from CodeEntropy.run import ConfigManager, RunManager
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestEntropyManager(unittest.TestCase):
+class TestEntropyManager(BaseTestCase):
     """
-    Unit tests for the functionality of EntropyManager.
+    Unit tests for EntropyManager.
     """
 
     def setUp(self):
-        """
-        Set up test environment.
-        """
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        super().setUp()
         self.test_data_dir = os.path.dirname(data.__file__)
-        self.code_entropy = main
 
-        # Change to test directory
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        """
-        Clean up after each test.
-        """
-        os.chdir(self._orig_dir)
-        if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        # Disable MDAnalysis and commands file logging entirely
+        logging.getLogger("MDAnalysis").handlers = [logging.NullHandler()]
+        logging.getLogger("commands").handlers = [logging.NullHandler()]
 
     def test_execute_full_workflow(self):
         # Setup universe and args
@@ -56,7 +46,7 @@ class TestEntropyManager(unittest.TestCase):
         args = MagicMock(
             bin_width=0.1, temperature=300, selection_string="all", water_entropy=False
         )
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -153,7 +143,7 @@ class TestEntropyManager(unittest.TestCase):
         args = MagicMock(
             bin_width=0.1, temperature=300, selection_string="all", water_entropy=True
         )
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -279,7 +269,7 @@ class TestEntropyManager(unittest.TestCase):
         args = MagicMock(
             bin_width=0.1, temperature=300, selection_string="all", water_entropy=False
         )
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -486,7 +476,7 @@ class TestEntropyManager(unittest.TestCase):
         u = mda.Universe(tprfile, trrfile)
 
         config_manager = ConfigManager()
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
 
         parser = config_manager.setup_argparse()
         args = parser.parse_args()
@@ -524,7 +514,7 @@ class TestEntropyManager(unittest.TestCase):
 
         # Setup managers
         config_manager = ConfigManager()
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
 
         parser = config_manager.setup_argparse()
         args = parser.parse_args()
@@ -639,7 +629,7 @@ class TestEntropyManager(unittest.TestCase):
 
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -751,7 +741,7 @@ class TestEntropyManager(unittest.TestCase):
 
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -1086,7 +1076,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         args.temperature = 300
         args.selection_string = "all"
 
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -1111,7 +1101,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         lambdas = [0]
         temp = 298
 
-        run_manager = RunManager("mock_folder")
+        run_manager = RunManager("mock_folder/job001")
 
         ve = VibrationalEntropy(
             run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
@@ -1131,7 +1121,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         temp = 298
 
         # Create a mock RunManager and set return value for get_KT2J
-        run_manager = RunManager("mock_folder")
+        run_manager = RunManager("mock_folder/job001")
 
         # Instantiate VibrationalEntropy with mocks
         ve = VibrationalEntropy(
@@ -1273,7 +1263,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         temp = 298
         highest_level = "yes"
 
-        run_manager = RunManager("mock_folder")
+        run_manager = RunManager("mock_folder/job001")
         ve = VibrationalEntropy(
             run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
         )
@@ -1303,7 +1293,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         temp = 298
         highest_level = "yes"
 
-        run_manager = RunManager("mock_folder")
+        run_manager = RunManager("mock_folder/job001")
         ve = VibrationalEntropy(
             run_manager, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
         )
@@ -1561,7 +1551,7 @@ class TestConformationalEntropy(unittest.TestCase):
         args.temperature = 300
         args.selection_string = "all"
 
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -1603,7 +1593,7 @@ class TestConformationalEntropy(unittest.TestCase):
 
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -1635,7 +1625,7 @@ class TestConformationalEntropy(unittest.TestCase):
 
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -1697,7 +1687,7 @@ class TestOrientationalEntropy(unittest.TestCase):
         args.temperature = 300
         args.selection_string = "all"
 
-        run_manager = RunManager("temp_folder")
+        run_manager = RunManager("mock_folder/job001")
         level_manager = LevelManager()
         data_logger = DataLogger()
         group_molecules = MagicMock()

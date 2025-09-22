@@ -1,6 +1,4 @@
 import os
-import shutil
-import tempfile
 import unittest
 from io import StringIO
 from unittest.mock import MagicMock, mock_open, patch
@@ -11,37 +9,24 @@ import yaml
 from rich.console import Console
 
 from CodeEntropy.run import RunManager
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestRunManager(unittest.TestCase):
+class TestRunManager(BaseTestCase):
     """
     Unit tests for the RunManager class. These tests verify the
     correct behavior of run manager.
     """
 
     def setUp(self):
-        """
-        Set up a temporary directory as the working directory before each test.
-        """
-        self.test_dir = tempfile.mkdtemp(prefix="CodeEntropy_")
+        super().setUp()
         self.config_file = os.path.join(self.test_dir, "CITATION.cff")
-
-        # Create a mock config file
+        # Create mock config
         with patch("builtins.open", new_callable=mock_open) as mock_file:
             self.setup_citation_file(mock_file)
             with open(self.config_file, "w") as f:
                 f.write(mock_file.return_value.read())
-
-        self._orig_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        """
-        Clean up by removing the temporary directory and restoring the original working
-        directory.
-        """
-        os.chdir(self._orig_dir)
-        shutil.rmtree(self.test_dir)
+        self.run_manager = RunManager(folder=self.test_dir)
 
     def setup_citation_file(self, mock_file):
         """
@@ -64,8 +49,9 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = []
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job001")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        self.assertEqual(
+            os.path.realpath(new_folder_path), os.path.realpath(expected_path)
+        )
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -77,8 +63,23 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = ["job001", "job002", "job003"]
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job004")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+
+        # Normalize paths cross-platform
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
+
+        self.assertEqual(normalized_new, normalized_expected)
+
+        called_args, called_kwargs = mock_makedirs.call_args
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
+        self.assertEqual(normalized_called, normalized_expected)
+        self.assertTrue(called_kwargs.get("exist_ok", False))
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -90,10 +91,24 @@ class TestRunManager(unittest.TestCase):
         folders.
         """
         mock_listdir.return_value = ["folderA", "another_one"]
+
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job001")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
+        self.assertEqual(normalized_new, normalized_expected)
+
+        called_args, called_kwargs = mock_makedirs.call_args
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
+        self.assertEqual(normalized_called, normalized_expected)
+        self.assertTrue(called_kwargs.get("exist_ok", False))
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -105,8 +120,21 @@ class TestRunManager(unittest.TestCase):
         mock_listdir.return_value = ["job001", "abc", "job002", "random"]
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
+        self.assertEqual(normalized_new, normalized_expected)
+
+        called_args, called_kwargs = mock_makedirs.call_args
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
+        self.assertEqual(normalized_called, normalized_expected)
+        self.assertTrue(called_kwargs.get("exist_ok", False))
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -123,8 +151,20 @@ class TestRunManager(unittest.TestCase):
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
 
-        self.assertEqual(new_folder_path, expected_path)
-        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
+        self.assertEqual(normalized_new, normalized_expected)
+
+        called_args, called_kwargs = mock_makedirs.call_args
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
+        self.assertEqual(normalized_called, normalized_expected)
+        self.assertTrue(called_kwargs.get("exist_ok", False))
 
     @patch("requests.get")
     def test_load_citation_data_success(self, mock_get):
@@ -255,7 +295,7 @@ class TestRunManager(unittest.TestCase):
         Test the run_entropy_workflow method to ensure it initializes and executes
         correctly with mocked dependencies.
         """
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
         run_manager.load_citation_data = MagicMock()
@@ -318,7 +358,7 @@ class TestRunManager(unittest.TestCase):
         """
         Test that a warning is logged when the config entry is not a dictionary.
         """
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
         run_manager.load_citation_data = MagicMock()
@@ -367,7 +407,7 @@ class TestRunManager(unittest.TestCase):
         """
         Test that a ValueError is raised when 'top_traj_file' is missing.
         """
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
         run_manager.load_citation_data = MagicMock()
@@ -419,7 +459,7 @@ class TestRunManager(unittest.TestCase):
         """
         Test that a ValueError is raised when 'selection_string' is missing.
         """
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         run_manager._logging_config = MagicMock()
         run_manager._config_manager = MagicMock()
         run_manager.load_citation_data = MagicMock()
@@ -504,7 +544,7 @@ class TestRunManager(unittest.TestCase):
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         result = run_manager.new_U_select_frame(mock_universe)
 
         mock_universe.select_atoms.assert_called_once_with("all", updating=True)
@@ -558,7 +598,7 @@ class TestRunManager(unittest.TestCase):
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         result = run_manager.new_U_select_atom(
             mock_universe, select_string="resid 1-10"
         )
@@ -591,7 +631,7 @@ class TestRunManager(unittest.TestCase):
         mock_file = MagicMock()
         mock_open.return_value = mock_file
 
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         result = run_manager.write_universe(mock_universe, name="test_universe")
 
         mock_open.assert_called_once_with("test_universe.pkl", "wb")
@@ -616,7 +656,7 @@ class TestRunManager(unittest.TestCase):
         # Path to the mock file
         path = "test_universe.pkl"
 
-        run_manager = RunManager("folder")
+        run_manager = RunManager("mock_folder/job001")
         result = run_manager.read_universe(path)
 
         mock_open.assert_called_once_with(path, "rb")

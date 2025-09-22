@@ -1,25 +1,24 @@
 import logging
 import os
-import tempfile
 import unittest
 from unittest.mock import MagicMock
 
 from CodeEntropy.config.logging_config import LoggingConfig
+from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
-class TestLoggingConfig(unittest.TestCase):
+class TestLoggingConfig(BaseTestCase):
+    """
+    Unit tests for LoggingConfig.
+    """
 
     def setUp(self):
-        # Use a temporary directory for logs
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.log_dir = os.path.join(self.temp_dir.name, "logs")
-        self.logging_config = LoggingConfig(folder=self.temp_dir.name)
+        super().setUp()
+        self.log_dir = self.logs_path
+        self.logging_config = LoggingConfig(folder=self.test_dir)
 
         self.mock_text = "Test console output"
         self.logging_config.console.export_text = MagicMock(return_value=self.mock_text)
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
 
     def test_log_directory_created(self):
         """Check if the log directory is created upon init"""
@@ -68,7 +67,7 @@ class TestLoggingConfig(unittest.TestCase):
     def test_mdanalysis_and_command_loggers_exist(self):
         """Ensure specialized loggers are set up with correct configuration"""
         log_level = logging.DEBUG
-        self.logging_config = LoggingConfig(folder=self.temp_dir.name, level=log_level)
+        self.logging_config = LoggingConfig(folder=self.test_dir, level=log_level)
         self.logging_config.setup_logging()
 
         mda_logger = logging.getLogger("MDAnalysis")
@@ -87,7 +86,7 @@ class TestLoggingConfig(unittest.TestCase):
         filename = "test_log.txt"
         self.logging_config.save_console_log(filename)
 
-        output_path = os.path.join(self.temp_dir.name, "logs", filename)
+        output_path = os.path.join(self.test_dir, "logs", filename)
         # Check file exists
         self.assertTrue(os.path.exists(output_path))
 

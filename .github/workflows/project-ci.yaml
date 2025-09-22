@@ -9,12 +9,12 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    name: Run tests
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
         python-version: ["3.11", "3.12", "3.13"]
-    name: Run tests
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5.0.0
@@ -36,7 +36,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   docs:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5.0.0

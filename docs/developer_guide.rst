@@ -19,7 +19,7 @@ Clone the repository::
 
 Install development dependencies::
 
-    pip install -e .[testing,docs,pre-commit]
+    pip install -e ".[testing,docs,pre-commit]"
 
 Running Tests
 -------------
