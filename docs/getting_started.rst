@@ -57,9 +57,6 @@ The program assumes the following default unit
 
 Quick start guide
 --------------------
-.. Warning::
-
-    CodeEntropy has not been tested on Windows
 
 A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropy``
 
