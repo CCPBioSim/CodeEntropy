@@ -64,12 +64,20 @@ class TestRunManager(BaseTestCase):
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job004")
 
-        normalized_new = os.path.normcase(os.path.normpath(new_folder_path))
-        normalized_expected = os.path.normcase(os.path.normpath(expected_path))
+        # Normalize paths cross-platform
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
+
         self.assertEqual(normalized_new, normalized_expected)
 
         called_args, called_kwargs = mock_makedirs.call_args
-        normalized_called = os.path.normcase(os.path.normpath(called_args[0]))
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
         self.assertEqual(normalized_called, normalized_expected)
         self.assertTrue(called_kwargs.get("exist_ok", False))
 
@@ -87,12 +95,18 @@ class TestRunManager(BaseTestCase):
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job001")
 
-        normalized_new = os.path.normcase(os.path.normpath(new_folder_path))
-        normalized_expected = os.path.normcase(os.path.normpath(expected_path))
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
         self.assertEqual(normalized_new, normalized_expected)
 
         called_args, called_kwargs = mock_makedirs.call_args
-        normalized_called = os.path.normcase(os.path.normpath(called_args[0]))
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
         self.assertEqual(normalized_called, normalized_expected)
         self.assertTrue(called_kwargs.get("exist_ok", False))
 
@@ -106,14 +120,21 @@ class TestRunManager(BaseTestCase):
         mock_listdir.return_value = ["job001", "abc", "job002", "random"]
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
-        self.assertEqual(
-            os.path.normcase(os.path.abspath(new_folder_path)),
-            os.path.normcase(os.path.abspath(expected_path)),
-        )
 
-        called_path = os.path.normcase(os.path.abspath(mock_makedirs.call_args[0][0]))
-        self.assertEqual(called_path, os.path.normcase(os.path.abspath(expected_path)))
-        self.assertTrue(mock_makedirs.call_args[1]["exist_ok"])
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
+        self.assertEqual(normalized_new, normalized_expected)
+
+        called_args, called_kwargs = mock_makedirs.call_args
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
+        self.assertEqual(normalized_called, normalized_expected)
+        self.assertTrue(called_kwargs.get("exist_ok", False))
 
     @patch("os.makedirs")
     @patch("os.listdir")
@@ -130,12 +151,18 @@ class TestRunManager(BaseTestCase):
         new_folder_path = RunManager.create_job_folder()
         expected_path = os.path.join(self.test_dir, "job003")
 
-        normalized_new = os.path.normcase(os.path.normpath(new_folder_path))
-        normalized_expected = os.path.normcase(os.path.normpath(expected_path))
+        normalized_new = os.path.normcase(
+            os.path.realpath(os.path.normpath(new_folder_path))
+        )
+        normalized_expected = os.path.normcase(
+            os.path.realpath(os.path.normpath(expected_path))
+        )
         self.assertEqual(normalized_new, normalized_expected)
 
         called_args, called_kwargs = mock_makedirs.call_args
-        normalized_called = os.path.normcase(os.path.normpath(called_args[0]))
+        normalized_called = os.path.normcase(
+            os.path.realpath(os.path.normpath(called_args[0]))
+        )
         self.assertEqual(normalized_called, normalized_expected)
         self.assertTrue(called_kwargs.get("exist_ok", False))
 
