@@ -130,6 +130,12 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - ``molecules``
      - ``str``
 
+Averaging
+^^^^^^^^^
+The code is able to average over molecules of the same type.
+The grouping arguement is used to control how the averaging is done.
+The default is "molecules" which defines molecules by the number and names of the atoms and groups molecules that are the same.
+You can also use "each" which makes each molecule its own group, effectively not averaging over molecules.
 
 Example #1
 ^^^^^^^^^^
