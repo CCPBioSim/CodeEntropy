@@ -777,6 +777,46 @@ class TestEntropyManager(BaseTestCase):
         results = [entry[3] for entry in df]
         self.assertIn(3.33, results)
 
+    def test_process_conformational_entropy_no_states_entry(self):
+        """
+        Tests that `_process_conformational_entropy` logs zero entropy when
+        the group_id is not present in the states dictionary.
+        """
+        # Setup minimal mock universe
+        u = MagicMock()
+
+        # Setup managers and arguments
+        args = MagicMock()
+        run_manager = MagicMock()
+        level_manager = MagicMock()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+        manager = EntropyManager(
+            run_manager, args, u, data_logger, level_manager, group_molecules
+        )
+
+        # States dict does NOT contain group_id=1
+        states = {0: np.ones((10, 3))}
+
+        # Mock entropy calculator
+        ce = MagicMock()
+
+        # Run method with group_id=1 (not in states)
+        manager._process_conformational_entropy(
+            group_id=1,
+            mol_container=MagicMock(),
+            ce=ce,
+            level="residue",
+            states=states,
+            number_frames=10,
+        )
+
+        # Assert entropy is zero
+        self.assertEqual(data_logger.molecule_data[0][3], 0)
+
+        # Assert calculator was not called
+        ce.conformational_entropy_calculation.assert_not_called()
+
     def test_compute_entropies_united_atom(self):
         """
         Test that _process_united_atom_entropy is called correctly for 'united_atom'

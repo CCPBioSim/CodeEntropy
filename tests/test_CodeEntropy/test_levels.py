@@ -1253,7 +1253,7 @@ class TestLevels(BaseTestCase):
             ce,
         )
 
-        assert states_ua[(0, 0)] == ["ua_state_1", ["ua_state_2"]]
+        assert states_ua[(0, 0)] == ["ua_state_1", "ua_state_2"]
 
         # Confirm compute_dihedral_conformations was called twice (once per molecule)
         assert level_manager.compute_dihedral_conformations.call_count == 2
@@ -1291,7 +1291,7 @@ class TestLevels(BaseTestCase):
 
         # Setup inputs with 2 molecules in same group
         groups = {0: [0, 1]}  # Both mol 0 and mol 1 are in group 0
-        levels = [["res"], ["res"]]
+        levels = [["residue"], ["residue"]]
         start, end, step = 0, 10, 1
         number_frames = 10
         bin_width = 0.1

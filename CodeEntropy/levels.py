@@ -205,6 +205,7 @@ class LevelManager:
         # if residue level, looking for dihedrals involving residues
         if level == "residue":
             num_residues = len(data_container.residues)
+            logger.debug(f"Number Residues: {num_residues}")
             if num_residues < 4:
                 logger.debug("no residue level dihedrals")
 
@@ -249,7 +250,7 @@ class LevelManager:
                     atom_group = atom1 + atom2 + atom3 + atom4
                     dihedrals.append(atom_group.dihedral)
 
-        logger.debug(f"Dihedrals: {dihedrals}")
+        logger.debug(f"Level: {level}, Dihedrals: {dihedrals}")
 
         return dihedrals
 
@@ -309,6 +310,7 @@ class LevelManager:
                 if state
             ]
 
+        logger.debug(f"level: {level}, states: {states}")
         return states
 
     def get_beads(self, data_container, level):
@@ -1138,11 +1140,11 @@ class LevelManager:
                                 )
 
                                 if key in states_ua:
-                                    states_ua[key].append(states)
+                                    states_ua[key].extend(states)
                                 else:
                                     states_ua[key] = states
 
-                        elif level == "res":
+                        elif level == "residue":
                             states = self.compute_dihedral_conformations(
                                 mol,
                                 level,
@@ -1157,7 +1159,7 @@ class LevelManager:
                             if states_res[group_id] is None:
                                 states_res[group_id] = states
                             else:
-                                states_res[group_id] += states
+                                states_res[group_id].extend(states)
 
                         progress.advance(task)
 
