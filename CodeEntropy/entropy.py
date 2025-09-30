@@ -475,7 +475,7 @@ class EntropyManager:
             # If there are no conformational states (i.e. no dihedrals)
             # then the conformational entropy is zero
             S_conf_res = (
-                ce.conformational_entropy_calculation(values, number_frames)
+                ce.conformational_entropy_calculation(values)
                 if contains_non_empty_states
                 else 0
             )
@@ -605,7 +605,7 @@ class EntropyManager:
         # If there are no conformational states (i.e. no dihedrals)
         # then the conformational entropy is zero
         S_conf = (
-            ce.conformational_entropy_calculation(group_states, number_frames)
+            ce.conformational_entropy_calculation(group_states)
             if contains_state_data
             else 0
         )
@@ -1037,7 +1037,7 @@ class ConformationalEntropy(EntropyManager):
 
         return conformations
 
-    def conformational_entropy_calculation(self, states, number_frames):
+    def conformational_entropy_calculation(self, states):
         """
         Function to calculate conformational entropies using eq. (7) in Higham,
         S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,
@@ -1048,7 +1048,6 @@ class ConformationalEntropy(EntropyManager):
 
         Args:
            states (array): Conformational states in the molecule
-           number_frames (int): The number of frames analysed
 
         Returns:
             S_conf_total (float) : conformational entropy
@@ -1060,11 +1059,12 @@ class ConformationalEntropy(EntropyManager):
         # to get the entropy
         # entropy = sum over states p*ln(p)
         values, counts = np.unique(states, return_counts=True)
+        total_count = len(states)
         for state in range(len(values)):
             logger.debug(f"Unique states: {values}")
             logger.debug(f"Counts: {counts}")
             count = counts[state]
-            probability = count / number_frames
+            probability = count / total_count
             entropy = probability * np.log(probability)
             S_conf_total += entropy
 
