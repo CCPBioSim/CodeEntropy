@@ -421,6 +421,28 @@ class TestLevels(BaseTestCase):
             data_container.select_atoms.call_count, 4
         )  # 1 for heavy_atoms + 3 beads
 
+    def test_get_beads_hydrogen_molecule(self):
+        """
+        Test `get_beads` for 'united_atom' level.
+        Should return one bead for molecule with no heavy atoms.
+        """
+        level_manager = LevelManager()
+
+        data_container = MagicMock()
+        heavy_atoms = []
+        data_container.select_atoms.side_effect = [
+            heavy_atoms,
+            "hydrogen",
+        ]
+
+        result = level_manager.get_beads(data_container, level="united_atom")
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result, ["hydrogen"])
+        self.assertEqual(
+            data_container.select_atoms.call_count, 2
+        )  # 1 for heavy_atoms + 1 beads
+
     def test_get_axes_united_atom_no_bonds(self):
         """
         Test `get_axes` for 'united_atom' level when no bonded atoms are found.
