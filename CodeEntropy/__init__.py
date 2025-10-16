@@ -1,9 +1,11 @@
 """
 CodeEntropy
 
-CodeEntropy tool with POSEIDON code integrated to form a complete and generally
-applicable set of tools for computing entropy of macromolecular systems from the
-forces sampled in a MD simulation.
+CodeEntropy is a Python package for computing the configurational entropy of
+macromolecular systems using forces sampled from molecular dynamics (MD) simulations.
+It implements the multiscale cell correlation method to provide accurate and efficient
+entropy estimates, supporting a wide range of applications in molecular simulation
+and statistical mechanics.
 """
 
 __version__ = "1.0.3"
