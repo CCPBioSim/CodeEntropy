@@ -250,6 +250,34 @@ class RunManager:
                 logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
                 u = mda.Universe(tprfile, trrfile)
 
+                # If forces are in separate file merge them with the
+                # coordinates from the trajectory file
+                forcefile = args.force_file[0]
+                if forcefile is not None:
+                    u_force = mda.Universe(tprfile, forcefile)
+                    select_atom = u.select_atoms("all")
+                    select_atom_force = u_force.select_atoms("all")
+
+                    coordinates = (
+                        AnalysisFromFunction(
+                            lambda ag: ag.positions.copy(), select_atom
+                        )
+                        .run()
+                        .results["timeseries"]
+                    )
+                    forces = (
+                        AnalysisFromFunction(
+                            lambda ag: ag.positions.copy(), select_atom_force
+                        )
+                        .run()
+                        .results["timeseries"]
+                    )
+
+                    new_universe = mda.Merge(select_atom)
+                    new_universe.load_new(coordinates, forces=forces)
+
+                    u = new_universe
+
                 self._config_manager.input_parameters_validation(u, args)
 
                 # Create LevelManager instance

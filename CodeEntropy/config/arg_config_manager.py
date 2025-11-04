@@ -12,7 +12,13 @@ arg_map = {
     "top_traj_file": {
         "type": str,
         "nargs": "+",
-        "help": "Path to Structure/topology file followed by Trajectory file(s)",
+        "help": "Path to structure/topology file followed by trajectory file",
+    },
+    "force_file": {
+        "type": str,
+        "nargs": "+",
+        "default": None,
+        "help": "Optional path to force file if forces are not in trajectory file",
     },
     "selection_string": {
         "type": str,
