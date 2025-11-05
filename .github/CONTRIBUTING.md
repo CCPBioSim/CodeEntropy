@@ -1,42 +1,65 @@
-# How to contribute
+# Contributing to CodeEntropy
 
-We welcome contributions from external contributors, and this document
-describes how to merge code changes into this CodeEntropy. 
+Thank you for your interest in contributing to **CodeEntropy**!
+
+We’re excited to collaborate with developers, researchers, and community members to make CodeEntropy better for everyone.
+
+This guide explains how to set up your environment, make changes, and submit them for review. Whether you’re fixing a bug, improving documentation, or adding new features, every contribution makes a difference.
+
+---
 
 ## Getting Started
 
-* Make sure you have a [GitHub account](https://github.com/signup/free).
-* [Fork](https://help.github.com/articles/fork-a-repo/) this repository on GitHub.
-* On your local machine,
-  [clone](https://help.github.com/articles/cloning-a-repository/) your fork of
-  the repository.
+Before contributing, please review the [Developer Guide](https://codeentropy.readthedocs.io/en/latest/developer_guide.html).  
+It covers CodeEntropy’s architecture, setup instructions, and contribution workflow.
 
-## Making Changes
+If you’re new to the project, we also recommend:
+- Reading the [README](../README.md) for an overview and installation details.
+- Checking open [issues](https://github.com/CCPBioSim/CodeEntropy/issues) labeled **good first issue** to find beginner-friendly tasks.
 
-* Add some really awesome code to your local fork.  It's usually a [good
-  idea](http://blog.jasonmeridth.com/posts/do-not-issue-pull-requests-from-your-master-branch/)
-  to make changes on a
-  [branch](https://help.github.com/articles/creating-and-deleting-branches-within-your-repository/)
-  with the branch name relating to the feature you are going to add.
-* When you are ready for others to examine and comment on your new feature,
-  navigate to your fork of CodeEntropy on GitHub and open a [pull
-  request](https://help.github.com/articles/using-pull-requests/) (PR). Note that
-  after you launch a PR from one of your fork's branches, all
-  subsequent commits to that branch will be added to the open pull request
-  automatically.  Each commit added to the PR will be validated for
-  mergability, compilation and test suite compliance; the results of these tests
-  will be visible on the PR page.
-* If you're providing a new feature, you must add test cases and documentation.
-* When the code is ready to go, make sure you run the test suite using pytest.
-* When you're ready to be considered for merging, check the "Ready to go"
-  box on the PR page to let the CodeEntropy devs know that the changes are complete.
-  The code will not be merged until this box is checked, the continuous
-  integration returns checkmarks,
-  and multiple core developers give "Approved" reviews.
+---
 
-# Additional Resources
+## Submitting a Pull Request (PR)
 
-* [General GitHub documentation](https://help.github.com/)
-* [PR best practices](http://codeinthehole.com/writing/pull-requests-and-other-good-practices-for-teams-using-github/)
-* [A guide to contributing to software packages](http://www.contribution-guide.org)
-* [Thinkful PR example](http://www.thinkful.com/learn/github-pull-request-tutorial/#Time-to-Submit-Your-First-PR)
+When you’re ready to submit your work:
+
+1. **Push your branch** to GitHub.  
+2. **Open a [pull request](https://help.github.com/articles/using-pull-requests/)** against the `main` branch.  
+3. **Fill out the PR template**, including:
+   - A concise summary of what your PR does  
+   - A list of all changes introduced  
+   - Details on how these changes affect the repository (features, tests, documentation, etc.)  
+4. **Verify before submission**:
+   - All tests pass  
+   - Pre-commit checks succeed  
+   - Documentation is updated where applicable  
+5. **Review process**:
+   - Your PR will be reviewed by the core development team.  
+   - At least **one approval** is required before merging.  
+
+We aim to provide constructive feedback quickly and appreciate your patience during the review process.
+
+---
+
+## Reporting Issues
+
+Found a bug or have a feature request?
+
+1. **Open a new issue** on GitHub.  
+2. Provide a **clear and descriptive title**.  
+3. Include:
+   - Steps to reproduce the issue (if applicable)  
+   - Expected vs. actual behavior  
+   - Relevant logs, screenshots, or input files  
+
+Well-documented issues help us address problems faster and keep CodeEntropy stable and robust.
+
+---
+
+## Additional Resources
+
+- [GitHub Docs](https://help.github.com/)
+
+---
+
+Thank you for helping improve **CodeEntropy**, your contributions make open source stronger!
