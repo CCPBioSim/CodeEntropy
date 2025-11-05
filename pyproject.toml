@@ -38,7 +38,7 @@ classifiers = [
 keywords = ["entropy", "macromolecular systems", "MD simulation"]
 requires-python = ">=3.11"
 dependencies = [
-    "numpy==2.2.3",
+    "numpy==2.3.0",
     "mdanalysis>=2.10.0",
     "pandas==2.3.3",
     "psutil==7.1.3",
