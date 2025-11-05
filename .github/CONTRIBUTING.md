@@ -1,42 +1,157 @@
-# How to contribute
 
-We welcome contributions from external contributors, and this document
-describes how to merge code changes into this CodeEntropy. 
+# Contributing to CodeEntropy
+
+We welcome contributions from the community to improve and extend CodeEntropy. This guide outlines how to get started, make changes, and submit them for review.
+
+---
 
 ## Getting Started
 
-* Make sure you have a [GitHub account](https://github.com/signup/free).
-* [Fork](https://help.github.com/articles/fork-a-repo/) this repository on GitHub.
-* On your local machine,
-  [clone](https://help.github.com/articles/cloning-a-repository/) your fork of
-  the repository.
+1. **Create a GitHub account**: [Sign up here](https://github.com/signup/free).
+2. **Fork the repository**: [How to fork](https://help.github.com/articles/fork-a-repo/).
+3. **Clone your fork locally**:
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/CodeEntropy.git
+    cd CodeEntropy
+    ```
+
+4. **Create a virtual environment**:
+    ```bash
+    python -m venv codeentropy-dev
+    source codeentropy-dev/bin/activate  # Linux/macOS
+    codeentropy-dev\Scripts\activate     # Windows
+    ```
+
+5. **Install development dependencies**:
+    ```bash
+    pip install -e ".[testing,docs,pre-commit]"
+    pre-commit install
+    ```
+
+---
 
 ## Making Changes
 
-* Add some really awesome code to your local fork.  It's usually a [good
-  idea](http://blog.jasonmeridth.com/posts/do-not-issue-pull-requests-from-your-master-branch/)
-  to make changes on a
-  [branch](https://help.github.com/articles/creating-and-deleting-branches-within-your-repository/)
-  with the branch name relating to the feature you are going to add.
-* When you are ready for others to examine and comment on your new feature,
-  navigate to your fork of CodeEntropy on GitHub and open a [pull
-  request](https://help.github.com/articles/using-pull-requests/) (PR). Note that
-  after you launch a PR from one of your fork's branches, all
-  subsequent commits to that branch will be added to the open pull request
-  automatically.  Each commit added to the PR will be validated for
-  mergability, compilation and test suite compliance; the results of these tests
-  will be visible on the PR page.
-* If you're providing a new feature, you must add test cases and documentation.
-* When the code is ready to go, make sure you run the test suite using pytest.
-* When you're ready to be considered for merging, check the "Ready to go"
-  box on the PR page to let the CodeEntropy devs know that the changes are complete.
-  The code will not be merged until this box is checked, the continuous
-  integration returns checkmarks,
-  and multiple core developers give "Approved" reviews.
+- **Use a feature branch**:
+  ```bash
+  git checkout -b 123-fix-levels
+  ```
+  You cannot commit directly to `main` as this is a protected branch.
 
-# Additional Resources
+- **Add your code**, documentation, and tests. All new features must include:
+  - Unit tests
+  - Documentation updates
+  - Compliance with coding standards
 
-* [General GitHub documentation](https://help.github.com/)
-* [PR best practices](http://codeinthehole.com/writing/pull-requests-and-other-good-practices-for-teams-using-github/)
-* [A guide to contributing to software packages](http://www.contribution-guide.org)
-* [Thinkful PR example](http://www.thinkful.com/learn/github-pull-request-tutorial/#Time-to-Submit-Your-First-PR)
+- **Run tests**:
+  ```bash
+  pytest -v
+  pytest --cov CodeEntropy --cov-report=term-missing
+  ```
+
+- **Run pre-commit checks**:
+  These ensure formatting, linting, and basic validations.
+  ```bash
+  pre-commit run --all-files
+  ```
+
+---
+
+## Submitting a Pull Request (PR)
+
+1. Push your branch to GitHub.
+2. Open a [pull request](https://help.github.com/articles/using-pull-requests/).
+3. Use the templated Pull Request template to fill out:
+   - A summary of what the PR is doing
+   - List all the changes that the PR is proposing
+   - Add how these changes will impact the repository
+4. Ensure:
+   - All tests pass
+   - Pre-commit checks pass
+   - Documentation is updated
+
+5. Your PR will be reviewed by core developers. At least one approval is required before merging.
+
+---
+
+## Running Tests
+
+- Full suite:
+  ```bash
+  pytest -v
+  ```
+- With coverage:
+  ```bash
+  pytest --cov CodeEntropy --cov-report=term-missing
+  ```
+- Specific module:
+  ```bash
+  pytest CodeEntropy/tests/test_CodeEntropy/test_levels.py
+  ```
+- Specific test:
+  ```bash
+  pytest CodeEntropy/tests/test_CodeEntropy/test_levels.py::test_select_levels
+  ```
+
+---
+
+## Coding Standards
+
+We use **pre-commit hooks** to enforce style and quality:
+
+- **Black** for formatting
+- **Isort** for import sorting
+- **Flake8** for linting
+- **Pre-commit-hooks** for:
+  - Large file detection
+  - AST validity
+  - Merge conflict detection
+  - YAML/TOML syntax checks
+
+---
+
+## Continuous Integration (CI)
+
+All PRs trigger GitHub Actions to:
+
+- Run tests
+- Check style
+- Build documentation
+- Validate versioning
+
+---
+
+## Building Documentation
+
+Build locally:
+```bash
+cd docs
+make html
+```
+
+View in browser:
+```
+docs/build/html/index.html
+```
+
+Edit docs in:
+- `docs/science.rst`
+- `docs/developer_guide.rst`
+
+---
+
+## Reporting Issues
+
+Found a bug or want a feature?
+
+1. Open an issue on GitHub.
+2. Include a clear description and input files if relevant.
+
+---
+
+## Additional Resources
+
+- [GitHub Docs](https://help.github.com/)
+- [PR Best Practices](http://codeinthehole.com/writing/pull-requests-and-other-good-practices-for-teams-using-github/)
+- [Contribution Guide](http://www.contribution-guide.org)
+- [Thinkful PR Tutorial](http://www.thinkful.com/learn/github-pull-request-tutorial/#Time-to-Submit-Your-First-PR)
