@@ -86,7 +86,7 @@ class EntropyManager:
         )
 
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-
+        logger.debug(f"Universe 3: {reduced_atom}")
         water_atoms = self._universe.select_atoms("water")
         water_resids = set(res.resid for res in water_atoms.residues)
 

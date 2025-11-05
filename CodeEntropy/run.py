@@ -247,14 +247,16 @@ class RunManager:
                 # Load MDAnalysis Universe
                 tprfile = args.top_traj_file[0]
                 trrfile = args.top_traj_file[1:]
+                fileformat = args.file_format
                 logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
-                u = mda.Universe(tprfile, trrfile)
+                u = mda.Universe(tprfile, trrfile, format=fileformat)
 
                 # If forces are in separate file merge them with the
                 # coordinates from the trajectory file
-                forcefile = args.force_file[0]
+                forcefile = args.force_file
                 if forcefile is not None:
-                    u_force = mda.Universe(tprfile, forcefile)
+                    logger.debug(f"Loading Universe with {forcefile}")
+                    u_force = mda.Universe(tprfile, forcefile, format=fileformat)
                     select_atom = u.select_atoms("all")
                     select_atom_force = u_force.select_atoms("all")
 
@@ -273,6 +275,7 @@ class RunManager:
                         .results["timeseries"]
                     )
 
+                    logger.debug("Merging forces with coordinates universe.")
                     new_universe = mda.Merge(select_atom)
                     new_universe.load_new(coordinates, forces=forces)
 
@@ -339,15 +342,8 @@ class RunManager:
             .run()
             .results["timeseries"][start:end:step]
         )
-        dimensions = (
-            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
-            .run()
-            .results["timeseries"][start:end:step]
-        )
         u2 = mda.Merge(select_atom)
-        u2.load_new(
-            coordinates, format=MemoryReader, forces=forces, dimensions=dimensions
-        )
+        u2.load_new(coordinates, format=MemoryReader, forces=forces)
         logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
         return u2
 
@@ -379,15 +375,8 @@ class RunManager:
             .run()
             .results["timeseries"]
         )
-        dimensions = (
-            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
-            .run()
-            .results["timeseries"]
-        )
         u2 = mda.Merge(select_atom)
-        u2.load_new(
-            coordinates, format=MemoryReader, forces=forces, dimensions=dimensions
-        )
+        u2.load_new(coordinates, format=MemoryReader, forces=forces)
         logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
         return u2
 

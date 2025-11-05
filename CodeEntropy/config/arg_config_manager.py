@@ -16,9 +16,13 @@ arg_map = {
     },
     "force_file": {
         "type": str,
-        "nargs": "+",
         "default": None,
         "help": "Optional path to force file if forces are not in trajectory file",
+    },
+    "file_format": {
+        "type": str,
+        "default": None,
+        "help": "String for file format as recognised by MDAnalysis",
     },
     "selection_string": {
         "type": str,

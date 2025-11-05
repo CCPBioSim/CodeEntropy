@@ -2,6 +2,8 @@
 
 run1:
   top_traj_file: ["1AKI_prod.tpr", "1AKI_prod.trr"]
+  force_file:
+  file_formate: 
   selection_string: 'all'
   start: 0
   end: 500
