@@ -46,7 +46,7 @@ dependencies = [
     "python-json-logger==4.0.0",
     "rich==14.2.0",
     "art==6.5",
-    "waterEntropy==1.2.0",
+    "waterEntropy==1.2.1",
     "requests>=2.32.5",
 ]
 
