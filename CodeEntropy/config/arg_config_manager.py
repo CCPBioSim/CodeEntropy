@@ -24,6 +24,11 @@ arg_map = {
         "default": None,
         "help": "String for file format as recognised by MDAnalysis",
     },
+    "kcal_force_units": {
+        "type": bool,
+        "default": False,
+        "help": "Set this to True if you have a separate force file with nonSI units.",
+    },
     "selection_string": {
         "type": str,
         "help": "Selection string for CodeEntropy",

@@ -275,6 +275,10 @@ class RunManager:
                         .results["timeseries"]
                     )
 
+                    if args.kcal_force_units:
+                        # Convert from kcal to kJ
+                        forces *= 4.184
+
                     logger.debug("Merging forces with coordinates universe.")
                     new_universe = mda.Merge(select_atom)
                     new_universe.load_new(coordinates, forces=forces)

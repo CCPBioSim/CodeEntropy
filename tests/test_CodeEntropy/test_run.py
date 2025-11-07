@@ -308,6 +308,8 @@ class TestRunManager(BaseTestCase):
         run_manager._config_manager.load_config.return_value = {
             "test_run": {
                 "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
+                "force_file": None,
+                "file_format": None,
                 "selection_string": "all",
                 "output_file": "output.json",
                 "verbose": True,
@@ -335,6 +337,8 @@ class TestRunManager(BaseTestCase):
         mock_args.output_file = "output.json"
         mock_args.verbose = True
         mock_args.top_traj_file = ["/path/to/tpr", "/path/to/trr"]
+        mock_args.force_file = None
+        mock_args.file_format = None
         mock_args.selection_string = "all"
         parser = run_manager._config_manager.setup_argparse.return_value
         parser.parse_known_args.return_value = (mock_args, [])
@@ -351,7 +355,9 @@ class TestRunManager(BaseTestCase):
 
             run_manager.run_entropy_workflow()
 
-            mock_universe.assert_called_once_with("/path/to/tpr", ["/path/to/trr"])
+            mock_universe.assert_called_once_with(
+                "/path/to/tpr", ["/path/to/trr"], format=None
+            )
             mock_entropy_manager.execute.assert_called_once()
 
     def test_run_configuration_warning(self):
@@ -522,7 +528,6 @@ class TestRunManager(BaseTestCase):
         # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
         coords = np.random.rand(10, 100, 3)
         forces = np.random.rand(10, 100, 3)
-        dims = np.random.rand(10, 3)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -530,14 +535,10 @@ class TestRunManager(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        mock_dims_analysis = MagicMock()
-        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
-
         # Set the side effects for the three AnalysisFromFunction calls
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
-            mock_dims_analysis,
         ]
 
         # Mock the merge operation
@@ -557,7 +558,6 @@ class TestRunManager(BaseTestCase):
         # Assert that the arrays are passed correctly
         np.testing.assert_array_equal(args[0], coords)
         np.testing.assert_array_equal(kwargs["forces"], forces)
-        np.testing.assert_array_equal(kwargs["dimensions"], dims)
 
         # Check if format was included in the kwargs
         self.assertIn("format", kwargs)
@@ -576,7 +576,6 @@ class TestRunManager(BaseTestCase):
         # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
         coords = np.random.rand(10, 100, 3)
         forces = np.random.rand(10, 100, 3)
-        dims = np.random.rand(10, 3)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -584,14 +583,10 @@ class TestRunManager(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        mock_dims_analysis = MagicMock()
-        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
-
         # Set the side effects for the three AnalysisFromFunction calls
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
-            mock_dims_analysis,
         ]
 
         # Mock the merge operation
@@ -613,7 +608,6 @@ class TestRunManager(BaseTestCase):
         # Assert that the arrays are passed correctly
         np.testing.assert_array_equal(args[0], coords)
         np.testing.assert_array_equal(kwargs["forces"], forces)
-        np.testing.assert_array_equal(kwargs["dimensions"], dims)
 
         # Check if format was included in the kwargs
         self.assertIn("format", kwargs)
