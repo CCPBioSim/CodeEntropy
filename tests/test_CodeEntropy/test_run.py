@@ -308,6 +308,8 @@ class TestRunManager(BaseTestCase):
         run_manager._config_manager.load_config.return_value = {
             "test_run": {
                 "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
+                "force_file": None,
+                "file_format": None,
                 "selection_string": "all",
                 "output_file": "output.json",
                 "verbose": True,
@@ -335,6 +337,8 @@ class TestRunManager(BaseTestCase):
         mock_args.output_file = "output.json"
         mock_args.verbose = True
         mock_args.top_traj_file = ["/path/to/tpr", "/path/to/trr"]
+        mock_args.force_file = None
+        mock_args.file_format = None
         mock_args.selection_string = "all"
         parser = run_manager._config_manager.setup_argparse.return_value
         parser.parse_known_args.return_value = (mock_args, [])
@@ -351,7 +355,9 @@ class TestRunManager(BaseTestCase):
 
             run_manager.run_entropy_workflow()
 
-            mock_universe.assert_called_once_with("/path/to/tpr", ["/path/to/trr"])
+            mock_universe.assert_called_once_with(
+                "/path/to/tpr", ["/path/to/trr"], format=None
+            )
             mock_entropy_manager.execute.assert_called_once()
 
     def test_run_configuration_warning(self):
@@ -507,6 +513,183 @@ class TestRunManager(BaseTestCase):
         with self.assertRaisesRegex(ValueError, "Missing 'selection_string' argument."):
             run_manager.run_entropy_workflow()
 
+    @patch("CodeEntropy.run.EntropyManager")
+    @patch("CodeEntropy.run.GroupMolecules")
+    @patch("CodeEntropy.run.LevelManager")
+    @patch("CodeEntropy.run.AnalysisFromFunction")
+    @patch("CodeEntropy.run.mda.Merge")
+    @patch("CodeEntropy.run.mda.Universe")
+    def test_merges_forcefile_correctly(
+        self, MockUniverse, MockMerge, MockAnalysis, *_mocks
+    ):
+        """
+        Ensure that coordinates and forces are merged correctly
+        when a force file is provided.
+        """
+        run_manager = RunManager("mock/job001")
+        mock_logger = MagicMock()
+        run_manager._logging_config = MagicMock(
+            setup_logging=MagicMock(return_value=mock_logger)
+        )
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.show_splash = MagicMock()
+
+        args = MagicMock(
+            top_traj_file=["topol.tpr", "traj.xtc"],
+            force_file="forces.xtc",
+            file_format="xtc",
+            selection_string="all",
+            verbose=False,
+            output_file="output.json",
+            kcal_force_units=False,
+        )
+        run_manager._config_manager.load_config.return_value = {"run1": {}}
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (args, [])
+        run_manager._config_manager.merge_configs.return_value = args
+        run_manager._config_manager.input_parameters_validation = MagicMock()
+
+        mock_u, mock_u_force = MagicMock(), MagicMock()
+        MockUniverse.side_effect = [mock_u, mock_u_force]
+        mock_atoms, mock_atoms_force = MagicMock(), MagicMock()
+        mock_u.select_atoms.return_value = mock_atoms
+        mock_u_force.select_atoms.return_value = mock_atoms_force
+
+        coords, forces = np.random.rand(2, 3, 3), np.random.rand(2, 3, 3)
+        MockAnalysis.side_effect = [
+            MagicMock(
+                run=MagicMock(return_value=MagicMock(results={"timeseries": coords}))
+            ),
+            MagicMock(
+                run=MagicMock(return_value=MagicMock(results={"timeseries": forces}))
+            ),
+        ]
+        mock_merge = MagicMock()
+        MockMerge.return_value = mock_merge
+
+        run_manager.run_entropy_workflow()
+
+        MockUniverse.assert_any_call("topol.tpr", ["traj.xtc"], format="xtc")
+        MockUniverse.assert_any_call("topol.tpr", "forces.xtc", format="xtc")
+        MockMerge.assert_called_once_with(mock_atoms)
+        mock_merge.load_new.assert_called_once_with(coords, forces=forces)
+        self.assertEqual(mock_logger.debug.call_count, 3)
+
+    @patch("CodeEntropy.run.EntropyManager")
+    @patch("CodeEntropy.run.GroupMolecules")
+    @patch("CodeEntropy.run.LevelManager")
+    @patch("CodeEntropy.run.AnalysisFromFunction")
+    @patch("CodeEntropy.run.mda.Merge")
+    @patch("CodeEntropy.run.mda.Universe")
+    def test_converts_kcal_to_kj(self, MockUniverse, MockMerge, MockAnalysis, *_mocks):
+        """
+        Ensure that forces are scaled by 4.184 when kcal_force_units=True.
+        """
+        run_manager = RunManager("mock/job001")
+        mock_logger = MagicMock()
+        run_manager._logging_config = MagicMock(
+            setup_logging=MagicMock(return_value=mock_logger)
+        )
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.show_splash = MagicMock()
+
+        args = MagicMock(
+            top_traj_file=["topol.tpr", "traj.xtc"],
+            force_file="forces.xtc",
+            file_format="xtc",
+            selection_string="all",
+            verbose=False,
+            output_file="output.json",
+            kcal_force_units=True,
+        )
+        run_manager._config_manager.load_config.return_value = {"run1": {}}
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (args, [])
+        run_manager._config_manager.merge_configs.return_value = args
+        run_manager._config_manager.input_parameters_validation = MagicMock()
+
+        mock_u, mock_u_force = MagicMock(), MagicMock()
+        MockUniverse.side_effect = [mock_u, mock_u_force]
+        mock_atoms, mock_atoms_force = MagicMock(), MagicMock()
+        mock_u.select_atoms.return_value = mock_atoms
+        mock_u_force.select_atoms.return_value = mock_atoms_force
+
+        coords = np.random.rand(2, 3, 3)
+        forces = np.random.rand(2, 3, 3)
+        forces_orig = forces.copy()
+        MockAnalysis.side_effect = [
+            MagicMock(
+                run=MagicMock(return_value=MagicMock(results={"timeseries": coords}))
+            ),
+            MagicMock(
+                run=MagicMock(return_value=MagicMock(results={"timeseries": forces}))
+            ),
+        ]
+        mock_merge = MagicMock()
+        MockMerge.return_value = mock_merge
+
+        run_manager.run_entropy_workflow()
+        _, kwargs = mock_merge.load_new.call_args
+        np.testing.assert_allclose(kwargs["forces"], forces_orig * 4.184)
+
+    @patch("CodeEntropy.run.EntropyManager")
+    @patch("CodeEntropy.run.GroupMolecules")
+    @patch("CodeEntropy.run.LevelManager")
+    @patch("CodeEntropy.run.AnalysisFromFunction")
+    @patch("CodeEntropy.run.mda.Merge")
+    @patch("CodeEntropy.run.mda.Universe")
+    def test_logs_debug_messages(self, MockUniverse, MockMerge, MockAnalysis, *_mocks):
+        """
+        Ensure that loading and merging steps produce debug logs.
+        """
+        run_manager = RunManager("mock/job001")
+        mock_logger = MagicMock()
+        run_manager._logging_config = MagicMock(
+            setup_logging=MagicMock(return_value=mock_logger)
+        )
+        run_manager._config_manager = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.show_splash = MagicMock()
+
+        args = MagicMock(
+            top_traj_file=["topol.tpr", "traj.xtc"],
+            force_file="forces.xtc",
+            file_format="xtc",
+            selection_string="all",
+            verbose=False,
+            output_file="output.json",
+            kcal_force_units=False,
+        )
+        run_manager._config_manager.load_config.return_value = {"run1": {}}
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (args, [])
+        run_manager._config_manager.merge_configs.return_value = args
+        run_manager._config_manager.input_parameters_validation = MagicMock()
+
+        mock_u, mock_u_force = MagicMock(), MagicMock()
+        MockUniverse.side_effect = [mock_u, mock_u_force]
+        mock_atoms, mock_atoms_force = MagicMock(), MagicMock()
+        mock_u.select_atoms.return_value = mock_atoms
+        mock_u_force.select_atoms.return_value = mock_atoms_force
+
+        arr = np.random.rand(2, 3, 3)
+        MockAnalysis.side_effect = [
+            MagicMock(
+                run=MagicMock(return_value=MagicMock(results={"timeseries": arr}))
+            ),
+            MagicMock(
+                run=MagicMock(return_value=MagicMock(results={"timeseries": arr}))
+            ),
+        ]
+        MockMerge.return_value = MagicMock()
+
+        run_manager.run_entropy_workflow()
+        debug_msgs = [c[0][0] for c in mock_logger.debug.call_args_list]
+        self.assertTrue(any("forces.xtc" in m for m in debug_msgs))
+        self.assertTrue(any("Merging forces" in m for m in debug_msgs))
+
     @patch("CodeEntropy.run.AnalysisFromFunction")
     @patch("CodeEntropy.run.mda.Merge")
     def test_new_U_select_frame(self, MockMerge, MockAnalysisFromFunction):
@@ -522,7 +705,6 @@ class TestRunManager(BaseTestCase):
         # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
         coords = np.random.rand(10, 100, 3)
         forces = np.random.rand(10, 100, 3)
-        dims = np.random.rand(10, 3)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -530,14 +712,10 @@ class TestRunManager(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        mock_dims_analysis = MagicMock()
-        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
-
         # Set the side effects for the three AnalysisFromFunction calls
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
-            mock_dims_analysis,
         ]
 
         # Mock the merge operation
@@ -557,7 +735,6 @@ class TestRunManager(BaseTestCase):
         # Assert that the arrays are passed correctly
         np.testing.assert_array_equal(args[0], coords)
         np.testing.assert_array_equal(kwargs["forces"], forces)
-        np.testing.assert_array_equal(kwargs["dimensions"], dims)
 
         # Check if format was included in the kwargs
         self.assertIn("format", kwargs)
@@ -576,7 +753,6 @@ class TestRunManager(BaseTestCase):
         # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
         coords = np.random.rand(10, 100, 3)
         forces = np.random.rand(10, 100, 3)
-        dims = np.random.rand(10, 3)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -584,14 +760,10 @@ class TestRunManager(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        mock_dims_analysis = MagicMock()
-        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
-
         # Set the side effects for the three AnalysisFromFunction calls
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
-            mock_dims_analysis,
         ]
 
         # Mock the merge operation
@@ -613,7 +785,6 @@ class TestRunManager(BaseTestCase):
         # Assert that the arrays are passed correctly
         np.testing.assert_array_equal(args[0], coords)
         np.testing.assert_array_equal(kwargs["forces"], forces)
-        np.testing.assert_array_equal(kwargs["dimensions"], dims)
 
         # Check if format was included in the kwargs
         self.assertIn("format", kwargs)

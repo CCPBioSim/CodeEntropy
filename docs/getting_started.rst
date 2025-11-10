@@ -81,10 +81,18 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - Description
      - Default
      - Type
-   * - ``--top_traj_file`` 
-     - Path to Structure/topology file followed by Trajectory file(s). Any MDAnalysis readable files should work  (for example ``GROMACS TPR and TRR`` or ``AMBER PRMTOP and NETCDF``). You will need to output the **coordinates** and **forces** to the **same file** . 
+   * - ``--top_traj_file``
+     - Path to Structure/topology file followed by Trajectory file. Any MDAnalysis readable files should work  (for example ``GROMACS TPR and TRR`` or ``AMBER PRMTOP and NETCDF``). 
      - Required, no default value
      - list of ``str`` 
+   * - ``--force_file``
+     - Path to a file with forces. This option should be used if the forces are not in the same file as the coordinates. It is expected that the force file has the same number of atoms and frames as the trajectory file. Any MDAnalysis readable files should work  (for example ``AMBER NETCDF`` or ``LAMMPS DCD``). 
+     - None
+     - ``str`` 
+   * - ``--file_format``
+     - Use to tell MDAnalysis the format if the trajectory or force file does not have the standard extension recognised by MDAnalysis.
+     - None
+     - ``str`` 
    * - ``--selection_string``
      - Selection string for CodeEntropy such as protein or resid, refer to ``MDAnalysis.select_atoms`` for more information.
      - ``"all"``: select all atom in trajectory
