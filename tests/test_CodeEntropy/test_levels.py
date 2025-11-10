@@ -1065,6 +1065,73 @@ class TestLevels(BaseTestCase):
             np.testing.assert_array_equal(torque_avg["ua"][key], t_mat_mock)
             self.assertEqual(frame_counts["ua"][key], 1)
 
+    def test_update_force_torque_matrices_united_atom_increment(self):
+        """
+        Test that `update_force_torque_matrices` correctly updates force and torque
+        matrices for the 'united_atom' level when the key already exists.
+        """
+        level_manager = LevelManager()
+        entropy_manager = MagicMock()
+        mol = MagicMock()
+
+        # Simulate one residue with two atoms
+        residue = MagicMock()
+        residue.atoms.indices = [0, 1]
+        mol.residues = [residue]
+        mol.trajectory.__getitem__.return_value = None
+
+        selected_atoms = MagicMock()
+        entropy_manager._run_manager.new_U_select_atom.return_value = selected_atoms
+        selected_atoms.trajectory.__getitem__.return_value = None
+
+        f_mat_1 = np.array([[1.0]], dtype=np.float64)
+        t_mat_1 = np.array([[2.0]], dtype=np.float64)
+        f_mat_2 = np.array([[3.0]], dtype=np.float64)
+        t_mat_2 = np.array([[4.0]], dtype=np.float64)
+
+        level_manager.get_matrices = MagicMock(return_value=(f_mat_1, t_mat_1))
+
+        force_avg = {"ua": {}, "res": [None], "poly": [None]}
+        torque_avg = {"ua": {}, "res": [None], "poly": [None]}
+        frame_counts = {"ua": {}, "res": [None], "poly": [None]}
+
+        # First call: initialize
+        level_manager.update_force_torque_matrices(
+            entropy_manager=entropy_manager,
+            mol=mol,
+            group_id=0,
+            level="united_atom",
+            level_list=["residue", "united_atom"],
+            time_index=0,
+            num_frames=10,
+            force_avg=force_avg,
+            torque_avg=torque_avg,
+            frame_counts=frame_counts,
+        )
+
+        # Second call: update
+        level_manager.get_matrices = MagicMock(return_value=(f_mat_2, t_mat_2))
+
+        level_manager.update_force_torque_matrices(
+            entropy_manager=entropy_manager,
+            mol=mol,
+            group_id=0,
+            level="united_atom",
+            level_list=["residue", "united_atom"],
+            time_index=1,
+            num_frames=10,
+            force_avg=force_avg,
+            torque_avg=torque_avg,
+            frame_counts=frame_counts,
+        )
+
+        expected_force = f_mat_1 + (f_mat_2 - f_mat_1) / 2
+        expected_torque = t_mat_1 + (t_mat_2 - t_mat_1) / 2
+
+        np.testing.assert_array_almost_equal(force_avg["ua"][(0, 0)], expected_force)
+        np.testing.assert_array_almost_equal(torque_avg["ua"][(0, 0)], expected_torque)
+        self.assertEqual(frame_counts["ua"][(0, 0)], 2)
+
     def test_update_force_torque_matrices_residue(self):
         """
         Test that `update_force_torque_matrices` correctly updates force and torque

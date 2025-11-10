@@ -115,7 +115,6 @@ class TestDataLogger(BaseTestCase):
 
     def test_log_tables_rich_output(self):
         console = LoggingConfig.get_console()
-        console.clear_live()
 
         self.logger.add_results_data(
             0, "united_atom", "Transvibrational", 653.4041220313459

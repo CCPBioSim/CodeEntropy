@@ -1657,6 +1657,51 @@ class TestConformationalEntropy(unittest.TestCase):
         assert np.all(result >= 0)
         assert np.issubdtype(result.dtype, np.floating)
 
+    def test_assign_conformation_last_bin_peak(self):
+        """
+        Test that the last bin in the histogram is correctly evaluated as a peak
+        when its population is greater than or equal to its neighbors.
+        """
+
+        dihedral = MagicMock()
+        dihedral.value = MagicMock(side_effect=[5, 10, 250, 260, 350, 355])
+
+        # Mock trajectory frames
+        mock_timesteps = [MagicMock(frame=i) for i in range(6)]
+        data_container = MagicMock()
+        data_container.trajectory.__getitem__.return_value = mock_timesteps
+
+        # Create dummy universe and managers
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        args = MagicMock(bin_width=60, temperature=300, selection_string="all")
+        run_manager = RunManager("mock_folder/job001")
+        level_manager = LevelManager()
+        data_logger = DataLogger()
+        group_molecules = MagicMock()
+
+        ce = ConformationalEntropy(
+            run_manager, args, u, data_logger, level_manager, group_molecules
+        )
+
+        result = ce.assign_conformation(
+            data_container=data_container,
+            dihedral=dihedral,
+            number_frames=6,
+            bin_width=60,
+            start=0,
+            end=6,
+            step=1,
+        )
+
+        # Basic checks
+        assert isinstance(result, np.ndarray)
+        assert len(result) == 6
+        assert np.all(result >= 0)
+        assert np.issubdtype(result.dtype, np.floating)
+
     def test_conformational_entropy_calculation(self):
         """
         Test `conformational_entropy_calculation` method to verify

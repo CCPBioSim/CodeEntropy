@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-15]
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5.0.0
@@ -40,10 +40,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5.0.0
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v6.0.0
         with:
-          python-version: 3.13
+          python-version: 3.14
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -56,10 +56,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5.0.0
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v6.0.0
         with:
-          python-version: 3.13
+          python-version: 3.14
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -75,7 +75,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         mdanalysis-version: ["2.9.0", "latest"]
     name: MDAnalysis Compatibility Tests
     steps:
