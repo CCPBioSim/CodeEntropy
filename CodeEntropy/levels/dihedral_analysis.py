@@ -12,12 +12,12 @@ from rich.progress import (
 logger = logging.getLogger(__name__)
 
 
-class StructuralAnalysis:
+class DihedralAnalysis:
     """ """
 
     def __init__(self):
         """
-        Initializes the StructuralAnalysis with placeholders for level-related data,
+        Initializes the DihedralAnalysis with placeholders for level-related data,
         including translational and rotational axes, number of beads, and a
         general-purpose data container.
         """
