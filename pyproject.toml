@@ -48,6 +48,8 @@ dependencies = [
     "art==6.5",
     "waterEntropy==1.2.2",
     "requests>=2.32.5",
+    "networkx==3.5",
+    "matplotlib==3.10.7",
 ]
 
 [project.urls]
