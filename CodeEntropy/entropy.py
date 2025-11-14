@@ -15,6 +15,7 @@ from rich.progress import (
 )
 
 from CodeEntropy.config.logging_config import LoggingConfig
+from CodeEntropy.mda_universe_operations import UniverseOperations
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -27,7 +28,14 @@ class EntropyManager:
     """
 
     def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+        self,
+        run_manager,
+        args,
+        universe,
+        data_logger,
+        level_manager,
+        group_molecules,
+        dihedral_analysis,
     ):
         """
         Initializes the EntropyManager with required components.
@@ -47,6 +55,7 @@ class EntropyManager:
         self._data_logger = data_logger
         self._level_manager = level_manager
         self._group_molecules = group_molecules
+        self._dihedral_analysis = dihedral_analysis
         self._GAS_CONST = 8.3144598484848
 
     def execute(self):
@@ -75,6 +84,7 @@ class EntropyManager:
             self._data_logger,
             self._level_manager,
             self._group_molecules,
+            self._dihedral_analysis,
         )
         ce = ConformationalEntropy(
             self._run_manager,
@@ -83,6 +93,7 @@ class EntropyManager:
             self._data_logger,
             self._level_manager,
             self._group_molecules,
+            self._dihedral_analysis,
         )
 
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
@@ -123,17 +134,14 @@ class EntropyManager:
 
         # Identify the conformational states from dihedral angles for the
         # conformational entropy calculations
-        states_ua, states_res = self._level_manager.build_conformational_states(
-            self,
+        states_ua, states_res = self._dihedral_analysis.build_conformational_states(
             reduced_atom,
             levels,
             nonwater_groups,
             start,
             end,
             step,
-            number_frames,
             self._args.bin_width,
-            ce,
         )
 
         # Complete the entropy calculations
@@ -265,7 +273,9 @@ class EntropyManager:
             )
 
             for group_id in groups.keys():
-                mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
+                mol = UniverseOperations.get_molecule_container(
+                    reduced_atom, groups[group_id][0]
+                )
 
                 residue_group = "_".join(
                     sorted(set(res.resname for res in mol.residues))
@@ -273,7 +283,9 @@ class EntropyManager:
                 group_residue_count = len(groups[group_id])
                 group_atom_count = 0
                 for mol_id in groups[group_id]:
-                    each_mol = self._get_molecule_container(reduced_atom, mol_id)
+                    each_mol = UniverseOperations.get_molecule_container(
+                        reduced_atom, mol_id
+                    )
                     group_atom_count += len(each_mol.atoms)
                 self._data_logger.add_group_label(
                     group_id, residue_group, group_residue_count, group_atom_count
@@ -383,30 +395,13 @@ class EntropyManager:
             return self._universe
 
         # Otherwise create a new (smaller) universe based on the selection
-        reduced = self._run_manager.new_U_select_atom(
-            self._universe, self._args.selection_string
-        )
+        u = self._universe
+        selection_string = self._args.selection_string
+        reduced = UniverseOperations.new_U_select_atom(u, selection_string)
         name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
         self._run_manager.write_universe(reduced, name)
+
         return reduced
-
-    def _get_molecule_container(self, universe, molecule_id):
-        """
-        Extracts the atom group corresponding to a single molecule from the universe.
-
-        Args:
-            universe (MDAnalysis.Universe): The reduced universe.
-            molecule_id (int): Index of the molecule to extract.
-
-        Returns:
-            MDAnalysis.Universe: Universe containing only the selected molecule.
-        """
-        # Identify the atoms in the molecule
-        frag = universe.atoms.fragments[molecule_id]
-        selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
-
-        # Build a new universe with only the one molecule
-        return self._run_manager.new_U_select_atom(universe, selection_string)
 
     def _process_united_atom_entropy(
         self,
@@ -805,14 +800,27 @@ class VibrationalEntropy(EntropyManager):
     """
 
     def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+        self,
+        run_manager,
+        args,
+        universe,
+        data_logger,
+        level_manager,
+        group_molecules,
+        dihedral_analysis,
     ):
         """
         Initializes the VibrationalEntropy manager with all required components and
         defines physical constants used in vibrational entropy calculations.
         """
         super().__init__(
-            run_manager, args, universe, data_logger, level_manager, group_molecules
+            run_manager,
+            args,
+            universe,
+            data_logger,
+            level_manager,
+            group_molecules,
+            dihedral_analysis,
         )
         self._PLANCK_CONST = 6.62607004081818e-34
 
@@ -940,102 +948,28 @@ class ConformationalEntropy(EntropyManager):
     """
 
     def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+        self,
+        run_manager,
+        args,
+        universe,
+        data_logger,
+        level_manager,
+        group_molecules,
+        dihedral_analysis,
     ):
         """
         Initializes the ConformationalEntropy manager with all required components and
         sets the gas constant used in conformational entropy calculations.
         """
         super().__init__(
-            run_manager, args, universe, data_logger, level_manager, group_molecules
+            run_manager,
+            args,
+            universe,
+            data_logger,
+            level_manager,
+            group_molecules,
+            dihedral_analysis,
         )
-
-    def assign_conformation(
-        self, data_container, dihedral, number_frames, bin_width, start, end, step
-    ):
-        """
-        Create a state vector, showing the state in which the input dihedral is
-        as a function of time. The function creates a histogram from the timeseries of
-        the dihedral angle values and identifies points of dominant occupancy
-        (called CONVEX TURNING POINTS).
-        Based on the identified TPs, states are assigned to each configuration of the
-        dihedral.
-
-        Args:
-            data_container (MDAnalysis Universe): data for the molecule/residue unit
-            dihedral (array): The dihedral angles in the unit
-            number_frames (int): number of frames in the trajectory
-            bin_width (int): the width of the histogram bit, default 30 degrees
-            start (int): starting frame, will default to 0
-            end (int): ending frame, will default to -1 (last frame in trajectory)
-            step (int): spacing between frames, will default to 1
-
-        Returns:
-            conformations (array): A timeseries with integer labels describing the
-            state at each point in time.
-
-        """
-        conformations = np.zeros(number_frames)
-        phi = np.zeros(number_frames)
-
-        # get the values of the angle for the dihedral
-        # dihedral angle values have a range from -180 to 180
-        indices = list(range(number_frames))
-        for timestep_index, _ in zip(
-            indices, data_container.trajectory[start:end:step]
-        ):
-            timestep_index = timestep_index
-            value = dihedral.value()
-            # we want postive values in range 0 to 360 to make the peak assignment
-            # works using the fact that dihedrals have circular symetry
-            # (i.e. -15 degrees = +345 degrees)
-            if value < 0:
-                value += 360
-            phi[timestep_index] = value
-
-        # create a histogram using numpy
-        number_bins = int(360 / bin_width)
-        popul, bin_edges = np.histogram(a=phi, bins=number_bins, range=(0, 360))
-        bin_value = [
-            0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(0, len(popul))
-        ]
-
-        # identify "convex turning-points" and populate a list of peaks
-        # peak : a bin whose neighboring bins have smaller population
-        # NOTE might have problems if the peak is wide with a flat or sawtooth
-        # top in which case check you have a sensible bin width
-        peak_values = []
-
-        for bin_index in range(number_bins):
-            # if there is no dihedrals in a bin then it cannot be a peak
-            if popul[bin_index] == 0:
-                pass
-            # being careful of the last bin
-            # (dihedrals have circular symmetry, the histogram does not)
-            elif (
-                bin_index == number_bins - 1
-            ):  # the -1 is because the index starts with 0 not 1
-                if (
-                    popul[bin_index] >= popul[bin_index - 1]
-                    and popul[bin_index] >= popul[0]
-                ):
-                    peak_values.append(bin_value[bin_index])
-            else:
-                if (
-                    popul[bin_index] >= popul[bin_index - 1]
-                    and popul[bin_index] >= popul[bin_index + 1]
-                ):
-                    peak_values.append(bin_value[bin_index])
-
-        # go through each frame again and assign conformation state
-        for frame in range(number_frames):
-            # find the TP that the snapshot is least distant from
-            distances = [abs(phi[frame] - peak) for peak in peak_values]
-            conformations[frame] = np.argmin(distances)
-
-        logger.debug(f"Final conformations: {conformations}")
-
-        return conformations
 
     def conformational_entropy_calculation(self, states):
         """
@@ -1084,14 +1018,27 @@ class OrientationalEntropy(EntropyManager):
     """
 
     def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+        self,
+        run_manager,
+        args,
+        universe,
+        data_logger,
+        level_manager,
+        group_molecules,
+        dihedral_analysis,
     ):
         """
         Initializes the OrientationalEntropy manager with all required components and
         sets the gas constant used in orientational entropy calculations.
         """
         super().__init__(
-            run_manager, args, universe, data_logger, level_manager, group_molecules
+            run_manager,
+            args,
+            universe,
+            data_logger,
+            level_manager,
+            group_molecules,
+            dihedral_analysis,
         )
 
     def orientational_entropy_calculation(self, neighbours_dict):
