@@ -29,12 +29,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -e .[testing]
-
-          if [ "${{ matrix.mdanalysis-version }}" = "latest" ]; then
-            pip install MDAnalysis
-          else
-            pip install "MDAnalysis==${{ matrix.mdanalysis-version }}"
-          fi
+          pip install "MDAnalysis==${{ matrix.mdanalysis-version }}"
 
       - name: Run compatibility tests
         run: pytest --cov CodeEntropy --cov-report=term-missing --cov-append
