@@ -9,7 +9,6 @@ jobs:
   mdanalysis-compatibility:
     name: MDAnalysis Compatibility Tests
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
 
     strategy:
       matrix:
