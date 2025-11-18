@@ -8,6 +8,9 @@ on:
 jobs:
   renovate:
     runs-on: ubuntu-24.04
+    concurrency:
+      group: renovate
+      cancel-in-progress: true
 
     permissions:
       contents: write
@@ -22,3 +25,4 @@ jobs:
           token: ${{ secrets.RENOVATE_TOKEN }}
         env:
           RENOVATE_CONFIG_FILE: ".github/renovate.json"
+          LOG_LEVEL: debug
