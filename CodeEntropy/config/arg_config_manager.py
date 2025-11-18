@@ -268,5 +268,5 @@ class ConfigManager:
         if args.force_partitioning != default_value:
             logger.warning(
                 f"'force_partitioning' is set to {args.force_partitioning},"
-                " which differs from the default ({default_value})."
+                f" which differs from the default {default_value}."
             )
