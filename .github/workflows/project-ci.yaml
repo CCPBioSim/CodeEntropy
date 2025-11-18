@@ -32,7 +32,7 @@ jobs:
         run: pytest --cov CodeEntropy --cov-report term-missing --cov-append .
 
       - name: Coveralls GitHub Action
-        uses: coverallsapp/github-action@v2.3.6
+        uses: coverallsapp/github-action@v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
