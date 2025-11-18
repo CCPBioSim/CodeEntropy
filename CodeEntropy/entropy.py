@@ -549,7 +549,7 @@ class EntropyManager:
         """
         # Find the relevant force and torque matrices and tidy them up
         # by removing rows and columns that are all zeros
-        print(highest)
+
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
 
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
