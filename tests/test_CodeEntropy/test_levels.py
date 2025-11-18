@@ -92,6 +92,7 @@ class TestLevels(BaseTestCase):
             highest_level=True,
             force_matrix=None,
             torque_matrix=None,
+            force_partitioning=0.5,
         )
 
         # Assertions
@@ -139,6 +140,7 @@ class TestLevels(BaseTestCase):
                 highest_level=True,
                 force_matrix=bad_force_matrix,
                 torque_matrix=correct_torque_matrix,
+                force_partitioning=0.5,
             )
 
         self.assertIn("Inconsistent force matrix shape", str(context.exception))
@@ -174,6 +176,7 @@ class TestLevels(BaseTestCase):
                 highest_level=True,
                 force_matrix=correct_force_matrix,
                 torque_matrix=bad_torque_matrix,
+                force_partitioning=0.5,
             )
 
         self.assertIn("Inconsistent torque matrix shape", str(context.exception))
@@ -207,6 +210,7 @@ class TestLevels(BaseTestCase):
             highest_level=True,
             force_matrix=initial_force_matrix.copy(),
             torque_matrix=initial_torque_matrix.copy(),
+            force_partitioning=0.5,
         )
 
         force_matrix_2, torque_matrix_2 = level_manager.get_matrices(
@@ -216,6 +220,7 @@ class TestLevels(BaseTestCase):
             highest_level=True,
             force_matrix=initial_force_matrix.copy(),
             torque_matrix=initial_torque_matrix.copy(),
+            force_partitioning=0.5,
         )
 
         # Check that repeated calls produce the same output
@@ -692,7 +697,7 @@ class TestLevels(BaseTestCase):
         trans_axes = np.identity(3)
 
         result = level_manager.get_weighted_forces(
-            data_container, bead, trans_axes, highest_level=True
+            data_container, bead, trans_axes, highest_level=True, force_partitioning=0.5
         )
 
         expected = (0.5 * np.array([2.0, 0.0, 0.0])) / np.sqrt(4.0)
@@ -717,7 +722,11 @@ class TestLevels(BaseTestCase):
         trans_axes = np.identity(3)
 
         result = level_manager.get_weighted_forces(
-            data_container, bead, trans_axes, highest_level=False
+            data_container,
+            bead,
+            trans_axes,
+            highest_level=False,
+            force_partitioning=0.5,
         )
 
         expected = np.array([3.0, 0.0, 0.0]) / np.sqrt(1.0)
@@ -743,7 +752,11 @@ class TestLevels(BaseTestCase):
 
         with self.assertRaises(ValueError):
             level_manager.get_weighted_forces(
-                data_container, bead, trans_axes, highest_level=True
+                data_container,
+                bead,
+                trans_axes,
+                highest_level=True,
+                force_partitioning=0.5,
             )
 
     def test_get_weighted_forces_negative_mass_raises_value_error(self):
@@ -766,7 +779,11 @@ class TestLevels(BaseTestCase):
 
         with self.assertRaises(ValueError):
             level_manager.get_weighted_forces(
-                data_container, bead, trans_axes, highest_level=True
+                data_container,
+                bead,
+                trans_axes,
+                highest_level=True,
+                force_partitioning=0.5,
             )
 
     def test_get_weighted_torques_weighted_torque_basic(self):
@@ -795,7 +812,11 @@ class TestLevels(BaseTestCase):
         # Rotation axes (identity matrix)
         rot_axes = np.identity(3)
 
-        result = level_manager.get_weighted_torques(data_container, bead, rot_axes)
+        force_partitioning = 0.5
+
+        result = level_manager.get_weighted_torques(
+            data_container, bead, rot_axes, force_partitioning
+        )
 
         np.testing.assert_array_almost_equal(result, np.array([0.0, 0.0, 0.5]))
 
@@ -821,7 +842,11 @@ class TestLevels(BaseTestCase):
 
         rot_axes = np.identity(3)
 
-        result = level_manager.get_weighted_torques(data_container, bead, rot_axes)
+        force_partitioning = 0.5
+
+        result = level_manager.get_weighted_torques(
+            data_container, bead, rot_axes, force_partitioning
+        )
         np.testing.assert_array_almost_equal(result, np.zeros(3))
 
     def test_get_weighted_torques_zero_moi_raises(self):
@@ -852,8 +877,12 @@ class TestLevels(BaseTestCase):
 
         rot_axes = np.identity(3)
 
+        force_partitioning = 0.5
+
         with self.assertRaises(ZeroDivisionError):
-            level_manager.get_weighted_torques(data_container, bead, rot_axes)
+            level_manager.get_weighted_torques(
+                data_container, bead, rot_axes, force_partitioning
+            )
 
     def test_get_weighted_torques_negative_moi_raises(self):
         """
@@ -883,8 +912,12 @@ class TestLevels(BaseTestCase):
 
         rot_axes = np.identity(3)
 
+        foce_partitioning = 0.5
+
         with self.assertRaises(ValueError) as context:
-            level_manager.get_weighted_torques(data_container, bead, rot_axes)
+            level_manager.get_weighted_torques(
+                data_container, bead, rot_axes, foce_partitioning
+            )
 
         self.assertIn(
             "Negative value encountered for moment of inertia", str(context.exception)
@@ -995,6 +1028,7 @@ class TestLevels(BaseTestCase):
             end=2,
             step=1,
             number_frames=2,
+            force_partitioning=0.5,
         )
 
         # Assert returned matrices are dictionaries with correct keys
@@ -1057,6 +1091,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         expected_keys = [(0, 0), (0, 1)]
@@ -1107,6 +1142,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         # Second call: update
@@ -1123,6 +1159,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         expected_force = f_mat_1 + (f_mat_2 - f_mat_1) / 2
@@ -1162,6 +1199,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         np.testing.assert_array_equal(force_avg["res"][0], f_mat_mock)
@@ -1206,6 +1244,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         # Second update
@@ -1220,6 +1259,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         expected_force = f_mat_1 + (f_mat_2 - f_mat_1) / 2

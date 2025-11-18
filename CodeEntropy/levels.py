@@ -83,6 +83,7 @@ class LevelManager:
         highest_level,
         force_matrix,
         torque_matrix,
+        force_partitioning,
     ):
         """
         Compute and accumulate force/torque covariance matrices for a given level.
@@ -94,6 +95,8 @@ class LevelManager:
           highest_level (bool): Whether this is the top (largest bead size) level.
           force_matrix, torque_matrix (np.ndarray or None): Accumulated matrices to add
           to.
+          force_partitioning (float): Factor to adjust force contributions,
+          default is 0.5.
 
         Returns:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
@@ -119,10 +122,14 @@ class LevelManager:
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
-                data_container, list_of_beads[bead_index], trans_axes, highest_level
+                data_container,
+                list_of_beads[bead_index],
+                trans_axes,
+                highest_level,
+                force_partitioning,
             )
             weighted_torques[bead_index] = self.get_weighted_torques(
-                data_container, list_of_beads[bead_index], rot_axes
+                data_container, list_of_beads[bead_index], rot_axes, force_partitioning
             )
 
         # Create covariance submatrices
@@ -571,7 +578,7 @@ class LevelManager:
         return spherical_basis
 
     def get_weighted_forces(
-        self, data_container, bead, trans_axes, highest_level, force_partitioning=0.5
+        self, data_container, bead, trans_axes, highest_level, force_partitioning
     ):
         """
         Function to calculate the mass weighted forces for a given bead.
@@ -620,9 +627,7 @@ class LevelManager:
 
         return weighted_force
 
-    def get_weighted_torques(
-        self, data_container, bead, rot_axes, force_partitioning=0.5
-    ):
+    def get_weighted_torques(self, data_container, bead, rot_axes, force_partitioning):
         """
         Function to calculate the moment of inertia weighted torques for a given bead.
 
@@ -747,6 +752,7 @@ class LevelManager:
         end,
         step,
         number_frames,
+        force_partitioning,
     ):
         """
         Construct average force and torque covariance matrices for all molecules and
@@ -770,6 +776,9 @@ class LevelManager:
             Step size for frame iteration.
         number_frames : int
             Total number of frames to process.
+        force_partitioning : float
+            Factor to adjust force contributions, default is 0.5.
+
 
         Returns
         -------
@@ -855,6 +864,7 @@ class LevelManager:
                                 force_avg,
                                 torque_avg,
                                 frame_counts,
+                                force_partitioning,
                             )
 
                             progress.advance(task)
@@ -873,6 +883,7 @@ class LevelManager:
         force_avg,
         torque_avg,
         frame_counts,
+        force_partitioning,
     ):
         """
         Update the running averages of force and torque covariance matrices
@@ -913,7 +924,8 @@ class LevelManager:
         frame_counts : dict
             Dictionary holding the count of frames processed for each molecule/level
             combination.
-
+        force_partitioning : float
+         Factor to adjust force contributions, default is 0.5.
         Returns
         -------
         None
@@ -946,6 +958,7 @@ class LevelManager:
                     highest,
                     None if key not in force_avg["ua"] else force_avg["ua"][key],
                     None if key not in torque_avg["ua"] else torque_avg["ua"][key],
+                    force_partitioning,
                 )
 
                 if key not in force_avg["ua"]:
@@ -979,6 +992,7 @@ class LevelManager:
                     if torque_avg[key][group_id] is None
                     else torque_avg[key][group_id]
                 ),
+                force_partitioning,
             )
 
             if force_avg[key][group_id] is None:
