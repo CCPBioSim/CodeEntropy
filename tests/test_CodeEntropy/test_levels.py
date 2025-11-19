@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 
 from CodeEntropy.levels import LevelManager
+from CodeEntropy.mda_universe_operations import UniverseOperations
 from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
@@ -221,145 +222,6 @@ class TestLevels(BaseTestCase):
         # Check that repeated calls produce the same output
         self.assertTrue(np.allclose(torque_matrix_1, torque_matrix_2, atol=1e-8))
         self.assertTrue(np.allclose(force_matrix_1, force_matrix_2, atol=1e-8))
-
-    def test_get_dihedrals_united_atom(self):
-        """
-        Test `get_dihedrals` for 'united_atom' level.
-        Ensures it returns the dihedrals directly from the data container.
-        """
-        level_manager = LevelManager()
-
-        data_container = MagicMock()
-        mock_dihedrals = ["d1", "d2", "d3"]
-        data_container.dihedrals = mock_dihedrals
-
-        result = level_manager.get_dihedrals(data_container, level="united_atom")
-        self.assertEqual(result, mock_dihedrals)
-
-    def test_get_dihedrals_residue(self):
-        """
-        Test `get_dihedrals` for 'residue' level with 5 residues.
-        Mocks bonded atom selections and verifies that dihedrals are constructed.
-        """
-        level_manager = LevelManager()
-
-        data_container = MagicMock()
-        data_container.residues = [0, 1, 2, 3, 4]  # 5 residues
-
-        # Mock select_atoms to return atom groups with .dihedral
-        mock_dihedral = MagicMock()
-        mock_atom_group = MagicMock()
-        mock_atom_group.__add__.return_value = mock_atom_group
-        mock_atom_group.dihedral = mock_dihedral
-        data_container.select_atoms.return_value = mock_atom_group
-
-        result = level_manager.get_dihedrals(data_container, level="residue")
-
-        # Should create 2 dihedrals for 5 residues (residues 0–3 and 1–4)
-        self.assertEqual(len(result), 2)
-        self.assertTrue(all(d == mock_dihedral for d in result))
-
-    def test_get_dihedrals_no_residue(self):
-        """
-        Test `get_dihedrals` for 'residue' level with 3 residues.
-        Mocks bonded atom selections and verifies that dihedrals are constructed.
-        """
-        level_manager = LevelManager()
-
-        data_container = MagicMock()
-        data_container.residues = [0, 1, 2]  # 3 residues
-
-        # Mock select_atoms to return atom groups with .dihedral
-        mock_dihedral = MagicMock()
-        mock_atom_group = MagicMock()
-        mock_atom_group.__add__.return_value = mock_atom_group
-        mock_atom_group.dihedral = mock_dihedral
-        data_container.select_atoms.return_value = mock_atom_group
-
-        result = level_manager.get_dihedrals(data_container, level="residue")
-
-        # Should result in no resdies
-        self.assertEqual(result, [])
-
-    def test_compute_dihedral_conformations(self):
-        """
-        Test `compute_dihedral_conformations` to ensure it correctly calls
-        `assign_conformation` on each dihedral and returns the expected
-        list of conformation strings.
-        """
-
-        # Setup
-        level_manager = LevelManager()
-
-        # Mock selector (can be anything since we're mocking internals)
-        selector = MagicMock()
-
-        # Mock dihedrals: pretend we have 3 dihedrals
-        mocked_dihedrals = ["d1", "d2", "d3"]
-        level_manager.get_dihedrals = MagicMock(return_value=mocked_dihedrals)
-
-        # Mock the conformation entropy (ce) object with assign_conformation method
-        ce = MagicMock()
-        # For each dihedral, assign_conformation returns a numpy array of ints
-        ce.assign_conformation = MagicMock(
-            side_effect=[
-                np.array([0, 1, 2]),
-                np.array([1, 0, 1]),
-                np.array([2, 2, 0]),
-            ]
-        )
-
-        number_frames = 3
-        bin_width = 10
-        start = 0
-        end = 3
-        step = 1
-        level = "residue"
-
-        # Call the method
-        states = level_manager.compute_dihedral_conformations(
-            selector, level, number_frames, bin_width, start, end, step, ce
-        )
-
-        # Expected states per frame
-        expected_states = [
-            "012",  # frame 0: d1=0, d2=1, d3=2
-            "102",  # frame 1: d1=1, d2=0, d3=2
-            "210",  # frame 2: d1=2, d2=1, d3=0
-        ]
-
-        # Verify the call count matches the number of dihedrals
-        self.assertEqual(ce.assign_conformation.call_count, len(mocked_dihedrals))
-
-        # Verify returned states are as expected
-        self.assertEqual(states, expected_states)
-
-        # Verify get_dihedrals was called once with correct arguments
-        level_manager.get_dihedrals.assert_called_once_with(selector, level)
-
-    def test_compute_dihedral_conformations_no_dihedrals(self):
-        """
-        Test `compute_dihedral_conformations` when no dihedrals are found.
-        Ensures it returns an empty list of states.
-        """
-        level_manager = LevelManager()
-
-        level_manager.get_dihedrals = MagicMock(return_value=[])
-
-        selector = MagicMock()
-
-        result = level_manager.compute_dihedral_conformations(
-            selector=selector,
-            level="united_atom",
-            number_frames=10,
-            bin_width=10.0,
-            start=0,
-            end=10,
-            step=1,
-            ce=MagicMock(),
-        )
-
-        self.assertEqual(result, [])
 
     def test_get_beads_polymer_level(self):
         """
@@ -954,7 +816,7 @@ class TestLevels(BaseTestCase):
         # Instantiate your class (replace YourClass with actual class name)
         level_manager = LevelManager()
 
-        # Mock entropy_manager and _get_molecule_container
+        # Mock entropy_manager and get_molecule_container
         entropy_manager = MagicMock()
 
         # Fake atom with minimal attributes
@@ -967,8 +829,8 @@ class TestLevels(BaseTestCase):
         fake_mol = MagicMock()
         fake_mol.atoms = [atom]
 
-        # Always return fake_mol from _get_molecule_container
-        entropy_manager._get_molecule_container = MagicMock(return_value=fake_mol)
+        # Always return fake_mol from get_molecule_container
+        UniverseOperations.get_molecule_container = MagicMock(return_value=fake_mol)
 
         # Mock reduced_atom with trajectory yielding two timesteps
         timestep1 = MagicMock()
@@ -1009,8 +871,8 @@ class TestLevels(BaseTestCase):
         self.assertEqual(len(force_matrices["res"]), len(groups))
         self.assertEqual(len(force_matrices["poly"]), len(groups))
 
-        # Check _get_molecule_container call count: 2 timesteps * 2 molecules = 4 calls
-        self.assertEqual(entropy_manager._get_molecule_container.call_count, 10)
+        # Check get_molecule_container call count: 2 timesteps * 2 molecules = 4 calls
+        self.assertEqual(UniverseOperations.get_molecule_container.call_count, 4)
 
         # Check update_force_torque_matrices call count:
         self.assertEqual(level_manager.update_force_torque_matrices.call_count, 6)
@@ -1028,7 +890,7 @@ class TestLevels(BaseTestCase):
 
         mock_residue_group = MagicMock()
         mock_residue_group.trajectory.__getitem__.return_value = None
-        run_manager.new_U_select_atom.return_value = mock_residue_group
+        UniverseOperations.new_U_select_atom.return_value = mock_residue_group
 
         mock_residue1 = MagicMock()
         mock_residue1.atoms.indices = [0, 2]
@@ -1204,138 +1066,3 @@ class TestLevels(BaseTestCase):
         expected = np.array([[1, 2, 3]])
         result = level_manager.filter_zero_rows_columns(matrix)
         np.testing.assert_array_equal(result, expected)
-
-    def test_build_conformational_states_united_atom_accumulates_states(self):
-        """
-        Test that the 'build_conformational_states' method correctly accumulates
-        united atom level conformational states for multiple molecules within the
-        same group.
-
-        Specifically, when called with two molecules in the same group, the method
-        should append the states returned for the second molecule to the list of
-        states for the first molecule, resulting in a nested list structure.
-
-        Verifies:
-        - The states_ua dictionary accumulates states as a nested list.
-        - The compute_dihedral_conformations method is called once per molecule.
-        """
-        level_manager = LevelManager()
-        entropy_manager = MagicMock()
-        reduced_atom = MagicMock()
-        ce = MagicMock()
-
-        # Setup mock residue for molecules
-        residue = MagicMock()
-        residue.atoms.indices = [10, 11, 12]
-
-        # Setup two mock molecules with the same residue
-        mol_0 = MagicMock()
-        mol_0.residues = [residue]
-        mol_1 = MagicMock()
-        mol_1.residues = [residue]
-
-        # entropy_manager returns different molecules by mol_id
-        entropy_manager._get_molecule_container.side_effect = [mol_0, mol_1]
-
-        # new_U_select_atom returns dummy selections twice per molecule call
-        dummy_sel_1 = MagicMock()
-        dummy_sel_2 = MagicMock()
-        # For mol_0: light then heavy
-        # For mol_1: light then heavy
-        entropy_manager._run_manager.new_U_select_atom.side_effect = [
-            dummy_sel_1,
-            dummy_sel_2,
-            dummy_sel_1,
-            dummy_sel_2,
-        ]
-
-        # Mock compute_dihedral_conformations to return different states for each call
-        state_1 = ["ua_state_1"]
-        state_2 = ["ua_state_2"]
-        level_manager.compute_dihedral_conformations = MagicMock(
-            side_effect=[state_1, state_2]
-        )
-
-        groups = {0: [0, 1]}  # Group 0 contains molecule 0 and molecule 1
-        levels = [["united_atom"], ["united_atom"]]
-        start, end, step = 0, 10, 1
-        number_frames = 10
-        bin_width = 0.1
-
-        states_ua, states_res = level_manager.build_conformational_states(
-            entropy_manager,
-            reduced_atom,
-            levels,
-            groups,
-            start,
-            end,
-            step,
-            number_frames,
-            bin_width,
-            ce,
-        )
-
-        assert states_ua[(0, 0)] == ["ua_state_1", "ua_state_2"]
-
-        # Confirm compute_dihedral_conformations was called twice (once per molecule)
-        assert level_manager.compute_dihedral_conformations.call_count == 2
-
-    def test_build_conformational_states_residue_level_accumulates_states(self):
-        """
-        Test that the 'build_conformational_states' method correctly accumulates
-        residue level conformational states for multiple molecules within the
-        same group.
-
-        When called with multiple molecules assigned to the same group at residue level,
-        the method should concatenate the returned states into a single flat list.
-
-        Verifies:
-        - The states_res list contains concatenated residue states from all molecules.
-        - The states_ua dictionary remains empty for residue level.
-        - compute_dihedral_conformations is called once per molecule.
-        """
-        level_manager = LevelManager()
-        entropy_manager = MagicMock()
-        reduced_atom = MagicMock()
-        ce = MagicMock()
-
-        # Setup molecule with no residues
-        mol = MagicMock()
-        mol.residues = []
-        entropy_manager._get_molecule_container.return_value = mol
-
-        # Setup return values for compute_dihedral_conformations
-        states_1 = ["res_state1"]
-        states_2 = ["res_state2"]
-        level_manager.compute_dihedral_conformations = MagicMock(
-            side_effect=[states_1, states_2]
-        )
-
-        # Setup inputs with 2 molecules in same group
-        groups = {0: [0, 1]}  # Both mol 0 and mol 1 are in group 0
-        levels = [["residue"], ["residue"]]
-        start, end, step = 0, 10, 1
-        number_frames = 10
-        bin_width = 0.1
-
-        # Run
-        states_ua, states_res = level_manager.build_conformational_states(
-            entropy_manager,
-            reduced_atom,
-            levels,
-            groups,
-            start,
-            end,
-            step,
-            number_frames,
-            bin_width,
-            ce,
-        )
-
-        # Confirm accumulation occurred
-        assert states_ua == {}
-        assert states_res[0] == ["res_state1", "res_state2"]
-        assert states_res == [["res_state1", "res_state2"]]
-
-        # Assert both calls to compute_dihedral_conformations happened
-        assert level_manager.compute_dihedral_conformations.call_count == 2

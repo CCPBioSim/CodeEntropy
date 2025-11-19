@@ -220,7 +220,8 @@ class DihedralAnalysis:
                     )
                     atom4 = data_container.select_atoms(atom_string)
 
-                    atom_groups.append(atom1 + atom2 + atom3 + atom4)
+                    atom_group = atom1 + atom2 + atom3 + atom4
+                    atom_groups.append(atom_group)
 
         logger.debug(f"Level: {level}, Dihedrals: {atom_groups}")
 

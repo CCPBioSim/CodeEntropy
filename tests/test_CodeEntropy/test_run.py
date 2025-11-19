@@ -3,7 +3,6 @@ import unittest
 from io import StringIO
 from unittest.mock import MagicMock, mock_open, patch
 
-import numpy as np
 import requests
 import yaml
 from rich.console import Console
@@ -506,120 +505,6 @@ class TestRunManager(BaseTestCase):
 
         with self.assertRaisesRegex(ValueError, "Missing 'selection_string' argument."):
             run_manager.run_entropy_workflow()
-
-    @patch("CodeEntropy.run.AnalysisFromFunction")
-    @patch("CodeEntropy.run.mda.Merge")
-    def test_new_U_select_frame(self, MockMerge, MockAnalysisFromFunction):
-        # Mock Universe and its components
-        mock_universe = MagicMock()
-        mock_trajectory = MagicMock()
-        mock_trajectory.__len__.return_value = 10
-        mock_universe.trajectory = mock_trajectory
-
-        mock_select_atoms = MagicMock()
-        mock_universe.select_atoms.return_value = mock_select_atoms
-
-        # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
-        coords = np.random.rand(10, 100, 3)
-        forces = np.random.rand(10, 100, 3)
-        dims = np.random.rand(10, 3)
-
-        mock_coords_analysis = MagicMock()
-        mock_coords_analysis.run.return_value.results = {"timeseries": coords}
-
-        mock_forces_analysis = MagicMock()
-        mock_forces_analysis.run.return_value.results = {"timeseries": forces}
-
-        mock_dims_analysis = MagicMock()
-        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
-
-        # Set the side effects for the three AnalysisFromFunction calls
-        MockAnalysisFromFunction.side_effect = [
-            mock_coords_analysis,
-            mock_forces_analysis,
-            mock_dims_analysis,
-        ]
-
-        # Mock the merge operation
-        mock_merged_universe = MagicMock()
-        MockMerge.return_value = mock_merged_universe
-
-        run_manager = RunManager("mock_folder/job001")
-        result = run_manager.new_U_select_frame(mock_universe)
-
-        mock_universe.select_atoms.assert_called_once_with("all", updating=True)
-        MockMerge.assert_called_once_with(mock_select_atoms)
-
-        # Ensure the 'load_new' method was called with the correct arguments
-        mock_merged_universe.load_new.assert_called_once()
-        args, kwargs = mock_merged_universe.load_new.call_args
-
-        # Assert that the arrays are passed correctly
-        np.testing.assert_array_equal(args[0], coords)
-        np.testing.assert_array_equal(kwargs["forces"], forces)
-        np.testing.assert_array_equal(kwargs["dimensions"], dims)
-
-        # Check if format was included in the kwargs
-        self.assertIn("format", kwargs)
-
-        # Ensure the result is the mock merged universe
-        self.assertEqual(result, mock_merged_universe)
-
-    @patch("CodeEntropy.run.AnalysisFromFunction")
-    @patch("CodeEntropy.run.mda.Merge")
-    def test_new_U_select_atom(self, MockMerge, MockAnalysisFromFunction):
-        # Mock Universe and its components
-        mock_universe = MagicMock()
-        mock_select_atoms = MagicMock()
-        mock_universe.select_atoms.return_value = mock_select_atoms
-
-        # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
-        coords = np.random.rand(10, 100, 3)
-        forces = np.random.rand(10, 100, 3)
-        dims = np.random.rand(10, 3)
-
-        mock_coords_analysis = MagicMock()
-        mock_coords_analysis.run.return_value.results = {"timeseries": coords}
-
-        mock_forces_analysis = MagicMock()
-        mock_forces_analysis.run.return_value.results = {"timeseries": forces}
-
-        mock_dims_analysis = MagicMock()
-        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
-
-        # Set the side effects for the three AnalysisFromFunction calls
-        MockAnalysisFromFunction.side_effect = [
-            mock_coords_analysis,
-            mock_forces_analysis,
-            mock_dims_analysis,
-        ]
-
-        # Mock the merge operation
-        mock_merged_universe = MagicMock()
-        MockMerge.return_value = mock_merged_universe
-
-        run_manager = RunManager("mock_folder/job001")
-        result = run_manager.new_U_select_atom(
-            mock_universe, select_string="resid 1-10"
-        )
-
-        mock_universe.select_atoms.assert_called_once_with("resid 1-10", updating=True)
-        MockMerge.assert_called_once_with(mock_select_atoms)
-
-        # Ensure the 'load_new' method was called with the correct arguments
-        mock_merged_universe.load_new.assert_called_once()
-        args, kwargs = mock_merged_universe.load_new.call_args
-
-        # Assert that the arrays are passed correctly
-        np.testing.assert_array_equal(args[0], coords)
-        np.testing.assert_array_equal(kwargs["forces"], forces)
-        np.testing.assert_array_equal(kwargs["dimensions"], dims)
-
-        # Check if format was included in the kwargs
-        self.assertIn("format", kwargs)
-
-        # Ensure the result is the mock merged universe
-        self.assertEqual(result, mock_merged_universe)
 
     @patch("CodeEntropy.run.pickle.dump")
     @patch("CodeEntropy.run.open", create=True)
