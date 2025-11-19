@@ -1,26 +1,62 @@
 import logging
+from typing import Any, Dict
+
+from CodeEntropy.levels.hierarchy_graph import HierarchyGraph
 
 logger = logging.getLogger(__name__)
 
 
 class LevelManager:
     """
-    Manages the structural and dynamic levels involved in entropy calculations. This
-    includes selecting relevant levels, computing axes for translation and rotation,
-    and handling bead-based representations of molecular systems. Provides utility
-    methods to extract averaged positions, convert coordinates to spherical systems,
-    compute weighted forces and torques, and manipulate matrices used in entropy
-    analysis.
+    Coordinates the DAG-based computation of molecular levels and beads.
+    All physics/maths are delegated to lower-level classes and DAG nodes.
     """
 
-    def __init__(self):
+    def __init__(self, universe, run_manager, args):
         """
-        Initializes the LevelManager with placeholders for level-related data,
-        including translational and rotational axes, number of beads, and a
-        general-purpose data container.
+        Parameters
+        ----------
+        universe : MDAnalysis.Universe
+            The MD system being analysed.
+        run_manager : RunManager
+            Provides selection helpers and unit conversions.
+        args : Namespace
+            Parsed CLI arguments.
         """
-        self.data_container = None
-        self._levels = None
-        self._trans_axes = None
-        self._rot_axes = None
-        self._number_of_beads = None
+        self.universe = universe
+        self.run_manager = run_manager
+        self.args = args
+
+    def run_hierarchy(self) -> Dict[str, Any]:
+        """
+        Execute the structural hierarchy DAG (levels → beads).
+
+        Returns
+        -------
+        dict
+            Contains:
+              - number_molecules
+              - levels
+              - beads_by_mol_level
+        """
+
+        shared_data = {
+            "universe": self.universe,
+            "args": self.args,
+            "run_manager": self.run_manager,
+        }
+
+        graph = HierarchyGraph().build(self.run_manager)
+        results = graph.execute(shared_data)
+
+        logger.debug("[LevelManager] Hierarchy DAG results:")
+        logger.debug(results)
+
+        return results
+
+    def run(self):
+        """
+        Placeholder: eventually will run all DAGs (hierarchy, matrices, entropy).
+        For now, only run the hierarchy graph.
+        """
+        return self.run_hierarchy()
