@@ -556,7 +556,7 @@ class TestEntropyManager(BaseTestCase):
             selection_string="all",
         ),
     )
-    def test_process_united_atom_entropy(self):
+    def test_process_united_atom_entropy(self, selection_string_mock):
         """
         Tests that `_process_united_atom_entropy` correctly logs global and
         residue-level entropy results for a mocked molecular system.
