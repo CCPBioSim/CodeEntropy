@@ -97,7 +97,7 @@ class EntropyManager:
         )
 
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-
+        logger.debug(f"Universe 3: {reduced_atom}")
         water_atoms = self._universe.select_atoms("water")
         water_resids = set(res.resid for res in water_atoms.residues)
 
@@ -129,6 +129,7 @@ class EntropyManager:
                 end,
                 step,
                 number_frames,
+                self._args.force_partitioning,
             )
         )
 
@@ -543,6 +544,7 @@ class EntropyManager:
         """
         # Find the relevant force and torque matrices and tidy them up
         # by removing rows and columns that are all zeros
+
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
 
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)

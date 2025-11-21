@@ -18,12 +18,12 @@ jobs:
     steps:
     - name: Checkout repository
       id: repo
-      uses: actions/checkout@v5.0.0
+      uses: actions/checkout@v6
 
     - name: Set up Python
       uses: actions/setup-python@v6.0.0
       with:
-        python-version: 3.13
+        python-version: 3.14
 
     - name: Get latest release from pip
       id: latestreleased
@@ -46,7 +46,7 @@ jobs:
     steps:
 
       - name: checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6
 
       - name: Change version in repo and CITATION.cff
         run: |
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6
         with:
           ref: main
 
@@ -113,7 +113,7 @@ jobs:
     steps:
 
       - name: create release
-        uses: softprops/action-gh-release@v2.4.1
+        uses: softprops/action-gh-release@v2.4.2
         with:
           name: v${{ github.event.inputs.version }}
           generate_release_notes: true
@@ -126,14 +126,14 @@ jobs:
     steps:
 
     - name: checkout
-      uses: actions/checkout@v5.0.0
+      uses: actions/checkout@v6
       with:
         ref: main
 
     - name: Set up Python
       uses: actions/setup-python@v6.0.0
       with:
-        python-version: 3.13
+        python-version: 3.14
 
     - name: Install flit
       run: |

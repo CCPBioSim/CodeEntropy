@@ -12,7 +12,22 @@ arg_map = {
     "top_traj_file": {
         "type": str,
         "nargs": "+",
-        "help": "Path to Structure/topology file followed by Trajectory file(s)",
+        "help": "Path to structure/topology file followed by trajectory file",
+    },
+    "force_file": {
+        "type": str,
+        "default": None,
+        "help": "Optional path to force file if forces are not in trajectory file",
+    },
+    "file_format": {
+        "type": str,
+        "default": None,
+        "help": "String for file format as recognised by MDAnalysis",
+    },
+    "kcal_force_units": {
+        "type": bool,
+        "default": False,
+        "help": "Set this to True if you have a separate force file with nonSI units.",
     },
     "force_file": {
         "type": str,
@@ -268,5 +283,5 @@ class ConfigManager:
         if args.force_partitioning != default_value:
             logger.warning(
                 f"'force_partitioning' is set to {args.force_partitioning},"
-                " which differs from the default ({default_value})."
+                f" which differs from the default {default_value}."
             )
