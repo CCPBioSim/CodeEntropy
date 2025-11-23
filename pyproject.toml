@@ -63,7 +63,7 @@ testing = [
 ]
 
 pre-commit = [
-    "pre-commit==4.4.0",
+    "pre-commit==4.5.0",
     "pylint==4.0.3"
 ]
 docs = [
