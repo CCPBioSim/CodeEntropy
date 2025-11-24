@@ -18,12 +18,12 @@ jobs:
     steps:
     - name: Checkout repository
       id: repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
     - name: Set up Python
-      uses: actions/setup-python@v6.0.0
+      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
       with:
-        python-version: 3.14
+        python-version: 3.14.0
 
     - name: Get latest release from pip
       id: latestreleased
@@ -46,7 +46,7 @@ jobs:
     steps:
 
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
       - name: Change version in repo and CITATION.cff
         run: |
@@ -61,7 +61,7 @@ jobs:
 
       - name: send PR
         id: pr_id
-        uses: peter-evans/create-pull-request@v7.0.8
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           commit-message: Update version to ${{ github.event.inputs.version }}
           branch: version-update
@@ -78,7 +78,7 @@ jobs:
           draft: false
 
       - name: auto approve review
-        uses: hmarr/auto-approve-action@v4.0.0
+        uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4.0.0
         with:
           pull-request-number: ${{ steps.pr_id.outputs.pull-request-number }}
           review-message: "Auto approved version bump PR"
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
         with:
           ref: main
 
@@ -113,7 +113,7 @@ jobs:
     steps:
 
       - name: create release
-        uses: softprops/action-gh-release@v2.4.2
+        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
         with:
           name: v${{ github.event.inputs.version }}
           generate_release_notes: true
@@ -126,14 +126,14 @@ jobs:
     steps:
 
     - name: checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
       with:
         ref: main
 
     - name: Set up Python
-      uses: actions/setup-python@v6.0.0
+      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
       with:
-        python-version: 3.14
+        python-version: 3.14.0
 
     - name: Install flit
       run: |

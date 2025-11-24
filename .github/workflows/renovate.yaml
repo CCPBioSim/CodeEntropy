@@ -18,9 +18,9 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
-      - uses: renovatebot/github-action@v44.0.3
+      - uses: renovatebot/github-action@c91a61c730fa166439cd3e2c300c041590002b1d # v44.0.3
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
         env:
