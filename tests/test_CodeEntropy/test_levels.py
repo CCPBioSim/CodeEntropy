@@ -911,7 +911,8 @@ class TestLevels(BaseTestCase):
         # Check update_force_torque_matrices call count:
         self.assertEqual(level_manager.update_force_torque_matrices.call_count, 6)
 
-    def test_update_force_torque_matrices_united_atom(self):
+    @patch("CodeEntropy.mda_universe_operations.UniverseOperations.new_U_select_atom")
+    def test_update_force_torque_matrices_united_atom(self, mock_new_U):
         """
         Test that `update_force_torque_matrices` correctly updates force and torque
         matrices for the 'united_atom' level, assigning per-residue matrices and
@@ -922,9 +923,12 @@ class TestLevels(BaseTestCase):
         run_manager = MagicMock()
         entropy_manager._run_manager = run_manager
 
-        mock_residue_group = MagicMock()
-        mock_residue_group.trajectory.__getitem__.return_value = None
-        UniverseOperations.new_U_select_atom.return_value = mock_residue_group
+        mock_res = MagicMock()
+
+        mock_res.trajectory = MagicMock()
+        mock_res.trajectory.__getitem__.return_value = None
+
+        mock_new_U.return_value = mock_res
 
         mock_residue1 = MagicMock()
         mock_residue1.atoms.indices = [0, 2]
@@ -934,9 +938,9 @@ class TestLevels(BaseTestCase):
         mol = MagicMock()
         mol.residues = [mock_residue1, mock_residue2]
 
-        f_mat_mock = np.array([[1]])
-        t_mat_mock = np.array([[2]])
-        level_manager.get_matrices = MagicMock(return_value=(f_mat_mock, t_mat_mock))
+        f_mat = np.array([[1]])
+        t_mat = np.array([[2]])
+        level_manager.get_matrices = MagicMock(return_value=(f_mat, t_mat))
 
         force_avg = {"ua": {}, "res": [None], "poly": [None]}
         torque_avg = {"ua": {}, "res": [None], "poly": [None]}
@@ -948,7 +952,7 @@ class TestLevels(BaseTestCase):
             group_id=0,
             level="united_atom",
             level_list=["residue", "united_atom"],
-            time_index=5,
+            time_index=0,
             num_frames=10,
             force_avg=force_avg,
             torque_avg=torque_avg,
@@ -956,13 +960,21 @@ class TestLevels(BaseTestCase):
             force_partitioning=0.5,
         )
 
-        expected_keys = [(0, 0), (0, 1)]
-        for key in expected_keys:
-            np.testing.assert_array_equal(force_avg["ua"][key], f_mat_mock)
-            np.testing.assert_array_equal(torque_avg["ua"][key], t_mat_mock)
-            self.assertEqual(frame_counts["ua"][key], 1)
+        assert (0, 0) in force_avg["ua"]
+        assert (0, 1) in force_avg["ua"]
+        assert (0, 0) in torque_avg["ua"]
+        assert (0, 1) in torque_avg["ua"]
 
-    def test_update_force_torque_matrices_united_atom_increment(self):
+        np.testing.assert_array_equal(force_avg["ua"][(0, 0)], f_mat)
+        np.testing.assert_array_equal(force_avg["ua"][(0, 1)], f_mat)
+        np.testing.assert_array_equal(torque_avg["ua"][(0, 0)], t_mat)
+        np.testing.assert_array_equal(torque_avg["ua"][(0, 1)], t_mat)
+
+        assert frame_counts["ua"][(0, 0)] == 1
+        assert frame_counts["ua"][(0, 1)] == 1
+
+    @patch("CodeEntropy.mda_universe_operations.UniverseOperations.new_U_select_atom")
+    def test_update_force_torque_matrices_united_atom_increment(self, mock_new_U):
         """
         Test that `update_force_torque_matrices` correctly updates force and torque
         matrices for the 'united_atom' level when the key already exists.
@@ -975,16 +987,22 @@ class TestLevels(BaseTestCase):
         residue = MagicMock()
         residue.atoms.indices = [0, 1]
         mol.residues = [residue]
+        mol.trajectory = MagicMock()
         mol.trajectory.__getitem__.return_value = None
 
         selected_atoms = MagicMock()
-        entropy_manager._run_manager.new_U_select_atom.return_value = selected_atoms
+        selected_atoms.trajectory = MagicMock()
         selected_atoms.trajectory.__getitem__.return_value = None
 
-        f_mat_1 = np.array([[1.0]], dtype=np.float64)
-        t_mat_1 = np.array([[2.0]], dtype=np.float64)
-        f_mat_2 = np.array([[3.0]], dtype=np.float64)
-        t_mat_2 = np.array([[4.0]], dtype=np.float64)
+        mock_new_U.return_value = selected_atoms
+
+        # First matrices
+        f_mat_1 = np.array([[1.0]])
+        t_mat_1 = np.array([[2.0]])
+
+        # Second matrices
+        f_mat_2 = np.array([[3.0]])
+        t_mat_2 = np.array([[4.0]])
 
         level_manager.get_matrices = MagicMock(return_value=(f_mat_1, t_mat_1))
 
