@@ -251,24 +251,29 @@ class RunManager:
                 fileformat = args.file_format
                 kcal_units = args.kcal_force_units
 
+                # Create shared UniverseOperations instance
+                universe_operations = UniverseOperations()
+
                 if forcefile is None:
                     logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
                     u = mda.Universe(tprfile, trrfile, format=fileformat)
                 else:
-                    u = UniverseOperations.merge_forces(
+                    u = universe_operations.merge_forces(
                         tprfile, trrfile, forcefile, fileformat, kcal_units
                     )
 
                 self._config_manager.input_parameters_validation(u, args)
 
                 # Create LevelManager instance
-                level_manager = LevelManager()
+                level_manager = LevelManager(universe_operations)
 
                 # Create GroupMolecules instance
                 group_molecules = GroupMolecules()
 
-                # Create DihedralAnalysis instance
-                dihedral_analysis = DihedralAnalysis()
+                # Create shared DihedralAnalysis with injected universe_operations
+                dihedral_analysis = DihedralAnalysis(
+                    universe_operations=universe_operations
+                )
 
                 # Inject all dependencies into EntropyManager
                 entropy_manager = EntropyManager(
@@ -279,6 +284,7 @@ class RunManager:
                     level_manager=level_manager,
                     group_molecules=group_molecules,
                     dihedral_analysis=dihedral_analysis,
+                    universe_operations=universe_operations,
                 )
 
                 entropy_manager.execute()

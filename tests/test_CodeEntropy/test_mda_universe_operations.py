@@ -23,9 +23,19 @@ class TestUniverseOperations(BaseTestCase):
         logging.getLogger("MDAnalysis").handlers = [logging.NullHandler()]
         logging.getLogger("commands").handlers = [logging.NullHandler()]
 
-    @patch("CodeEntropy.run.mda.analysis.base.AnalysisFromFunction")
-    @patch("CodeEntropy.run.mda.Merge")
+    @patch("CodeEntropy.mda_universe_operations.AnalysisFromFunction")
+    @patch("CodeEntropy.mda_universe_operations.mda.Merge")
     def test_new_U_select_frame(self, MockMerge, MockAnalysisFromFunction):
+        """
+        Unit test for UniverseOperations.new_U_select_frame().
+
+        Verifies that:
+        - The Universe is queried with select_atoms("all", updating=True)
+        - AnalysisFromFunction is called to obtain coordinates and forces
+        - mda.Merge is called with the selected AtomGroup
+        - The new universe returned by Merge.load_new receives the correct arrays
+        - The method returns the merged universe
+        """
         # Mock Universe and its components
         mock_universe = MagicMock()
         mock_trajectory = MagicMock()
@@ -55,7 +65,8 @@ class TestUniverseOperations(BaseTestCase):
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
-        result = UniverseOperations.new_U_select_frame(mock_universe)
+        ops = UniverseOperations()
+        result = ops.new_U_select_frame(mock_universe)
 
         mock_universe.select_atoms.assert_called_once_with("all", updating=True)
         MockMerge.assert_called_once_with(mock_select_atoms)
@@ -74,9 +85,19 @@ class TestUniverseOperations(BaseTestCase):
         # Ensure the result is the mock merged universe
         self.assertEqual(result, mock_merged_universe)
 
-    @patch("CodeEntropy.run.mda.analysis.base.AnalysisFromFunction")
-    @patch("CodeEntropy.run.mda.Merge")
+    @patch("CodeEntropy.mda_universe_operations.AnalysisFromFunction")
+    @patch("CodeEntropy.mda_universe_operations.mda.Merge")
     def test_new_U_select_atom(self, MockMerge, MockAnalysisFromFunction):
+        """
+        Unit test for UniverseOperations.new_U_select_atom().
+
+        Ensures that:
+        - The Universe is queried with the correct selection string
+        - Coordinates and forces are extracted via AnalysisFromFunction
+        - mda.Merge receives the AtomGroup from select_atoms
+        - The new universe is populated with the expected data via load_new()
+        - The returned universe is the object created by Merge
+        """
         # Mock Universe and its components
         mock_universe = MagicMock()
         mock_select_atoms = MagicMock()
@@ -102,9 +123,9 @@ class TestUniverseOperations(BaseTestCase):
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
-        result = UniverseOperations.new_U_select_atom(
-            mock_universe, select_string="resid 1-10"
-        )
+        ops = UniverseOperations()
+
+        result = ops.new_U_select_atom(mock_universe, select_string="resid 1-10")
 
         mock_universe.select_atoms.assert_called_once_with("resid 1-10", updating=True)
         MockMerge.assert_called_once_with(mock_select_atoms)
@@ -125,34 +146,29 @@ class TestUniverseOperations(BaseTestCase):
 
     def test_get_molecule_container(self):
         """
-        Test `_get_molecule_container` for extracting a molecule fragment.
+        Integration test for UniverseOperations.get_molecule_container().
 
-        Verifies that the returned universe contains the correct atoms corresponding
-        to the specified molecule ID's fragment from the original universe.
+        Uses a real MDAnalysis Universe loaded from test trajectory files.
+        Confirms that:
+        - The correct fragment for a given molecule index is selected
+        - The returned reduced Universe contains exactly the expected atom indices
+        - The number of atoms matches the original fragment
         """
-
-        # Load a test universe
         tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
         trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+
         u = mda.Universe(tprfile, trrfile)
 
-        # Assume the universe has at least one fragment
-        assert len(u.atoms.fragments) > 0
+        ops = UniverseOperations()
 
-        # Setup managers
-        universe_operations = UniverseOperations()
-
-        # Call the method
         molecule_id = 0
-        mol_universe = universe_operations.get_molecule_container(u, molecule_id)
 
-        # Get the original fragment
-        original_fragment = u.atoms.fragments[molecule_id]
+        fragment = u.atoms.fragments[molecule_id]
+        expected_indices = fragment.indices
 
-        # Assert that the atoms in the returned universe match the fragment
-        selected_indices = mol_universe.indices
-        #    selected_indices = mol_universe.atoms.indices
-        expected_indices = original_fragment.indices
+        mol_u = ops.get_molecule_container(u, molecule_id)
 
-        assert set(selected_indices) == set(expected_indices)
-        assert len(mol_universe.atoms) == len(original_fragment)
+        selected_indices = mol_u.atoms.indices
+
+        self.assertSetEqual(set(selected_indices), set(expected_indices))
+        self.assertEqual(len(selected_indices), len(expected_indices))

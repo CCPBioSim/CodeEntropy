@@ -10,8 +10,6 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from CodeEntropy.mda_universe_operations import UniverseOperations
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,10 +19,11 @@ class DihedralAnalysis:
     states needed for the conformational entropy functions.
     """
 
-    def __init__(self):
+    def __init__(self, universe_operations=None):
         """
         Initialise with placeholders.
         """
+        self._universe_operations = universe_operations
         self.data_container = None
         self.states_ua = None
         self.states_res = None
@@ -67,7 +66,7 @@ class DihedralAnalysis:
 
         for group_id in groups.keys():
             molecules = groups[group_id]
-            mol = UniverseOperations.get_molecule_container(data_container, 0)
+            mol = self._universe_operations.get_molecule_container(data_container, 0)
             num_residues = len(mol.residues)
             dihedrals_ua = [[] for _ in range(num_residues)]
             peaks_ua = [{} for _ in range(num_residues)]
@@ -80,11 +79,11 @@ class DihedralAnalysis:
                     for res_id in range(num_residues):
                         selection1 = mol.residues[res_id].atoms.indices[0]
                         selection2 = mol.residues[res_id].atoms.indices[-1]
-                        res_container = UniverseOperations.new_U_select_atom(
+                        res_container = self._universe_operations.new_U_select_atom(
                             mol,
                             f"index {selection1}:" f"{selection2}",
                         )
-                        heavy_res = UniverseOperations.new_U_select_atom(
+                        heavy_res = self._universe_operations.new_U_select_atom(
                             res_container, "prop mass > 1.1"
                         )
 
@@ -265,7 +264,7 @@ class DihedralAnalysis:
             # loop over all molecules in the averaging group
             # dihedral angle values have a range from -180 to 180
             for molecule in molecules:
-                mol = UniverseOperations.get_molecule_container(
+                mol = self._universe_operations.get_molecule_container(
                     data_container, molecule
                 )
                 number_frames = len(mol.trajectory)
@@ -342,7 +341,9 @@ class DihedralAnalysis:
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
         for molecule in molecules:
-            mol = UniverseOperations.get_molecule_container(data_container, molecule)
+            mol = self._universe_operations.get_molecule_container(
+                data_container, molecule
+            )
             number_frames = len(mol.trajectory)
             R = Dihedral(dihedrals).run()
             for dihedral_index in range(len(dihedrals)):

@@ -9,8 +9,6 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from CodeEntropy.mda_universe_operations import UniverseOperations
-
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +22,7 @@ class LevelManager:
     analysis.
     """
 
-    def __init__(self):
+    def __init__(self, universe_operations):
         """
         Initializes the LevelManager with placeholders for level-related data,
         including translational and rotational axes, number of beads, and a
@@ -35,6 +33,7 @@ class LevelManager:
         self._trans_axes = None
         self._rot_axes = None
         self._number_of_beads = None
+        self._universe_operations = universe_operations
 
     def select_levels(self, data_container):
         """
@@ -699,7 +698,7 @@ class LevelManager:
             for time_index, _ in zip(indices, reduced_atom.trajectory[start:end:step]):
                 for group_id, molecules in groups.items():
                     for mol_id in molecules:
-                        mol = UniverseOperations.get_molecule_container(
+                        mol = self._universe_operations.get_molecule_container(
                             reduced_atom, mol_id
                         )
                         for level in levels[mol_id]:
@@ -804,7 +803,7 @@ class LevelManager:
         if level == "united_atom":
             for res_id, residue in enumerate(mol.residues):
                 key = (group_id, res_id)
-                res = UniverseOperations.new_U_select_atom(
+                res = self._universe_operations.new_U_select_atom(
                     mol, f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}"
                 )
 

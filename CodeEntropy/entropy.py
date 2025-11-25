@@ -15,7 +15,6 @@ from rich.progress import (
 )
 
 from CodeEntropy.config.logging_config import LoggingConfig
-from CodeEntropy.mda_universe_operations import UniverseOperations
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -36,6 +35,7 @@ class EntropyManager:
         level_manager,
         group_molecules,
         dihedral_analysis,
+        universe_operations,
     ):
         """
         Initializes the EntropyManager with required components.
@@ -56,6 +56,7 @@ class EntropyManager:
         self._level_manager = level_manager
         self._group_molecules = group_molecules
         self._dihedral_analysis = dihedral_analysis
+        self._universe_operations = universe_operations
         self._GAS_CONST = 8.3144598484848
 
     def execute(self):
@@ -85,6 +86,7 @@ class EntropyManager:
             self._level_manager,
             self._group_molecules,
             self._dihedral_analysis,
+            self._universe_operations,
         )
         ce = ConformationalEntropy(
             self._run_manager,
@@ -94,6 +96,7 @@ class EntropyManager:
             self._level_manager,
             self._group_molecules,
             self._dihedral_analysis,
+            self._universe_operations,
         )
 
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
@@ -274,7 +277,7 @@ class EntropyManager:
             )
 
             for group_id in groups.keys():
-                mol = UniverseOperations.get_molecule_container(
+                mol = self._universe_operations.get_molecule_container(
                     reduced_atom, groups[group_id][0]
                 )
 
@@ -284,7 +287,7 @@ class EntropyManager:
                 group_residue_count = len(groups[group_id])
                 group_atom_count = 0
                 for mol_id in groups[group_id]:
-                    each_mol = UniverseOperations.get_molecule_container(
+                    each_mol = self._universe_operations.get_molecule_container(
                         reduced_atom, mol_id
                     )
                     group_atom_count += len(each_mol.atoms)
@@ -398,7 +401,7 @@ class EntropyManager:
         # Otherwise create a new (smaller) universe based on the selection
         u = self._universe
         selection_string = self._args.selection_string
-        reduced = UniverseOperations.new_U_select_atom(u, selection_string)
+        reduced = self._universe_operations.new_U_select_atom(u, selection_string)
         name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
         self._run_manager.write_universe(reduced, name)
 
@@ -810,6 +813,7 @@ class VibrationalEntropy(EntropyManager):
         level_manager,
         group_molecules,
         dihedral_analysis,
+        universe_operations,
     ):
         """
         Initializes the VibrationalEntropy manager with all required components and
@@ -823,6 +827,7 @@ class VibrationalEntropy(EntropyManager):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
         self._PLANCK_CONST = 6.62607004081818e-34
 
@@ -958,6 +963,7 @@ class ConformationalEntropy(EntropyManager):
         level_manager,
         group_molecules,
         dihedral_analysis,
+        universe_operations,
     ):
         """
         Initializes the ConformationalEntropy manager with all required components and
@@ -971,6 +977,7 @@ class ConformationalEntropy(EntropyManager):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
 
     def conformational_entropy_calculation(self, states):
@@ -1028,6 +1035,7 @@ class OrientationalEntropy(EntropyManager):
         level_manager,
         group_molecules,
         dihedral_analysis,
+        universe_operations,
     ):
         """
         Initializes the OrientationalEntropy manager with all required components and
@@ -1041,6 +1049,7 @@ class OrientationalEntropy(EntropyManager):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
 
     def orientational_entropy_calculation(self, neighbours_dict):

@@ -18,7 +18,7 @@ class UniverseOperations:
         """
         self._universe = None
 
-    def new_U_select_frame(u, start=None, end=None, step=1):
+    def new_U_select_frame(self, u, start=None, end=None, step=1):
         """Create a reduced universe by dropping frames according to
         user selection.
 
@@ -60,7 +60,7 @@ class UniverseOperations:
 
         return u2
 
-    def new_U_select_atom(u, select_string="all"):
+    def new_U_select_atom(self, u, select_string="all"):
         """Create a reduced universe by dropping atoms according to
         user selection.
 
@@ -95,7 +95,7 @@ class UniverseOperations:
 
         return u2
 
-    def get_molecule_container(universe, molecule_id):
+    def get_molecule_container(self, universe, molecule_id):
         """
         Extracts the atom group corresponding to a single molecule from the universe.
 
@@ -110,12 +110,9 @@ class UniverseOperations:
         frag = universe.atoms.fragments[molecule_id]
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
 
-        # Build a new universe with only the one molecule
-        u2 = UniverseOperations.new_U_select_atom(universe, selection_string)
+        return self.new_U_select_atom(universe, selection_string)
 
-        return u2
-
-    def merge_forces(tprfile, trrfile, forcefile, fileformat=None, kcal=False):
+    def merge_forces(self, tprfile, trrfile, forcefile, fileformat=None, kcal=False):
         """
         Creates a universe by merging the coordinates and forces from
         different input files.

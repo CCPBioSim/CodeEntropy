@@ -48,7 +48,8 @@ class TestEntropyManager(BaseTestCase):
             bin_width=0.1, temperature=300, selection_string="all", water_entropy=False
         )
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
         dihedral_analysis = MagicMock()
@@ -60,6 +61,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
 
         # Mocks for trajectory and molecules
@@ -149,7 +151,8 @@ class TestEntropyManager(BaseTestCase):
             bin_width=0.1, temperature=300, selection_string="all", water_entropy=True
         )
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
         dihedral_analysis = MagicMock()
@@ -161,6 +164,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
 
         entropy_manager._get_trajectory_bounds = MagicMock(return_value=(0, 10, 1))
@@ -213,6 +217,7 @@ class TestEntropyManager(BaseTestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
         manager._calculate_water_entropy = MagicMock()
@@ -237,6 +242,7 @@ class TestEntropyManager(BaseTestCase):
             args,
             mock_universe,
             DataLogger(),
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -265,6 +271,7 @@ class TestEntropyManager(BaseTestCase):
             args,
             mock_universe,
             DataLogger(),
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -300,7 +307,7 @@ class TestEntropyManager(BaseTestCase):
             bin_width=0.1, temperature=300, selection_string="all", water_entropy=False
         )
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        level_manager = LevelManager(MagicMock())
         data_logger = DataLogger()
         group_molecules = MagicMock()
         manager = EntropyManager(
@@ -310,6 +317,7 @@ class TestEntropyManager(BaseTestCase):
             data_logger,
             level_manager,
             group_molecules,
+            MagicMock(),
             MagicMock(),
         )
 
@@ -360,6 +368,7 @@ class TestEntropyManager(BaseTestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
         self.assertIsInstance(entropy_manager._args.start, int)
@@ -395,6 +404,7 @@ class TestEntropyManager(BaseTestCase):
             MagicMock(),
             args,
             mock_universe,
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -439,6 +449,7 @@ class TestEntropyManager(BaseTestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
         start, end, step = entropy_manager._get_trajectory_bounds()
@@ -477,6 +488,7 @@ class TestEntropyManager(BaseTestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
         start, end, step = entropy_manager._get_trajectory_bounds()
@@ -485,36 +497,43 @@ class TestEntropyManager(BaseTestCase):
         # Expect 20 frames divided by step of 5 = 4 frames
         self.assertEqual(number_frames, 4)
 
-        @patch(
-            "argparse.ArgumentParser.parse_args",
-            return_value=MagicMock(
-                selection_string="all",
-            ),
+    @patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=MagicMock(
+            selection_string="all",
+        ),
+    )
+    def test_get_reduced_universe_all(self, mock_args):
+        """
+        Test `_get_reduced_universe` with 'all' selection.
+
+        Verifies that the full universe is returned when the selection string
+        is set to 'all', and the number of atoms remains unchanged.
+        """
+        # Load MDAnalysis Universe
+        tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
+        trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
+        u = mda.Universe(tprfile, trrfile)
+
+        config_manager = ConfigManager()
+
+        parser = config_manager.setup_argparse()
+        args = parser.parse_args()
+
+        entropy_manager = EntropyManager(
+            MagicMock(),
+            args,
+            u,
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
         )
-        def test_get_reduced_universe_all(self, mock_args):
-            """
-            Test `_get_reduced_universe` with 'all' selection.
 
-            Verifies that the full universe is returned when the selection string
-            is set to 'all', and the number of atoms remains unchanged.
-            """
-            # Load MDAnalysis Universe
-            tprfile = os.path.join(self.test_data_dir, "md_A4_dna.tpr")
-            trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
-            u = mda.Universe(tprfile, trrfile)
+        entropy_manager._get_reduced_universe()
 
-            config_manager = ConfigManager()
-
-            parser = config_manager.setup_argparse()
-            args = parser.parse_args()
-
-            entropy_manager = EntropyManager(
-                MagicMock(), args, u, MagicMock(), MagicMock(), MagicMock(), MagicMock()
-            )
-
-            entropy_manager._get_reduced_universe()
-
-            self.assertEqual(entropy_manager._universe.atoms.n_atoms, 254)
+        self.assertEqual(entropy_manager._universe.atoms.n_atoms, 254)
 
     @patch(
         "argparse.ArgumentParser.parse_args",
@@ -535,6 +554,8 @@ class TestEntropyManager(BaseTestCase):
         trrfile = os.path.join(self.test_data_dir, "md_A4_dna_xf.trr")
         u = mda.Universe(tprfile, trrfile)
 
+        universe_operations = UniverseOperations()
+
         config_manager = ConfigManager()
         run_manager = RunManager("mock_folder/job001")
 
@@ -542,7 +563,14 @@ class TestEntropyManager(BaseTestCase):
         args = parser.parse_args()
 
         entropy_manager = EntropyManager(
-            run_manager, args, u, MagicMock(), MagicMock(), MagicMock(), MagicMock()
+            run_manager,
+            args,
+            u,
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            universe_operations,
         )
 
         reduced_u = entropy_manager._get_reduced_universe()
@@ -563,7 +591,8 @@ class TestEntropyManager(BaseTestCase):
         """
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
-        run_manager = MagicMock()
+        universe_operations = UniverseOperations()
+        run_manager = MagicMock(universe_operations)
         level_manager = MagicMock()
         data_logger = DataLogger()
         group_molecules = MagicMock()
@@ -575,6 +604,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # Mock molecule container with residues and atoms
@@ -655,7 +685,8 @@ class TestEntropyManager(BaseTestCase):
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
         manager = EntropyManager(
@@ -666,11 +697,12 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # Prepare mock molecule container
         reduced_atom = manager._get_reduced_universe()
-        mol_container = UniverseOperations.get_molecule_container(reduced_atom, 0)
+        mol_container = universe_operations.get_molecule_container(reduced_atom, 0)
 
         # Simulate trajectory length
         mol_container.trajectory = [None] * 10  # 10 frames
@@ -714,7 +746,8 @@ class TestEntropyManager(BaseTestCase):
         """
         args = MagicMock(bin_width=0.1)
         run_manager = MagicMock()
-        level_manager = MagicMock()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
         manager = EntropyManager(
@@ -725,6 +758,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         reduced_atom = MagicMock()
@@ -740,7 +774,7 @@ class TestEntropyManager(BaseTestCase):
 
         mol_mock = MagicMock()
         mol_mock.residues = []
-        UniverseOperations.get_molecule_container = MagicMock(return_value=mol_mock)
+        universe_operations.get_molecule_container = MagicMock(return_value=mol_mock)
         manager._process_vibrational_entropy = MagicMock()
 
         ve = MagicMock()
@@ -779,7 +813,8 @@ class TestEntropyManager(BaseTestCase):
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
         manager = EntropyManager(
@@ -790,6 +825,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # Create dummy states
@@ -830,6 +866,7 @@ class TestEntropyManager(BaseTestCase):
 
         # Setup managers and arguments
         args = MagicMock()
+        universe_operations = MagicMock()
         run_manager = MagicMock()
         level_manager = MagicMock()
         data_logger = DataLogger()
@@ -842,6 +879,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # States dict does NOT contain group_id=1
@@ -872,6 +910,7 @@ class TestEntropyManager(BaseTestCase):
         level with highest=False when it's the only level.
         """
         args = MagicMock(bin_width=0.1)
+        universe_operations = UniverseOperations()
         run_manager = MagicMock()
         level_manager = MagicMock()
         data_logger = DataLogger()
@@ -884,6 +923,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         reduced_atom = MagicMock()
@@ -899,7 +939,7 @@ class TestEntropyManager(BaseTestCase):
 
         mol_mock = MagicMock()
         mol_mock.residues = []
-        UniverseOperations.get_molecule_container = MagicMock(return_value=mol_mock)
+        universe_operations.get_molecule_container = MagicMock(return_value=mol_mock)
         manager._process_united_atom_entropy = MagicMock()
 
         ve = MagicMock()
@@ -941,6 +981,7 @@ class TestEntropyManager(BaseTestCase):
         """
         # Setup
         args = MagicMock(bin_width=0.1)
+        universe_operations = UniverseOperations()
         run_manager = MagicMock()
         level_manager = MagicMock()
         data_logger = DataLogger()
@@ -953,6 +994,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         reduced_atom = MagicMock()
@@ -971,7 +1013,7 @@ class TestEntropyManager(BaseTestCase):
         # Mock molecule
         mol_mock = MagicMock()
         mol_mock.residues = []
-        UniverseOperations.get_molecule_container = MagicMock(return_value=mol_mock)
+        universe_operations.get_molecule_container = MagicMock(return_value=mol_mock)
         manager._process_vibrational_entropy = MagicMock()
         manager._process_conformational_entropy = MagicMock()
 
@@ -1000,6 +1042,7 @@ class TestEntropyManager(BaseTestCase):
 
     def test_compute_entropies_polymer(self):
         args = MagicMock(bin_width=0.1)
+        universe_operations = UniverseOperations()
         run_manager = MagicMock()
         level_manager = MagicMock()
         data_logger = DataLogger()
@@ -1013,6 +1056,7 @@ class TestEntropyManager(BaseTestCase):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
 
         reduced_atom = MagicMock()
@@ -1029,7 +1073,7 @@ class TestEntropyManager(BaseTestCase):
 
         mol_mock = MagicMock()
         mol_mock.residues = []
-        UniverseOperations.get_molecule_container = MagicMock(return_value=mol_mock)
+        universe_operations.get_molecule_container = MagicMock(return_value=mol_mock)
         manager._process_vibrational_entropy = MagicMock()
 
         ve = MagicMock()
@@ -1077,7 +1121,7 @@ class TestEntropyManager(BaseTestCase):
         ]
         data_logger.residue_data = []
 
-        manager = EntropyManager(None, args, None, data_logger, None, None, None)
+        manager = EntropyManager(None, args, None, data_logger, None, None, None, None)
 
         # Patch save method
         data_logger.save_dataframes_as_json = MagicMock()
@@ -1120,7 +1164,7 @@ class TestEntropyManager(BaseTestCase):
         ]
         data_logger.residue_data = []
 
-        manager = EntropyManager(None, args, None, data_logger, None, None, None)
+        manager = EntropyManager(None, args, None, data_logger, None, None, None, None)
 
         # Patch save method
         data_logger.save_dataframes_as_json = MagicMock()
@@ -1166,6 +1210,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
     def tearDown(self):
@@ -1191,7 +1236,8 @@ class TestVibrationalEntropy(unittest.TestCase):
         args.selection_string = "all"
 
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
         dihedral_analysis = MagicMock()
@@ -1205,6 +1251,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            universe_operations,
         )
 
         # Basic assertions to check initialization
@@ -1232,6 +1279,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
         frequencies = ve.frequency_calculation(lambdas, temp)
 
@@ -1253,6 +1301,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         # Instantiate VibrationalEntropy with mocks
         ve = VibrationalEntropy(
             run_manager,
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -1287,6 +1336,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         # Instantiate VibrationalEntropy with mocks
         ve = VibrationalEntropy(
             run_manager,
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -1332,6 +1382,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
         with self.assertLogs("CodeEntropy.entropy", level="WARNING") as cm:
@@ -1366,6 +1417,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         # Instantiate VibrationalEntropy with mocks
         ve = VibrationalEntropy(
             run_manager,
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -1423,6 +1475,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             MagicMock(),
             MagicMock(),
             MagicMock(),
+            MagicMock(),
         )
 
         S_vib = ve.vibrational_entropy_calculation(
@@ -1453,6 +1506,7 @@ class TestVibrationalEntropy(unittest.TestCase):
         run_manager = RunManager("mock_folder/job001")
         ve = VibrationalEntropy(
             run_manager,
+            MagicMock(),
             MagicMock(),
             MagicMock(),
             MagicMock(),
@@ -1715,7 +1769,8 @@ class TestConformationalEntropy(unittest.TestCase):
         args.selection_string = "all"
 
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
 
@@ -1728,6 +1783,7 @@ class TestConformationalEntropy(unittest.TestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # Basic assertions to check initialization
@@ -1744,7 +1800,8 @@ class TestConformationalEntropy(unittest.TestCase):
         # Setup managers and arguments
         args = MagicMock(bin_width=0.1, temperature=300, selection_string="all")
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
 
@@ -1756,6 +1813,7 @@ class TestConformationalEntropy(unittest.TestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # Create a simple array of states with known counts
@@ -1811,7 +1869,8 @@ class TestOrientationalEntropy(unittest.TestCase):
         args.selection_string = "all"
 
         run_manager = RunManager("mock_folder/job001")
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        level_manager = LevelManager(universe_operations)
         data_logger = DataLogger()
         group_molecules = MagicMock()
 
@@ -1824,6 +1883,7 @@ class TestOrientationalEntropy(unittest.TestCase):
             level_manager,
             group_molecules,
             MagicMock(),
+            universe_operations,
         )
 
         # Basic assertions to check initialization
@@ -1844,7 +1904,7 @@ class TestOrientationalEntropy(unittest.TestCase):
         }
 
         # Create an instance of OrientationalEntropy with dummy dependencies
-        oe = OrientationalEntropy(None, None, None, None, None, None, None)
+        oe = OrientationalEntropy(None, None, None, None, None, None, None, None)
 
         # Run the method
         result = oe.orientational_entropy_calculation(neighbours_dict)
@@ -1865,7 +1925,7 @@ class TestOrientationalEntropy(unittest.TestCase):
         """
         neighbours_dict = {"H2O": 1}  # Matches the condition exactly
 
-        oe = OrientationalEntropy(None, None, None, None, None, None, None)
+        oe = OrientationalEntropy(None, None, None, None, None, None, None, None)
         result = oe.orientational_entropy_calculation(neighbours_dict)
 
         # Since the logic is skipped, total entropy should be 0.0
