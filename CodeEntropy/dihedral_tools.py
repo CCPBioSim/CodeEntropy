@@ -123,26 +123,34 @@ class DihedralAnalysis:
                 if level == "united_atom":
                     for res_id in range(num_residues):
                         key = (group_id, res_id)
-                        states_ua[key] = self._assign_states(
+                        if len(dihedrals_ua[res_id]) == 0:
+                            # No conformational states
+                            states_ua[key] = []
+                        else:
+                            states_ua[key] = self._assign_states(
+                                data_container,
+                                molecules,
+                                dihedrals_ua[res_id],
+                                peaks_ua[res_id],
+                                start,
+                                end,
+                                step,
+                            )
+
+                elif level == "residue":
+                    if len(dihedrals_res) == 0:
+                        # No conformational states
+                        states_res[group_id] = []
+                    else:
+                        states_res[group_id] = self._assign_states(
                             data_container,
                             molecules,
-                            dihedrals_ua[res_id],
-                            peaks_ua[res_id],
+                            dihedrals_res,
+                            peaks_res,
                             start,
                             end,
                             step,
                         )
-
-                elif level == "residue":
-                    states_res[group_id] = self._assign_states(
-                        data_container,
-                        molecules,
-                        dihedrals_res,
-                        peaks_res,
-                        start,
-                        end,
-                        step,
-                    )
 
             progress.advance(task)
 
