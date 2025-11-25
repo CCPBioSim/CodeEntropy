@@ -102,7 +102,7 @@ class LevelManager:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
           torque_matrix (np.ndarray): Accumulated torque covariance matrix.
         """
-
+        print(f"Level we are at: {level}")
         # Make beads
         list_of_beads = self.get_beads(data_container, level)
 
@@ -417,6 +417,7 @@ class LevelManager:
             else:
                 # set center of rotation to center of mass of the residue
                 center = residue.atoms.center_of_mass()
+                print(f"Centre of mass: {center}")
 
                 # get vector for average position of bonded atoms
                 vector = self.get_avg_pos(atom_set, center)
@@ -666,25 +667,34 @@ class LevelManager:
             coords_rot = (
                 data_container.atoms[atom.index].position - bead.center_of_mass()
             )
+            print(f"Coordinates: {data_container.atoms[atom.index].position}")
+
+            # print(f"COM: {bead.center_of_mass}")
             coords_rot = np.matmul(rot_axes, coords_rot)
+            # print(f"Rotational coordinates: {coords_rot}")
             # update local forces in rotational frame
+            # print(f"Coordinates: {coords_rot}")
             forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
+            # print(f"Forces before scaling: {forces_rot}")
 
             # multiply by the force_partitioning parameter to avoid double counting
             # of the forces on weakly correlated atoms
             # the default value of force_partitioning is 0.5 (dividing by two)
             forces_rot = force_partitioning * forces_rot
+            # print(f"Forces after scaling: {forces_rot}")
 
             # define torques (cross product of coordinates and forces) in rotational
             # axes
             torques_local = np.cross(coords_rot, forces_rot)
             torques += torques_local
+            # print(f"Torques before inertia-weighting: {torques}")
 
         # divide by moment of inertia to get weighted torques
         # moment of inertia is a 3x3 tensor
         # the weighting is done in each dimension (x,y,z) using the diagonal
         # elements of the moment of inertia tensor
         moment_of_inertia = bead.moment_of_inertia()
+        print(f"moment_of_inertia: {moment_of_inertia}")
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
@@ -711,6 +721,8 @@ class LevelManager:
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
                 moment_of_inertia[dimension, dimension]
             )
+
+        print(f"Weighted Torque: {weighted_torque}")
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
 
