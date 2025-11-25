@@ -97,26 +97,34 @@ class DihedralAnalysis:
             for level in levels[molecules[0]]:
                 if level == "united_atom":
                     for res_id in range(num_residues):
-                        peaks_ua[res_id] = self._identify_peaks(
+                        if len(dihedrals_ua[res_id]) == 0:
+                            # No dihedrals means no histogram or peaks
+                            peaks_ua[res_id] = []
+                        else:
+                            peaks_ua[res_id] = self._identify_peaks(
+                                data_container,
+                                molecules,
+                                dihedrals_ua[res_id],
+                                bin_width,
+                                start,
+                                end,
+                                step,
+                            )
+
+                elif level == "residue":
+                    if len(dihedrals_res) == 0:
+                        # No dihedrals means no histogram or peaks
+                        peaks_res = []
+                    else:
+                        peaks_res = self._identify_peaks(
                             data_container,
                             molecules,
-                            dihedrals_ua[res_id],
+                            dihedrals_res,
                             bin_width,
                             start,
                             end,
                             step,
                         )
-
-                elif level == "residue":
-                    peaks_res = self._identify_peaks(
-                        data_container,
-                        molecules,
-                        dihedrals_res,
-                        bin_width,
-                        start,
-                        end,
-                        step,
-                    )
 
             # Assign states for each group
             for level in levels[molecules[0]]:
