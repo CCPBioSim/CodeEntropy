@@ -335,12 +335,12 @@ class DihedralAnalysis:
         from the histogram.
         Then combine these to form states for each molecule.
         """
-        conformations = []
-        states = []
+        states = None
 
         # get the values of the angle for the dihedral
         # dihedral angle values have a range from -180 to 180
         for molecule in molecules:
+            conformations = []
             mol = self._universe_operations.get_molecule_container(
                 data_container, molecule
             )
