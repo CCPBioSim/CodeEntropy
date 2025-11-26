@@ -359,6 +359,75 @@ class TestRunManager(BaseTestCase):
             )
             mock_entropy_manager.execute.assert_called_once()
 
+    def test_run_entropy_workflow_with_forcefile(self):
+        """
+        Test the else-branch in run_entropy_workflow where forcefile is not None.
+        """
+        run_manager = RunManager("mock_folder/job001")
+        run_manager._logging_config = MagicMock()
+        run_manager._config_manager = MagicMock()
+        run_manager.load_citation_data = MagicMock()
+        run_manager.show_splash = MagicMock()
+        run_manager._data_logger = MagicMock()
+        run_manager.folder = self.test_dir
+
+        # Logger mock
+        mock_logger = MagicMock()
+        run_manager._logging_config.setup_logging.return_value = mock_logger
+
+        # Config contains force_file
+        run_manager._config_manager.load_config.return_value = {
+            "test_run": {
+                "top_traj_file": ["/path/to/tpr", "/path/to/trr"],
+                "force_file": "/path/to/forces",
+                "file_format": "gro",
+                "kcal_force_units": "kcal",
+                "selection_string": "all",
+                "output_file": "output.json",
+                "verbose": False,
+            }
+        }
+
+        # Parse args mock
+        mock_args = MagicMock()
+        mock_args.output_file = "output.json"
+        mock_args.verbose = False
+        mock_args.top_traj_file = ["/path/to/tpr", "/path/to/trr"]
+        mock_args.force_file = "/path/to/forces"
+        mock_args.file_format = "gro"
+        mock_args.kcal_force_units = "kcal"
+        mock_args.selection_string = "all"
+
+        parser = run_manager._config_manager.setup_argparse.return_value
+        parser.parse_known_args.return_value = (mock_args, [])
+        run_manager._config_manager.merge_configs.return_value = mock_args
+
+        # Mock UniverseOperations.merge_forces
+        with (
+            unittest.mock.patch(
+                "CodeEntropy.run.EntropyManager", return_value=MagicMock()
+            ) as Entropy_patch,
+            unittest.mock.patch("CodeEntropy.run.UniverseOperations") as UOps_patch,
+            unittest.mock.patch("CodeEntropy.run.mda.Universe") as mock_universe,
+        ):
+            mock_universe_ops = UOps_patch.return_value
+            mock_universe_ops.merge_forces.return_value = MagicMock()
+
+            run_manager.run_entropy_workflow()
+
+            # Ensure merge_forces is used
+            mock_universe_ops.merge_forces.assert_called_once_with(
+                "/path/to/tpr",
+                ["/path/to/trr"],
+                "/path/to/forces",
+                "gro",
+                "kcal",
+            )
+
+            mock_universe.assert_not_called()
+
+            Entropy_patch.return_value.execute.assert_called_once()
+
     def test_run_configuration_warning(self):
         """
         Test that a warning is logged when the config entry is not a dictionary.
