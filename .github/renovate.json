@@ -7,7 +7,7 @@
     "group:recommended"
   ],
   "rangeStrategy": "pin",
-  "schedule": ["0 8 * * 1-5"],
+  "schedule": ["* 8 * * 1-5"],
   "labels": ["dependencies"],
   "lockFileMaintenance": {
     "enabled": true
