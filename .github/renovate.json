@@ -7,6 +7,8 @@
     "group:recommended"
   ],
   "rangeStrategy": "pin",
+  "schedule": ["before 8am on weekdays"],
+  "labels": ["dependencies"],
   "lockFileMaintenance": {
     "enabled": true
   },
