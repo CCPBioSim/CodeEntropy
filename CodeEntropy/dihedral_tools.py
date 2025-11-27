@@ -66,7 +66,9 @@ class DihedralAnalysis:
 
         for group_id in groups.keys():
             molecules = groups[group_id]
-            mol = self._universe_operations.get_molecule_container(data_container, 0)
+            mol = self._universe_operations.get_molecule_container(
+                data_container, molecules[0]
+            )
             num_residues = len(mol.residues)
             dihedrals_ua = [[] for _ in range(num_residues)]
             peaks_ua = [{} for _ in range(num_residues)]
