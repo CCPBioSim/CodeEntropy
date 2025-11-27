@@ -93,11 +93,11 @@ class TestMain(BaseTestCase):
 
         config_path = os.path.join(self.test_dir, "config.yaml")
         with open(config_path, "w") as f:
-            f.write("run1:\n" "  end: 60\n" "  selection_string: resid 1\n")
+            f.write("run1:\n" "  end: 1\n" "  selection_string: resname DA\n")
 
         citation_path = os.path.join(self.test_dir, "CITATION.cff")
         with open(citation_path, "w") as f:
-            f.write("run1:\n" "  end: 60\n" "  selection_string: resid 1\n")
+            f.write("\n")
 
         result = subprocess.run(
             [
@@ -126,6 +126,7 @@ class TestMain(BaseTestCase):
 
         with open(output_file) as f:
             content = f.read()
+            print(content)
             self.assertIn("DA", content)
 
 

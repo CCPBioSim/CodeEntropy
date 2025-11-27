@@ -6,8 +6,6 @@ import MDAnalysis as mda
 import requests
 import yaml
 from art import text2art
-from MDAnalysis.analysis.base import AnalysisFromFunction
-from MDAnalysis.coordinates.memory import MemoryReader
 from rich.align import Align
 from rich.console import Group
 from rich.padding import Padding
@@ -19,9 +17,11 @@ from rich.text import Text
 from CodeEntropy.config.arg_config_manager import ConfigManager
 from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.config.logging_config import LoggingConfig
+from CodeEntropy.dihedral_tools import DihedralAnalysis
 from CodeEntropy.entropy import EntropyManager
 from CodeEntropy.group_molecules import GroupMolecules
 from CodeEntropy.levels import LevelManager
+from CodeEntropy.mda_universe_operations import UniverseOperations
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -247,51 +247,33 @@ class RunManager:
                 # Load MDAnalysis Universe
                 tprfile = args.top_traj_file[0]
                 trrfile = args.top_traj_file[1:]
-                fileformat = args.file_format
-                logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
-                u = mda.Universe(tprfile, trrfile, format=fileformat)
-
-                # If forces are in separate file merge them with the
-                # coordinates from the trajectory file
                 forcefile = args.force_file
-                if forcefile is not None:
-                    logger.debug(f"Loading Universe with {forcefile}")
-                    u_force = mda.Universe(tprfile, forcefile, format=fileformat)
-                    select_atom = u.select_atoms("all")
-                    select_atom_force = u_force.select_atoms("all")
+                fileformat = args.file_format
+                kcal_units = args.kcal_force_units
 
-                    coordinates = (
-                        AnalysisFromFunction(
-                            lambda ag: ag.positions.copy(), select_atom
-                        )
-                        .run()
-                        .results["timeseries"]
+                # Create shared UniverseOperations instance
+                universe_operations = UniverseOperations()
+
+                if forcefile is None:
+                    logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
+                    u = mda.Universe(tprfile, trrfile, format=fileformat)
+                else:
+                    u = universe_operations.merge_forces(
+                        tprfile, trrfile, forcefile, fileformat, kcal_units
                     )
-                    forces = (
-                        AnalysisFromFunction(
-                            lambda ag: ag.positions.copy(), select_atom_force
-                        )
-                        .run()
-                        .results["timeseries"]
-                    )
-
-                    if args.kcal_force_units:
-                        # Convert from kcal to kJ
-                        forces *= 4.184
-
-                    logger.debug("Merging forces with coordinates universe.")
-                    new_universe = mda.Merge(select_atom)
-                    new_universe.load_new(coordinates, forces=forces)
-
-                    u = new_universe
 
                 self._config_manager.input_parameters_validation(u, args)
 
                 # Create LevelManager instance
-                level_manager = LevelManager()
+                level_manager = LevelManager(universe_operations)
 
                 # Create GroupMolecules instance
                 group_molecules = GroupMolecules()
+
+                # Create shared DihedralAnalysis with injected universe_operations
+                dihedral_analysis = DihedralAnalysis(
+                    universe_operations=universe_operations
+                )
 
                 # Inject all dependencies into EntropyManager
                 entropy_manager = EntropyManager(
@@ -301,6 +283,8 @@ class RunManager:
                     data_logger=self._data_logger,
                     level_manager=level_manager,
                     group_molecules=group_molecules,
+                    dihedral_analysis=dihedral_analysis,
+                    universe_operations=universe_operations,
                 )
 
                 entropy_manager.execute()
@@ -310,79 +294,6 @@ class RunManager:
         except Exception as e:
             logger.error(f"RunManager encountered an error: {e}", exc_info=True)
             raise
-
-    def new_U_select_frame(self, u, start=None, end=None, step=1):
-        """Create a reduced universe by dropping frames according to user selection
-
-        Parameters
-        ----------
-        u : MDAnalyse.Universe
-            A Universe object will all topology, dihedrals,coordinates and force
-            information
-        start : int or None, Optional, default: None
-            Frame id to start analysis. Default None will start from frame 0
-        end : int or None, Optional, default: None
-            Frame id to end analysis. Default None will end at last frame
-        step : int, Optional, default: 1
-            Steps between frame.
-
-        Returns
-        -------
-            u2 : MDAnalysis.Universe
-                reduced universe
-        """
-        if start is None:
-            start = 0
-        if end is None:
-            end = len(u.trajectory)
-        select_atom = u.select_atoms("all", updating=True)
-        coordinates = (
-            AnalysisFromFunction(lambda ag: ag.positions.copy(), select_atom)
-            .run()
-            .results["timeseries"][start:end:step]
-        )
-        forces = (
-            AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom)
-            .run()
-            .results["timeseries"][start:end:step]
-        )
-        u2 = mda.Merge(select_atom)
-        u2.load_new(coordinates, format=MemoryReader, forces=forces)
-        logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
-        return u2
-
-    def new_U_select_atom(self, u, select_string="all"):
-        """Create a reduced universe by dropping atoms according to user selection
-
-        Parameters
-        ----------
-        u : MDAnalyse.Universe
-            A Universe object will all topology, dihedrals,coordinates and force
-            information
-        select_string : str, Optional, default: 'all'
-            MDAnalysis.select_atoms selection string.
-
-        Returns
-        -------
-            u2 : MDAnalysis.Universe
-                reduced universe
-
-        """
-        select_atom = u.select_atoms(select_string, updating=True)
-        coordinates = (
-            AnalysisFromFunction(lambda ag: ag.positions.copy(), select_atom)
-            .run()
-            .results["timeseries"]
-        )
-        forces = (
-            AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom)
-            .run()
-            .results["timeseries"]
-        )
-        u2 = mda.Merge(select_atom)
-        u2.load_new(coordinates, format=MemoryReader, forces=forces)
-        logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
-        return u2
 
     def write_universe(self, u, name="default"):
         """Write a universe to working directories as pickle

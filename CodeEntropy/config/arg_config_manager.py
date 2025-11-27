@@ -27,7 +27,7 @@ arg_map = {
     "kcal_force_units": {
         "type": bool,
         "default": False,
-        "help": "Set this to True if you have a separate force file with nonSI units.",
+        "help": "Set this to True if you have a separate force file with kcal units.",
     },
     "selection_string": {
         "type": str,
