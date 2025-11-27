@@ -25,7 +25,15 @@ class EntropyManager:
     """
 
     def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
+        self,
+        run_manager,
+        args,
+        universe,
+        data_logger,
+        level_manager,
+        group_molecules,
+        dihedral_analysis,
+        universe_operations,
     ):
         """
         Initializes the EntropyManager with required components.
@@ -45,6 +53,8 @@ class EntropyManager:
         self._data_logger = data_logger
         self._level_manager = level_manager
         self._group_molecules = group_molecules
+        self._dihedral_analysis = dihedral_analysis
+        self._universe_operations = universe_operations
         self._GAS_CONST = 8.3144598484848
 
     def execute(self):
@@ -116,6 +126,7 @@ class EntropyManager:
                 end,
                 step,
                 number_frames,
+                self._args.force_partitioning,
             )
         )
 
@@ -263,7 +274,9 @@ class EntropyManager:
             )
 
             for group_id in groups.keys():
-                mol = self._get_molecule_container(reduced_atom, groups[group_id][0])
+                mol = self._universe_operations.get_molecule_container(
+                    reduced_atom, groups[group_id][0]
+                )
 
                 residue_group = "_".join(
                     sorted(set(res.resname for res in mol.residues))
@@ -271,7 +284,9 @@ class EntropyManager:
                 group_residue_count = len(groups[group_id])
                 group_atom_count = 0
                 for mol_id in groups[group_id]:
-                    each_mol = self._get_molecule_container(reduced_atom, mol_id)
+                    each_mol = self._universe_operations.get_molecule_container(
+                        reduced_atom, mol_id
+                    )
                     group_atom_count += len(each_mol.atoms)
                 self._data_logger.add_group_label(
                     group_id, residue_group, group_residue_count, group_atom_count
@@ -381,30 +396,13 @@ class EntropyManager:
             return self._universe
 
         # Otherwise create a new (smaller) universe based on the selection
-        reduced = self._run_manager.new_U_select_atom(
-            self._universe, self._args.selection_string
-        )
+        u = self._universe
+        selection_string = self._args.selection_string
+        reduced = self._universe_operations.new_U_select_atom(u, selection_string)
         name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
         self._run_manager.write_universe(reduced, name)
+
         return reduced
-
-    def _get_molecule_container(self, universe, molecule_id):
-        """
-        Extracts the atom group corresponding to a single molecule from the universe.
-
-        Args:
-            universe (MDAnalysis.Universe): The reduced universe.
-            molecule_id (int): Index of the molecule to extract.
-
-        Returns:
-            MDAnalysis.Universe: Universe containing only the selected molecule.
-        """
-        # Identify the atoms in the molecule
-        frag = universe.atoms.fragments[molecule_id]
-        selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
-
-        # Build a new universe with only the one molecule
-        return self._run_manager.new_U_select_atom(universe, selection_string)
 
     def _process_united_atom_entropy(
         self,
@@ -473,7 +471,7 @@ class EntropyManager:
             # If there are no conformational states (i.e. no dihedrals)
             # then the conformational entropy is zero
             S_conf_res = (
-                ce.conformational_entropy_calculation(values, number_frames)
+                ce.conformational_entropy_calculation(values)
                 if contains_non_empty_states
                 else 0
             )
@@ -546,6 +544,7 @@ class EntropyManager:
         """
         # Find the relevant force and torque matrices and tidy them up
         # by removing rows and columns that are all zeros
+
         force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
 
         torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
@@ -603,7 +602,7 @@ class EntropyManager:
         # If there are no conformational states (i.e. no dihedrals)
         # then the conformational entropy is zero
         S_conf = (
-            ce.conformational_entropy_calculation(group_states, number_frames)
+            ce.conformational_entropy_calculation(group_states)
             if contains_state_data
             else 0
         )

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 
 from CodeEntropy.levels import LevelManager
+from CodeEntropy.mda_universe_operations import UniverseOperations
 from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
@@ -45,8 +46,10 @@ class TestLevels(BaseTestCase):
 
         data_container.atoms.fragments = [fragment1, fragment2]
 
+        universe_operations = UniverseOperations()
+
         # Import the class and call the method
-        level_manager = LevelManager()
+        level_manager = LevelManager(universe_operations)
         number_molecules, levels = level_manager.select_levels(data_container)
 
         # Assertions
@@ -61,8 +64,10 @@ class TestLevels(BaseTestCase):
         Ensures that the method returns correctly shaped matrices after filtering.
         """
 
-        # Create a mock LevelManager level_manager
-        level_manager = LevelManager()
+        # Create a mock UniverseOperations and LevelManager
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         # Mock internal methods
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
@@ -92,6 +97,7 @@ class TestLevels(BaseTestCase):
             highest_level=True,
             force_matrix=None,
             torque_matrix=None,
+            force_partitioning=0.5,
         )
 
         # Assertions
@@ -112,7 +118,9 @@ class TestLevels(BaseTestCase):
         Test that get_matrices raises a ValueError when the provided force_matrix
         has a shape mismatch with the computed force block matrix.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         # Mock internal methods
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
@@ -139,6 +147,7 @@ class TestLevels(BaseTestCase):
                 highest_level=True,
                 force_matrix=bad_force_matrix,
                 torque_matrix=correct_torque_matrix,
+                force_partitioning=0.5,
             )
 
         self.assertIn("Inconsistent force matrix shape", str(context.exception))
@@ -148,7 +157,9 @@ class TestLevels(BaseTestCase):
         Test that get_matrices raises a ValueError when the provided torque_matrix
         has a shape mismatch with the computed torque block matrix.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         # Mock internal methods
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
@@ -174,6 +185,7 @@ class TestLevels(BaseTestCase):
                 highest_level=True,
                 force_matrix=correct_force_matrix,
                 torque_matrix=bad_torque_matrix,
+                force_partitioning=0.5,
             )
 
         self.assertIn("Inconsistent torque matrix shape", str(context.exception))
@@ -183,7 +195,9 @@ class TestLevels(BaseTestCase):
         Test that get_matrices returns consistent torque and force matrices
         when called multiple times with the same inputs.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
         level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
@@ -207,6 +221,7 @@ class TestLevels(BaseTestCase):
             highest_level=True,
             force_matrix=initial_force_matrix.copy(),
             torque_matrix=initial_torque_matrix.copy(),
+            force_partitioning=0.5,
         )
 
         force_matrix_2, torque_matrix_2 = level_manager.get_matrices(
@@ -216,157 +231,21 @@ class TestLevels(BaseTestCase):
             highest_level=True,
             force_matrix=initial_force_matrix.copy(),
             torque_matrix=initial_torque_matrix.copy(),
+            force_partitioning=0.5,
         )
 
         # Check that repeated calls produce the same output
         self.assertTrue(np.allclose(torque_matrix_1, torque_matrix_2, atol=1e-8))
         self.assertTrue(np.allclose(force_matrix_1, force_matrix_2, atol=1e-8))
 
-    def test_get_dihedrals_united_atom(self):
-        """
-        Test `get_dihedrals` for 'united_atom' level.
-        Ensures it returns the dihedrals directly from the data container.
-        """
-        level_manager = LevelManager()
-
-        data_container = MagicMock()
-        mock_dihedrals = ["d1", "d2", "d3"]
-        data_container.dihedrals = mock_dihedrals
-
-        result = level_manager.get_dihedrals(data_container, level="united_atom")
-        self.assertEqual(result, mock_dihedrals)
-
-    def test_get_dihedrals_residue(self):
-        """
-        Test `get_dihedrals` for 'residue' level with 5 residues.
-        Mocks bonded atom selections and verifies that dihedrals are constructed.
-        """
-        level_manager = LevelManager()
-
-        data_container = MagicMock()
-        data_container.residues = [0, 1, 2, 3, 4]  # 5 residues
-
-        # Mock select_atoms to return atom groups with .dihedral
-        mock_dihedral = MagicMock()
-        mock_atom_group = MagicMock()
-        mock_atom_group.__add__.return_value = mock_atom_group
-        mock_atom_group.dihedral = mock_dihedral
-        data_container.select_atoms.return_value = mock_atom_group
-
-        result = level_manager.get_dihedrals(data_container, level="residue")
-
-        # Should create 2 dihedrals for 5 residues (residues 0–3 and 1–4)
-        self.assertEqual(len(result), 2)
-        self.assertTrue(all(d == mock_dihedral for d in result))
-
-    def test_get_dihedrals_no_residue(self):
-        """
-        Test `get_dihedrals` for 'residue' level with 3 residues.
-        Mocks bonded atom selections and verifies that dihedrals are constructed.
-        """
-        level_manager = LevelManager()
-
-        data_container = MagicMock()
-        data_container.residues = [0, 1, 2]  # 3 residues
-
-        # Mock select_atoms to return atom groups with .dihedral
-        mock_dihedral = MagicMock()
-        mock_atom_group = MagicMock()
-        mock_atom_group.__add__.return_value = mock_atom_group
-        mock_atom_group.dihedral = mock_dihedral
-        data_container.select_atoms.return_value = mock_atom_group
-
-        result = level_manager.get_dihedrals(data_container, level="residue")
-
-        # Should result in no resdies
-        self.assertEqual(result, [])
-
-    def test_compute_dihedral_conformations(self):
-        """
-        Test `compute_dihedral_conformations` to ensure it correctly calls
-        `assign_conformation` on each dihedral and returns the expected
-        list of conformation strings.
-        """
-
-        # Setup
-        level_manager = LevelManager()
-
-        # Mock selector (can be anything since we're mocking internals)
-        selector = MagicMock()
-
-        # Mock dihedrals: pretend we have 3 dihedrals
-        mocked_dihedrals = ["d1", "d2", "d3"]
-        level_manager.get_dihedrals = MagicMock(return_value=mocked_dihedrals)
-
-        # Mock the conformation entropy (ce) object with assign_conformation method
-        ce = MagicMock()
-        # For each dihedral, assign_conformation returns a numpy array of ints
-        ce.assign_conformation = MagicMock(
-            side_effect=[
-                np.array([0, 1, 2]),
-                np.array([1, 0, 1]),
-                np.array([2, 2, 0]),
-            ]
-        )
-
-        number_frames = 3
-        bin_width = 10
-        start = 0
-        end = 3
-        step = 1
-        level = "residue"
-
-        # Call the method
-        states = level_manager.compute_dihedral_conformations(
-            selector, level, number_frames, bin_width, start, end, step, ce
-        )
-
-        # Expected states per frame
-        expected_states = [
-            "012",  # frame 0: d1=0, d2=1, d3=2
-            "102",  # frame 1: d1=1, d2=0, d3=2
-            "210",  # frame 2: d1=2, d2=1, d3=0
-        ]
-
-        # Verify the call count matches the number of dihedrals
-        self.assertEqual(ce.assign_conformation.call_count, len(mocked_dihedrals))
-
-        # Verify returned states are as expected
-        self.assertEqual(states, expected_states)
-
-        # Verify get_dihedrals was called once with correct arguments
-        level_manager.get_dihedrals.assert_called_once_with(selector, level)
-
-    def test_compute_dihedral_conformations_no_dihedrals(self):
-        """
-        Test `compute_dihedral_conformations` when no dihedrals are found.
-        Ensures it returns an empty list of states.
-        """
-        level_manager = LevelManager()
-
-        level_manager.get_dihedrals = MagicMock(return_value=[])
-
-        selector = MagicMock()
-
-        result = level_manager.compute_dihedral_conformations(
-            selector=selector,
-            level="united_atom",
-            number_frames=10,
-            bin_width=10.0,
-            start=0,
-            end=10,
-            step=1,
-            ce=MagicMock(),
-        )
-
-        self.assertEqual(result, [])
-
     def test_get_beads_polymer_level(self):
         """
         Test `get_beads` for 'polymer' level.
         Should return a single atom group representing the whole system.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         mock_atom_group = MagicMock()
@@ -384,7 +263,9 @@ class TestLevels(BaseTestCase):
         Test `get_beads` for 'residue' level.
         Should return one atom group per residue.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         data_container.residues = [0, 1, 2]  # 3 residues
@@ -402,7 +283,9 @@ class TestLevels(BaseTestCase):
         Test `get_beads` for 'united_atom' level.
         Should return one bead per heavy atom, including bonded hydrogens.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         heavy_atoms = [MagicMock(index=i) for i in range(3)]
@@ -426,7 +309,9 @@ class TestLevels(BaseTestCase):
         Test `get_beads` for 'united_atom' level.
         Should return one bead for molecule with no heavy atoms.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         heavy_atoms = []
@@ -448,7 +333,9 @@ class TestLevels(BaseTestCase):
         Test `get_axes` for 'united_atom' level when no bonded atoms are found.
         Ensures that rotational axes fall back to residues' principal axes.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
 
@@ -481,7 +368,9 @@ class TestLevels(BaseTestCase):
         Should return principal axes of the full system for both
         translation and rotation.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         principal_axes = np.identity(3)
@@ -497,7 +386,9 @@ class TestLevels(BaseTestCase):
         Test `get_axes` for 'residue' level with bonded neighbors.
         Should use spherical coordinate axes for rotation.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         data_container.atoms.principal_axes.return_value = "trans_axes"
@@ -526,7 +417,9 @@ class TestLevels(BaseTestCase):
         Test `get_axes` for 'residue' level with no bonded neighbors.
         Should use principal axes of the residue for rotation.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         data_container.atoms.principal_axes.return_value = "trans_axes"
@@ -550,7 +443,9 @@ class TestLevels(BaseTestCase):
         Should use residue principal axes for translation and spherical
         axes for rotation.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_container = MagicMock()
         data_container.residues.principal_axes.return_value = "trans_axes"
@@ -578,7 +473,9 @@ class TestLevels(BaseTestCase):
         Test `get_avg_pos` with a non-empty atom set.
         Should return the average of atom positions minus the center.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom1 = MagicMock()
         atom1.position = np.array([1.0, 2.0, 3.0])
@@ -601,7 +498,9 @@ class TestLevels(BaseTestCase):
         Test `get_avg_pos` with an empty atom set.
         Should return a random vector minus the center.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom_set = MagicMock()
         atom_set.names = []
@@ -620,7 +519,9 @@ class TestLevels(BaseTestCase):
         Test with a valid non-zero vector.
         Should return a 3x3 orthonormal basis matrix.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         vector = np.array([1.0, 1.0, 1.0])
         result = level_manager.get_sphCoord_axes(vector)
@@ -633,7 +534,9 @@ class TestLevels(BaseTestCase):
         Test with a vector along the z-axis (x2y2 == 0).
         Should raise ValueError due to undefined phi.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         vector = np.array([0.0, 0.0, 1.0])
         with self.assertRaises(ValueError):
@@ -643,7 +546,9 @@ class TestLevels(BaseTestCase):
         """
         Test with a vector that would cause x2y2 / r2 < 0.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         vector = np.array([1e-10, 1e-10, 1e10])  # x2y2 is tiny, r2 is huge
         result = level_manager.get_sphCoord_axes(vector)
@@ -654,7 +559,9 @@ class TestLevels(BaseTestCase):
         Test with a zero vector.
         Should raise ValueError due to r2 == 0.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         vector = np.array([0.0, 0.0, 0.0])
         with self.assertRaises(ValueError) as context:
@@ -666,7 +573,9 @@ class TestLevels(BaseTestCase):
         Test with a vector along the z-axis (x2y2 == 0, r2 != 0).
         Should raise ValueError due to undefined phi.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         vector = np.array([0.0, 0.0, 1.0])  # r2 = 1.0, x2y2 = 0.0
         with self.assertRaises(ValueError) as context:
@@ -677,7 +586,9 @@ class TestLevels(BaseTestCase):
         """
         Test correct weighted force calculation with partitioning enabled.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -692,7 +603,7 @@ class TestLevels(BaseTestCase):
         trans_axes = np.identity(3)
 
         result = level_manager.get_weighted_forces(
-            data_container, bead, trans_axes, highest_level=True
+            data_container, bead, trans_axes, highest_level=True, force_partitioning=0.5
         )
 
         expected = (0.5 * np.array([2.0, 0.0, 0.0])) / np.sqrt(4.0)
@@ -702,7 +613,9 @@ class TestLevels(BaseTestCase):
         """
         Test correct weighted force calculation with partitioning disabled.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -717,7 +630,11 @@ class TestLevels(BaseTestCase):
         trans_axes = np.identity(3)
 
         result = level_manager.get_weighted_forces(
-            data_container, bead, trans_axes, highest_level=False
+            data_container,
+            bead,
+            trans_axes,
+            highest_level=False,
+            force_partitioning=0.5,
         )
 
         expected = np.array([3.0, 0.0, 0.0]) / np.sqrt(1.0)
@@ -727,7 +644,9 @@ class TestLevels(BaseTestCase):
         """
         Test that a zero mass raises a ValueError.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -743,14 +662,20 @@ class TestLevels(BaseTestCase):
 
         with self.assertRaises(ValueError):
             level_manager.get_weighted_forces(
-                data_container, bead, trans_axes, highest_level=True
+                data_container,
+                bead,
+                trans_axes,
+                highest_level=True,
+                force_partitioning=0.5,
             )
 
     def test_get_weighted_forces_negative_mass_raises_value_error(self):
         """
         Test that a negative mass raises a ValueError.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -766,14 +691,20 @@ class TestLevels(BaseTestCase):
 
         with self.assertRaises(ValueError):
             level_manager.get_weighted_forces(
-                data_container, bead, trans_axes, highest_level=True
+                data_container,
+                bead,
+                trans_axes,
+                highest_level=True,
+                force_partitioning=0.5,
             )
 
     def test_get_weighted_torques_weighted_torque_basic(self):
         """
         Test basic torque calculation with non-zero moment of inertia and torques.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         # Mock atom
         atom = MagicMock()
@@ -795,7 +726,11 @@ class TestLevels(BaseTestCase):
         # Rotation axes (identity matrix)
         rot_axes = np.identity(3)
 
-        result = level_manager.get_weighted_torques(data_container, bead, rot_axes)
+        force_partitioning = 0.5
+
+        result = level_manager.get_weighted_torques(
+            data_container, bead, rot_axes, force_partitioning
+        )
 
         np.testing.assert_array_almost_equal(result, np.array([0.0, 0.0, 0.5]))
 
@@ -803,7 +738,9 @@ class TestLevels(BaseTestCase):
         """
         Test that zero torque components skip division and remain zero.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -821,7 +758,11 @@ class TestLevels(BaseTestCase):
 
         rot_axes = np.identity(3)
 
-        result = level_manager.get_weighted_torques(data_container, bead, rot_axes)
+        force_partitioning = 0.5
+
+        result = level_manager.get_weighted_torques(
+            data_container, bead, rot_axes, force_partitioning
+        )
         np.testing.assert_array_almost_equal(result, np.zeros(3))
 
     def test_get_weighted_torques_zero_moi_raises(self):
@@ -829,7 +770,9 @@ class TestLevels(BaseTestCase):
         Should raise ZeroDivisionError when moment of inertia is zero in a dimension
         and torque in that dimension is non-zero.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -852,15 +795,21 @@ class TestLevels(BaseTestCase):
 
         rot_axes = np.identity(3)
 
+        force_partitioning = 0.5
+
         with self.assertRaises(ZeroDivisionError):
-            level_manager.get_weighted_torques(data_container, bead, rot_axes)
+            level_manager.get_weighted_torques(
+                data_container, bead, rot_axes, force_partitioning
+            )
 
     def test_get_weighted_torques_negative_moi_raises(self):
         """
         Should raise ValueError when moment of inertia is negative in a dimension
         and torque in that dimension is non-zero.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         atom = MagicMock()
         atom.index = 0
@@ -883,8 +832,12 @@ class TestLevels(BaseTestCase):
 
         rot_axes = np.identity(3)
 
+        foce_partitioning = 0.5
+
         with self.assertRaises(ValueError) as context:
-            level_manager.get_weighted_torques(data_container, bead, rot_axes)
+            level_manager.get_weighted_torques(
+                data_container, bead, rot_axes, foce_partitioning
+            )
 
         self.assertIn(
             "Negative value encountered for moment of inertia", str(context.exception)
@@ -894,7 +847,9 @@ class TestLevels(BaseTestCase):
         """
         Test with known vectors to verify correct outer product.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_i = np.array([1, 0, 0])
         data_j = np.array([0, 1, 0])
@@ -908,7 +863,9 @@ class TestLevels(BaseTestCase):
         """
         Test that all-zero input vectors return a zero matrix.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data_i = np.zeros(3)
         data_j = np.zeros(3)
@@ -921,7 +878,9 @@ class TestLevels(BaseTestCase):
         Test that one frame should return the outer product of the single pair of
         vectors.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         vec_i = np.array([1, 2, 3])
         vec_j = np.array([4, 5, 6])
@@ -934,7 +893,9 @@ class TestLevels(BaseTestCase):
         """
         Test that if data_i == data_j, the result is symmetric.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         data = np.array([1, 2, 3])
         result = level_manager.create_submatrix(data, data)
@@ -952,9 +913,11 @@ class TestLevels(BaseTestCase):
         """
 
         # Instantiate your class (replace YourClass with actual class name)
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
 
-        # Mock entropy_manager and _get_molecule_container
+        level_manager = LevelManager(universe_operations)
+
+        # Mock entropy_manager and get_molecule_container
         entropy_manager = MagicMock()
 
         # Fake atom with minimal attributes
@@ -967,8 +930,8 @@ class TestLevels(BaseTestCase):
         fake_mol = MagicMock()
         fake_mol.atoms = [atom]
 
-        # Always return fake_mol from _get_molecule_container
-        entropy_manager._get_molecule_container = MagicMock(return_value=fake_mol)
+        # Always return fake_mol from get_molecule_container
+        universe_operations.get_molecule_container = MagicMock(return_value=fake_mol)
 
         # Mock reduced_atom with trajectory yielding two timesteps
         timestep1 = MagicMock()
@@ -995,6 +958,7 @@ class TestLevels(BaseTestCase):
             end=2,
             step=1,
             number_frames=2,
+            force_partitioning=0.5,
         )
 
         # Assert returned matrices are dictionaries with correct keys
@@ -1009,26 +973,35 @@ class TestLevels(BaseTestCase):
         self.assertEqual(len(force_matrices["res"]), len(groups))
         self.assertEqual(len(force_matrices["poly"]), len(groups))
 
-        # Check _get_molecule_container call count: 2 timesteps * 2 molecules = 4 calls
-        self.assertEqual(entropy_manager._get_molecule_container.call_count, 10)
+        # Check get_molecule_container call count: 2 timesteps * 2 molecules = 4 calls
+        self.assertEqual(universe_operations.get_molecule_container.call_count, 4)
 
         # Check update_force_torque_matrices call count:
         self.assertEqual(level_manager.update_force_torque_matrices.call_count, 6)
 
     def test_update_force_torque_matrices_united_atom(self):
         """
-        Test that `update_force_torque_matrices` correctly updates force and torque
-        matrices for the 'united_atom' level, assigning per-residue matrices and
-        incrementing frame counts.
+        Test that update_force_torque_matrices() correctly initializes force and torque
+        matrices for the 'united_atom' level.
+
+        Ensures:
+        - The matrices are initialized for each UA group key.
+        - Frame counts are incremented correctly.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+        universe_operations.new_U_select_atom = MagicMock()
+
+        level_manager = LevelManager(universe_operations)
+
         entropy_manager = MagicMock()
         run_manager = MagicMock()
         entropy_manager._run_manager = run_manager
 
-        mock_residue_group = MagicMock()
-        mock_residue_group.trajectory.__getitem__.return_value = None
-        run_manager.new_U_select_atom.return_value = mock_residue_group
+        mock_res = MagicMock()
+        mock_res.trajectory = MagicMock()
+        mock_res.trajectory.__getitem__.return_value = None
+
+        universe_operations.new_U_select_atom.return_value = mock_res
 
         mock_residue1 = MagicMock()
         mock_residue1.atoms.indices = [0, 2]
@@ -1038,64 +1011,14 @@ class TestLevels(BaseTestCase):
         mol = MagicMock()
         mol.residues = [mock_residue1, mock_residue2]
 
-        f_mat_mock = np.array([[1]])
-        t_mat_mock = np.array([[2]])
-        level_manager.get_matrices = MagicMock(return_value=(f_mat_mock, t_mat_mock))
+        f_mat = np.array([[1]])
+        t_mat = np.array([[2]])
+        level_manager.get_matrices = MagicMock(return_value=(f_mat, t_mat))
 
         force_avg = {"ua": {}, "res": [None], "poly": [None]}
         torque_avg = {"ua": {}, "res": [None], "poly": [None]}
         frame_counts = {"ua": {}, "res": [None], "poly": [None]}
 
-        level_manager.update_force_torque_matrices(
-            entropy_manager=entropy_manager,
-            mol=mol,
-            group_id=0,
-            level="united_atom",
-            level_list=["residue", "united_atom"],
-            time_index=5,
-            num_frames=10,
-            force_avg=force_avg,
-            torque_avg=torque_avg,
-            frame_counts=frame_counts,
-        )
-
-        expected_keys = [(0, 0), (0, 1)]
-        for key in expected_keys:
-            np.testing.assert_array_equal(force_avg["ua"][key], f_mat_mock)
-            np.testing.assert_array_equal(torque_avg["ua"][key], t_mat_mock)
-            self.assertEqual(frame_counts["ua"][key], 1)
-
-    def test_update_force_torque_matrices_united_atom_increment(self):
-        """
-        Test that `update_force_torque_matrices` correctly updates force and torque
-        matrices for the 'united_atom' level when the key already exists.
-        """
-        level_manager = LevelManager()
-        entropy_manager = MagicMock()
-        mol = MagicMock()
-
-        # Simulate one residue with two atoms
-        residue = MagicMock()
-        residue.atoms.indices = [0, 1]
-        mol.residues = [residue]
-        mol.trajectory.__getitem__.return_value = None
-
-        selected_atoms = MagicMock()
-        entropy_manager._run_manager.new_U_select_atom.return_value = selected_atoms
-        selected_atoms.trajectory.__getitem__.return_value = None
-
-        f_mat_1 = np.array([[1.0]], dtype=np.float64)
-        t_mat_1 = np.array([[2.0]], dtype=np.float64)
-        f_mat_2 = np.array([[3.0]], dtype=np.float64)
-        t_mat_2 = np.array([[4.0]], dtype=np.float64)
-
-        level_manager.get_matrices = MagicMock(return_value=(f_mat_1, t_mat_1))
-
-        force_avg = {"ua": {}, "res": [None], "poly": [None]}
-        torque_avg = {"ua": {}, "res": [None], "poly": [None]}
-        frame_counts = {"ua": {}, "res": [None], "poly": [None]}
-
-        # First call: initialize
         level_manager.update_force_torque_matrices(
             entropy_manager=entropy_manager,
             mol=mol,
@@ -1107,9 +1030,75 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
-        # Second call: update
+        assert (0, 0) in force_avg["ua"]
+        assert (0, 1) in force_avg["ua"]
+        assert (0, 0) in torque_avg["ua"]
+        assert (0, 1) in torque_avg["ua"]
+
+        np.testing.assert_array_equal(force_avg["ua"][(0, 0)], f_mat)
+        np.testing.assert_array_equal(force_avg["ua"][(0, 1)], f_mat)
+        np.testing.assert_array_equal(torque_avg["ua"][(0, 0)], t_mat)
+        np.testing.assert_array_equal(torque_avg["ua"][(0, 1)], t_mat)
+
+        assert frame_counts["ua"][(0, 0)] == 1
+        assert frame_counts["ua"][(0, 1)] == 1
+
+    def test_update_force_torque_matrices_united_atom_increment(self):
+        """
+        Test that update_force_torque_matrices() correctly updates (increments)
+        existing force and torque matrices for the 'united_atom' level.
+
+        Confirms correct incremental averaging behavior.
+        """
+        universe_operations = UniverseOperations()
+        universe_operations.new_U_select_atom = MagicMock()
+
+        level_manager = LevelManager(universe_operations)
+
+        entropy_manager = MagicMock()
+        mol = MagicMock()
+
+        residue = MagicMock()
+        residue.atoms.indices = [0, 1]
+        mol.residues = [residue]
+        mol.trajectory = MagicMock()
+        mol.trajectory.__getitem__.return_value = None
+
+        selected_atoms = MagicMock()
+        selected_atoms.trajectory = MagicMock()
+        selected_atoms.trajectory.__getitem__.return_value = None
+
+        universe_operations.new_U_select_atom.return_value = selected_atoms
+
+        f_mat_1 = np.array([[1.0]])
+        t_mat_1 = np.array([[2.0]])
+
+        f_mat_2 = np.array([[3.0]])
+        t_mat_2 = np.array([[4.0]])
+
+        level_manager.get_matrices = MagicMock(return_value=(f_mat_1, t_mat_1))
+
+        force_avg = {"ua": {}, "res": [None], "poly": [None]}
+        torque_avg = {"ua": {}, "res": [None], "poly": [None]}
+        frame_counts = {"ua": {}, "res": [None], "poly": [None]}
+
+        level_manager.update_force_torque_matrices(
+            entropy_manager=entropy_manager,
+            mol=mol,
+            group_id=0,
+            level="united_atom",
+            level_list=["residue", "united_atom"],
+            time_index=0,
+            num_frames=10,
+            force_avg=force_avg,
+            torque_avg=torque_avg,
+            frame_counts=frame_counts,
+            force_partitioning=0.5,
+        )
+
         level_manager.get_matrices = MagicMock(return_value=(f_mat_2, t_mat_2))
 
         level_manager.update_force_torque_matrices(
@@ -1123,6 +1112,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         expected_force = f_mat_1 + (f_mat_2 - f_mat_1) / 2
@@ -1138,7 +1128,9 @@ class TestLevels(BaseTestCase):
         matrices for the 'residue' level, assigning whole-molecule matrices and
         incrementing frame counts.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
         entropy_manager = MagicMock()
         mol = MagicMock()
         mol.trajectory.__getitem__.return_value = None
@@ -1162,6 +1154,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         np.testing.assert_array_equal(force_avg["res"][0], f_mat_mock)
@@ -1175,7 +1168,9 @@ class TestLevels(BaseTestCase):
 
         Ensures that float precision is maintained and no casting errors occur.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
         entropy_manager = MagicMock()
         mol = MagicMock()
         mol.trajectory.__getitem__.return_value = None
@@ -1206,6 +1201,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         # Second update
@@ -1220,6 +1216,7 @@ class TestLevels(BaseTestCase):
             force_avg=force_avg,
             torque_avg=torque_avg,
             frame_counts=frame_counts,
+            force_partitioning=0.5,
         )
 
         expected_force = f_mat_1 + (f_mat_2 - f_mat_1) / 2
@@ -1233,7 +1230,9 @@ class TestLevels(BaseTestCase):
         """
         Test that matrix with no zero-only rows or columns should return unchanged.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         matrix = np.array([[1, 2], [3, 4]])
         result = level_manager.filter_zero_rows_columns(matrix)
@@ -1243,7 +1242,9 @@ class TestLevels(BaseTestCase):
         """
         Test that matrix with zero-only rows and columns should return reduced matrix.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         matrix = np.array([[0, 0, 0], [0, 5, 0], [0, 0, 0]])
         expected = np.array([[5]])
@@ -1254,7 +1255,9 @@ class TestLevels(BaseTestCase):
         """
         Test that matrix with all zeros should return an empty matrix.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         matrix = np.zeros((3, 3))
         result = level_manager.filter_zero_rows_columns(matrix)
@@ -1265,144 +1268,11 @@ class TestLevels(BaseTestCase):
         """
         Matrix with zeros in specific rows/columns should remove only those.
         """
-        level_manager = LevelManager()
+        universe_operations = UniverseOperations()
+
+        level_manager = LevelManager(universe_operations)
 
         matrix = np.array([[0, 0, 0], [1, 2, 3], [0, 0, 0]])
         expected = np.array([[1, 2, 3]])
         result = level_manager.filter_zero_rows_columns(matrix)
         np.testing.assert_array_equal(result, expected)
-
-    def test_build_conformational_states_united_atom_accumulates_states(self):
-        """
-        Test that the 'build_conformational_states' method correctly accumulates
-        united atom level conformational states for multiple molecules within the
-        same group.
-
-        Specifically, when called with two molecules in the same group, the method
-        should append the states returned for the second molecule to the list of
-        states for the first molecule, resulting in a nested list structure.
-
-        Verifies:
-        - The states_ua dictionary accumulates states as a nested list.
-        - The compute_dihedral_conformations method is called once per molecule.
-        """
-        level_manager = LevelManager()
-        entropy_manager = MagicMock()
-        reduced_atom = MagicMock()
-        ce = MagicMock()
-
-        # Setup mock residue for molecules
-        residue = MagicMock()
-        residue.atoms.indices = [10, 11, 12]
-
-        # Setup two mock molecules with the same residue
-        mol_0 = MagicMock()
-        mol_0.residues = [residue]
-        mol_1 = MagicMock()
-        mol_1.residues = [residue]
-
-        # entropy_manager returns different molecules by mol_id
-        entropy_manager._get_molecule_container.side_effect = [mol_0, mol_1]
-
-        # new_U_select_atom returns dummy selections twice per molecule call
-        dummy_sel_1 = MagicMock()
-        dummy_sel_2 = MagicMock()
-        # For mol_0: light then heavy
-        # For mol_1: light then heavy
-        entropy_manager._run_manager.new_U_select_atom.side_effect = [
-            dummy_sel_1,
-            dummy_sel_2,
-            dummy_sel_1,
-            dummy_sel_2,
-        ]
-
-        # Mock compute_dihedral_conformations to return different states for each call
-        state_1 = ["ua_state_1"]
-        state_2 = ["ua_state_2"]
-        level_manager.compute_dihedral_conformations = MagicMock(
-            side_effect=[state_1, state_2]
-        )
-
-        groups = {0: [0, 1]}  # Group 0 contains molecule 0 and molecule 1
-        levels = [["united_atom"], ["united_atom"]]
-        start, end, step = 0, 10, 1
-        number_frames = 10
-        bin_width = 0.1
-
-        states_ua, states_res = level_manager.build_conformational_states(
-            entropy_manager,
-            reduced_atom,
-            levels,
-            groups,
-            start,
-            end,
-            step,
-            number_frames,
-            bin_width,
-            ce,
-        )
-
-        assert states_ua[(0, 0)] == ["ua_state_1", "ua_state_2"]
-
-        # Confirm compute_dihedral_conformations was called twice (once per molecule)
-        assert level_manager.compute_dihedral_conformations.call_count == 2
-
-    def test_build_conformational_states_residue_level_accumulates_states(self):
-        """
-        Test that the 'build_conformational_states' method correctly accumulates
-        residue level conformational states for multiple molecules within the
-        same group.
-
-        When called with multiple molecules assigned to the same group at residue level,
-        the method should concatenate the returned states into a single flat list.
-
-        Verifies:
-        - The states_res list contains concatenated residue states from all molecules.
-        - The states_ua dictionary remains empty for residue level.
-        - compute_dihedral_conformations is called once per molecule.
-        """
-        level_manager = LevelManager()
-        entropy_manager = MagicMock()
-        reduced_atom = MagicMock()
-        ce = MagicMock()
-
-        # Setup molecule with no residues
-        mol = MagicMock()
-        mol.residues = []
-        entropy_manager._get_molecule_container.return_value = mol
-
-        # Setup return values for compute_dihedral_conformations
-        states_1 = ["res_state1"]
-        states_2 = ["res_state2"]
-        level_manager.compute_dihedral_conformations = MagicMock(
-            side_effect=[states_1, states_2]
-        )
-
-        # Setup inputs with 2 molecules in same group
-        groups = {0: [0, 1]}  # Both mol 0 and mol 1 are in group 0
-        levels = [["residue"], ["residue"]]
-        start, end, step = 0, 10, 1
-        number_frames = 10
-        bin_width = 0.1
-
-        # Run
-        states_ua, states_res = level_manager.build_conformational_states(
-            entropy_manager,
-            reduced_atom,
-            levels,
-            groups,
-            start,
-            end,
-            step,
-            number_frames,
-            bin_width,
-            ce,
-        )
-
-        # Confirm accumulation occurred
-        assert states_ua == {}
-        assert states_res[0] == ["res_state1", "res_state2"]
-        assert states_res == [["res_state1", "res_state2"]]
-
-        # Assert both calls to compute_dihedral_conformations happened
-        assert level_manager.compute_dihedral_conformations.call_count == 2

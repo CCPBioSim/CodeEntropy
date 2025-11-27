@@ -27,7 +27,7 @@ arg_map = {
     "kcal_force_units": {
         "type": bool,
         "default": False,
-        "help": "Set this to True if you have a separate force file with nonSI units.",
+        "help": "Set this to True if you have a separate force file with kcal units.",
     },
     "selection_string": {
         "type": str,
@@ -268,5 +268,5 @@ class ConfigManager:
         if args.force_partitioning != default_value:
             logger.warning(
                 f"'force_partitioning' is set to {args.force_partitioning},"
-                " which differs from the default ({default_value})."
+                f" which differs from the default {default_value}."
             )

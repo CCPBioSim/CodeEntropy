@@ -5,8 +5,9 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: '0 8 * * 1'
-
+    - cron: '0 8 * * 1-5'
+  workflow_dispatch:  
+  
 jobs:
   tests:
     name: Run tests
@@ -17,10 +18,10 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -31,7 +32,7 @@ jobs:
         run: pytest --cov CodeEntropy --cov-report term-missing --cov-append .
 
       - name: Coveralls GitHub Action
-        uses: coverallsapp/github-action@v2.3.6
+        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -39,11 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
-          python-version: 3.14
+          python-version: 3.14.0
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -55,11 +56,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
-          python-version: 3.14
+          python-version: 3.14.0
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -68,48 +69,3 @@ jobs:
         run: |
           pre-commit install
           pre-commit run --all-files || ( git status --short ; git diff ; exit 1 )
-
-  mdanalysis-compatibility:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
-        mdanalysis-version: ["2.9.0", "latest"]
-    name: MDAnalysis Compatibility Tests
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5.0.0
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6.0.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies with MDAnalysis ${{ matrix.mdanalysis-version }}
-        run: |
-          pip install --upgrade pip
-          pip install -e .[testing]
-          if [ "${{ matrix.mdanalysis-version }}" = "latest" ]; then
-            pip install MDAnalysis
-          else
-            pip install "MDAnalysis==${{ matrix.mdanalysis-version }}"
-          fi
-
-      - name: Run compatibility tests
-        run: pytest --cov CodeEntropy --cov-report=term-missing --cov-append
-
-      - name: Create Issue on Failure
-        if: failure()
-        uses: JasonEtco/create-an-issue@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-          MDA_VERSION: ${{ matrix.mdanalysis-version }}
-          RUN_NUMBER: ${{ github.run_number }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          filename: .github/workflows/mdanalysis-compatibility-failure.md
-          update_existing: true
-          search_existing: open
