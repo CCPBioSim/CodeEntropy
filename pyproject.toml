@@ -63,7 +63,7 @@ testing = [
 ]
 
 pre-commit = [
-    "pre-commit==4.4.0",
+    "pre-commit==4.5.0",
     "pylint==4.0.3"
 ]
 docs = [
@@ -74,7 +74,7 @@ docs = [
     "sphinxcontrib-details-directive",
     "sphinx_copybutton",
     "furo",
-    "markupsafe<2.1"
+    "markupsafe<3.1"
 ]
 
 [project.scripts]
