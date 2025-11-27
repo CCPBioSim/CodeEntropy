@@ -268,9 +268,9 @@ class DihedralAnalysis:
                     data_container, molecule
                 )
                 number_frames = len(mol.trajectory)
-                R = Dihedral(dihedrals).run()
+                dihedral_results = Dihedral(dihedrals).run()
                 for timestep in range(number_frames):
-                    value = R.results.angles[timestep][dihedral_index]
+                    value = dihedral_results.results.angles[timestep][dihedral_index]
 
                     # We want postive values in range 0 to 360 to make
                     # the peak assignment.
@@ -345,11 +345,11 @@ class DihedralAnalysis:
                 data_container, molecule
             )
             number_frames = len(mol.trajectory)
-            R = Dihedral(dihedrals).run()
+            dihedral_results = Dihedral(dihedrals).run()
             for dihedral_index in range(len(dihedrals)):
                 conformation = []
                 for timestep in range(number_frames):
-                    value = R.results.angles[timestep][dihedral_index]
+                    value = dihedral_results.results.angles[timestep][dihedral_index]
 
                     # We want postive values in range 0 to 360 to make
                     # the peak assignment.
