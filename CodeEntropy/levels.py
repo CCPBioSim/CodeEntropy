@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+from numpy import linalg as la
 from rich.progress import (
     BarColumn,
     Progress,
@@ -102,7 +103,6 @@ class LevelManager:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
           torque_matrix (np.ndarray): Accumulated torque covariance matrix.
         """
-        print(f"Level we are at: {level}")
         # Make beads
         list_of_beads = self.get_beads(data_container, level)
 
@@ -229,7 +229,6 @@ class LevelManager:
                         + str(residue - 3)
                     )
                     atom1 = data_container.select_atoms(atom_string)
-
                     atom_string = (
                         "resindex "
                         + str(residue - 3)
@@ -389,12 +388,15 @@ class LevelManager:
 
         if level == "polymer":
             # for polymer use principle axis for both translation and rotation
+            # axes are going to be sorted as MDAnalysis sorts them
+            # highest eigenvalue corresponds to first axis and so on
             trans_axes = data_container.atoms.principal_axes()
             rot_axes = data_container.atoms.principal_axes()
 
         elif level == "residue":
             # Translation
             # for residues use principal axes of whole molecule for translation
+            # principal axes are going to be sorted as MDAnalysis sorts them
             trans_axes = data_container.atoms.principal_axes()
 
             # Rotation
@@ -412,23 +414,41 @@ class LevelManager:
 
             if len(atom_set) == 0:
                 # if no bonds to other residues use pricipal axes of residue
+                # principal axes are going to be sorted as MDAnalysis sorts them
                 rot_axes = residue.atoms.principal_axes()
 
             else:
                 # set center of rotation to center of mass of the residue
                 center = residue.atoms.center_of_mass()
-                print(f"Centre of mass: {center}")
 
                 # get vector for average position of bonded atoms
                 vector = self.get_avg_pos(atom_set, center)
 
                 # use spherical coordinates function to get rotational axes
-                rot_axes = self.get_sphCoord_axes(vector)
+                rot_axes_unsorted = self.get_sphCoord_axes(vector)
+                eigenvals, eigenvectors = la.eig(rot_axes_unsorted)
+                max_index = ((np.where(eigenvals == max(eigenvals)))[0])[0]
+                min_index = ((np.where(eigenvals == min(eigenvals)))[0])[0]
+                mid_index = list(set([0, 1, 2]).difference([max_index, min_index]))[0]
+                rot_axes = [
+                    rot_axes_unsorted[max_index],
+                    rot_axes_unsorted[mid_index],
+                    rot_axes_unsorted[min_index],
+                ]
 
         elif level == "united_atom":
             # Translation
             # for united atoms use principal axes of residue for translation
-            trans_axes = data_container.residues.principal_axes()
+            trans_axes_unsorted = data_container.residues.principal_axes()
+            eigenvals, eigenvectors = la.eig(trans_axes_unsorted)
+            max_index = ((np.where(eigenvals == max(eigenvals)))[0])[0]
+            min_index = ((np.where(eigenvals == min(eigenvals)))[0])[0]
+            mid_index = list(set([0, 1, 2]).difference([max_index, min_index]))[0]
+            trans_axes = [
+                trans_axes_unsorted[max_index],
+                trans_axes_unsorted[mid_index],
+                trans_axes_unsorted[min_index],
+            ]
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
@@ -448,7 +468,16 @@ class LevelManager:
                 vector = self.get_avg_pos(atom_set, center)
 
                 # use spherical coordinates function to get rotational axes
-                rot_axes = self.get_sphCoord_axes(vector)
+                rot_axes_unsorted = self.get_sphCoord_axes(vector)
+                eigenvals, eigenvectors = la.eig(rot_axes_unsorted)
+                max_index = ((np.where(eigenvals == max(eigenvals)))[0])[0]
+                min_index = ((np.where(eigenvals == min(eigenvals)))[0])[0]
+                mid_index = list(set([0, 1, 2]).difference([max_index, min_index]))[0]
+                rot_axes = [
+                    rot_axes_unsorted[max_index],
+                    rot_axes_unsorted[mid_index],
+                    rot_axes_unsorted[min_index],
+                ]
 
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
@@ -667,34 +696,33 @@ class LevelManager:
             coords_rot = (
                 data_container.atoms[atom.index].position - bead.center_of_mass()
             )
-            print(f"Coordinates: {data_container.atoms[atom.index].position}")
 
-            # print(f"COM: {bead.center_of_mass}")
             coords_rot = np.matmul(rot_axes, coords_rot)
-            # print(f"Rotational coordinates: {coords_rot}")
             # update local forces in rotational frame
-            # print(f"Coordinates: {coords_rot}")
             forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
-            # print(f"Forces before scaling: {forces_rot}")
 
             # multiply by the force_partitioning parameter to avoid double counting
             # of the forces on weakly correlated atoms
             # the default value of force_partitioning is 0.5 (dividing by two)
             forces_rot = force_partitioning * forces_rot
-            # print(f"Forces after scaling: {forces_rot}")
 
             # define torques (cross product of coordinates and forces) in rotational
             # axes
             torques_local = np.cross(coords_rot, forces_rot)
             torques += torques_local
-            # print(f"Torques before inertia-weighting: {torques}")
 
         # divide by moment of inertia to get weighted torques
+        # moment of inertia axes match the level rotation axes
         # moment of inertia is a 3x3 tensor
         # the weighting is done in each dimension (x,y,z) using the diagonal
         # elements of the moment of inertia tensor
+        # axes are changed to match forces axes
         moment_of_inertia = bead.moment_of_inertia()
-        print(f"moment_of_inertia: {moment_of_inertia}")
+        principal_moment_of_inertia = [
+            moment_of_inertia[2, 2],
+            moment_of_inertia[0, 0],
+            moment_of_inertia[1, 1],
+        ]
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
@@ -703,26 +731,24 @@ class LevelManager:
                 continue
 
             # Check for zero moment of inertia
-            if np.isclose(moment_of_inertia[dimension, dimension], 0):
+            if np.isclose(principal_moment_of_inertia[dimension], 0):
                 raise ZeroDivisionError(
                     f"Attempted to divide by zero moment of inertia in dimension "
                     f"{dimension}."
                 )
 
             # Check for negative moment of inertia
-            if moment_of_inertia[dimension, dimension] < 0:
+            if principal_moment_of_inertia[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia[dimension, dimension]} "
+                    f"{principal_moment_of_inertia[dimension]} "
                     f"Cannot compute weighted torque."
                 )
 
             # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia[dimension, dimension]
+                principal_moment_of_inertia[dimension]
             )
-
-        print(f"Weighted Torque: {weighted_torque}")
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
 
