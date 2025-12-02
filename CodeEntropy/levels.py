@@ -1,7 +1,6 @@
 import logging
 
 import numpy as np
-from numpy import linalg as la
 from rich.progress import (
     BarColumn,
     Progress,
@@ -425,30 +424,20 @@ class LevelManager:
                 vector = self.get_avg_pos(atom_set, center)
 
                 # use spherical coordinates function to get rotational axes
-                rot_axes_unsorted = self.get_sphCoord_axes(vector)
-                eigenvals, eigenvectors = la.eig(rot_axes_unsorted)
-                max_index = ((np.where(eigenvals == max(eigenvals)))[0])[0]
-                min_index = ((np.where(eigenvals == min(eigenvals)))[0])[0]
-                mid_index = list(set([0, 1, 2]).difference([max_index, min_index]))[0]
-                rot_axes = [
-                    rot_axes_unsorted[max_index],
-                    rot_axes_unsorted[mid_index],
-                    rot_axes_unsorted[min_index],
-                ]
+                rot_axes = self.get_sphCoord_axes(vector)
 
         elif level == "united_atom":
             # Translation
-            # for united atoms use principal axes of residue for translation
-            trans_axes_unsorted = data_container.residues.principal_axes()
-            eigenvals, eigenvectors = la.eig(trans_axes_unsorted)
-            max_index = ((np.where(eigenvals == max(eigenvals)))[0])[0]
-            min_index = ((np.where(eigenvals == min(eigenvals)))[0])[0]
-            mid_index = list(set([0, 1, 2]).difference([max_index, min_index]))[0]
-            trans_axes = [
-                trans_axes_unsorted[max_index],
-                trans_axes_unsorted[mid_index],
-                trans_axes_unsorted[min_index],
-            ]
+            # same axes as residue level rotation
+            residue = data_container.residues()
+            # res_index_prev = res_index - 1
+            # res_index_next = res_index + 1
+            atom_set = data_container.select_atoms(
+                f"(resindex {index_prev} or resindex {index_next}) "
+                f"and bonded resid {index}"
+            )
+
+            # trans_axes = data_container.residues.principal_axes()
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
@@ -468,16 +457,7 @@ class LevelManager:
                 vector = self.get_avg_pos(atom_set, center)
 
                 # use spherical coordinates function to get rotational axes
-                rot_axes_unsorted = self.get_sphCoord_axes(vector)
-                eigenvals, eigenvectors = la.eig(rot_axes_unsorted)
-                max_index = ((np.where(eigenvals == max(eigenvals)))[0])[0]
-                min_index = ((np.where(eigenvals == min(eigenvals)))[0])[0]
-                mid_index = list(set([0, 1, 2]).difference([max_index, min_index]))[0]
-                rot_axes = [
-                    rot_axes_unsorted[max_index],
-                    rot_axes_unsorted[mid_index],
-                    rot_axes_unsorted[min_index],
-                ]
+                rot_axes = self.get_sphCoord_axes(vector)
 
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
@@ -716,14 +696,9 @@ class LevelManager:
         # moment of inertia is a 3x3 tensor
         # the weighting is done in each dimension (x,y,z) using the diagonal
         # elements of the moment of inertia tensor
-        # axes are changed to match forces axes
-        moment_of_inertia = bead.moment_of_inertia()
-        principal_moment_of_inertia = [
-            moment_of_inertia[2, 2],
-            moment_of_inertia[0, 0],
-            moment_of_inertia[1, 1],
-        ]
-
+        # moment of inertia is calculated using the rotational axes
+        # axes are already sorted
+        principal_moment_of_inertia = np.zeros(3)
         for dimension in range(3):
             # Skip calculation if torque is already zero
             if np.isclose(torques[dimension], 0):
