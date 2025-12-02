@@ -429,15 +429,15 @@ class LevelManager:
         elif level == "united_atom":
             # Translation
             # same axes as residue level rotation
-            residue = data_container.residues()
+            # residue = data_container.residues()
             # res_index_prev = res_index - 1
             # res_index_next = res_index + 1
-            atom_set = data_container.select_atoms(
-                f"(resindex {index_prev} or resindex {index_next}) "
-                f"and bonded resid {index}"
-            )
+            # atom_set = data_container.select_atoms(
+            #    f"(resindex {index_prev} or resindex {index_next}) "
+            #    f"and bonded resid {index}"
+            # )
 
-            # trans_axes = data_container.residues.principal_axes()
+            trans_axes = data_container.residues.principal_axes()
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
@@ -698,7 +698,27 @@ class LevelManager:
         # elements of the moment of inertia tensor
         # moment of inertia is calculated using the rotational axes
         # axes are already sorted
-        principal_moment_of_inertia = np.zeros(3)
+        # Ixx = sum(m_i (y_i^2+z_i^2))
+        # Iyy = sum(m_i (x_i^2+z_i^2))
+        # Izz = sum(m_i (x_i^2+y_i^2))
+
+        moment_of_inertia_diagonals = np.zeros((3,))
+        for atom in bead.atoms:
+            mass = atom.mass
+            coords_rot = (
+                data_container.atoms[atom.index].position - bead.center_of_mass()
+            )
+            coords_rot = np.matmul(rot_axes, coords_rot)
+            moment_of_inertia_diagonals[0] += mass * (
+                coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia_diagonals[1] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia_diagonals[2] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
+            )
+
         for dimension in range(3):
             # Skip calculation if torque is already zero
             if np.isclose(torques[dimension], 0):
@@ -706,23 +726,23 @@ class LevelManager:
                 continue
 
             # Check for zero moment of inertia
-            if np.isclose(principal_moment_of_inertia[dimension], 0):
+            if np.isclose(moment_of_inertia_diagonals[dimension], 0):
                 raise ZeroDivisionError(
                     f"Attempted to divide by zero moment of inertia in dimension "
                     f"{dimension}."
                 )
 
             # Check for negative moment of inertia
-            if principal_moment_of_inertia[dimension] < 0:
+            if moment_of_inertia_diagonals[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
-                    f"{principal_moment_of_inertia[dimension]} "
+                    f"{moment_of_inertia_diagonals[dimension]} "
                     f"Cannot compute weighted torque."
                 )
 
             # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                principal_moment_of_inertia[dimension]
+                moment_of_inertia_diagonals[dimension]
             )
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
