@@ -67,7 +67,7 @@ pre-commit = [
     "pylint>=4.0,<5.0"
 ]
 docs = [
-    "sphinx>=7.0,<8.0",
+    "sphinx>=9,<9.1",
     "nbsphinx>=0.9,<1.0",
     "sphinx_rtd_theme>=3,<3.1",
     "sphinxcontrib-contentui>=0.2,<1.0",
