@@ -1,12 +1,15 @@
 {
   "extends": [
     "config:best-practices",
-    ":pinAllExceptPeerDependencies",
     ":dependencyDashboard",
     "group:monorepos",
     "group:recommended"
   ],
-  "rangeStrategy": "pin",
+  "enabledManagers": ["pep621"],
+  "pep621": {
+    "enabled": true
+  },
+  "rangeStrategy": "replace",
   "schedule": ["* 8 * * 1-5"],
   "labels": ["dependencies"],
   "lockFileMaintenance": {
