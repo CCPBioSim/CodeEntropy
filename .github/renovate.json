@@ -12,9 +12,6 @@
   "rangeStrategy": "replace",
   "schedule": ["* 8 * * 1-5"],
   "labels": ["dependencies"],
-  "lockFileMaintenance": {
-    "enabled": true
-  },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
