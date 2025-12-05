@@ -46,8 +46,8 @@ dependencies = [
     "python-json-logger>=4.0,<5.0",
     "rich>=14.2,<15.0",
     "art>=6.5,<7.0",
-    "networkx==3.5",
-    "matplotlib==3.10.7",
+    "networkx>=3.6,<3.7",
+    "matplotlib>=3.10,<3.11",
     "waterEntropy>=1.2,<2.0",
     "requests>=2.32,<3.0",
 ]
