@@ -35,6 +35,7 @@ class EntropyManager:
         level_manager,
         group_molecules,
         dihedral_analysis,
+        neighbors,
         universe_operations,
     ):
         """
@@ -56,6 +57,7 @@ class EntropyManager:
         self._level_manager = level_manager
         self._group_molecules = group_molecules
         self._dihedral_analysis = dihedral_analysis
+        self._neighbors = neighbors
         self._universe_operations = universe_operations
         self._GAS_CONST = 8.3144598484848
 
@@ -86,6 +88,7 @@ class EntropyManager:
             self._level_manager,
             self._group_molecules,
             self._dihedral_analysis,
+            self._neighbors,
             self._universe_operations,
         )
         ce = ConformationalEntropy(
@@ -96,6 +99,7 @@ class EntropyManager:
             self._level_manager,
             self._group_molecules,
             self._dihedral_analysis,
+            self._neighbors,
             self._universe_operations,
         )
 
@@ -148,6 +152,11 @@ class EntropyManager:
             self._args.bin_width,
         )
 
+        # Count the neighbors for orientational entropy calculation
+        number_neighbors = self._neighbors.get_neighbors(
+            reduced_atom, groups, levels, False
+        )
+
         # Complete the entropy calculations
         self._compute_entropies(
             reduced_atom,
@@ -157,6 +166,7 @@ class EntropyManager:
             torque_matrices,
             states_ua,
             states_res,
+            number_neighbors,
             frame_counts,
             number_frames,
             ve,
@@ -232,13 +242,15 @@ class EntropyManager:
         torque_matrices,
         states_ua,
         states_res,
+        number_neighbors,
         frame_counts,
         number_frames,
         ve,
         ce,
     ):
         """
-        Compute vibrational and conformational entropies for all molecules and levels.
+        Compute vibrational, conformational, and orientational entropies for
+        all molecules and levels.
 
         This method iterates over each molecule and its associated entropy levels
         (united_atom, residue, polymer), computing the corresponding entropy
@@ -257,6 +269,8 @@ class EntropyManager:
             torque_matrices (dict): Precomputed torque covariance matrices.
             states_ua (dict): Dictionary to store united-atom conformational states.
             states_res (list): List to store residue-level conformational states.
+            number_neighbors (list): List of the average number of
+                neighbors for each group.
             frames_count (dict): Dictionary to store the frame counts
             number_frames (int): Total number of trajectory frames to process.
             ve: Vibrational Entropy object
@@ -300,6 +314,11 @@ class EntropyManager:
                 segid = mol.atoms[0].segid
 
                 mol_label = f"{resname}_{resid} (segid {segid})"
+
+                highest_level = levels[groups[group_id]][-1]
+                self._process_orientational_entropy(
+                    group_id, highest_level, number_neighbors
+                )
 
                 for level in levels[groups[group_id][0]]:
                     progress.update(
@@ -620,6 +639,22 @@ class EntropyManager:
             group_id, residue_group, residue_count, atom_count
         )
 
+    def _process_orientational_entropy(self, group_id, level, number_neighbors):
+        """
+        Computes conformational entropy at the residue level (whole-molecule dihedral
+        analysis).
+
+        Args:
+            group_id (int): ID of the group
+            number_neighbors (array): number of neighbors
+        """
+        # Get the relevant number of neighbors
+        neighbors = number_neighbors[group_id]
+
+        # Calculate the orientational entropy
+        S_orient = OrientationalEntropy.orientational_entropy_calculation(neighbors)
+        self._data_logger.add_results_data(group_id, level, "Orientational", S_orient)
+
     def _finalize_molecule_results(self):
         """
         Aggregates and logs total entropy and frame counts per molecule.
@@ -813,6 +848,7 @@ class VibrationalEntropy(EntropyManager):
         level_manager,
         group_molecules,
         dihedral_analysis,
+        neighbors,
         universe_operations,
     ):
         """
@@ -827,6 +863,7 @@ class VibrationalEntropy(EntropyManager):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            neighbors,
             universe_operations,
         )
         self._PLANCK_CONST = 6.62607004081818e-34
@@ -963,6 +1000,7 @@ class ConformationalEntropy(EntropyManager):
         level_manager,
         group_molecules,
         dihedral_analysis,
+        neighbors,
         universe_operations,
     ):
         """
@@ -977,6 +1015,7 @@ class ConformationalEntropy(EntropyManager):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            neighbors,
             universe_operations,
         )
 
@@ -1035,6 +1074,7 @@ class OrientationalEntropy(EntropyManager):
         level_manager,
         group_molecules,
         dihedral_analysis,
+        neighbors,
         universe_operations,
     ):
         """
@@ -1049,10 +1089,11 @@ class OrientationalEntropy(EntropyManager):
             level_manager,
             group_molecules,
             dihedral_analysis,
+            neighbors,
             universe_operations,
         )
 
-    def orientational_entropy_calculation(self, neighbours_dict):
+    def orientational_entropy_calculation(self, number_neighbors):
         """
         Function to calculate orientational entropies from eq. (10) in J. Higham,
         S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,
@@ -1060,53 +1101,28 @@ class OrientationalEntropy(EntropyManager):
         J. Higham, S.-Y. Chou, F. Gräter and R. H. Henchman,  Molecular Physics,
         2018, 116, 3 1965–1976.
 
-        σ is assumed to be 1 for the molecules we're concerned with and hence,
-        max {1, (Nc^3*π)^(1/2)} will always be (Nc^3*π)^(1/2).
+        σ is assumed to be 1 for the molecules so, max {1, (Nc^3*π)^(1/2)}
+        will always be (Nc^3*π)^(1/2).
 
-        TODO future release - function for determing symmetry and symmetry numbers
-        maybe?
+        TODO future release - refine theory to take symmetries, hydrogen
+        bonds, etc into account.
 
         Input
         -----
-        neighbours_dict :  dictionary - dictionary of neighbours for the molecule -
-            should contain the type of neighbour molecule and the number of neighbour
-            molecules of that species
+        number_neighbors : the average number of neighbors
 
         Returns
         -------
-        S_or_total : float - orientational entropy
+        S_orientational : float - orientational entropy
         """
+        S_orientational = 0
 
-        # Replaced molecule with neighbour as this is what the for loop uses
-        S_or_total = 0
-        for neighbour in neighbours_dict:  # we are going through neighbours
-            if neighbour in ["H2O"]:  # water molecules - call POSEIDON functions
-                pass  # TODO temporary until function is written
-            else:
-                # the bound ligand is always going to be a neighbour
-                omega = np.sqrt((neighbours_dict[neighbour] ** 3) * math.pi)
-                logger.debug(f"Omega for neighbour {neighbour}: {omega}")
-                # orientational entropy arising from each neighbouring species
-                # - we know the species is going to be a neighbour
-                S_or_component = math.log(omega)
-                logger.debug(
-                    f"S_or_component (log(omega)) for neighbour {neighbour}: "
-                    f"{S_or_component}"
-                )
-                S_or_component *= self._GAS_CONST
-                logger.debug(
-                    f"S_or_component after multiplying by GAS_CONST for neighbour "
-                    f"{neighbour}: {S_or_component}"
-                )
-                S_or_total += S_or_component
-                logger.debug(
-                    f"S_or_total after adding component for neighbour {neighbour}: "
-                    f"{S_or_total}"
-                )
-        # TODO for future releases
-        # implement a case for molecules with hydrogen bonds but to a lesser
-        # extent than water
+        omega = np.sqrt((number_neighbors**3) * math.pi)
+        logger.debug(f"Omega: {omega}")
 
-        logger.debug(f"Final total orientational entropy: {S_or_total}")
+        # orientational entropy
+        # multiply by gas constant to get the units J/mol/K
+        S_orientational = math.log(omega) * self._GAS_CONST
+        logger.debug(f"S_orientational: {S_orientational}")
 
-        return S_or_total
+        return S_orientational

@@ -22,6 +22,7 @@ from CodeEntropy.entropy import EntropyManager
 from CodeEntropy.group_molecules import GroupMolecules
 from CodeEntropy.levels import LevelManager
 from CodeEntropy.mda_universe_operations import UniverseOperations
+from CodeEntropy.neighbors import Neighbors
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -275,6 +276,9 @@ class RunManager:
                     universe_operations=universe_operations
                 )
 
+                # Create Neighbors instance
+                neighbors = Neighbors()
+
                 # Inject all dependencies into EntropyManager
                 entropy_manager = EntropyManager(
                     run_manager=self,
@@ -284,6 +288,7 @@ class RunManager:
                     level_manager=level_manager,
                     group_molecules=group_molecules,
                     dihedral_analysis=dihedral_analysis,
+                    neighbors=neighbors,
                     universe_operations=universe_operations,
                 )
 
