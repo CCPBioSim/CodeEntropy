@@ -14,7 +14,7 @@ from rich.progress import (
 
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy.entropy_graph import EntropyGraph
-from CodeEntropy.levels.hierarchy_graph import LevelGraph
+from CodeEntropy.levels.hierarchy_graph import LevelDAG
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -114,7 +114,7 @@ class EntropyManager:
             "n_frames": number_frames,
         }
 
-        level_results = LevelGraph().build().execute(shared_data)
+        level_results = LevelDAG().build().execute(shared_data)
         entropy_results = EntropyGraph().build().execute(level_results)
 
         self._finalize_outputs(entropy_results)
