@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 
@@ -71,7 +71,6 @@ class TestLevels(BaseTestCase):
 
         # Mock internal methods
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
-        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -88,12 +87,13 @@ class TestLevels(BaseTestCase):
         timestep2 = MagicMock()
         timestep2.frame = 1
         data_container.trajectory.__getitem__.return_value = [timestep1, timestep2]
+        bead = MagicMock()
+        bead.principal_axes = MagicMock(return_value=np.ones(3))
 
         # Call the method
         force_matrix, torque_matrix = level_manager.get_matrices(
             data_container=data_container,
             level="residue",
-            number_frames=2,
             highest_level=True,
             force_matrix=None,
             torque_matrix=None,
@@ -124,7 +124,6 @@ class TestLevels(BaseTestCase):
 
         # Mock internal methods
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
-        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -134,6 +133,9 @@ class TestLevels(BaseTestCase):
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
 
         data_container = MagicMock()
+        bead = MagicMock()
+        bead.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.principal_axes = MagicMock(return_value=np.ones(3))
 
         # Incorrect shape for force matrix (should be 6x6 for 2 beads)
         bad_force_matrix = np.zeros((3, 3))
@@ -143,7 +145,6 @@ class TestLevels(BaseTestCase):
             level_manager.get_matrices(
                 data_container=data_container,
                 level="residue",
-                number_frames=2,
                 highest_level=True,
                 force_matrix=bad_force_matrix,
                 torque_matrix=correct_torque_matrix,
@@ -163,7 +164,6 @@ class TestLevels(BaseTestCase):
 
         # Mock internal methods
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
-        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -173,6 +173,9 @@ class TestLevels(BaseTestCase):
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
 
         data_container = MagicMock()
+        bead = MagicMock()
+        bead.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.principal_axes = MagicMock(return_value=np.ones(3))
 
         correct_force_matrix = np.zeros((6, 6))
         bad_torque_matrix = np.zeros((3, 3))  # Incorrect shape
@@ -181,7 +184,6 @@ class TestLevels(BaseTestCase):
             level_manager.get_matrices(
                 data_container=data_container,
                 level="residue",
-                number_frames=2,
                 highest_level=True,
                 force_matrix=correct_force_matrix,
                 torque_matrix=bad_torque_matrix,
@@ -200,7 +202,6 @@ class TestLevels(BaseTestCase):
         level_manager = LevelManager(universe_operations)
 
         level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
-        level_manager.get_axes = MagicMock(return_value=("trans_axes", "rot_axes"))
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -210,6 +211,9 @@ class TestLevels(BaseTestCase):
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
 
         data_container = MagicMock()
+        bead = MagicMock()
+        bead.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.principal_axes = MagicMock(return_value=np.ones(3))
 
         initial_force_matrix = np.zeros((6, 6))
         initial_torque_matrix = np.zeros((6, 6))
@@ -217,7 +221,6 @@ class TestLevels(BaseTestCase):
         force_matrix_1, torque_matrix_1 = level_manager.get_matrices(
             data_container=data_container,
             level="residue",
-            number_frames=2,
             highest_level=True,
             force_matrix=initial_force_matrix.copy(),
             torque_matrix=initial_torque_matrix.copy(),
@@ -227,7 +230,6 @@ class TestLevels(BaseTestCase):
         force_matrix_2, torque_matrix_2 = level_manager.get_matrices(
             data_container=data_container,
             level="residue",
-            number_frames=2,
             highest_level=True,
             force_matrix=initial_force_matrix.copy(),
             torque_matrix=initial_torque_matrix.copy(),
@@ -327,260 +329,6 @@ class TestLevels(BaseTestCase):
         self.assertEqual(
             data_container.select_atoms.call_count, 2
         )  # 1 for heavy_atoms + 1 beads
-
-    def test_get_axes_united_atom_no_bonds(self):
-        """
-        Test `get_axes` for 'united_atom' level when no bonded atoms are found.
-        Ensures that rotational axes fall back to residues' principal axes.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        data_container = MagicMock()
-
-        # Mock principal axes for translation and rotation
-        mock_rot_axes = MagicMock(name="rot_axes")
-
-        data_container.residues.principal_axes.return_value = mock_rot_axes
-        data_container.residues.principal_axes.return_value = mock_rot_axes
-        data_container.residues.principal_axes.return_value = mock_rot_axes  # fallback
-
-        # First select_atoms returns empty bonded atom set
-        atom_set = MagicMock()
-        atom_set.__len__.return_value = 0  # triggers fallback
-
-        data_container.select_atoms.side_effect = [atom_set]
-
-        trans_axes, rot_axes = level_manager.get_axes(
-            data_container=data_container, level="united_atom", index=5
-        )
-
-        # Assertions
-        self.assertEqual(trans_axes, mock_rot_axes)
-        self.assertEqual(rot_axes, mock_rot_axes)
-        data_container.residues.principal_axes.assert_called()
-        self.assertEqual(data_container.select_atoms.call_count, 1)
-
-    def test_get_axes_polymer_level(self):
-        """
-        Test `get_axes` for 'polymer' level.
-        Should return principal axes of the full system for both
-        translation and rotation.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        data_container = MagicMock()
-        principal_axes = np.identity(3)
-        data_container.atoms.principal_axes.return_value = principal_axes
-
-        trans_axes, rot_axes = level_manager.get_axes(data_container, level="polymer")
-
-        self.assertTrue((trans_axes == principal_axes).all())
-        self.assertTrue((rot_axes == principal_axes).all())
-
-    def test_get_axes_residue_level_with_bonds(self):
-        """
-        Test `get_axes` for 'residue' level with bonded neighbors.
-        Should use spherical coordinate axes for rotation.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        data_container = MagicMock()
-        data_container.atoms.principal_axes.return_value = "trans_axes"
-
-        atom_set = MagicMock()
-        atom_set.__len__.return_value = 1
-
-        residue = MagicMock()
-        residue.atoms.center_of_mass.return_value = "center"
-        residue.atoms.principal_axes.return_value = "fallback_rot_axes"
-
-        data_container.select_atoms.side_effect = [atom_set, residue]
-
-        level_manager.get_avg_pos = MagicMock(return_value="vector")
-        level_manager.get_sphCoord_axes = MagicMock(return_value="rot_axes")
-
-        trans_axes, rot_axes = level_manager.get_axes(
-            data_container, level="residue", index=2
-        )
-
-        self.assertEqual(trans_axes, "trans_axes")
-        self.assertEqual(rot_axes, "rot_axes")
-
-    def test_get_axes_residue_level_without_bonds(self):
-        """
-        Test `get_axes` for 'residue' level with no bonded neighbors.
-        Should use principal axes of the residue for rotation.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        data_container = MagicMock()
-        data_container.atoms.principal_axes.return_value = "trans_axes"
-
-        empty_atom_set = []
-        residue = MagicMock()
-        residue.atoms.principal_axes.return_value = "rot_axes"
-
-        data_container.select_atoms.side_effect = [empty_atom_set, residue]
-
-        trans_axes, rot_axes = level_manager.get_axes(
-            data_container, level="residue", index=2
-        )
-
-        self.assertEqual(trans_axes, "trans_axes")
-        self.assertEqual(rot_axes, "rot_axes")
-
-    def test_get_axes_united_atom_level(self):
-        """
-        Test `get_axes` for 'united_atom' level.
-        Should use residue principal axes for translation and spherical
-        axes for rotation.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        data_container = MagicMock()
-        data_container.residues.principal_axes.return_value = "trans_axes"
-
-        atom_set = MagicMock()
-        atom_set.__len__.return_value = 1
-
-        atom_group = MagicMock()
-        atom_group.positions = [[1.0, 2.0, 3.0]]
-
-        data_container.select_atoms.side_effect = [atom_set, atom_group]
-
-        level_manager.get_avg_pos = MagicMock(return_value="vector")
-        level_manager.get_sphCoord_axes = MagicMock(return_value="rot_axes")
-
-        trans_axes, rot_axes = level_manager.get_axes(
-            data_container, level="united_atom", index=5
-        )
-
-        self.assertEqual(trans_axes, "trans_axes")
-        self.assertEqual(rot_axes, "rot_axes")
-
-    def test_get_avg_pos_with_atoms(self):
-        """
-        Test `get_avg_pos` with a non-empty atom set.
-        Should return the average of atom positions minus the center.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        atom1 = MagicMock()
-        atom1.position = np.array([1.0, 2.0, 3.0])
-        atom2 = MagicMock()
-        atom2.position = np.array([4.0, 5.0, 6.0])
-
-        atom_set = MagicMock()
-        atom_set.names = ["A", "B"]
-        atom_set.atoms = [atom1, atom2]
-
-        center = np.array([1.0, 1.0, 1.0])
-        expected_avg = ((atom1.position + atom2.position) / 2) - center
-
-        result = level_manager.get_avg_pos(atom_set, center)
-        np.testing.assert_array_almost_equal(result, expected_avg)
-
-    @patch("numpy.random.random")
-    def test_get_avg_pos_empty(self, mock_random):
-        """
-        Test `get_avg_pos` with an empty atom set.
-        Should return a random vector minus the center.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        atom_set = MagicMock()
-        atom_set.names = []
-        atom_set.atoms = []
-
-        center = np.array([1.0, 1.0, 1.0])
-        mock_random.return_value = np.array([0.5, 0.5, 0.5])
-
-        result = level_manager.get_avg_pos(atom_set, center)
-        expected = np.array([0.5, 0.5, 0.5]) - center
-
-        np.testing.assert_array_almost_equal(result, expected)
-
-    def test_get_sphCoord_axes_valid_vector(self):
-        """
-        Test with a valid non-zero vector.
-        Should return a 3x3 orthonormal basis matrix.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        vector = np.array([1.0, 1.0, 1.0])
-        result = level_manager.get_sphCoord_axes(vector)
-
-        self.assertEqual(result.shape, (3, 3))
-        self.assertTrue(np.all(np.isfinite(result)))
-
-    def test_get_sphCoord_axes_vector_on_z_axis_raises(self):
-        """
-        Test with a vector along the z-axis (x2y2 == 0).
-        Should raise ValueError due to undefined phi.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        vector = np.array([0.0, 0.0, 1.0])
-        with self.assertRaises(ValueError):
-            level_manager.get_sphCoord_axes(vector)
-
-    def test_get_sphCoord_axes_negative_x2y2_div_r2(self):
-        """
-        Test with a vector that would cause x2y2 / r2 < 0.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        vector = np.array([1e-10, 1e-10, 1e10])  # x2y2 is tiny, r2 is huge
-        result = level_manager.get_sphCoord_axes(vector)
-        self.assertEqual(result.shape, (3, 3))
-
-    def test_get_sphCoord_axes_zero_vector_raises(self):
-        """
-        Test with a zero vector.
-        Should raise ValueError due to r2 == 0.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        vector = np.array([0.0, 0.0, 0.0])
-        with self.assertRaises(ValueError) as context:
-            level_manager.get_sphCoord_axes(vector)
-        self.assertIn("r2 is zero", str(context.exception))
-
-    def test_get_sphCoord_axes_x2y2_zero_raises(self):
-        """
-        Test with a vector along the z-axis (x2y2 == 0, r2 != 0).
-        Should raise ValueError due to undefined phi.
-        """
-        universe_operations = UniverseOperations()
-
-        level_manager = LevelManager(universe_operations)
-
-        vector = np.array([0.0, 0.0, 1.0])  # r2 = 1.0, x2y2 = 0.0
-        with self.assertRaises(ValueError) as context:
-            level_manager.get_sphCoord_axes(vector)
-        self.assertIn("x2y2 is zero", str(context.exception))
 
     def test_get_weighted_force_with_partitioning(self):
         """
@@ -765,9 +513,9 @@ class TestLevels(BaseTestCase):
         )
         np.testing.assert_array_almost_equal(result, np.zeros(3))
 
-    def test_get_weighted_torques_zero_moi_raises(self):
+    def test_get_weighted_torques_zero_moi(self):
         """
-        Should raise ZeroDivisionError when moment of inertia is zero in a dimension
+        Should set torque to 0 when moment of inertia is zero in a dimension
         and torque in that dimension is non-zero.
         """
         universe_operations = UniverseOperations()
@@ -782,7 +530,7 @@ class TestLevels(BaseTestCase):
         bead.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
 
         # Set moment of inertia with zero in dimension 2
-        moi = np.identity(3)
+        moi = np.zeros((3, 3))
         moi[2, 2] = 0.0
         bead.moment_of_inertia.return_value = moi
 
@@ -797,10 +545,11 @@ class TestLevels(BaseTestCase):
 
         force_partitioning = 0.5
 
-        with self.assertRaises(ZeroDivisionError):
-            level_manager.get_weighted_torques(
-                data_container, bead, rot_axes, force_partitioning
-            )
+        torque = level_manager.get_weighted_torques(
+            data_container, bead, rot_axes, force_partitioning
+        )
+
+        self.assertEqual(torque[2], 0)
 
     def test_get_weighted_torques_negative_moi_raises(self):
         """
@@ -820,7 +569,7 @@ class TestLevels(BaseTestCase):
 
         # Set moment of inertia with negative value in dimension 2
         moi = np.identity(3)
-        moi[2, 2] = -1.0
+        moi *= -1.0
         bead.moment_of_inertia.return_value = moi
 
         data_container = MagicMock()
