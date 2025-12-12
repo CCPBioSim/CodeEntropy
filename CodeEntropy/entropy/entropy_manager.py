@@ -13,6 +13,8 @@ from rich.progress import (
 )
 
 from CodeEntropy.config.logging_config import LoggingConfig
+from CodeEntropy.entropy.entropy_graph import EntropyGraph
+from CodeEntropy.levels.hierarchy_graph import LevelGraph
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -59,16 +61,16 @@ class EntropyManager:
 
     def execute(self):
         """
-        Run the full entropy computation workflow.
+        Run the full entropy computation workflow using the DAG system.
 
-        This method orchestrates the entire entropy analysis pipeline, including:
-        - Handling water entropy if present.
-        - Initializing molecular structures and levels.
-        - Building force and torque covariance matrices.
-        - Computing vibrational and conformational entropies.
-        - Finalizing and logging results.
+        Workflow:
+            1. Parse trajectory frame bounds
+            2. Build reduced universe
+            3. Detect molecules + levels
+            4. Run LEVEL DAG
+            5. Run ENTROPY DAG
+            6. Log and store results
         """
-        # Set up initial information
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
 
@@ -76,27 +78,11 @@ class EntropyManager:
             f"Analyzing a total of {number_frames} frames in this calculation."
         )
 
-        # ve = VibrationalEntropy(
-        #     self._run_manager,
-        #     self._args,
-        #     self._universe,
-        #     self._data_logger,
-        #     self._level_manager,
-        #     self._group_molecules,
-        # )
-        # ce = ConformationalEntropy(
-        #     self._run_manager,
-        #     self._args,
-        #     self._universe,
-        #     self._data_logger,
-        #     self._level_manager,
-        #     self._group_molecules,
-        # )
-
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-        logger.debug(f"Universe 3: {reduced_atom}")
+        logger.debug(f"[EntropyManager] Reduced universe loaded: {reduced_atom}")
+
         water_atoms = self._universe.select_atoms("water")
-        water_resids = set(res.resid for res in water_atoms.residues)
+        water_resids = {res.resid for res in water_atoms.residues}
 
         water_groups = {
             gid: g
@@ -116,52 +102,22 @@ class EntropyManager:
         else:
             nonwater_groups.update(water_groups)
 
-        force_matrices, torque_matrices, frame_counts = (
-            self._level_manager.build_covariance_matrices(
-                self,
-                reduced_atom,
-                levels,
-                nonwater_groups,
-                start,
-                end,
-                step,
-                number_frames,
-                self._args.force_partitioning,
-            )
-        )
+        shared_data = {
+            "universe": self._universe,
+            "reduced_universe": reduced_atom,
+            "levels": levels,
+            "groups": nonwater_groups,
+            "args": self._args,
+            "start": start,
+            "end": end,
+            "step": step,
+            "n_frames": number_frames,
+        }
 
-        # # Identify the conformational states from dihedral angles for the
-        # # conformational entropy calculations
-        # states_ua, states_res = self._level_manager.build_conformational_states(
-        #     self,
-        #     reduced_atom,
-        #     levels,
-        #     nonwater_groups,
-        #     start,
-        #     end,
-        #     step,
-        #     number_frames,
-        #     self._args.bin_width,
-        #     ce,
-        # )
+        level_results = LevelGraph().build().execute(shared_data)
+        entropy_results = EntropyGraph().build().execute(level_results)
 
-        # # Complete the entropy calculations
-        # self._compute_entropies(
-        #     reduced_atom,
-        #     levels,
-        #     nonwater_groups,
-        #     force_matrices,
-        #     torque_matrices,
-        #     states_ua,
-        #     states_res,
-        #     frame_counts,
-        #     number_frames,
-        #     ve,
-        #     ce,
-        # )
-
-        # Print the results in a nicely formated way
-        self._finalize_molecule_results()
+        self._finalize_outputs(entropy_results)
         self._data_logger.log_tables()
 
     def _handle_water_entropy(self, start, end, step, water_groups):
