@@ -438,11 +438,19 @@ class LevelManager:
             # )
 
             trans_axes = data_container.residues.principal_axes()
+            # translational axes will be changed later
+            heavy_atoms = data_container.select_atoms("prop mass > 1.1")
+            heavy_atom_indices = []
+            for heavy_atom in heavy_atoms:
+                heavy_atom_indices.append(heavy_atom.index)
+            # we find the nth heavy atom
+            # where n is the bead index
+            heavy_atom_index = heavy_atom_indices[index]
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
             atom_set = data_container.select_atoms(
-                f"(prop mass > 1.1) and bonded index {index}"
+                f"(prop mass > 1.1) and bonded index {heavy_atom_index}"
             )
 
             if len(atom_set) == 0:
@@ -450,7 +458,7 @@ class LevelManager:
                 rot_axes = data_container.residues.principal_axes()
             else:
                 # center at position of heavy atom
-                atom_group = data_container.select_atoms(f"index {index}")
+                atom_group = data_container.select_atoms(f"index {heavy_atom_index}")
                 center = atom_group.positions[0]
 
                 # get vector for average position of bonded atoms
