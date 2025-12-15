@@ -295,11 +295,19 @@ class LevelManager:
             # Translation
             # for united atoms use principal axes of residue for translation
             trans_axes = data_container.residues.principal_axes()
+            # translational axes will be changed later
+            heavy_atoms = data_container.select_atoms("prop mass > 1.1")
+            heavy_atom_indices = []
+            for heavy_atom in heavy_atoms:
+                heavy_atom_indices.append(heavy_atom.index)
+            # we find the nth heavy atom
+            # where n is the bead index
+            heavy_atom_index = heavy_atom_indices[index]
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
             atom_set = data_container.select_atoms(
-                f"(prop mass > 1.1) and bonded index {index}"
+                f"(prop mass > 1.1) and bonded index {heavy_atom_index}"
             )
 
             if len(atom_set) == 0:
@@ -307,7 +315,7 @@ class LevelManager:
                 rot_axes = data_container.residues.principal_axes()
             else:
                 # center at position of heavy atom
-                atom_group = data_container.select_atoms(f"index {index}")
+                atom_group = data_container.select_atoms(f"index {heavy_atom_index}")
                 center = atom_group.positions[0]
 
                 # get vector for average position of bonded atoms
@@ -318,6 +326,7 @@ class LevelManager:
 
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
+
 
         return trans_axes, rot_axes
 
@@ -551,7 +560,28 @@ class LevelManager:
         # moment of inertia is a 3x3 tensor
         # the weighting is done in each dimension (x,y,z) using the diagonal
         # elements of the moment of inertia tensor
-        moment_of_inertia = bead.moment_of_inertia()
+        # moment of inertia is calculated using the rotational axes
+        # axes are already sorted
+        # Ixx = sum(m_i (y_i^2+z_i^2))
+        # Iyy = sum(m_i (x_i^2+z_i^2))
+        # Izz = sum(m_i (x_i^2+y_i^2))
+
+        moment_of_inertia_diagonals = np.zeros((3,))
+        for atom in bead.atoms:
+            mass = atom.mass
+            coords_rot = (
+                data_container.atoms[atom.index].position - bead.center_of_mass()
+            )
+            coords_rot = np.matmul(rot_axes, coords_rot)
+            moment_of_inertia_diagonals[0] += mass * (
+                coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia_diagonals[1] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia_diagonals[2] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
+            )
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
