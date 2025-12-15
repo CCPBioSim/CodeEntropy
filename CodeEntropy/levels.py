@@ -327,7 +327,6 @@ class LevelManager:
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
 
-
         return trans_axes, rot_axes
 
     def get_avg_pos(self, atom_set, center):
@@ -590,23 +589,23 @@ class LevelManager:
                 continue
 
             # Check for zero moment of inertia
-            if np.isclose(moment_of_inertia[dimension, dimension], 0):
+            if np.isclose(moment_of_inertia_diagonals[dimension], 0):
                 raise ZeroDivisionError(
                     f"Attempted to divide by zero moment of inertia in dimension "
                     f"{dimension}."
                 )
 
             # Check for negative moment of inertia
-            if moment_of_inertia[dimension, dimension] < 0:
+            if moment_of_inertia_diagonals[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia[dimension, dimension]} "
+                    f"{moment_of_inertia_diagonals[dimension, dimension]} "
                     f"Cannot compute weighted torque."
                 )
 
             # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia[dimension, dimension]
+                moment_of_inertia_diagonals[dimension]
             )
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
