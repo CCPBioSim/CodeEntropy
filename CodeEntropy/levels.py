@@ -119,7 +119,9 @@ class LevelManager:
             # Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
-            trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
+            trans_axes, rot_axes, center = self.get_axes(
+                data_container, level, bead_index
+            )
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
@@ -130,7 +132,11 @@ class LevelManager:
                 force_partitioning,
             )
             weighted_torques[bead_index] = self.get_weighted_torques(
-                data_container, list_of_beads[bead_index], rot_axes, force_partitioning
+                data_container,
+                list_of_beads[bead_index],
+                rot_axes,
+                center,
+                force_partitioning,
             )
 
         # Create covariance submatrices
@@ -258,6 +264,7 @@ class LevelManager:
             # for polymer use principle axis for both translation and rotation
             trans_axes = data_container.atoms.principal_axes()
             rot_axes = data_container.atoms.principal_axes()
+            center = data_container.center_of_mass()
 
         elif level == "residue":
             # Translation
@@ -276,6 +283,9 @@ class LevelManager:
                 f"and bonded resid {index}"
             )
             residue = data_container.select_atoms(f"resindex {index}")
+            # set center of rotation to center of mass of the residue
+            # we might want to change to center of bonding later
+            center = residue.atoms.center_of_mass()
 
             if len(atom_set) == 0:
                 # if no bonds to other residues use pricipal axes of residue
@@ -283,7 +293,6 @@ class LevelManager:
 
             else:
                 # set center of rotation to center of mass of the residue
-                center = residue.atoms.center_of_mass()
 
                 # get vector for average position of bonded atoms
                 vector = self.get_avg_pos(atom_set, center)
@@ -298,11 +307,14 @@ class LevelManager:
             # translational axes will be changed later
             heavy_atoms = data_container.select_atoms("prop mass > 1.1")
             heavy_atom_indices = []
-            for heavy_atom in heavy_atoms:
-                heavy_atom_indices.append(heavy_atom.index)
+            for atom in heavy_atoms:
+                heavy_atom_indices.append(atom.index)
             # we find the nth heavy atom
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
+            # center at position of heavy atom
+            heavy_atom = data_container.select_atoms(f"index {heavy_atom_index}")
+            center = heavy_atom.positions[0]
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
@@ -311,13 +323,10 @@ class LevelManager:
             )
 
             if len(atom_set) == 0:
-                # if no bonds to other residues use pricipal axes of residue
+                # if no bonds to other heavy atoms use pricipal axes of bead
                 rot_axes = data_container.residues.principal_axes()
-            else:
-                # center at position of heavy atom
-                atom_group = data_container.select_atoms(f"index {heavy_atom_index}")
-                center = atom_group.positions[0]
 
+            else:
                 # get vector for average position of bonded atoms
                 vector = self.get_avg_pos(atom_set, center)
 
@@ -327,7 +336,7 @@ class LevelManager:
         logger.debug(f"Translational Axes: {trans_axes}")
         logger.debug(f"Rotational Axes: {rot_axes}")
 
-        return trans_axes, rot_axes
+        return trans_axes, rot_axes, center
 
     def get_avg_pos(self, atom_set, center):
         """
@@ -502,7 +511,9 @@ class LevelManager:
 
         return weighted_force
 
-    def get_weighted_torques(self, data_container, bead, rot_axes, force_partitioning):
+    def get_weighted_torques(
+        self, data_container, bead, rot_axes, center, force_partitioning
+    ):
         """
         Function to calculate the moment of inertia weighted torques for a given bead.
 
@@ -538,9 +549,8 @@ class LevelManager:
         for atom in bead.atoms:
 
             # update local coordinates in rotational axes
-            coords_rot = (
-                data_container.atoms[atom.index].position - bead.center_of_mass()
-            )
+            coords_rot = data_container.atoms[atom.index].position - center
+
             coords_rot = np.matmul(rot_axes, coords_rot)
             # update local forces in rotational frame
             forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
@@ -568,9 +578,7 @@ class LevelManager:
         moment_of_inertia_diagonals = np.zeros((3,))
         for atom in bead.atoms:
             mass = atom.mass
-            coords_rot = (
-                data_container.atoms[atom.index].position - bead.center_of_mass()
-            )
+            coords_rot = data_container.atoms[atom.index].position - center
             coords_rot = np.matmul(rot_axes, coords_rot)
             moment_of_inertia_diagonals[0] += mass * (
                 coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
@@ -581,6 +589,7 @@ class LevelManager:
             moment_of_inertia_diagonals[2] += mass * (
                 coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
             )
+        print(moment_of_inertia_diagonals)
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
@@ -599,7 +608,7 @@ class LevelManager:
             if moment_of_inertia_diagonals[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia_diagonals[dimension, dimension]} "
+                    f"{moment_of_inertia_diagonals[dimension]} "
                     f"Cannot compute weighted torque."
                 )
 
