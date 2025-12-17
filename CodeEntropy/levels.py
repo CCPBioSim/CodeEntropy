@@ -589,7 +589,6 @@ class LevelManager:
             moment_of_inertia_diagonals[2] += mass * (
                 coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
             )
-        print(moment_of_inertia_diagonals)
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
