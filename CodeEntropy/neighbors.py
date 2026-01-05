@@ -70,11 +70,12 @@ class Neighbors:
                             search = mda.lib.NeighborSearch.AtomNeighborSearch.search(
                                 search_object,
                                 molecule_atom_group,
-                                radius=3.0,
+                                radius=2.5,
                                 level=search_level,
                             )
                             # Make sure that the neighbors list does not include
                             # atoms from the central molecule
+                            #  neighbors = search - fragment.residues
                             neighbors = search - molecule_atom_group
                         else:
                             # For larger molecules, use the grid search

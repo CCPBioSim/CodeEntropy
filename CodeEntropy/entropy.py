@@ -102,6 +102,17 @@ class EntropyManager:
             self._neighbors,
             self._universe_operations,
         )
+        oe = OrientationalEntropy(
+            self._run_manager,
+            self._args,
+            self._universe,
+            self._data_logger,
+            self._level_manager,
+            self._group_molecules,
+            self._dihedral_analysis,
+            self._neighbors,
+            self._universe_operations,
+        )
 
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
         logger.debug(f"Universe 3: {reduced_atom}")
@@ -171,6 +182,7 @@ class EntropyManager:
             number_frames,
             ve,
             ce,
+            oe,
         )
 
         # Print the results in a nicely formated way
@@ -247,6 +259,7 @@ class EntropyManager:
         number_frames,
         ve,
         ce,
+        oe,
     ):
         """
         Compute vibrational, conformational, and orientational entropies for
@@ -315,9 +328,9 @@ class EntropyManager:
 
                 mol_label = f"{resname}_{resid} (segid {segid})"
 
-                highest_level = levels[groups[group_id]][-1]
+                highest_level = levels[groups[group_id][0]][-1]
                 self._process_orientational_entropy(
-                    group_id, highest_level, number_neighbors
+                    oe, group_id, highest_level, number_neighbors
                 )
 
                 for level in levels[groups[group_id][0]]:
@@ -341,14 +354,12 @@ class EntropyManager:
                             states_ua,
                             frame_counts["ua"],
                             highest,
-                            number_frames,
                         )
 
                     elif level == "residue":
                         self._process_vibrational_entropy(
                             group_id,
                             mol,
-                            number_frames,
                             ve,
                             level,
                             force_matrices["res"][group_id],
@@ -362,14 +373,12 @@ class EntropyManager:
                             ce,
                             level,
                             states_res,
-                            number_frames,
                         )
 
                     elif level == "polymer":
                         self._process_vibrational_entropy(
                             group_id,
                             mol,
-                            number_frames,
                             ve,
                             level,
                             force_matrices["poly"][group_id],
@@ -438,7 +447,6 @@ class EntropyManager:
         states,
         frame_counts,
         highest,
-        number_frames,
     ):
         """
         Calculates translational, rotational, and conformational entropy at the
@@ -455,7 +463,6 @@ class EntropyManager:
             frame_counts: Number of frames counted
             highest (bool): Whether this is the highest level of resolution for
              the molecule.
-            number_frames (int): The number of frames analysed.
         """
         S_trans, S_rot, S_conf = 0, 0, 0
 
@@ -544,7 +551,6 @@ class EntropyManager:
         self,
         group_id,
         mol_container,
-        number_frames,
         ve,
         level,
         force_matrix,
@@ -560,7 +566,6 @@ class EntropyManager:
             level (str): Current granularity level.
             force_matrix : Force covariance matrix
             torque_matrix : Torque covariance matrix
-            frame_count:
             highest (bool): Flag indicating if this is the highest granularity
             level.
         """
@@ -593,7 +598,7 @@ class EntropyManager:
         )
 
     def _process_conformational_entropy(
-        self, group_id, mol_container, ce, level, states, number_frames
+        self, group_id, mol_container, ce, level, states
     ):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
@@ -605,7 +610,6 @@ class EntropyManager:
             ce: ConformationalEntropy object.
             level (str): Level name (should be 'residue').
             states (array): The conformational states.
-            number_frames (int): Number of frames used.
         """
         # Get the relevant conformational states
         # Check if there is information in the states array
@@ -639,7 +643,7 @@ class EntropyManager:
             group_id, residue_group, residue_count, atom_count
         )
 
-    def _process_orientational_entropy(self, group_id, level, number_neighbors):
+    def _process_orientational_entropy(self, oe, group_id, level, number_neighbors):
         """
         Computes conformational entropy at the residue level (whole-molecule dihedral
         analysis).
@@ -652,7 +656,7 @@ class EntropyManager:
         neighbors = number_neighbors[group_id]
 
         # Calculate the orientational entropy
-        S_orient = OrientationalEntropy.orientational_entropy_calculation(neighbors)
+        S_orient = oe.orientational_entropy_calculation(neighbors)
         self._data_logger.add_results_data(group_id, level, "Orientational", S_orient)
 
     def _finalize_molecule_results(self):
