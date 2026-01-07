@@ -312,24 +312,29 @@ class LevelManager:
             # we find the nth heavy atom
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
-            # center at position of heavy atom
+
             heavy_atom = data_container.select_atoms(f"index {heavy_atom_index}")
-            center = heavy_atom.positions[0]
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
             atom_set = data_container.select_atoms(
                 f"(prop mass > 1.1) and bonded index {heavy_atom_index}"
             )
+            bead = heavy_atom + data_container.select_atoms(
+                f"name H* and bonded index {heavy_atom_index}"
+            )
 
             if len(atom_set) == 0:
                 # if no bonds to other heavy atoms use pricipal axes of bead
+                center = bead.center_of_mass()
                 rot_axes = data_container.residues.principal_axes()
 
             else:
+                # when the UA is bound to at least one other UA
+                # center at position of heavy atom
                 # get vector for average position of bonded atoms
+                center = heavy_atom.positions[0]
                 vector = self.get_avg_pos(atom_set, center)
-
                 # use spherical coordinates function to get rotational axes
                 rot_axes = self.get_sphCoord_axes(vector)
 
@@ -545,7 +550,6 @@ class LevelManager:
 
         torques = np.zeros((3,))
         weighted_torque = np.zeros((3,))
-
         for atom in bead.atoms:
 
             # update local coordinates in rotational axes
