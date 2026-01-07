@@ -1,49 +1,63 @@
-import logging
-from typing import Any, Dict
-
 import networkx as nx
 
-logger = logging.getLogger(__name__)
+from CodeEntropy.entropy.nodes.configurational_entropy import ConfigurationalEntropyNode
+from CodeEntropy.entropy.nodes.entropy_aggregator import EntropyAggregatorNode
+from CodeEntropy.entropy.nodes.orientational_entropy import OrientationalEntropyNode
+from CodeEntropy.entropy.nodes.vibrational_entropy import VibrationalEntropyNode
 
 
 class EntropyGraph:
     """
-    A Directed Acyclic Graph (DAG) for managing entropy calculation nodes.
+    DAG representing the entropy computation pipeline:
 
-    Each node must implement:
-        run(shared_data: dict, **kwargs) -> dict
+        1. Vibrational entropy
+        2. Rotational (orientational) entropy
+        3. Conformational entropy
+        4. Aggregate entropy across levels and groups
     """
 
     def __init__(self):
         self.graph = nx.DiGraph()
-        self.nodes: Dict[str, Any] = {}
+        self.nodes = {}
 
-    def add_node(self, name: str, node_obj: Any, depends_on=None):
-        if not hasattr(node_obj, "run"):
-            raise TypeError(f"Node '{name}' must implement run(shared_data, **kwargs)")
+    def build(self):
+        self.add("vibrational_entropy", VibrationalEntropyNode())
 
-        self.nodes[name] = node_obj
+        self.add(
+            "orientational_entropy",
+            OrientationalEntropyNode(),
+            depends_on=["vibrational_entropy"],
+        )
+
+        self.add(
+            "configurational_entropy",
+            ConfigurationalEntropyNode(),
+            depends_on=["orientational_entropy"],
+        )
+
+        self.add(
+            "aggregate_entropy",
+            EntropyAggregatorNode(),
+            depends_on=["configurational_entropy"],
+        )
+
+        return self
+
+    def add(self, name, obj, depends_on=None):
+        self.nodes[name] = obj
         self.graph.add_node(name)
         if depends_on:
             for dep in depends_on:
                 self.graph.add_edge(dep, name)
 
-    def execute(self, shared_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-        results: Dict[str, Dict[str, Any]] = {}
+    def execute(self, shared_data):
+        results = {}
 
-        for node_name in nx.topological_sort(self.graph):
-            preds = list(self.graph.predecessors(node_name))
+        for node in nx.topological_sort(self.graph):
+            preds = list(self.graph.predecessors(node))
             kwargs = {p: results[p] for p in preds}
 
-            node = self.nodes[node_name]
-            output = node.run(shared_data, **kwargs)
-
-            if not isinstance(output, dict):
-                raise TypeError(
-                    f"Node '{node_name}' returned {type(output)} (expected dict)"
-                )
-
-            results[node_name] = output
-            shared_data.update(output)
+            output = self.nodes[node].run(shared_data, **kwargs)
+            results[node] = output
 
         return results
