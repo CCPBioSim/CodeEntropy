@@ -579,18 +579,18 @@ class LevelManager:
         # Iyy = sum(m_i (x_i^2+z_i^2))
         # Izz = sum(m_i (x_i^2+y_i^2))
 
-        moment_of_inertia_diagonals = np.zeros((3,))
+        moment_of_inertia = np.zeros((3,))
         for atom in bead.atoms:
             mass = atom.mass
             coords_rot = data_container.atoms[atom.index].position - center
             coords_rot = np.matmul(rot_axes, coords_rot)
-            moment_of_inertia_diagonals[0] += mass * (
+            moment_of_inertia[0] += mass * (
                 coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
             )
-            moment_of_inertia_diagonals[1] += mass * (
+            moment_of_inertia[1] += mass * (
                 coords_rot[0] * coords_rot[0] + coords_rot[2] * coords_rot[2]
             )
-            moment_of_inertia_diagonals[2] += mass * (
+            moment_of_inertia[2] += mass * (
                 coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
             )
 
@@ -601,14 +601,14 @@ class LevelManager:
                 continue
 
             # Check for zero moment of inertia
-            if np.isclose(moment_of_inertia_diagonals[dimension], 0):
+            if np.isclose(moment_of_inertia[dimension], 0):
                 raise ZeroDivisionError(
                     f"Attempted to divide by zero moment of inertia in dimension "
                     f"{dimension}."
                 )
 
             # Check for negative moment of inertia
-            if moment_of_inertia_diagonals[dimension] < 0:
+            if moment_of_inertia[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
                     f"{moment_of_inertia_diagonals[dimension]} "
@@ -617,7 +617,7 @@ class LevelManager:
 
             # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia_diagonals[dimension]
+                moment_of_inertia[dimension]
             )
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
