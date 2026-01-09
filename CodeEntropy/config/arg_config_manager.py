@@ -85,6 +85,11 @@ arg_map = {
         "help": "How to group molecules for averaging",
         "default": "molecules",
     },
+    "use_RAD": {
+        "type": bool,
+        "help": "If set to True, uses relative angular distance for counting neighbors",
+        "default": True,
+    },
 }
 
 

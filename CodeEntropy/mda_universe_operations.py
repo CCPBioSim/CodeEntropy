@@ -49,13 +49,20 @@ class UniverseOperations:
             .run()
             .results["timeseries"][start:end:step]
         )
+        dimensions = (
+            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
+            .run()
+            .results["timeseries"][start:end:step]
+        )
         forces = (
             AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom)
             .run()
             .results["timeseries"][start:end:step]
         )
         u2 = mda.Merge(select_atom)
-        u2.load_new(coordinates, format=MemoryReader, forces=forces)
+        u2.load_new(
+            coordinates, format=MemoryReader, forces=forces, dimensions=dimensions
+        )
         logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
 
         return u2
@@ -84,13 +91,20 @@ class UniverseOperations:
             .run()
             .results["timeseries"]
         )
+        dimensions = (
+            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
+            .run()
+            .results["timeseries"]
+        )
         forces = (
             AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom)
             .run()
             .results["timeseries"]
         )
         u2 = mda.Merge(select_atom)
-        u2.load_new(coordinates, format=MemoryReader, forces=forces)
+        u2.load_new(
+            coordinates, format=MemoryReader, forces=forces, dimensions=dimensions
+        )
         logger.debug(f"MDAnalysis.Universe - reduced universe: {u2}")
 
         return u2
@@ -142,6 +156,11 @@ class UniverseOperations:
             .run()
             .results["timeseries"]
         )
+        dimensions = (
+            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
+            .run()
+            .results["timeseries"]
+        )
         forces = (
             AnalysisFromFunction(lambda ag: ag.positions.copy(), select_atom_force)
             .run()
@@ -154,6 +173,6 @@ class UniverseOperations:
 
         logger.debug("Merging forces with coordinates universe.")
         new_universe = mda.Merge(select_atom)
-        new_universe.load_new(coordinates, forces=forces)
+        new_universe.load_new(coordinates, forces=forces, dimensions=dimensions)
 
         return new_universe

@@ -165,7 +165,7 @@ class EntropyManager:
 
         # Count the neighbors for orientational entropy calculation
         number_neighbors = self._neighbors.get_neighbors(
-            reduced_atom, groups, levels, False
+            reduced_atom, groups, levels, self._args.use_RAD
         )
 
         # Complete the entropy calculations

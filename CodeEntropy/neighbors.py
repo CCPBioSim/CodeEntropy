@@ -2,6 +2,8 @@ import logging
 
 import MDAnalysis as mda
 
+from CodeEntropy import RAD
+
 # import numpy as np
 # from rich.progress import (
 #    BarColumn,
@@ -10,6 +12,7 @@ import MDAnalysis as mda
 #    TextColumn,
 #    TimeElapsedColumn,
 # )
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +33,7 @@ class Neighbors:
         self._groups = None
         self._levels = None
 
-    def get_neighbors(self, universe, groups, levels, use_RAD=False):
+    def get_neighbors(self, universe, groups, levels, use_RAD):
         """
         Find the neighbors relative to the central molecule.
 
@@ -59,8 +62,7 @@ class Neighbors:
 
                     if use_RAD:
                         # Use the relative angular distance method to find neighbors
-                        # TODO temporary place holder for when we implement RAD
-                        pass
+                        neighbors = RAD.get_RAD_neighbors(universe, mol_id)
 
                     else:
                         if highest_level == "united_atom":
@@ -102,5 +104,7 @@ class Neighbors:
                 f"group {group_id}:"
                 f"number neighbors {average_number_neighbors[group_id]}"
             )
+            # TODO temp print
+            print(f"average number neighbors {average_number_neighbors}")
 
         return average_number_neighbors
