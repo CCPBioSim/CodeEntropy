@@ -344,8 +344,9 @@ class LevelManager:
         # divide by moment of inertia to get weighted torques
         # moment of inertia is a 3x3 tensor
         # the weighting is done in each dimension (x,y,z) using
-        # the diagonal elements of the moment of inertia tensor
-        moment_of_inertia = bead.moment_of_inertia()
+        # the sorted eigenvalues of the moment of inertia tensor
+        eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
+        moments_of_inertia = sorted(eigenvalues, reverse=True)
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
@@ -354,14 +355,14 @@ class LevelManager:
                 continue
 
             # Check for zero moment of inertia
-            if np.isclose(moment_of_inertia[dimension, dimension], 0):
+            if np.isclose(moments_of_inertia[dimension], 0):
                 # If moment of inertia is 0 there should be 0 torque
                 weighted_torque[dimension] = 0
                 logger.warning("Zero moment of inertia. Setting torque to 0")
                 continue
 
             # Check for negative moment of inertia
-            if moment_of_inertia[dimension, dimension] < 0:
+            if moments_of_inertia[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
                     f"{moment_of_inertia[dimension]} "
@@ -370,7 +371,7 @@ class LevelManager:
 
             # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia[dimension, dimension]
+                moments_of_inertia[dimension]
             )
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
