@@ -5,5 +5,8 @@ class ComputeDihedralsNode:
     def __init__(self):
         self._dih = DihedralTools()
 
-    def run(self, build_beads):
-        return {"dihedrals": self._dih.get_dihedrals(build_beads["beads"])}
+    def run(self, shared_data):
+        beads = shared_data["beads"]
+
+        dihedrals = self._dih.get_dihedrals(beads)
+        shared_data["dihedrals"] = dihedrals

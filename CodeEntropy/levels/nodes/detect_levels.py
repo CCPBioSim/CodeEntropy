@@ -5,12 +5,10 @@ class DetectLevelsNode:
     def __init__(self):
         self._hier = LevelHierarchy()
 
-    def run(self, shared_data, detect_molecules):
+    def run(self, shared_data):
         u = shared_data["universe"]
+
         num_mol, levels = self._hier.select_levels(u)
 
-        return {
-            "number_molecules": num_mol,
-            "levels": levels,
-            "fragments": detect_molecules["fragments"],
-        }
+        shared_data["levels"] = levels
+        shared_data["number_molecules"] = num_mol

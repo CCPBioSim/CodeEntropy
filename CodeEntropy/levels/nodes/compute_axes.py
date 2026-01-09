@@ -5,11 +5,13 @@ class ComputeAxesNode:
     def __init__(self):
         self._coord = CoordinateSystem()
 
-    def run(self, shared_data, build_beads):
+    def run(self, shared_data):
+        beads = shared_data["beads"]
+
         axes = {}
         avg_pos = {}
 
-        for key, bead_list in build_beads["beads"].items():
+        for key, bead_list in beads.items():
             axes[key] = []
             avg_pos[key] = []
 
@@ -17,4 +19,5 @@ class ComputeAxesNode:
                 avg_pos[key].append(self._coord.get_avg_pos(bead))
                 axes[key].append(self._coord.get_axes(bead))
 
-        return {"axes": axes, "avg_pos": avg_pos}
+        shared_data["axes"] = axes
+        shared_data["avg_pos"] = avg_pos

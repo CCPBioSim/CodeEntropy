@@ -7,9 +7,10 @@ class BuildBeadsNode:
         self._hier = LevelHierarchy()
         self._mda = UniverseOperations()
 
-    def run(self, shared_data, detect_levels):
+    def run(self, shared_data):
         u = shared_data["universe"]
-        levels = detect_levels["levels"]
+        levels = shared_data["levels"]
+
         beads = {}
 
         for mol_id, level_list in enumerate(levels):
@@ -17,4 +18,4 @@ class BuildBeadsNode:
             for level in level_list:
                 beads[(mol_id, level)] = self._hier.get_beads(mol_u, level)
 
-        return {"beads": beads}
+        shared_data["beads"] = beads

@@ -5,7 +5,19 @@ class BuildCovarianceMatricesNode:
     def __init__(self):
         self._ft = ForceTorqueManager()
 
-    def run(self, shared_data, compute_weighted_forces, compute_weighted_torques):
-        return self._ft.build_covariance_matrices(
-            compute_weighted_forces["forces"], compute_weighted_torques["torques"]
+    def run(self, shared_data):
+        """
+        Build force and torque covariance matrices from weighted forces/torques
+        already stored in shared_data.
+        """
+
+        forces = shared_data["weighted_forces"]
+        torques = shared_data["weighted_torques"]
+
+        force_cov, torque_cov, frame_counts = self._ft.build_covariance_matrices(
+            forces, torques
         )
+
+        shared_data["force_covariance_matrices"] = force_cov
+        shared_data["torque_covariance_matrices"] = torque_cov
+        shared_data["frame_counts"] = frame_counts
