@@ -50,9 +50,5 @@ class LevelDAG:
                 self.graph.add_edge(d, name)
 
     def execute(self, shared_data):
-        results = {}
         for node in nx.topological_sort(self.graph):
-            deps = {d: results[d] for d in self.graph.predecessors(node)}
-            output = self.nodes[node].run(shared_data, **deps)
-            results[node] = output
-        return results
+            self.nodes[node].run(shared_data)
