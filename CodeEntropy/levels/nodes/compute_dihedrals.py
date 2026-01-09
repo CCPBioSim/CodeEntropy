@@ -7,6 +7,4 @@ class ComputeDihedralsNode:
 
     def run(self, shared_data):
         beads = shared_data["beads"]
-
-        dihedrals = self._dih.get_dihedrals(beads)
-        shared_data["dihedrals"] = dihedrals
+        shared_data["dihedrals"] = self._dih.get_dihedrals(beads)

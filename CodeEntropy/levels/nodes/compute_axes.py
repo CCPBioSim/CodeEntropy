@@ -20,4 +20,4 @@ class ComputeAxesNode:
                 axes[key].append(self._coord.get_axes(bead))
 
         shared_data["axes"] = axes
-        shared_data["avg_pos"] = avg_pos
+        shared_data["avg_positions"] = avg_pos

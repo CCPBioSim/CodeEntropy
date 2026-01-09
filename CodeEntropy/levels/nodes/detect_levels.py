@@ -7,8 +7,7 @@ class DetectLevelsNode:
 
     def run(self, shared_data):
         u = shared_data["universe"]
-
         num_mol, levels = self._hier.select_levels(u)
 
-        shared_data["levels"] = levels
         shared_data["number_molecules"] = num_mol
+        shared_data["levels"] = levels
