@@ -66,10 +66,11 @@ class EntropyManager:
         Workflow:
             1. Parse trajectory frame bounds
             2. Build reduced universe
-            3. Detect molecules + levels
-            4. Run LEVEL DAG
-            5. Run ENTROPY DAG
-            6. Log and store results
+            3. Detect molecules + groups
+            4. Handle water entropy (if enabled)
+            5. Run LEVEL DAG (structure + mechanics)
+            6. Run ENTROPY DAG (entropy calculations)
+            7. Finalize and log results
         """
         start, end, step = self._get_trajectory_bounds()
         number_frames = self._get_number_frames(start, end, step)
@@ -78,8 +79,11 @@ class EntropyManager:
             f"Analyzing a total of {number_frames} frames in this calculation."
         )
 
-        reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-        logger.debug(f"[EntropyManager] Reduced universe loaded: {reduced_atom}")
+        reduced_universe, number_molecules, levels, groups = (
+            self._initialize_molecules()
+        )
+
+        logger.debug("[EntropyManager] Reduced universe initialised")
 
         water_atoms = self._universe.select_atoms("water")
         water_resids = {res.resid for res in water_atoms.residues}
@@ -104,20 +108,34 @@ class EntropyManager:
 
         shared_data = {
             "universe": self._universe,
-            "reduced_universe": reduced_atom,
-            "levels": levels,
-            "groups": nonwater_groups,
+            "reduced_universe": reduced_universe,
+            "run_manager": self._run_manager,
+            "universe_operations": self._universe_operations,
             "args": self._args,
             "start": start,
             "end": end,
             "step": step,
-            "n_frames": number_frames,
+            "number_frames": number_frames,
+            "groups": nonwater_groups,
         }
 
-        level_results = LevelDAG().build().execute(shared_data)
-        entropy_results = EntropyGraph().build().execute(level_results)
+        level_dag = LevelDAG().build()
+        level_dag.execute(shared_data)
 
-        self._finalize_outputs(entropy_results)
+        logger.debug(
+            f"[EntropyManager] Level DAG complete. "
+            f"Shared data keys: {list(shared_data.keys())}"
+        )
+
+        entropy_dag = EntropyGraph().build()
+        entropy_dag.execute(shared_data)
+
+        logger.debug(
+            f"[EntropyManager] Entropy DAG complete. "
+            f"Shared data keys: {list(shared_data.keys())}"
+        )
+
+        self._finalize_outputs(shared_data)
         self._data_logger.log_tables()
 
     def _handle_water_entropy(self, start, end, step, water_groups):
