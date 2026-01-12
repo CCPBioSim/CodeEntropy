@@ -2,15 +2,7 @@ import logging
 import math
 from collections import defaultdict
 
-import numpy as np
 import pandas as pd
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy.entropy_graph import EntropyGraph
@@ -61,29 +53,29 @@ class EntropyManager:
 
     def execute(self):
         """
-        Run the full entropy computation workflow using the DAG system.
+        Run the full entropy computation workflow using DAGs.
 
-        Workflow:
-            1. Parse trajectory frame bounds
+        Responsibilities:
+            1. Prepare trajectory bounds
             2. Build reduced universe
-            3. Detect molecules + groups
-            4. Handle water entropy (if enabled)
-            5. Run LEVEL DAG (structure + mechanics)
-            6. Run ENTROPY DAG (entropy calculations)
-            7. Finalize and log results
+            3. Prepare shared_data
+            4. Execute LEVEL DAG (structure & physics)
+            5. Execute ENTROPY DAG (thermodynamics)
+            6. Finalize and log results
         """
+
         start, end, step = self._get_trajectory_bounds()
-        number_frames = self._get_number_frames(start, end, step)
+        n_frames = self._get_number_frames(start, end, step)
 
-        console.print(
-            f"Analyzing a total of {number_frames} frames in this calculation."
+        console.print(f"Analyzing a total of {n_frames} frames in this calculation.")
+
+        reduced_universe = self._get_reduced_universe()
+
+        number_molecules, levels = self._level_manager.select_levels(reduced_universe)
+
+        groups = self._group_molecules.grouping_molecules(
+            reduced_universe, self._args.grouping
         )
-
-        reduced_universe, number_molecules, levels, groups = (
-            self._initialize_molecules()
-        )
-
-        logger.debug("[EntropyManager] Reduced universe initialised")
 
         water_atoms = self._universe.select_atoms("water")
         water_resids = {res.resid for res in water_atoms.residues}
@@ -109,33 +101,26 @@ class EntropyManager:
         shared_data = {
             "universe": self._universe,
             "reduced_universe": reduced_universe,
-            "run_manager": self._run_manager,
-            "universe_operations": self._universe_operations,
+            "levels": levels,
+            "groups": nonwater_groups,
             "args": self._args,
             "start": start,
             "end": end,
             "step": step,
-            "number_frames": number_frames,
-            "groups": nonwater_groups,
+            "n_frames": n_frames,
+            "data_logger": self._data_logger,
+            "run_manager": self._run_manager,
         }
 
-        level_dag = LevelDAG().build()
-        level_dag.execute(shared_data)
+        level_results = LevelDAG().build().execute(shared_data)
 
-        logger.debug(
-            f"[EntropyManager] Level DAG complete. "
-            f"Shared data keys: {list(shared_data.keys())}"
-        )
+        shared_data.update(level_results)
 
-        entropy_dag = EntropyGraph().build()
-        entropy_dag.execute(shared_data)
+        entropy_results = EntropyGraph().build().execute(shared_data)
 
-        logger.debug(
-            f"[EntropyManager] Entropy DAG complete. "
-            f"Shared data keys: {list(shared_data.keys())}"
-        )
+        shared_data.update(entropy_results)
 
-        self._finalize_outputs(shared_data)
+        self._finalize_molecule_results()
         self._data_logger.log_tables()
 
     def _handle_water_entropy(self, start, end, step, water_groups):
@@ -194,143 +179,6 @@ class EntropyManager:
 
         return reduced_atom, number_molecules, levels, groups
 
-    def _compute_entropies(
-        self,
-        reduced_atom,
-        levels,
-        groups,
-        force_matrices,
-        torque_matrices,
-        states_ua,
-        states_res,
-        frame_counts,
-        number_frames,
-        ve,
-        ce,
-    ):
-        """
-        Compute vibrational and conformational entropies for all molecules and levels.
-
-        This method iterates over each molecule and its associated entropy levels
-        (united_atom, residue, polymer), computing the corresponding entropy
-        contributions using force/torque matrices and dihedral conformations.
-
-        For each level:
-        - "united_atom": Computes per-residue conformational states and entropy.
-        - "residue": Computes molecule-level conformational and vibrational entropy.
-        - "polymer": Computes only vibrational entropy.
-
-        Parameters:
-            reduced_atom (Universe): The reduced atom selection from the trajectory.
-            levels (list): List of entropy levels per molecule.
-            groups (dict): Groups for averaging over molecules.
-            force_matrices (dict): Precomputed force covariance matrices.
-            torque_matrices (dict): Precomputed torque covariance matrices.
-            states_ua (dict): Dictionary to store united-atom conformational states.
-            states_res (list): List to store residue-level conformational states.
-            frames_count (dict): Dictionary to store the frame counts
-            number_frames (int): Total number of trajectory frames to process.
-            ve: Vibrational Entropy object
-            ce: Conformational Entropy object
-        """
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
-            BarColumn(),
-            "[progress.percentage]{task.percentage:>3.1f}%",
-            TimeElapsedColumn(),
-        ) as progress:
-
-            task = progress.add_task(
-                "[green]Calculating Entropy...",
-                total=len(groups),
-                title="Starting...",
-            )
-
-            for group_id in groups.keys():
-                mol = self._universe_operations.get_molecule_container(
-                    reduced_atom, groups[group_id][0]
-                )
-
-                residue_group = "_".join(
-                    sorted(set(res.resname for res in mol.residues))
-                )
-                group_residue_count = len(groups[group_id])
-                group_atom_count = 0
-                for mol_id in groups[group_id]:
-                    each_mol = self._universe_operations.get_molecule_container(
-                        reduced_atom, mol_id
-                    )
-                    group_atom_count += len(each_mol.atoms)
-                self._data_logger.add_group_label(
-                    group_id, residue_group, group_residue_count, group_atom_count
-                )
-
-                resname = mol.atoms[0].resname
-                resid = mol.atoms[0].resid
-                segid = mol.atoms[0].segid
-
-                mol_label = f"{resname}_{resid} (segid {segid})"
-
-                for level in levels[groups[group_id][0]]:
-                    progress.update(
-                        task,
-                        title=f"Calculating entropy values | "
-                        f"Molecule: {mol_label} | "
-                        f"Level: {level}",
-                    )
-                    highest = level == levels[groups[group_id][0]][-1]
-
-                    if level == "united_atom":
-                        self._process_united_atom_entropy(
-                            group_id,
-                            mol,
-                            ve,
-                            ce,
-                            level,
-                            force_matrices["ua"],
-                            torque_matrices["ua"],
-                            states_ua,
-                            frame_counts["ua"],
-                            highest,
-                            number_frames,
-                        )
-
-                    elif level == "residue":
-                        self._process_vibrational_entropy(
-                            group_id,
-                            mol,
-                            number_frames,
-                            ve,
-                            level,
-                            force_matrices["res"][group_id],
-                            torque_matrices["res"][group_id],
-                            highest,
-                        )
-
-                        self._process_conformational_entropy(
-                            group_id,
-                            mol,
-                            ce,
-                            level,
-                            states_res,
-                            number_frames,
-                        )
-
-                    elif level == "polymer":
-                        self._process_vibrational_entropy(
-                            group_id,
-                            mol,
-                            number_frames,
-                            ve,
-                            level,
-                            force_matrices["poly"][group_id],
-                            torque_matrices["poly"][group_id],
-                            highest,
-                        )
-
-                progress.advance(task)
-
     def _get_trajectory_bounds(self):
         """
         Returns the start, end, and step frame indices based on input arguments.
@@ -377,219 +225,6 @@ class EntropyManager:
         self._run_manager.write_universe(reduced, name)
 
         return reduced
-
-    def _process_united_atom_entropy(
-        self,
-        group_id,
-        mol_container,
-        ve,
-        ce,
-        level,
-        force_matrix,
-        torque_matrix,
-        states,
-        frame_counts,
-        highest,
-        number_frames,
-    ):
-        """
-        Calculates translational, rotational, and conformational entropy at the
-        united-atom level.
-
-        Args:
-            group_id (int): ID of the group.
-            mol_container (Universe): Universe for the selected molecule.
-            ve: VibrationalEntropy object.
-            ce: ConformationalEntropy object.
-            level (str): Granularity level (should be 'united_atom').
-            start, end, step (int): Trajectory frame parameters.
-            n_frames (int): Number of trajectory frames.
-            frame_counts: Number of frames counted
-            highest (bool): Whether this is the highest level of resolution for
-             the molecule.
-            number_frames (int): The number of frames analysed.
-        """
-        S_trans, S_rot, S_conf = 0, 0, 0
-
-        # The united atom entropy is calculated separately for each residue
-        # This is to allow residue by residue information
-        # and prevents the matrices from becoming too large
-        for residue_id, residue in enumerate(mol_container.residues):
-
-            key = (group_id, residue_id)
-
-            # Find the relevant force and torque matrices and tidy them up
-            # by removing rows and columns that are all zeros
-            f_matrix = force_matrix[key]
-            f_matrix = self._level_manager.filter_zero_rows_columns(f_matrix)
-
-            t_matrix = torque_matrix[key]
-            t_matrix = self._level_manager.filter_zero_rows_columns(t_matrix)
-
-            # Calculate the vibrational entropy
-            S_trans_res = ve.vibrational_entropy_calculation(
-                f_matrix, "force", self._args.temperature, highest
-            )
-            S_rot_res = ve.vibrational_entropy_calculation(
-                t_matrix, "torque", self._args.temperature, highest
-            )
-
-            # Get the relevant conformational states
-            values = states[key]
-            # Check if there is information in the states array
-            contains_non_empty_states = (
-                np.any(values) if isinstance(values, np.ndarray) else any(values)
-            )
-
-            # Calculate the conformational entropy
-            # If there are no conformational states (i.e. no dihedrals)
-            # then the conformational entropy is zero
-            S_conf_res = (
-                ce.conformational_entropy_calculation(values)
-                if contains_non_empty_states
-                else 0
-            )
-
-            # Add the data to the united atom level entropy
-            S_trans += S_trans_res
-            S_rot += S_rot_res
-            S_conf += S_conf_res
-
-            # Print out the data for each residue
-            self._data_logger.add_residue_data(
-                group_id,
-                residue.resname,
-                level,
-                "Transvibrational",
-                frame_counts[key],
-                S_trans_res,
-            )
-            self._data_logger.add_residue_data(
-                group_id,
-                residue.resname,
-                level,
-                "Rovibrational",
-                frame_counts[key],
-                S_rot_res,
-            )
-            self._data_logger.add_residue_data(
-                group_id,
-                residue.resname,
-                level,
-                "Conformational",
-                frame_counts[key],
-                S_conf_res,
-            )
-
-        # Print the total united atom level data for the molecule group
-        self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
-        self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
-        self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
-
-        residue_group = "_".join(
-            sorted(set(res.resname for res in mol_container.residues))
-        )
-
-        logger.debug(f"residue_group {residue_group}")
-
-    def _process_vibrational_entropy(
-        self,
-        group_id,
-        mol_container,
-        number_frames,
-        ve,
-        level,
-        force_matrix,
-        torque_matrix,
-        highest,
-    ):
-        """
-        Calculates vibrational entropy.
-
-        Args:
-            group_id (int): Group ID.
-            ve: VibrationalEntropy object.
-            level (str): Current granularity level.
-            force_matrix : Force covariance matrix
-            torque_matrix : Torque covariance matrix
-            frame_count:
-            highest (bool): Flag indicating if this is the highest granularity
-            level.
-        """
-        # Find the relevant force and torque matrices and tidy them up
-        # by removing rows and columns that are all zeros
-
-        force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
-
-        torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
-
-        # Calculate the vibrational entropy
-        S_trans = ve.vibrational_entropy_calculation(
-            force_matrix, "force", self._args.temperature, highest
-        )
-        S_rot = ve.vibrational_entropy_calculation(
-            torque_matrix, "torque", self._args.temperature, highest
-        )
-
-        # Print the vibrational entropy for the molecule group
-        self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
-        self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
-
-        residue_group = "_".join(
-            sorted(set(res.resname for res in mol_container.residues))
-        )
-        residue_count = len(mol_container.residues)
-        atom_count = len(mol_container.atoms)
-        self._data_logger.add_group_label(
-            group_id, residue_group, residue_count, atom_count
-        )
-
-    def _process_conformational_entropy(
-        self, group_id, mol_container, ce, level, states, number_frames
-    ):
-        """
-        Computes conformational entropy at the residue level (whole-molecule dihedral
-        analysis).
-
-        Args:
-            mol_id (int): ID of the molecule.
-            mol_container (Universe): Selected molecule's universe.
-            ce: ConformationalEntropy object.
-            level (str): Level name (should be 'residue').
-            states (array): The conformational states.
-            number_frames (int): Number of frames used.
-        """
-        # Get the relevant conformational states
-        # Check if there is information in the states array
-        group_states = states[group_id] if group_id < len(states) else None
-
-        if group_states is not None:
-            contains_state_data = (
-                group_states.any()
-                if isinstance(group_states, np.ndarray)
-                else any(group_states)
-            )
-        else:
-            contains_state_data = False
-
-        # Calculate the conformational entropy
-        # If there are no conformational states (i.e. no dihedrals)
-        # then the conformational entropy is zero
-        S_conf = (
-            ce.conformational_entropy_calculation(group_states)
-            if contains_state_data
-            else 0
-        )
-        self._data_logger.add_results_data(group_id, level, "Conformational", S_conf)
-
-        residue_group = "_".join(
-            sorted(set(res.resname for res in mol_container.residues))
-        )
-        residue_count = len(mol_container.residues)
-        atom_count = len(mol_container.atoms)
-        self._data_logger.add_group_label(
-            group_id, residue_group, residue_count, atom_count
-        )
 
     def _finalize_molecule_results(self):
         """
