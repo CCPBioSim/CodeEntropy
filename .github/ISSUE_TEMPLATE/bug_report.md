@@ -5,6 +5,7 @@ about: Create a report to help us improve
 title: ''
 labels: bug
 assignees: ''
+
 ---
 
 # Bug Report
@@ -31,15 +32,14 @@ Remove unrelated fields to make it minimal. -->
 
 ### Actual output
 <!-- Paste the output, logs, or error messages here. -->
-
 Describe what you expected to see instead.
 ---
 
 ## Environment and Versions
 
 - CodeEntropy Version:
-- OS: e.g., Ubuntu 22.04  
-- Python Version: e.g., 
+- OS: 
+- Python Version:
 
 ---
 
