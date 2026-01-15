@@ -44,8 +44,8 @@ Remove unrelated fields to make it minimal. -->
 
 ## Environment and Versions
 
+- Operating System:
 - CodeEntropy Version:
-- OS: 
 - Python Version:
 - Package list:
   - If using conda, run: `conda list > packages.txt` and paste the contents here.
