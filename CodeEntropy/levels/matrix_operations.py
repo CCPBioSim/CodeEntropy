@@ -93,10 +93,10 @@ class MatrixOperations:
         self,
         data_container,
         level,
-        number_frames,
         highest_level,
         force_matrix,
         torque_matrix,
+        force_partitioning,
     ):
         """
         Compute and accumulate force/torque covariance matrices for a given level.
@@ -104,10 +104,11 @@ class MatrixOperations:
         Parameters:
           data_container (MDAnalysis.Universe): Data for a molecule or residue.
           level (str): 'polymer', 'residue', or 'united_atom'.
-          number_frames (int): Number of frames being processed.
           highest_level (bool): Whether this is the top (largest bead size) level.
           force_matrix, torque_matrix (np.ndarray or None): Accumulated matrices to add
           to.
+          force_partitioning (float): Factor to adjust force contributions,
+          default is 0.5.
 
         Returns:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
@@ -126,17 +127,23 @@ class MatrixOperations:
 
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
+            bead = list_of_beads[bead_index]
             # Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
-            trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
+            trans_axes = data_container.atoms.principal_axes()
+            rot_axes = np.real(bead.principal_axes())
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
-                data_container, list_of_beads[bead_index], trans_axes, highest_level
+                data_container,
+                bead,
+                trans_axes,
+                highest_level,
+                force_partitioning,
             )
             weighted_torques[bead_index] = self.get_weighted_torques(
-                data_container, list_of_beads[bead_index], rot_axes
+                data_container, bead, rot_axes, force_partitioning
             )
 
         # Create covariance submatrices
