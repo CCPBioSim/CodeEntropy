@@ -60,17 +60,19 @@ class TestLevels(BaseTestCase):
 
     def test_get_matrices(self):
         """
-        Test `get_matrices` with mocked internal methods and a simple trajectory.
-        Ensures that the method returns correctly shaped matrices after filtering.
+        Test `get_matrices` with mocked internal methods and a simple setup.
+        Ensures that the method returns correctly shaped force and torque matrices.
         """
-
-        # Create a mock UniverseOperations and LevelManager
         universe_operations = UniverseOperations()
-
         level_manager = LevelManager(universe_operations)
 
-        # Mock internal methods
-        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        bead1 = MagicMock()
+        bead1.principal_axes.return_value = np.ones(3)
+
+        bead2 = MagicMock()
+        bead2.principal_axes.return_value = np.ones(3)
+
+        level_manager.get_beads = MagicMock(return_value=[bead1, bead2])
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -78,19 +80,11 @@ class TestLevels(BaseTestCase):
             return_value=np.array([0.5, 1.5, 2.5])
         )
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
-        level_manager.filter_zero_rows_columns = MagicMock(side_effect=lambda x: x)
 
-        # Mock data_container and trajectory
         data_container = MagicMock()
-        timestep1 = MagicMock()
-        timestep1.frame = 0
-        timestep2 = MagicMock()
-        timestep2.frame = 1
-        data_container.trajectory.__getitem__.return_value = [timestep1, timestep2]
-        bead = MagicMock()
-        bead.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.atoms = MagicMock()
+        data_container.atoms.principal_axes.return_value = np.ones(3)
 
-        # Call the method
         force_matrix, torque_matrix = level_manager.get_matrices(
             data_container=data_container,
             level="residue",
@@ -100,18 +94,18 @@ class TestLevels(BaseTestCase):
             force_partitioning=0.5,
         )
 
-        # Assertions
-        self.assertTrue(isinstance(force_matrix, np.ndarray))
-        self.assertTrue(isinstance(torque_matrix, np.ndarray))
-        self.assertEqual(force_matrix.shape, (6, 6))  # 2 beads × 3D
+        self.assertIsInstance(force_matrix, np.ndarray)
+        self.assertIsInstance(torque_matrix, np.ndarray)
+
+        self.assertEqual(force_matrix.shape, (6, 6))
         self.assertEqual(torque_matrix.shape, (6, 6))
 
-        # Check that internal methods were called
-        self.assertEqual(level_manager.get_beads.call_count, 1)
-        self.assertEqual(level_manager.get_axes.call_count, 2)  # 2 beads
-        self.assertEqual(
-            level_manager.create_submatrix.call_count, 6
-        )  # 3 force + 3 torque
+        level_manager.get_beads.assert_called_once_with(data_container, "residue")
+
+        self.assertEqual(level_manager.get_weighted_forces.call_count, 2)
+        self.assertEqual(level_manager.get_weighted_torques.call_count, 2)
+
+        self.assertEqual(level_manager.create_submatrix.call_count, 6)
 
     def test_get_matrices_force_shape_mismatch(self):
         """
@@ -119,11 +113,16 @@ class TestLevels(BaseTestCase):
         has a shape mismatch with the computed force block matrix.
         """
         universe_operations = UniverseOperations()
-
         level_manager = LevelManager(universe_operations)
 
-        # Mock internal methods
-        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        bead1 = MagicMock()
+        bead1.principal_axes.return_value = np.ones(3)
+
+        bead2 = MagicMock()
+        bead2.principal_axes.return_value = np.ones(3)
+
+        level_manager.get_beads = MagicMock(return_value=[bead1, bead2])
+
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -133,11 +132,9 @@ class TestLevels(BaseTestCase):
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
 
         data_container = MagicMock()
-        bead = MagicMock()
-        bead.principal_axes = MagicMock(return_value=np.ones(3))
-        data_container.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.atoms = MagicMock()
+        data_container.atoms.principal_axes.return_value = np.ones(3)
 
-        # Incorrect shape for force matrix (should be 6x6 for 2 beads)
         bad_force_matrix = np.zeros((3, 3))
         correct_torque_matrix = np.zeros((6, 6))
 
@@ -159,11 +156,16 @@ class TestLevels(BaseTestCase):
         has a shape mismatch with the computed torque block matrix.
         """
         universe_operations = UniverseOperations()
-
         level_manager = LevelManager(universe_operations)
 
-        # Mock internal methods
-        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        bead1 = MagicMock()
+        bead1.principal_axes.return_value = np.ones(3)
+
+        bead2 = MagicMock()
+        bead2.principal_axes.return_value = np.ones(3)
+
+        level_manager.get_beads = MagicMock(return_value=[bead1, bead2])
+
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -173,9 +175,8 @@ class TestLevels(BaseTestCase):
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
 
         data_container = MagicMock()
-        bead = MagicMock()
-        bead.principal_axes = MagicMock(return_value=np.ones(3))
-        data_container.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.atoms = MagicMock()
+        data_container.atoms.principal_axes.return_value = np.ones(3)
 
         correct_force_matrix = np.zeros((6, 6))
         bad_torque_matrix = np.zeros((3, 3))  # Incorrect shape
@@ -194,14 +195,20 @@ class TestLevels(BaseTestCase):
 
     def test_get_matrices_torque_consistency(self):
         """
-        Test that get_matrices returns consistent torque and force matrices
+        Test that get_matrices returns consistent force and torque matrices
         when called multiple times with the same inputs.
         """
         universe_operations = UniverseOperations()
-
         level_manager = LevelManager(universe_operations)
 
-        level_manager.get_beads = MagicMock(return_value=["bead1", "bead2"])
+        bead1 = MagicMock()
+        bead1.principal_axes.return_value = np.ones(3)
+
+        bead2 = MagicMock()
+        bead2.principal_axes.return_value = np.ones(3)
+
+        level_manager.get_beads = MagicMock(return_value=[bead1, bead2])
+
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
@@ -211,9 +218,8 @@ class TestLevels(BaseTestCase):
         level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
 
         data_container = MagicMock()
-        bead = MagicMock()
-        bead.principal_axes = MagicMock(return_value=np.ones(3))
-        data_container.principal_axes = MagicMock(return_value=np.ones(3))
+        data_container.atoms = MagicMock()
+        data_container.atoms.principal_axes.return_value = np.ones(3)
 
         initial_force_matrix = np.zeros((6, 6))
         initial_torque_matrix = np.zeros((6, 6))
@@ -236,9 +242,8 @@ class TestLevels(BaseTestCase):
             force_partitioning=0.5,
         )
 
-        # Check that repeated calls produce the same output
-        self.assertTrue(np.allclose(torque_matrix_1, torque_matrix_2, atol=1e-8))
-        self.assertTrue(np.allclose(force_matrix_1, force_matrix_2, atol=1e-8))
+        np.testing.assert_array_equal(force_matrix_1, force_matrix_2)
+        np.testing.assert_array_equal(torque_matrix_1, torque_matrix_2)
 
     def test_get_beads_polymer_level(self):
         """
