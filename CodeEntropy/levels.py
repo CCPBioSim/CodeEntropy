@@ -237,40 +237,53 @@ class LevelManager:
         self, data_container, bead, trans_axes, highest_level, force_partitioning
     ):
         """
-        Function to calculate the mass weighted forces for a given bead.
+        Compute mass-weighted translational forces for a bead.
 
-        Args:
-           data_container (MDAnalysis.Universe): Contains atomic positions and forces.
-           bead : The part of the molecule to be considered.
-           trans_axes (np.ndarray): The axes relative to which the forces are located.
-           highest_level (bool): Is this the largest level of the length scale hierarchy
-           force_partitioning (float): Factor to adjust force contributions to avoid
-           over counting correlated forces, default is 0.5.
+        The forces acting on all atoms belonging to the bead are first transformed
+        into the provided translational reference frame and summed. If this bead
+        corresponds to the highest level of a hierarchical coarse-graining scheme,
+        the total force is scaled by a force-partitioning factor to avoid double
+        counting forces from weakly correlated atoms.
 
-        Returns:
-            weighted_force (np.ndarray): The mass-weighted sum of the forces in the
-            bead.
+        The resulting force vector is then normalized by the square root of the
+        bead's total mass.
+
+        Parameters
+        ----------
+        data_container : MDAnalysis.Universe
+            Container holding atomic positions and forces.
+        bead : object
+            Molecular subunit whose atoms contribute to the force.
+        trans_axes : np.ndarray
+            Transformation matrix defining the translational reference frame.
+        highest_level : bool
+            Whether this bead is the highest level in the length-scale hierarchy.
+            If True, force partitioning is applied.
+        force_partitioning : float
+            Scaling factor applied to forces to avoid over-counting correlated
+            contributions (typically 0.5).
+
+        Returns
+        -------
+        weighted_force : np.ndarray
+            Mass-weighted translational force acting on the bead.
+
+        Raises
+        ------
+        ValueError
+            If the bead mass is zero or negative.
         """
-
         forces_trans = np.zeros((3,))
 
-        # Sum forces from all atoms in the bead
         for atom in bead.atoms:
-            # update local forces in translational axes
             forces_local = np.matmul(trans_axes, data_container.atoms[atom.index].force)
             forces_trans += forces_local
 
         if highest_level:
-            # multiply by the force_partitioning parameter to avoid double counting
-            # of the forces on weakly correlated atoms
-            # the default value of force_partitioning is 0.5 (dividing by two)
             forces_trans = force_partitioning * forces_trans
 
-        # divide the sum of forces by the mass of the bead to get the weighted forces
         mass = bead.total_mass()
 
-        # Check that mass is positive to avoid division by 0 or negative values inside
-        # sqrt
         if mass <= 0:
             raise ValueError(
                 f"Invalid mass value: {mass}. Mass must be positive to compute the "
@@ -285,83 +298,74 @@ class LevelManager:
 
     def get_weighted_torques(self, data_container, bead, rot_axes, force_partitioning):
         """
-        Function to calculate the moment of inertia weighted torques for a given bead.
+        Compute moment-of-inertia weighted torques for a bead.
 
-        This function computes torques in a rotated frame and then weights them using
-        the moment of inertia tensor. To prevent numerical instability, it treats
-        extremely small diagonal elements of the moment of inertia tensor as zero
-        (since values below machine precision are effectively zero). This avoids
-        unnecessary use of extended precision (e.g., float128).
+        Atomic coordinates and forces are transformed into the provided rotational
+        reference frame. Torques are computed as the cross product of position
+        vectors (relative to the bead center of mass) and forces, with a
+        force-partitioning factor applied to reduce over-counting of correlated
+        atomic contributions.
 
-        Additionally, if the computed torque is already zero, the function skips
-        the division step, reducing unnecessary computations and potential errors.
+        The total torque vector is then weighted by the square root of the bead's
+        principal moments of inertia. Weighting is performed component-wise using
+        the sorted eigenvalues of the moment of inertia tensor.
+
+        To ensure numerical stability:
+        - Torque components that are effectively zero are skipped.
+        - Zero moments of inertia result in zero weighted torque with a warning.
+        - Negative moments of inertia raise an error.
 
         Parameters
         ----------
         data_container : object
-            Contains atomic positions and forces.
+            Container holding atomic positions and forces.
         bead : object
-            The part of the molecule to be considered.
+            Molecular subunit whose atoms contribute to the torque.
         rot_axes : np.ndarray
-            The axes relative to which the forces and coordinates are located.
-        force_partitioning : float, optional
-            Factor to adjust force contributions, default is 0.5.
+            Transformation matrix defining the rotational reference frame.
+        force_partitioning : float
+            Scaling factor applied to forces to avoid over-counting correlated
+            contributions (typically 0.5).
 
         Returns
         -------
         weighted_torque : np.ndarray
-            The mass-weighted sum of the torques in the bead.
-        """
+            Moment-of-inertia weighted torque acting on the bead.
 
+        Raises
+        ------
+        ValueError
+            If a negative principal moment of inertia is encountered.
+        """
         torques = np.zeros((3,))
         weighted_torque = np.zeros((3,))
         moment_of_inertia = np.zeros(3)
 
         for atom in bead.atoms:
-            # update local coordinates in rotational axes
             coords_rot = (
                 data_container.atoms[atom.index].position - bead.center_of_mass()
             )
             coords_rot = np.matmul(rot_axes, coords_rot)
-            # update local forces in rotational frame
             forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
 
-            # multiply by the force_partitioning parameter to avoid double counting
-            # of the forces on weakly correlated atoms
-            # the default value of force_partitioning is 0.5 (dividing by two)
             forces_rot = force_partitioning * forces_rot
 
-            # define torques (cross product of coordinates and forces) in rotational
-            # axes
             torques_local = np.cross(coords_rot, forces_rot)
             torques += torques_local
 
-            # multiply by the force_partitioning parameter to avoid double counting
-            # of the forces on weakly correlated atoms
-            # the default value of force_partitioning is 0.5 (dividing by two)
-        #      torques = force_partitioning * torques
-
-        # divide by moment of inertia to get weighted torques
-        # moment of inertia is a 3x3 tensor
-        # the weighting is done in each dimension (x,y,z) using
-        # the sorted eigenvalues of the moment of inertia tensor
         eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
         moments_of_inertia = sorted(eigenvalues, reverse=True)
 
         for dimension in range(3):
-            # Skip calculation if torque is already zero
             if np.isclose(torques[dimension], 0):
                 weighted_torque[dimension] = 0
                 continue
 
-            # Check for zero moment of inertia
             if np.isclose(moments_of_inertia[dimension], 0):
-                # If moment of inertia is 0 there should be 0 torque
                 weighted_torque[dimension] = 0
                 logger.warning("Zero moment of inertia. Setting torque to 0")
                 continue
 
-            # Check for negative moment of inertia
             if moments_of_inertia[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
@@ -369,7 +373,6 @@ class LevelManager:
                     f"Cannot compute weighted torque."
                 )
 
-            # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
                 moments_of_inertia[dimension]
             )
