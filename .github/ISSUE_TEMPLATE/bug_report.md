@@ -22,18 +22,21 @@ assignees: ''
 <!-- Paste the YAML file or the smallest excerpt that reproduces the issue.  
 Remove unrelated fields to make it minimal. -->
 ```yaml
-
+# Paste the YAML snippet here
 ```
 
 ### CLI command used
 <!-- Write the exact command used, for example:   -->
 ```bash
-
+# Paste the CLI command here
 ```
 
 ### Actual output
-<!-- Paste the output, logs, or error messages here. -->
-### Describe what you expected to see instead.
+<!-- Paste the output, logs, or error messages here -->
+
+### Expected output
+<!-- Describe what you expected to see instead -->
+
 ---
 
 ## Environment and Versions
