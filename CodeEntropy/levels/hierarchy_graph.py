@@ -29,18 +29,17 @@ class LevelDAG:
     def build(self):
         self.add("detect_molecules", DetectMoleculesNode())
         self.add("detect_levels", DetectLevelsNode(), ["detect_molecules"])
-
         self.add("build_beads", BuildBeadsNode(), ["detect_levels"])
 
         self.add(
             "compute_weighted_forces",
             ComputeWeightedForcesNode(),
-            ["compute_axes"],
+            ["build_beads"],
         )
         self.add(
             "compute_weighted_torques",
             ComputeWeightedTorquesNode(),
-            ["compute_axes"],
+            ["build_beads"],
         )
 
         self.add(
@@ -73,4 +72,5 @@ class LevelDAG:
         Nodes mutate shared_data in-place.
         """
         for node_name in nx.topological_sort(self.graph):
+            logger.info(f"Running node: {node_name}")
             self.nodes[node_name].run(shared_data)
