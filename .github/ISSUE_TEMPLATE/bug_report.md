@@ -16,7 +16,7 @@ assignees: ''
 ---
 
 ## To Reproduce  
-<!-- Provide a minimal YAML configuration and the exact CLI command that reproduces the issue. -->
+<!-- Provide the YAML configuration and the exact CLI command that reproduces the issue. -->
 
 ### YAML configuration
 <!-- Paste the YAML file or the smallest excerpt that reproduces the issue.  
@@ -28,11 +28,12 @@ Remove unrelated fields to make it minimal. -->
 ### CLI command used
 <!-- Write the exact command used, for example:   -->
 ```bash
+
 ```
 
 ### Actual output
 <!-- Paste the output, logs, or error messages here. -->
-Describe what you expected to see instead.
+### Describe what you expected to see instead.
 ---
 
 ## Environment and Versions
