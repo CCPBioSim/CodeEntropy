@@ -80,7 +80,6 @@ class LevelManager:
         self,
         data_container,
         level,
-        number_frames,
         highest_level,
         force_matrix,
         torque_matrix,
@@ -92,7 +91,6 @@ class LevelManager:
         Parameters:
           data_container (MDAnalysis.Universe): Data for a molecule or residue.
           level (str): 'polymer', 'residue', or 'united_atom'.
-          number_frames (int): Number of frames being processed.
           highest_level (bool): Whether this is the top (largest bead size) level.
           force_matrix, torque_matrix (np.ndarray or None): Accumulated matrices to add
           to.
@@ -116,21 +114,23 @@ class LevelManager:
 
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
+            bead = list_of_beads[bead_index]
             # Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
-            trans_axes, rot_axes = self.get_axes(data_container, level, bead_index)
+            trans_axes = data_container.atoms.principal_axes()
+            rot_axes = np.real(bead.principal_axes())
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
                 data_container,
-                list_of_beads[bead_index],
+                bead,
                 trans_axes,
                 highest_level,
                 force_partitioning,
             )
             weighted_torques[bead_index] = self.get_weighted_torques(
-                data_container, list_of_beads[bead_index], rot_axes, force_partitioning
+                data_container, bead, rot_axes, force_partitioning
             )
 
         # Create covariance submatrices
@@ -233,255 +233,57 @@ class LevelManager:
 
         return list_of_beads
 
-    def get_axes(self, data_container, level, index=0):
-        """
-        Function to set the translational and rotational axes.
-        The translational axes are based on the principal axes of the unit
-        one level larger than the level we are interested in (except for
-        the polymer level where there is no larger unit). The rotational
-        axes use the covalent links between residues or atoms where possible
-        to define the axes, or if the unit is not bonded to others of the
-        same level the prinicpal axes of the unit are used.
-
-        Args:
-          data_container (MDAnalysis.Universe): the molecule and trajectory data
-          level (str): the level (united atom, residue, or polymer) of interest
-          index (int): residue index
-
-        Returns:
-          trans_axes : translational axes
-          rot_axes : rotational axes
-        """
-        index = int(index)
-
-        if level == "polymer":
-            # for polymer use principle axis for both translation and rotation
-            trans_axes = data_container.atoms.principal_axes()
-            rot_axes = data_container.atoms.principal_axes()
-
-        elif level == "residue":
-            # Translation
-            # for residues use principal axes of whole molecule for translation
-            trans_axes = data_container.atoms.principal_axes()
-
-            # Rotation
-            # find bonds between atoms in residue of interest and other residues
-            # we are assuming bonds only exist between adjacent residues
-            # (linear chains of residues)
-            # TODO refine selection so that it will work for branched polymers
-            index_prev = index - 1
-            index_next = index + 1
-            atom_set = data_container.select_atoms(
-                f"(resindex {index_prev} or resindex {index_next}) "
-                f"and bonded resid {index}"
-            )
-            residue = data_container.select_atoms(f"resindex {index}")
-
-            if len(atom_set) == 0:
-                # if no bonds to other residues use pricipal axes of residue
-                rot_axes = residue.atoms.principal_axes()
-
-            else:
-                # set center of rotation to center of mass of the residue
-                center = residue.atoms.center_of_mass()
-
-                # get vector for average position of bonded atoms
-                vector = self.get_avg_pos(atom_set, center)
-
-                # use spherical coordinates function to get rotational axes
-                rot_axes = self.get_sphCoord_axes(vector)
-
-        elif level == "united_atom":
-            # Translation
-            # for united atoms use principal axes of residue for translation
-            trans_axes = data_container.residues.principal_axes()
-
-            # Rotation
-            # for united atoms use heavy atoms bonded to the heavy atom
-            atom_set = data_container.select_atoms(
-                f"(prop mass > 1.1) and bonded index {index}"
-            )
-
-            if len(atom_set) == 0:
-                # if no bonds to other residues use pricipal axes of residue
-                rot_axes = data_container.residues.principal_axes()
-            else:
-                # center at position of heavy atom
-                atom_group = data_container.select_atoms(f"index {index}")
-                center = atom_group.positions[0]
-
-                # get vector for average position of bonded atoms
-                vector = self.get_avg_pos(atom_set, center)
-
-                # use spherical coordinates function to get rotational axes
-                rot_axes = self.get_sphCoord_axes(vector)
-
-        logger.debug(f"Translational Axes: {trans_axes}")
-        logger.debug(f"Rotational Axes: {rot_axes}")
-
-        return trans_axes, rot_axes
-
-    def get_avg_pos(self, atom_set, center):
-        """
-        Function to get the average position of a set of atoms.
-
-        Args:
-            atom_set : MDAnalysis atom group
-            center : position for center of rotation
-
-        Returns:
-            avg_position : three dimensional vector
-        """
-        # start with an empty vector
-        avg_position = np.zeros((3))
-
-        # get number of atoms
-        number_atoms = len(atom_set.names)
-
-        if number_atoms != 0:
-            # sum positions for all atoms in the given set
-            for atom_index in range(number_atoms):
-                atom_position = atom_set.atoms[atom_index].position
-
-                avg_position += atom_position
-
-            avg_position /= number_atoms  # divide by number of atoms to get average
-
-        else:
-            # if no atoms in set the unit has no bonds to restrict its rotational
-            # motion, so we can use a random vector to get spherical
-            # coordinate axes
-            avg_position = np.random.random(3)
-
-        # transform the average position to a coordinate system with the origin
-        # at center
-        avg_position = avg_position - center
-
-        logger.debug(f"Average Position: {avg_position}")
-
-        return avg_position
-
-    def get_sphCoord_axes(self, arg_r):
-        """
-        For a given vector in space, treat it is a radial vector rooted at
-        0,0,0 and derive a curvilinear coordinate system according to the
-        rules of polar spherical coordinates
-
-        Args:
-            arg_r: 3 dimensional vector
-
-        Returns:
-            spherical_basis: axes set (3 vectors)
-        """
-
-        x2y2 = arg_r[0] ** 2 + arg_r[1] ** 2
-        r2 = x2y2 + arg_r[2] ** 2
-
-        # Check for division by zero
-        if r2 == 0.0:
-            raise ValueError("r2 is zero, cannot compute spherical coordinates.")
-
-        if x2y2 == 0.0:
-            raise ValueError("x2y2 is zero, cannot compute sin_phi and cos_phi.")
-
-        # These conditions are mathematically unreachable for real-valued vectors.
-        # Marked as no cover to avoid false negatives in coverage reports.
-
-        # Check for non-negative values inside the square root
-        if x2y2 / r2 < 0:  # pragma: no cover
-            raise ValueError(
-                f"Negative value encountered for sin_theta calculation: {x2y2 / r2}. "
-                f"Cannot take square root."
-            )
-
-        if x2y2 < 0:  # pragma: no cover
-            raise ValueError(
-                f"Negative value encountered for sin_phi and cos_phi "
-                f"calculation: {x2y2}. "
-                f"Cannot take square root."
-            )
-
-        if x2y2 != 0.0:
-            sin_theta = np.sqrt(x2y2 / r2)
-            cos_theta = arg_r[2] / np.sqrt(r2)
-
-            sin_phi = arg_r[1] / np.sqrt(x2y2)
-            cos_phi = arg_r[0] / np.sqrt(x2y2)
-
-        else:  # pragma: no cover
-            sin_theta = 0.0
-            cos_theta = 1
-
-            sin_phi = 0.0
-            cos_phi = 1
-
-        # if abs(sin_theta) > 1 or abs(sin_phi) > 1:
-        #     print('Bad sine : T {} , P {}'.format(sin_theta, sin_phi))
-
-        # cos_theta = np.sqrt(1 - sin_theta*sin_theta)
-        # cos_phi = np.sqrt(1 - sin_phi*sin_phi)
-
-        # print('{} {} {}'.format(*arg_r))
-        # print('Sin T : {}, cos T : {}'.format(sin_theta, cos_theta))
-        # print('Sin P : {}, cos P : {}'.format(sin_phi, cos_phi))
-
-        spherical_basis = np.zeros((3, 3))
-
-        # r^
-        spherical_basis[0, :] = np.asarray(
-            [sin_theta * cos_phi, sin_theta * sin_phi, cos_theta]
-        )
-
-        # Theta^
-        spherical_basis[1, :] = np.asarray(
-            [cos_theta * cos_phi, cos_theta * sin_phi, -sin_theta]
-        )
-
-        # Phi^
-        spherical_basis[2, :] = np.asarray([-sin_phi, cos_phi, 0.0])
-
-        logger.debug(f"Spherical Basis: {spherical_basis}")
-
-        return spherical_basis
-
     def get_weighted_forces(
         self, data_container, bead, trans_axes, highest_level, force_partitioning
     ):
         """
-        Function to calculate the mass weighted forces for a given bead.
+        Compute mass-weighted translational forces for a bead.
 
-        Args:
-           data_container (MDAnalysis.Universe): Contains atomic positions and forces.
-           bead : The part of the molecule to be considered.
-           trans_axes (np.ndarray): The axes relative to which the forces are located.
-           highest_level (bool): Is this the largest level of the length scale hierarchy
-           force_partitioning (float): Factor to adjust force contributions to avoid
-           over counting correlated forces, default is 0.5.
+        The forces acting on all atoms belonging to the bead are first transformed
+        into the provided translational reference frame and summed. If this bead
+        corresponds to the highest level of a hierarchical coarse-graining scheme,
+        the total force is scaled by a force-partitioning factor to avoid double
+        counting forces from weakly correlated atoms.
 
-        Returns:
-            weighted_force (np.ndarray): The mass-weighted sum of the forces in the
-            bead.
+        The resulting force vector is then normalized by the square root of the
+        bead's total mass.
+
+        Parameters
+        ----------
+        data_container : MDAnalysis.Universe
+            Container holding atomic positions and forces.
+        bead : object
+            Molecular subunit whose atoms contribute to the force.
+        trans_axes : np.ndarray
+            Transformation matrix defining the translational reference frame.
+        highest_level : bool
+            Whether this bead is the highest level in the length-scale hierarchy.
+            If True, force partitioning is applied.
+        force_partitioning : float
+            Scaling factor applied to forces to avoid over-counting correlated
+            contributions (typically 0.5).
+
+        Returns
+        -------
+        weighted_force : np.ndarray
+            Mass-weighted translational force acting on the bead.
+
+        Raises
+        ------
+        ValueError
+            If the bead mass is zero or negative.
         """
-
         forces_trans = np.zeros((3,))
 
-        # Sum forces from all atoms in the bead
         for atom in bead.atoms:
-            # update local forces in translational axes
             forces_local = np.matmul(trans_axes, data_container.atoms[atom.index].force)
             forces_trans += forces_local
 
         if highest_level:
-            # multiply by the force_partitioning parameter to avoid double counting
-            # of the forces on weakly correlated atoms
-            # the default value of force_partitioning is 0.5 (dividing by two)
             forces_trans = force_partitioning * forces_trans
 
-        # divide the sum of forces by the mass of the bead to get the weighted forces
         mass = bead.total_mass()
 
-        # Check that mass is positive to avoid division by 0 or negative values inside
-        # sqrt
         if mass <= 0:
             raise ValueError(
                 f"Invalid mass value: {mass}. Mass must be positive to compute the "
@@ -496,87 +298,83 @@ class LevelManager:
 
     def get_weighted_torques(self, data_container, bead, rot_axes, force_partitioning):
         """
-        Function to calculate the moment of inertia weighted torques for a given bead.
+        Compute moment-of-inertia weighted torques for a bead.
 
-        This function computes torques in a rotated frame and then weights them using
-        the moment of inertia tensor. To prevent numerical instability, it treats
-        extremely small diagonal elements of the moment of inertia tensor as zero
-        (since values below machine precision are effectively zero). This avoids
-        unnecessary use of extended precision (e.g., float128).
+        Atomic coordinates and forces are transformed into the provided rotational
+        reference frame. Torques are computed as the cross product of position
+        vectors (relative to the bead center of mass) and forces, with a
+        force-partitioning factor applied to reduce over-counting of correlated
+        atomic contributions.
 
-        Additionally, if the computed torque is already zero, the function skips
-        the division step, reducing unnecessary computations and potential errors.
+        The total torque vector is then weighted by the square root of the bead's
+        principal moments of inertia. Weighting is performed component-wise using
+        the sorted eigenvalues of the moment of inertia tensor.
+
+        To ensure numerical stability:
+        - Torque components that are effectively zero are skipped.
+        - Zero moments of inertia result in zero weighted torque with a warning.
+        - Negative moments of inertia raise an error.
 
         Parameters
         ----------
         data_container : object
-            Contains atomic positions and forces.
+            Container holding atomic positions and forces.
         bead : object
-            The part of the molecule to be considered.
+            Molecular subunit whose atoms contribute to the torque.
         rot_axes : np.ndarray
-            The axes relative to which the forces and coordinates are located.
-        force_partitioning : float, optional
-            Factor to adjust force contributions, default is 0.5.
+            Transformation matrix defining the rotational reference frame.
+        force_partitioning : float
+            Scaling factor applied to forces to avoid over-counting correlated
+            contributions (typically 0.5).
 
         Returns
         -------
         weighted_torque : np.ndarray
-            The mass-weighted sum of the torques in the bead.
-        """
+            Moment-of-inertia weighted torque acting on the bead.
 
+        Raises
+        ------
+        ValueError
+            If a negative principal moment of inertia is encountered.
+        """
         torques = np.zeros((3,))
         weighted_torque = np.zeros((3,))
+        moment_of_inertia = np.zeros(3)
 
         for atom in bead.atoms:
-
-            # update local coordinates in rotational axes
             coords_rot = (
                 data_container.atoms[atom.index].position - bead.center_of_mass()
             )
             coords_rot = np.matmul(rot_axes, coords_rot)
-            # update local forces in rotational frame
             forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
 
-            # multiply by the force_partitioning parameter to avoid double counting
-            # of the forces on weakly correlated atoms
-            # the default value of force_partitioning is 0.5 (dividing by two)
             forces_rot = force_partitioning * forces_rot
 
-            # define torques (cross product of coordinates and forces) in rotational
-            # axes
             torques_local = np.cross(coords_rot, forces_rot)
             torques += torques_local
 
-        # divide by moment of inertia to get weighted torques
-        # moment of inertia is a 3x3 tensor
-        # the weighting is done in each dimension (x,y,z) using the diagonal
-        # elements of the moment of inertia tensor
-        moment_of_inertia = bead.moment_of_inertia()
+        eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
+        moments_of_inertia = sorted(eigenvalues, reverse=True)
 
         for dimension in range(3):
-            # Skip calculation if torque is already zero
             if np.isclose(torques[dimension], 0):
                 weighted_torque[dimension] = 0
                 continue
 
-            # Check for zero moment of inertia
-            if np.isclose(moment_of_inertia[dimension, dimension], 0):
-                raise ZeroDivisionError(
-                    f"Attempted to divide by zero moment of inertia in dimension "
-                    f"{dimension}."
-                )
+            if np.isclose(moments_of_inertia[dimension], 0):
+                weighted_torque[dimension] = 0
+                logger.warning("Zero moment of inertia. Setting torque to 0")
+                continue
 
-            # Check for negative moment of inertia
-            if moment_of_inertia[dimension, dimension] < 0:
+            if moments_of_inertia[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia[dimension, dimension]} "
+                    f"{moment_of_inertia[dimension]} "
                     f"Cannot compute weighted torque."
                 )
 
-            # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moment_of_inertia[dimension, dimension]
+                moments_of_inertia[dimension]
             )
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
@@ -817,7 +615,6 @@ class LevelManager:
                 f_mat, t_mat = self.get_matrices(
                     res,
                     level,
-                    num_frames,
                     highest,
                     None if key not in force_avg["ua"] else force_avg["ua"][key],
                     None if key not in torque_avg["ua"] else torque_avg["ua"][key],
@@ -847,7 +644,6 @@ class LevelManager:
             f_mat, t_mat = self.get_matrices(
                 mol,
                 level,
-                num_frames,
                 highest,
                 None if force_avg[key][group_id] is None else force_avg[key][group_id],
                 (
