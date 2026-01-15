@@ -8,13 +8,14 @@ class ComputeWeightedTorquesNode:
     def run(self, shared_data):
         u = shared_data["universe"]
         beads = shared_data["beads"]
-        axes = shared_data["axes"]
+        rot_axes = shared_data["rot_axes"]
 
         torques = {}
 
         for key, bead_list in beads.items():
-            torques[key] = []
-            for bead, ax in zip(bead_list, axes[key]):
-                torques[key].append(self._ft.get_weighted_torques(u, bead, ax))
+            torques[key] = [
+                self._ft.get_weighted_torques(u, bead, r_ax)
+                for bead, r_ax in zip(bead_list, rot_axes[key])
+            ]
 
         shared_data["weighted_torques"] = torques

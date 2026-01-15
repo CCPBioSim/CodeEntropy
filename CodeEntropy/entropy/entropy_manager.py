@@ -7,6 +7,7 @@ import pandas as pd
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy.entropy_graph import EntropyGraph
 from CodeEntropy.levels.hierarchy_graph import LevelDAG
+from CodeEntropy.levels.level_hierarchy import LevelHierarchy
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -71,7 +72,9 @@ class EntropyManager:
 
         reduced_universe = self._get_reduced_universe()
 
-        number_molecules, levels = self._level_manager.select_levels(reduced_universe)
+        level_hierarchy = LevelHierarchy()
+
+        number_molecules, levels = level_hierarchy.select_levels(reduced_universe)
 
         groups = self._group_molecules.grouping_molecules(
             reduced_universe, self._args.grouping
@@ -112,7 +115,9 @@ class EntropyManager:
             "run_manager": self._run_manager,
         }
 
-        level_results = LevelDAG().build().execute(shared_data)
+        logger.info(f"shared_data: {shared_data}")
+
+        level_results = LevelDAG(self._universe_operations).build().execute(shared_data)
 
         shared_data.update(level_results)
 

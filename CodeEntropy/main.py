@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from CodeEntropy.run import RunManager
+from CodeEntropy.config.run import RunManager
 
 logger = logging.getLogger(__name__)
 

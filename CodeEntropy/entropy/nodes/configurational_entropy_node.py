@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from CodeEntropy.entropy.configurational_entropy import ConfigurationalEntropy
+from CodeEntropy.entropy.configurational_entropy import ConformationalEntropy
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class ConfigurationalEntropyNode:
     """
 
     def __init__(self, data_logger):
-        self._ce = ConfigurationalEntropy()
+        self._ce = ConformationalEntropy()
         self._data_logger = data_logger
 
     def run(self, shared_data, **_):

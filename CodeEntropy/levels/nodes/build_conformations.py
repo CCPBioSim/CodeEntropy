@@ -1,9 +1,9 @@
-from CodeEntropy.levels.dihedral_tools import DihedralTools
+from CodeEntropy.levels.dihedral_tools import DihedralAnalysis
 
 
 class BuildConformationsNode:
     def __init__(self):
-        self._dih = DihedralTools()
+        self._dih = DihedralAnalysis()
 
     def run(self, shared_data):
         dihedrals = shared_data["dihedrals"]

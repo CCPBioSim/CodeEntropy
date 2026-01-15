@@ -17,11 +17,11 @@ from rich.text import Text
 from CodeEntropy.config.arg_config_manager import ConfigManager
 from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.config.logging_config import LoggingConfig
-from CodeEntropy.dihedral_tools import DihedralAnalysis
-from CodeEntropy.entropy import EntropyManager
-from CodeEntropy.group_molecules import GroupMolecules
-from CodeEntropy.levels import LevelManager
-from CodeEntropy.mda_universe_operations import UniverseOperations
+from CodeEntropy.entropy.entropy_manager import EntropyManager
+from CodeEntropy.group_molecules.group_molecules import GroupMolecules
+from CodeEntropy.levels.dihedral_tools import DihedralAnalysis
+from CodeEntropy.levels.level_manager import LevelManager
+from CodeEntropy.levels.mda_universe_operations import UniverseOperations
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()

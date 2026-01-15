@@ -1,9 +1,9 @@
 import networkx as nx
 
-from CodeEntropy.entropy.nodes.configurational_entropy import ConfigurationalEntropyNode
-from CodeEntropy.entropy.nodes.entropy_aggregator import EntropyAggregatorNode
-from CodeEntropy.entropy.nodes.orientational_entropy import OrientationalEntropyNode
-from CodeEntropy.entropy.nodes.vibrational_entropy import VibrationalEntropyNode
+from CodeEntropy.entropy.nodes.configurational_entropy_node import (
+    ConfigurationalEntropyNode,
+)
+from CodeEntropy.entropy.nodes.vibrational_entropy_node import VibrationalEntropyNode
 
 
 class EntropyGraph:
@@ -23,11 +23,11 @@ class EntropyGraph:
     def build(self):
         self.add("vibrational_entropy", VibrationalEntropyNode())
 
-        self.add(
-            "orientational_entropy",
-            OrientationalEntropyNode(),
-            depends_on=["vibrational_entropy"],
-        )
+        # self.add(
+        #     "orientational_entropy",
+        #     OrientationalEntropyNode(),
+        #     depends_on=["vibrational_entropy"],
+        # )
 
         self.add(
             "configurational_entropy",
@@ -35,11 +35,11 @@ class EntropyGraph:
             depends_on=["orientational_entropy"],
         )
 
-        self.add(
-            "aggregate_entropy",
-            EntropyAggregatorNode(),
-            depends_on=["configurational_entropy"],
-        )
+        # self.add(
+        #     "aggregate_entropy",
+        #     EntropyAggregatorNode(),
+        #     depends_on=["configurational_entropy"],
+        # )
 
         return self
 

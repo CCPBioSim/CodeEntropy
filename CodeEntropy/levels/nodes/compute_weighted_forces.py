@@ -8,13 +8,14 @@ class ComputeWeightedForcesNode:
     def run(self, shared_data):
         u = shared_data["universe"]
         beads = shared_data["beads"]
-        axes = shared_data["axes"]
+        trans_axes = shared_data["trans_axes"]
 
         forces = {}
 
         for key, bead_list in beads.items():
-            forces[key] = []
-            for bead, ax in zip(bead_list, axes[key]):
-                forces[key].append(self._ft.get_weighted_forces(u, bead, ax, False))
+            forces[key] = [
+                self._ft.get_weighted_forces(u, bead, t_ax, False)
+                for bead, t_ax in zip(bead_list, trans_axes[key])
+            ]
 
         shared_data["weighted_forces"] = forces

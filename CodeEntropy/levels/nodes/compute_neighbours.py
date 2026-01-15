@@ -1,10 +1,10 @@
-from CodeEntropy.levels.dihedral_tools import DihedralTools
+from CodeEntropy.levels.neighbours import Neighbours
 
 
-class BuildConformationsNode:
+class ComputeNeighboursNode:
     def __init__(self):
-        self._dih = DihedralTools()
+        self._nb = Neighbours()
 
     def run(self, shared_data):
-        dihedrals = shared_data["dihedrals"]
-        shared_data["conformations"] = self._dih.build_conformational_states(dihedrals)
+        beads = shared_data["beads"]
+        shared_data["neighbours"] = self._nb.compute(beads)
