@@ -6,7 +6,6 @@ from CodeEntropy.levels.nodes.build_beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.build_covariance_matrices import (
     BuildCovarianceMatricesNode,
 )
-from CodeEntropy.levels.nodes.compute_axes import ComputeAxesNode
 from CodeEntropy.levels.nodes.compute_dihedrals import ComputeConformationalStatesNode
 from CodeEntropy.levels.nodes.compute_weighted_forces import ComputeWeightedForcesNode
 from CodeEntropy.levels.nodes.compute_weighted_torques import ComputeWeightedTorquesNode
@@ -32,8 +31,6 @@ class LevelDAG:
         self.add("detect_levels", DetectLevelsNode(), ["detect_molecules"])
 
         self.add("build_beads", BuildBeadsNode(), ["detect_levels"])
-
-        self.add("compute_axes", ComputeAxesNode(), ["build_beads"])
 
         self.add(
             "compute_weighted_forces",
