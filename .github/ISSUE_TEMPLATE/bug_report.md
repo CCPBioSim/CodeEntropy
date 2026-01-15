@@ -33,6 +33,9 @@ Remove unrelated fields to make it minimal. -->
 
 ### Actual output
 <!-- Paste the output, logs, or error messages here -->
+```bash
+# Paste the output, logs, or error messages here
+```
 
 ### Expected output
 <!-- Describe what you expected to see instead -->
@@ -44,6 +47,18 @@ Remove unrelated fields to make it minimal. -->
 - CodeEntropy Version:
 - OS: 
 - Python Version:
+- Package list:
+  - If using conda, run: `conda list > packages.txt` and paste the contents here.
+    
+    ``` bash
+    # Paste packages.txt here
+    ```
+
+  - If using venv/pip, run: `pip list > packages.txt` and paste the contents here.
+
+    ``` bash
+    # Paste packages.txt here
+    ```
 
 ---
 
