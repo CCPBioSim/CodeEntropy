@@ -550,6 +550,7 @@ class LevelManager:
 
         torques = np.zeros((3,))
         weighted_torque = np.zeros((3,))
+        moment_of_inertia = np.zeros((3,))
         for atom in bead.atoms:
 
             # update local coordinates in rotational axes
@@ -569,18 +570,12 @@ class LevelManager:
             torques_local = np.cross(coords_rot, forces_rot)
             torques += torques_local
 
-        # divide by moment of inertia to get weighted torques
-        # moment of inertia is a 3x3 tensor
-        # the weighting is done in each dimension (x,y,z) using the diagonal
-        # elements of the moment of inertia tensor
-        # moment of inertia is calculated using the rotational axes
-        # axes are already sorted
-        # Ixx = sum(m_i (y_i^2+z_i^2))
-        # Iyy = sum(m_i (x_i^2+z_i^2))
-        # Izz = sum(m_i (x_i^2+y_i^2))
-
-        moment_of_inertia = np.zeros((3,))
-        for atom in bead.atoms:
+            # divide by moment of inertia to get weighted torques
+            # moment of inertia is calculated in the coordinate frame of the rotational axes
+            # axes are already sorted
+            # Ix = sum(m_i (y_i^2+z_i^2))
+            # Iy = sum(m_i (x_i^2+z_i^2))
+            # Iz = sum(m_i (x_i^2+y_i^2))
             mass = atom.mass
             coords_rot = data_container.atoms[atom.index].position - center
             coords_rot = np.matmul(rot_axes, coords_rot)
