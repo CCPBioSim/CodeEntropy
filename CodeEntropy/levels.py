@@ -85,6 +85,7 @@ class LevelManager:
         force_matrix,
         torque_matrix,
         force_partitioning,
+        res_position
     ):
         """
         Compute and accumulate force/torque covariance matrices for a given level.
@@ -98,6 +99,8 @@ class LevelManager:
           to.
           force_partitioning (float): Factor to adjust force contributions,
           default is 0.5.
+          res_position (int) : Relevant at the UA level. Where our residue of interest 
+          is located in the residue group
 
         Returns:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
@@ -120,7 +123,7 @@ class LevelManager:
             # translation and rotation use different axes
             # how the axes are defined depends on the level
             trans_axes, rot_axes, center = self.get_axes(
-                data_container, level, bead_index
+                data_container, level, bead_index, res_position
             )
 
             # Sort out coordinates, forces, and torques for each atom in the bead
@@ -239,7 +242,7 @@ class LevelManager:
 
         return list_of_beads
 
-    def get_axes(self, data_container, level, index=0):
+    def get_axes(self, data_container, level, index, res_position):
         """
         Function to set the translational and rotational axes.
         The translational axes are based on the principal axes of the unit
@@ -258,17 +261,21 @@ class LevelManager:
           trans_axes : translational axes
           rot_axes : rotational axes
         """
+        
+        
         index = int(index)
+
 
         if level == "polymer":
             # for polymer use principle axis for both translation and rotation
             trans_axes = data_container.atoms.principal_axes()
             rot_axes = data_container.atoms.principal_axes()
-            center = data_container.center_of_mass()
+            center = data_container.atoms.center_of_mass()
 
         elif level == "residue":
             # Translation
             # for residues use principal axes of whole molecule for translation
+            
             trans_axes = data_container.atoms.principal_axes()
 
             # Rotation
@@ -302,9 +309,23 @@ class LevelManager:
 
         elif level == "united_atom":
             # Translation
-            # for united atoms use principal axes of residue for translation
-            trans_axes = data_container.residues.principal_axes()
-            # translational axes will be changed later
+            # for united atoms use same axis as for residue rotation
+            if len(data_container.residues) == 1:
+                #only one residue - principal axes
+                trans_axes = data_container.atoms.principal_axes()
+            else: 
+                #residue of interest has at least one neighbour
+                #use bond derived axes (see above for res level rotation)
+                if res_position in [-1,0]: 
+                    residue = data_container.residues[res_position+1] 
+                    #residue of interest will either have index 0 or 1
+                else: #last residue
+                    residue = data_container.residues[res_position]
+                    #residue of interest will have index 1
+                print(f"Residue of interest: {residue}")
+                center = residue.atoms.center_of_mass()
+                vector = self.get_avg_pos(data_container.atoms,center)
+                trans_axes = self.get_sphCoord_axes(vector)
             heavy_atoms = data_container.select_atoms("prop mass > 1.1")
             heavy_atom_indices = []
             for atom in heavy_atoms:
@@ -606,7 +627,7 @@ class LevelManager:
             if moment_of_inertia[dimension] < 0:
                 raise ValueError(
                     f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia_diagonals[dimension]} "
+                    f"{moment_of_inertia[dimension]} "
                     f"Cannot compute weighted torque."
                 )
 
@@ -716,6 +737,16 @@ class LevelManager:
             "poly": np.zeros(number_groups, dtype=int),
         }
 
+        res_position = {
+            "ua": {},
+            "res": np.zeros(number_groups, dtype=int),
+            "poly": np.zeros(number_groups, dtype=int),
+        } 
+        #we only need this at the united atom level
+        #marks where our residue of interest is in the
+        #group of neighbouring residues
+
+            
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold blue]{task.fields[title]}", justify="right"),
@@ -828,10 +859,11 @@ class LevelManager:
         Returns
         -------
         None
-            Updates are performed in-place on `force_avg`, `torque_avg`, and
-            `frame_counts`.
+            Updates are performed in-place on `force_avg`, `torque_avg`,
+            `frame_counts`, and res_position
         """
         highest = level == level_list[-1]
+        res_position = 0
 
         # United atom level calculations are done separately for each residue
         # This allows information per residue to be output and keeps the
@@ -839,25 +871,51 @@ class LevelManager:
         if level == "united_atom":
             for res_id, residue in enumerate(mol.residues):
                 key = (group_id, res_id)
-                res = self._universe_operations.new_U_select_atom(
+                if len(mol.residues)==1:
+                    #there is only one residue in the molecule
+                    #residue group only consists of that one residue
+                    res_group = self._universe_operations.new_U_select_atom(
                     mol, f"index {residue.atoms.indices[0]}:{residue.atoms.indices[-1]}"
                 )
+                else: #there are at least two residues in the molecule
+                #we form a group consisting of a residue and its neighbours
+                    if res_id==0: #first residue
+                        res_position=-1
+                        residue_next = mol.select_atoms(f"resindex {res_id +1}")
+                        res_group = self._universe_operations.new_U_select_atom(
+                    mol, f"index {residue.atoms.indices[0]}:{residue_next.atoms.indices[-1]}"
+                        )
+                    elif res_id == len(mol.residues)-1: #last residue
+                        res_position=1
+                        residue_prev = mol.select_atoms(f"resindex {res_id -1}")
+                        res_group = self._universe_operations.new_U_select_atom(
+                    mol, f"index {residue_prev.atoms.indices[0]}:{residue.atoms.indices[-1]}"
+                        )
+                    else: #residue is in the middle of two neighbours
+                        res_position = 0
+                        residue_prev = mol.select_atoms(f"resindex {res_id -1}")
+                        residue_next = mol.select_atoms(f"resindex {res_id +1}")
+                        res_group = self._universe_operations.new_U_select_atom(
+                    mol, f"index {residue_prev.atoms.indices[0]}:{residue_next.atoms.indices[-1]}"
+                        )
+
 
                 # This is to get MDAnalysis to get the information from the
                 # correct frame of the trajectory
-                res.trajectory[time_index]
+                res_group.trajectory[time_index]
 
                 # Build the matrices, adding data from each timestep
                 # Being careful for the first timestep when data has not yet
                 # been added to the matrices
                 f_mat, t_mat = self.get_matrices(
-                    res,
+                    res_group,
                     level,
                     num_frames,
                     highest,
                     None if key not in force_avg["ua"] else force_avg["ua"][key],
                     None if key not in torque_avg["ua"] else torque_avg["ua"][key],
                     force_partitioning,
+                    res_position
                 )
 
                 if key not in force_avg["ua"]:
@@ -892,6 +950,7 @@ class LevelManager:
                     else torque_avg[key][group_id]
                 ),
                 force_partitioning,
+                res_position
             )
 
             if force_avg[key][group_id] is None:
