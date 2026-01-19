@@ -108,7 +108,7 @@ class LevelManager:
         """
 
         # Make beads
-        list_of_beads = self.get_beads(data_container, level)
+        list_of_beads = self.get_beads(data_container, level,res_position)
 
         # number of beads and frames in trajectory
         number_beads = len(list_of_beads)
@@ -196,7 +196,7 @@ class LevelManager:
 
         return force_matrix, torque_matrix
 
-    def get_beads(self, data_container, level):
+    def get_beads(self, data_container, level,res_position):
         """
         Function to define beads depending on the level in the hierarchy.
 
@@ -222,7 +222,14 @@ class LevelManager:
 
         if level == "united_atom":
             list_of_beads = []
-            heavy_atoms = data_container.select_atoms("prop mass > 1.1")
+            if res_position in [-1,0]: 
+                residue = data_container.select_atoms(f"resindex {res_position+1}")
+                    #residue of interest will either have index 0 or 1
+            else: #last residue
+                residue = data_container.select_atoms(f"resindex {res_position}")
+                #residue of interest will have index 1
+            #heavy atoms in residue of interest
+            heavy_atoms = residue.atoms.select_atoms("prop mass > 1.1")
             if len(heavy_atoms) == 0:
                 # molecule without heavy atoms would be a hydrogen molecule
                 list_of_beads.append(data_container.select_atoms("all"))
@@ -317,16 +324,17 @@ class LevelManager:
                 #residue of interest has at least one neighbour
                 #use bond derived axes (see above for res level rotation)
                 if res_position in [-1,0]: 
-                    residue = data_container.residues[res_position+1] 
+                    residue = data_container.select_atoms(f"resindex {res_position+1}")
                     #residue of interest will either have index 0 or 1
                 else: #last residue
-                    residue = data_container.residues[res_position]
+                    residue = data_container.select_atoms(f"resindex {res_position}")
                     #residue of interest will have index 1
-                print(f"Residue of interest: {residue}")
-                center = residue.atoms.center_of_mass()
+                
+                center = residue.center_of_mass()
                 vector = self.get_avg_pos(data_container.atoms,center)
                 trans_axes = self.get_sphCoord_axes(vector)
-            heavy_atoms = data_container.select_atoms("prop mass > 1.1")
+            #look for heavy atoms in residue of interest
+            heavy_atoms = residue.select_atoms("prop mass > 1.1")
             heavy_atom_indices = []
             for atom in heavy_atoms:
                 heavy_atom_indices.append(atom.index)
@@ -334,21 +342,21 @@ class LevelManager:
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
 
-            heavy_atom = data_container.select_atoms(f"index {heavy_atom_index}")
+            heavy_atom = residue.select_atoms(f"index {heavy_atom_index}")
 
             # Rotation
             # for united atoms use heavy atoms bonded to the heavy atom
-            atom_set = data_container.select_atoms(
+            atom_set = residue.select_atoms(
                 f"(prop mass > 1.1) and bonded index {heavy_atom_index}"
             )
-            bead = heavy_atom + data_container.select_atoms(
+            bead = heavy_atom + residue.atoms.select_atoms(
                 f"name H* and bonded index {heavy_atom_index}"
             )
-
+            
             if len(atom_set) == 0:
                 # if no bonds to other heavy atoms use pricipal axes of bead
-                center = bead.center_of_mass()
-                rot_axes = data_container.residues.principal_axes()
+                center = bead.scenter_of_mass()
+                rot_axes = bead.principal_axes()
 
             else:
                 # when the UA is bound to at least one other UA
@@ -486,6 +494,55 @@ class LevelManager:
         logger.debug(f"Spherical Basis: {spherical_basis}")
 
         return spherical_basis
+    
+    
+    def get_moment_of_inertia (bead, center):
+        moment_of_inertia = np.zeros((3,))
+        for atom in bead:
+            coords_rot = bead.atoms[atom.index].position - center
+            coords_rot = np.matmul(rot_axes, coords_rot)
+            mass = atom.mass
+            # moment of inertia is calculated in the coordinate frame of the rotational axes
+            # axes are already sorted
+            # Ix = sum(m_i (y_i^2+z_i^2))
+            # Iy = sum(m_i (x_i^2+z_i^2))
+            # Iz = sum(m_i (x_i^2+y_i^2))
+            moment_of_inertia[0] += mass * (
+                coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia[1] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia[2] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
+            )
+        return moment_of_inertia
+    
+    def get_moment_of_inertia_UA (bead):
+        center = bead.center_of_mass()
+        moment_of_inertia = np.zeros((3,))
+        for atom in bead:
+            coords_rot = bead.atoms[atom.index].position - center
+            coords_rot = np.matmul(rot_axes, coords_rot)
+            mass = atom.mass
+            # moment of inertia is calculated in the coordinate frame of the rotational axes
+            # axes are already sorted
+            # Ix = sum(m_i (y_i^2+z_i^2))
+            # Iy = sum(m_i (x_i^2+z_i^2))
+            # Iz = sum(m_i (x_i^2+y_i^2))
+            moment_of_inertia[0] += mass * (
+                coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia[1] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[2] * coords_rot[2]
+            )
+            moment_of_inertia[2] += mass * (
+                coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
+            )
+        return moment_of_inertia
+
+
+
 
     def get_weighted_forces(
         self, data_container, bead, trans_axes, highest_level, force_partitioning
@@ -571,7 +628,7 @@ class LevelManager:
 
         torques = np.zeros((3,))
         weighted_torque = np.zeros((3,))
-        moment_of_inertia = np.zeros((3,))
+        
         for atom in bead.atoms:
 
             # update local coordinates in rotational axes
@@ -590,25 +647,17 @@ class LevelManager:
             # axes
             torques_local = np.cross(coords_rot, forces_rot)
             torques += torques_local
-
-            # divide by moment of inertia to get weighted torques
-            # moment of inertia is calculated in the coordinate frame of the rotational axes
-            # axes are already sorted
-            # Ix = sum(m_i (y_i^2+z_i^2))
-            # Iy = sum(m_i (x_i^2+z_i^2))
-            # Iz = sum(m_i (x_i^2+y_i^2))
-            mass = atom.mass
-            coords_rot = data_container.atoms[atom.index].position - center
-            coords_rot = np.matmul(rot_axes, coords_rot)
-            moment_of_inertia[0] += mass * (
-                coords_rot[1] * coords_rot[1] + coords_rot[2] * coords_rot[2]
-            )
-            moment_of_inertia[1] += mass * (
-                coords_rot[0] * coords_rot[0] + coords_rot[2] * coords_rot[2]
-            )
-            moment_of_inertia[2] += mass * (
-                coords_rot[0] * coords_rot[0] + coords_rot[1] * coords_rot[1]
-            )
+          
+        
+        #moment_of_inertia = get_moment_of_inertia (bead, center)
+        #moment of inertia as it is now - using all atoms
+        if center == bead.center_of_mass():
+            moment_of_inertia = get_moment_of_inertia_UA(bead)
+            #moment of inertia as it is in Jon's code
+            #this only works for levels where centre is
+            #centre of mass
+        else:
+            moment_of_inertia = get_moment_of_inertia(bead,center)
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
@@ -617,7 +666,7 @@ class LevelManager:
                 continue
 
             # Check for zero moment of inertia
-            if np.isclose(moment_of_inertia[dimension], 0):
+            if moment_of_inertia[dimension]==0:
                 raise ZeroDivisionError(
                     f"Attempted to divide by zero moment of inertia in dimension "
                     f"{dimension}."
