@@ -35,16 +35,7 @@ jobs:
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  finish:
-    needs: tests
-    if: ${{ always() }}
-    runs-on: ubuntu-24.04
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2.3.7
-      with:
-        parallel-finished: true
+          parallel: true       
 
   docs:
     runs-on: ubuntu-latest
