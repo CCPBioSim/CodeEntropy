@@ -17,11 +17,6 @@ CodeEntropy is a Python package for computing the configurational entropy of mac
 
 See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest/) for more information.
 
-## Copyright
-
-Copyright (c) 2025 CCPBioSim
-
-
 ## Acknowledgements
  
 Project based on 
