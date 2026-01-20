@@ -1,3 +1,6 @@
+CodeEntropy
+==============================
+
 | Category       | Badges |
 |----------------|--------|
 | **Build**      | [![CodeEntropy CI](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/project-ci.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/project-ci.yaml) |
@@ -5,9 +8,6 @@
 | **PyPI**       | ![PyPI - Status](https://img.shields.io/pypi/status/codeentropy?logo=pypi&logoColor=white) ![PyPI - Version](https://img.shields.io/pypi/v/codeentropy?logo=pypi&logoColor=white)  ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/CodeEntropy) ![PyPI - Total Downloads](https://img.shields.io/pepy/dt/codeentropy?logo=pypi&logoColor=white&color=blue) ![PyPI - Monthly Downloads](https://img.shields.io/pypi/dm/CodeEntropy?logo=pypi&logoColor=white&color=blue)|
 | **Quality**    | [![Coverage Status](https://coveralls.io/repos/github/CCPBioSim/CodeEntropy/badge.svg?branch=main)](https://coveralls.io/github/CCPBioSim/CodeEntropy?branch=main) |
 
-
-CodeEntropy
-==============================
 CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics.
 
 <p align="center">
