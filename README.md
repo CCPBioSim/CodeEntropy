@@ -1,4 +1,3 @@
-[//]: # (Badges)
 | Category       | Badges |
 |----------------|--------|
 | **Build**      | [![CodeEntropy CI](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/project-ci.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/project-ci.yaml) |
