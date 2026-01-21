@@ -617,14 +617,14 @@ class LevelManager:
         #moment of inertia as it is now - using all atoms
 
         #-----only heavy atom coordinates contribute to MOI here------
-        #if (center == bead.center_of_mass()).all:
-        #all coordinates of the origin match centre of mass coordinates
-            #moment_of_inertia = self.get_moment_of_inertia_UA(data_container,rot_axes, bead)
+        if np.array_equal(center,bead.center_of_mass()):
+            #all coordinates of the origin match centre of mass coordinates
+            moment_of_inertia = self.get_moment_of_inertia_UA(data_container,rot_axes, bead)
             #moment of inertia as it is in Jon's code
             #this only works for levels where centre is
             #centre of mass
-        #else:
-        #    moment_of_inertia = self.get_moment_of_inertia(self,data_container, rot_axes, bead,center)
+        else:
+            moment_of_inertia = self.get_moment_of_inertia(data_container, rot_axes, bead,center)
 
         for dimension in range(3):
             # Skip calculation if torque is already zero
@@ -707,7 +707,7 @@ class LevelManager:
         moment_of_inertia = np.zeros((3,))
         for atom in bead:
             if atom.mass > 1.1:   
-                coords_rot = bead.atoms[atom.index].position - center
+                coords_rot = data_container.atoms[atom.index].position - center
                 coords_rot = np.matmul(rot_axes, coords_rot)
                 UA_bead = atom + bead.select_atoms(f"prop mass <1.1 and bonded index {atom.index}")
                 mass = UA_bead.total_mass()
