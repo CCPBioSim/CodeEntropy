@@ -65,7 +65,7 @@ jobs:
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
-          pip install -e .[pre-commit,docs,testing]
+          pip install -e .[pre-commit]
       - name: Run pre-commit
         run: |
           pre-commit install
