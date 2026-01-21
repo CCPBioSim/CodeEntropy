@@ -8,8 +8,6 @@ assignees: ''
 ---
 
 # Bug Report
-
-**Describe the bug**  
 <!-- A clear and concise description of the issue. -->
 
 ---
@@ -63,10 +61,10 @@ Remove unrelated fields to make it minimal. -->
 
 ## Screenshots or Logs
 
-Attach any relevant screenshots, logs, or stack traces.
+<!-- Attach any relevant screenshots, logs, or stack traces. -->
 
 ---
 
 ## Additional Context
 
-Include anything else that might help reproduce or understand the bug, such as changes from a previously working version.
+<!-- Include anything else that might help reproduce or understand the bug, such as changes from a previously working version. -->

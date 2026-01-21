@@ -7,7 +7,7 @@ assignees: ''
 ---
 
 ### Feedback or Inquiry
-Provide your feedback or inquiry.
+<!-- Provide your feedback or inquiry. -->
 
 ### Additional Information
-Add any other relevant details here.
+<!-- Add any other relevant details here. -->
