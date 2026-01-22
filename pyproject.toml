@@ -40,7 +40,7 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=2.3,<3.0",
     "mdanalysis>=2.10,<3.0",
-    "pandas>=2.3,<3.0",
+    "pandas>=3,<3.1",
     "psutil>=7.1,<8.0",
     "PyYAML>=6.0,<7.0",
     "python-json-logger>=4.0,<5.0",
