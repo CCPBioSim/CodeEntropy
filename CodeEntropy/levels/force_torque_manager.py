@@ -9,18 +9,25 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from CodeEntropy.levels.level_hierarchy import LevelHierarchy
+from CodeEntropy.levels.matrix_operations import MatrixOperations
+from CodeEntropy.levels.mda_universe_operations import UniverseOperations
+
 logger = logging.getLogger(__name__)
 
 
 class ForceTorqueManager:
     """ """
 
-    def __init__(self):
+    def __init__(self, universe_operations=None):
         """
         Initializes the ForceTorqueManager with placeholders for level-related data,
         including translational and rotational axes, number of beads, and a
         general-purpose data container.
         """
+        self._universe_operations = universe_operations or UniverseOperations()
+        self._hierarchy = LevelHierarchy()
+        self._mat_ops = MatrixOperations()
 
     def get_weighted_forces(
         self, data_container, bead, trans_axes, highest_level, force_partitioning
@@ -428,3 +435,75 @@ class ForceTorqueManager:
                 torque_avg[key][group_id] += (t_mat - torque_avg[key][group_id]) / n
 
         return frame_counts
+
+    def get_matrices(
+        self,
+        data_container,
+        level,
+        highest_level,
+        force_matrix,
+        torque_matrix,
+        force_partitioning,
+    ):
+        """
+        Build ONE-FRAME force/torque covariance matrices for the given level.
+        Returns matrices for the current frame only (no accumulation here).
+        """
+
+        # Build beads for this container + level
+        beads = self._hierarchy.get_beads(data_container, level)
+        n_beads = len(beads)
+
+        # Compute weighted forces/torques per bead (current frame)
+        weighted_forces = [None] * n_beads
+        weighted_torques = [None] * n_beads
+
+        # Translation axes (simple default — matches your recent refactor)
+        trans_axes = data_container.atoms.principal_axes()
+
+        for i, bead in enumerate(beads):
+            # Rotation axes per bead
+            rot_axes = np.real(bead.principal_axes())
+
+            weighted_forces[i] = self.get_weighted_forces(
+                data_container=data_container,
+                bead=bead,
+                trans_axes=trans_axes,
+                highest_level=highest_level,
+                force_partitioning=force_partitioning,
+            )
+
+            weighted_torques[i] = self.get_weighted_torques(
+                data_container=data_container,
+                bead=bead,
+                rot_axes=rot_axes,
+                force_partitioning=force_partitioning,
+            )
+
+        # Build block covariance matrices (3x3 blocks)
+        f_blocks = [[None] * n_beads for _ in range(n_beads)]
+        t_blocks = [[None] * n_beads for _ in range(n_beads)]
+
+        for i in range(n_beads):
+            for j in range(i, n_beads):
+                f_sub = self._mat_ops.create_submatrix(
+                    weighted_forces[i], weighted_forces[j]
+                )
+                t_sub = self._mat_ops.create_submatrix(
+                    weighted_torques[i], weighted_torques[j]
+                )
+
+                f_blocks[i][j] = f_sub
+                f_blocks[j][i] = f_sub.T
+
+                t_blocks[i][j] = t_sub
+                t_blocks[j][i] = t_sub.T
+
+        force_block = np.block(
+            [[f_blocks[i][j] for j in range(n_beads)] for i in range(n_beads)]
+        )
+        torque_block = np.block(
+            [[t_blocks[i][j] for j in range(n_beads)] for i in range(n_beads)]
+        )
+
+        return force_block, torque_block

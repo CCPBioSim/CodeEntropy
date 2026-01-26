@@ -6,17 +6,17 @@ logger = logging.getLogger(__name__)
 
 
 class ConformationalEntropy:
-    """
-    Performs conformational entropy calculations based on molecular dynamics data.
-    """
-
     def __init__(
         self, run_manager, args, universe, data_logger, level_manager, group_molecules
     ):
-        """
-        Initializes the ConformationalEntropy manager with all required components and
-        sets the gas constant used in conformational entropy calculations.
-        """
+        self._run_manager = run_manager
+        self._args = args
+        self._universe = universe
+        self._data_logger = data_logger
+        self._level_manager = level_manager
+        self._group_molecules = group_molecules
+
+        self._GAS_CONST = 8.3144598484848
 
     def assign_conformation(
         self, data_container, dihedral, number_frames, bin_width, start, end, step

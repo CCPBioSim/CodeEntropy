@@ -1,3 +1,5 @@
+# CodeEntropy/levels/nodes/detect_levels.py
+
 from CodeEntropy.levels.level_hierarchy import LevelHierarchy
 
 
@@ -6,8 +8,7 @@ class DetectLevelsNode:
         self._hier = LevelHierarchy()
 
     def run(self, shared_data):
-        u = shared_data["universe"]
-
+        u = shared_data["reduced_universe"]
         num_mol, levels = self._hier.select_levels(u)
 
         shared_data["number_molecules"] = num_mol

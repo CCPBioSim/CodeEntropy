@@ -14,11 +14,15 @@ class VibrationalEntropy:
     def __init__(
         self, run_manager, args, universe, data_logger, level_manager, group_molecules
     ):
-        """
-        Initializes the VibrationalEntropy manager with all required components and
-        defines physical constants used in vibrational entropy calculations.
-        """
+        self._run_manager = run_manager
+        self._args = args
+        self._universe = universe
+        self._data_logger = data_logger
+        self._level_manager = level_manager
+        self._group_molecules = group_molecules
+
         self._PLANCK_CONST = 6.62607004081818e-34
+        self._GAS_CONST = 8.3144598484848
 
     def frequency_calculation(self, lambdas, temp):
         """

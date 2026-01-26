@@ -11,9 +11,8 @@ class EntropyGraph:
     DAG representing the entropy computation pipeline:
 
         1. Vibrational entropy
-        2. Rotational (orientational) entropy
-        3. Conformational entropy
-        4. Aggregate entropy across levels and groups
+        2. Conformational (configurational) entropy
+        (orientational entropy can be added later)
     """
 
     def __init__(self):
@@ -23,22 +22,16 @@ class EntropyGraph:
     def build(self):
         self.add("vibrational_entropy", VibrationalEntropyNode())
 
+        self.add(
+            "configurational_entropy",
+            ConfigurationalEntropyNode(),
+            depends_on=["vibrational_entropy"],
+        )
+
         # self.add(
         #     "orientational_entropy",
         #     OrientationalEntropyNode(),
         #     depends_on=["vibrational_entropy"],
-        # )
-
-        self.add(
-            "configurational_entropy",
-            ConfigurationalEntropyNode(),
-            depends_on=["orientational_entropy"],
-        )
-
-        # self.add(
-        #     "aggregate_entropy",
-        #     EntropyAggregatorNode(),
-        #     depends_on=["configurational_entropy"],
         # )
 
         return self

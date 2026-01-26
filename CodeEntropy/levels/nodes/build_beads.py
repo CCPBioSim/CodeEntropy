@@ -1,3 +1,5 @@
+# CodeEntropy/levels/nodes/build_beads.py
+
 from CodeEntropy.levels.level_hierarchy import LevelHierarchy
 from CodeEntropy.levels.mda_universe_operations import UniverseOperations
 
@@ -8,11 +10,10 @@ class BuildBeadsNode:
         self._mda = UniverseOperations()
 
     def run(self, shared_data):
-        u = shared_data["universe"]
+        u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
 
         beads = {}
-
         for mol_id, level_list in enumerate(levels):
             mol_u = self._mda.get_molecule_container(u, mol_id)
             for level in level_list:

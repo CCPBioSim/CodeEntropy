@@ -1,6 +1,5 @@
 import logging
-
-import numpy as np
+from typing import Any, Dict
 
 from CodeEntropy.entropy.vibrational_entropy import VibrationalEntropy
 
@@ -9,114 +8,59 @@ logger = logging.getLogger(__name__)
 
 class VibrationalEntropyNode:
     """
-    DAG node responsible for computing vibrational entropy
-    from precomputed force and torque covariance matrices.
+    Computes vibrational entropy from force/torque covariance matrices.
+    Expects Level DAG to have filled:
+      shared_data["force_covariances"], shared_data["torque_covariances"]
     """
 
-    def __init__(self, run_manager, data_logger):
-        self._ve = VibrationalEntropy(run_manager)
-        self._data_logger = data_logger
-
-    def run(self, shared_data, **_):
-        levels = shared_data["levels"]
-        groups = shared_data["groups"]
+    def run(self, shared_data: Dict[str, Any], **_kwargs):
+        run_manager = shared_data["run_manager"]
         args = shared_data["args"]
+        universe = shared_data["reduced_universe"]
+        data_logger = shared_data.get("data_logger")
 
-        force_cov = shared_data["force_covariance"]
-        torque_cov = shared_data["torque_covariance"]
-        frame_counts = shared_data["frame_counts"]
+        level_manager = shared_data.get("level_manager")
+        group_molecules = shared_data.get("group_molecules")
 
-        vibrational_results = {}
-
-        for group_id, mol_ids in groups.items():
-            mol_index = mol_ids[0]
-            vibrational_results[group_id] = {}
-
-            for level in levels[mol_index]:
-                highest = level == levels[mol_index][-1]
-
-                if level == "united_atom":
-                    S_trans, S_rot = self._ua_entropy(
-                        group_id,
-                        force_cov["ua"],
-                        torque_cov["ua"],
-                        frame_counts["ua"],
-                        args.temperature,
-                        highest,
-                    )
-
-                else:
-                    S_trans, S_rot = self._level_entropy(
-                        group_id,
-                        level,
-                        force_cov[level][group_id],
-                        torque_cov[level][group_id],
-                        args.temperature,
-                        highest,
-                    )
-
-                vibrational_results[group_id][level] = {
-                    "trans": S_trans,
-                    "rot": S_rot,
-                }
-
-                self._data_logger.add_results_data(
-                    group_id, level, "Transvibrational", S_trans
-                )
-                self._data_logger.add_results_data(
-                    group_id, level, "Rovibrational", S_rot
-                )
-
-        shared_data["vibrational_entropy"] = vibrational_results
-        return {"vibrational_entropy": vibrational_results}
-
-    def _ua_entropy(
-        self,
-        group_id,
-        force_matrices,
-        torque_matrices,
-        frame_counts,
-        temperature,
-        highest,
-    ):
-        S_trans = 0.0
-        S_rot = 0.0
-
-        for key, fmat in force_matrices.items():
-            fmat = self._filter_matrix(fmat)
-            tmat = self._filter_matrix(torque_matrices[key])
-
-            S_trans += self._ve.vibrational_entropy_calculation(
-                fmat, "force", temperature, highest
-            )
-            S_rot += self._ve.vibrational_entropy_calculation(
-                tmat, "torque", temperature, highest
-            )
-
-        return S_trans, S_rot
-
-    def _level_entropy(
-        self,
-        group_id,
-        level,
-        force_matrix,
-        torque_matrix,
-        temperature,
-        highest,
-    ):
-        fmat = self._filter_matrix(force_matrix)
-        tmat = self._filter_matrix(torque_matrix)
-
-        S_trans = self._ve.vibrational_entropy_calculation(
-            fmat, "force", temperature, highest
-        )
-        S_rot = self._ve.vibrational_entropy_calculation(
-            tmat, "torque", temperature, highest
+        ve = VibrationalEntropy(
+            run_manager=run_manager,
+            args=args,
+            universe=universe,
+            data_logger=data_logger,
+            level_manager=level_manager,
+            group_molecules=group_molecules,
         )
 
-        return S_trans, S_rot
+        temp = args.temperature
+        # levels = shared_data["levels"]
+        groups = shared_data["groups"]
 
-    @staticmethod
-    def _filter_matrix(matrix):
-        mask = ~(np.all(matrix == 0, axis=0))
-        return matrix[np.ix_(mask, mask)]
+        force_cov = shared_data["force_covariances"]
+        # torque_cov = shared_data["torque_covariances"]
+
+        vib_results = {}
+
+        for group_id in groups.keys():
+            vib_results[group_id] = {"ua": 0.0, "res": 0.0, "poly": 0.0}
+
+            # UA is dict keyed by (group_id, res_id)
+            for (gid, _res_id), mat in force_cov["ua"].items():
+                if gid != group_id:
+                    continue
+                vib_results[group_id]["ua"] += ve.vibrational_entropy_calculation(
+                    mat, "force", temp, highest_level=False
+                )
+
+            # residue / polymer are list indexed by group_id
+            if force_cov["res"][group_id] is not None:
+                vib_results[group_id]["res"] += ve.vibrational_entropy_calculation(
+                    force_cov["res"][group_id], "force", temp, highest_level=False
+                )
+
+            if force_cov["poly"][group_id] is not None:
+                vib_results[group_id]["poly"] += ve.vibrational_entropy_calculation(
+                    force_cov["poly"][group_id], "force", temp, highest_level=True
+                )
+
+        logger.info("[VibrationalEntropyNode] Done")
+        return {"vibrational_entropy": vib_results}
