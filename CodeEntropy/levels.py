@@ -9,6 +9,8 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from CodeEntropy.axes import AxesManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,11 +117,25 @@ class LevelManager:
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
             bead = list_of_beads[bead_index]
+
             # Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
-            trans_axes = data_container.atoms.principal_axes()
-            rot_axes = np.real(bead.principal_axes())
+            axes_manager = AxesManager()
+            if level == "united_atom":
+                trans_axes, rot_axes, center, moment_of_inertia = (
+                    axes_manager.get_UA_axes(data_container, bead_index)
+                )
+            elif level == "residue":
+                trans_axes, rot_axes, center, moment_of_inertia = (
+                    axes_manager.get_residue_axes(data_container, bead_index)
+                )
+            else:
+                trans_axes = data_container.atoms.principal_axes()
+                rot_axes = np.real(bead.principal_axes())
+                eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
+                moment_of_inertia = sorted(eigenvalues, reverse=True)
+                center = bead.center_of_mass()
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
@@ -130,7 +146,11 @@ class LevelManager:
                 force_partitioning,
             )
             weighted_torques[bead_index] = self.get_weighted_torques(
-                data_container, bead, rot_axes, force_partitioning
+                bead,
+                rot_axes,
+                center,
+                force_partitioning,
+                moment_of_inertia,
             )
 
         # Create covariance submatrices
@@ -167,6 +187,7 @@ class LevelManager:
         # Enforce consistent shape before accumulation
         if force_matrix is None:
             force_matrix = np.zeros_like(force_block)
+            force_matrix = force_block  # add first set of forces
         elif force_matrix.shape != force_block.shape:
             raise ValueError(
                 f"Inconsistent force matrix shape: existing "
@@ -177,6 +198,7 @@ class LevelManager:
 
         if torque_matrix is None:
             torque_matrix = np.zeros_like(torque_block)
+            torque_matrix = torque_block  # add first set of torques
         elif torque_matrix.shape != torque_block.shape:
             raise ValueError(
                 f"Inconsistent torque matrix shape: existing "
@@ -296,7 +318,9 @@ class LevelManager:
 
         return weighted_force
 
-    def get_weighted_torques(self, data_container, bead, rot_axes, force_partitioning):
+    def get_weighted_torques(
+        self, bead, rot_axes, center, force_partitioning, moment_of_inertia
+    ):
         """
         Compute moment-of-inertia weighted torques for a bead.
 
@@ -311,9 +335,7 @@ class LevelManager:
         the sorted eigenvalues of the moment of inertia tensor.
 
         To ensure numerical stability:
-        - Torque components that are effectively zero are skipped.
-        - Zero moments of inertia result in zero weighted torque with a warning.
-        - Negative moments of inertia raise an error.
+        - Torque components that are effectively zero, zero or negative are skipped.
 
         Parameters
         ----------
@@ -326,55 +348,41 @@ class LevelManager:
         force_partitioning : float
             Scaling factor applied to forces to avoid over-counting correlated
             contributions (typically 0.5).
+        moment_of_inertia : np.ndarray
+            Moment of inertia (3,)
 
         Returns
         -------
         weighted_torque : np.ndarray
             Moment-of-inertia weighted torque acting on the bead.
-
-        Raises
-        ------
-        ValueError
-            If a negative principal moment of inertia is encountered.
         """
-        torques = np.zeros((3,))
+
+        # translate and rotate positions and forces
+        translated_coords = bead.positions - center
+        rotated_coords = np.tensordot(translated_coords, rot_axes.T, axes=1)
+        rotated_forces = np.tensordot(bead.forces, rot_axes.T, axes=1)
+        # scale forces
+        rotated_forces *= force_partitioning
+        # get torques here
+        torques = np.sum(np.cross(rotated_coords, rotated_forces), axis=0)
+
         weighted_torque = np.zeros((3,))
-        moment_of_inertia = np.zeros(3)
-
-        for atom in bead.atoms:
-            coords_rot = (
-                data_container.atoms[atom.index].position - bead.center_of_mass()
-            )
-            coords_rot = np.matmul(rot_axes, coords_rot)
-            forces_rot = np.matmul(rot_axes, data_container.atoms[atom.index].force)
-
-            forces_rot = force_partitioning * forces_rot
-
-            torques_local = np.cross(coords_rot, forces_rot)
-            torques += torques_local
-
-        eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
-        moments_of_inertia = sorted(eigenvalues, reverse=True)
-
         for dimension in range(3):
             if np.isclose(torques[dimension], 0):
                 weighted_torque[dimension] = 0
                 continue
 
-            if np.isclose(moments_of_inertia[dimension], 0):
+            if moment_of_inertia[dimension] == 0:
                 weighted_torque[dimension] = 0
-                logger.warning("Zero moment of inertia. Setting torque to 0")
                 continue
 
-            if moments_of_inertia[dimension] < 0:
-                raise ValueError(
-                    f"Negative value encountered for moment of inertia: "
-                    f"{moment_of_inertia[dimension]} "
-                    f"Cannot compute weighted torque."
-                )
+            if moment_of_inertia[dimension] < 0:
+                weighted_torque[dimension] = 0
+                continue
 
+            # Compute weighted torque
             weighted_torque[dimension] = torques[dimension] / np.sqrt(
-                moments_of_inertia[dimension]
+                moment_of_inertia[dimension]
             )
 
         logger.debug(f"Weighted Torque: {weighted_torque}")
