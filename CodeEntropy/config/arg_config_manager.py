@@ -87,7 +87,13 @@ arg_map = {
     },
     "combined_forcetorque": {
         "type": bool,
-        "help": """Use cobined force-torque matrix for residue
+        "help": """Use combined force-torque matrix for residue
+            level vibrational entropies""",
+        "default": True,
+    },
+    "customised_axes": {
+        "type": bool,
+        "help": """Use bonded axes to rotate forces for UA
             level vibrational entropies""",
         "default": True,
     },

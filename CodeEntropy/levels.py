@@ -86,6 +86,7 @@ class LevelManager:
         force_matrix,
         torque_matrix,
         force_partitioning,
+        customised_axes,
     ):
         """
         Compute and accumulate force/torque covariance matrices for a given level.
@@ -122,11 +123,11 @@ class LevelManager:
             # translation and rotation use different axes
             # how the axes are defined depends on the level
             axes_manager = AxesManager()
-            if level == "united_atom":
+            if level == "united_atom" and customised_axes:
                 trans_axes, rot_axes, center, moment_of_inertia = (
                     axes_manager.get_UA_axes(data_container, bead_index)
                 )
-            elif level == "residue":
+            elif level == "residue" and customised_axes:
                 trans_axes, rot_axes, center, moment_of_inertia = (
                     axes_manager.get_residue_axes(data_container, bead_index)
                 )
@@ -216,6 +217,7 @@ class LevelManager:
         highest_level,
         forcetorque_matrix,
         force_partitioning,
+        customised_axes,
     ):
         """
         Compute and accumulate combined force/torque covariance matrices for
@@ -252,7 +254,7 @@ class LevelManager:
             # translation and rotation use different axes
             # how the axes are defined depends on the level
             axes_manager = AxesManager()
-            if level == "residue":
+            if level == "residue" and customised_axes:
                 trans_axes, rot_axes, center, moment_of_inertia = (
                     axes_manager.get_residue_axes(data_container, bead_index)
                 )
@@ -558,6 +560,7 @@ class LevelManager:
         number_frames,
         force_partitioning,
         combined_forcetorque,
+        customised_axes,
     ):
         """
         Construct average force and torque covariance matrices for all molecules and
@@ -675,6 +678,7 @@ class LevelManager:
                                 frame_counts,
                                 force_partitioning,
                                 combined_forcetorque,
+                                customised_axes,
                             )
 
                             progress.advance(task)
@@ -696,6 +700,7 @@ class LevelManager:
         frame_counts,
         force_partitioning,
         combined_forcetorque,
+        customised_axes,
     ):
         """
         Update the running averages of force and torque covariance matrices
@@ -737,9 +742,11 @@ class LevelManager:
             Dictionary holding the count of frames processed for each molecule/level
             combination.
         force_partitioning : float
-         Factor to adjust force contributions, default is 0.5.
+            Factor to adjust force contributions, default is 0.5.
         combined_forcetorque : bool
-         Whether to use combined forcetorque covariance matrix.
+            Whether to use combined forcetorque covariance matrix.
+        customised_axes: bool
+            Whether to use bonded axes for UA rovib calculations
         Returns
         -------
         None
@@ -772,6 +779,7 @@ class LevelManager:
                     None if key not in force_avg["ua"] else force_avg["ua"][key],
                     None if key not in torque_avg["ua"] else torque_avg["ua"][key],
                     force_partitioning,
+                    customised_axes,
                 )
 
                 if key not in force_avg["ua"]:
@@ -806,6 +814,7 @@ class LevelManager:
                         else forcetorque_avg[key][group_id]
                     ),
                     force_partitioning,
+                    customised_axes,
                 )
 
                 if forcetorque_avg[key][group_id] is None:
@@ -833,6 +842,7 @@ class LevelManager:
                         else torque_avg[key][group_id]
                     ),
                     force_partitioning,
+                    customised_axes,
                 )
 
                 if force_avg[key][group_id] is None:

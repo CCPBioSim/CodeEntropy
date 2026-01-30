@@ -134,6 +134,7 @@ class EntropyManager:
                 number_frames,
                 self._args.force_partitioning,
                 self._args.combined_forcetorque,
+                self._args.customised_axes,
             )
         )
 
