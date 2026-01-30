@@ -11,14 +11,11 @@ class VibrationalEntropy:
     Performs vibrational entropy calculations using molecular trajectory data.
     """
 
-    def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
-    ):
+    def __init__(self, run_manager, args, universe, data_logger, group_molecules):
         self._run_manager = run_manager
         self._args = args
         self._universe = universe
         self._data_logger = data_logger
-        self._level_manager = level_manager
         self._group_molecules = group_molecules
 
         self._PLANCK_CONST = 6.62607004081818e-34

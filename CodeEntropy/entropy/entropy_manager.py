@@ -25,7 +25,6 @@ class EntropyManager:
         args,
         universe,
         data_logger,
-        level_manager,
         group_molecules,
         dihedral_analysis,
         universe_operations,
@@ -38,7 +37,6 @@ class EntropyManager:
             args: Argument namespace containing user parameters.
             universe: MDAnalysis universe representing the simulation system.
             data_logger: Logger for storing and exporting entropy data.
-            level_manager: Provides level-specific data such as matrices and dihedrals.
             group_molecules: includes the grouping functions for averaging over
             molecules.
         """
@@ -46,7 +44,6 @@ class EntropyManager:
         self._args = args
         self._universe = universe
         self._data_logger = data_logger
-        self._level_manager = level_manager
         self._group_molecules = group_molecules
         self._dihedral_analysis = dihedral_analysis
         self._universe_operations = universe_operations
@@ -91,7 +88,6 @@ class EntropyManager:
 
         shared_data = {
             "entropy_manager": self,
-            "level_manager": self._level_manager,
             "run_manager": self._run_manager,
             "data_logger": self._data_logger,
             "args": self._args,
@@ -164,8 +160,10 @@ class EntropyManager:
         # Based on the selection string, create a new MDAnalysis universe
         reduced_atom = self._get_reduced_universe()
 
+        level_hierarchy = LevelHierarchy()
+
         # Count the molecules and identify the length scale levels for each one
-        number_molecules, levels = self._level_manager.select_levels(reduced_atom)
+        number_molecules, levels = level_hierarchy.select_levels(reduced_atom)
 
         # Group the molecules for averaging
         grouping = self._args.grouping

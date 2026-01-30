@@ -22,7 +22,6 @@ class ConfigurationalEntropyNode:
         universe = shared_data["reduced_universe"]
         data_logger = shared_data.get("data_logger")
 
-        level_manager = shared_data.get("level_manager")
         group_molecules = shared_data.get("group_molecules")
 
         levels = shared_data["levels"]
@@ -41,7 +40,6 @@ class ConfigurationalEntropyNode:
             args=args,
             universe=universe,
             data_logger=data_logger,
-            level_manager=level_manager,
             group_molecules=group_molecules,
         )
 

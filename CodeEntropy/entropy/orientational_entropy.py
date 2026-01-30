@@ -11,9 +11,7 @@ class OrientationalEntropy:
     Performs orientational entropy calculations using molecular dynamics data.
     """
 
-    def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
-    ):
+    def __init__(self, run_manager, args, universe, data_logger, group_molecules):
         """
         Initializes the OrientationalEntropy manager with all required components and
         sets the gas constant used in orientational entropy calculations.

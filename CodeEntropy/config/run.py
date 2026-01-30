@@ -20,7 +20,6 @@ from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy.entropy_manager import EntropyManager
 from CodeEntropy.group_molecules.group_molecules import GroupMolecules
 from CodeEntropy.levels.dihedral_tools import DihedralAnalysis
-from CodeEntropy.levels.level_manager import LevelManager
 from CodeEntropy.levels.mda_universe_operations import UniverseOperations
 
 logger = logging.getLogger(__name__)
@@ -264,9 +263,6 @@ class RunManager:
 
                 self._config_manager.input_parameters_validation(u, args)
 
-                # Create LevelManager instance
-                level_manager = LevelManager(universe_operations)
-
                 # Create GroupMolecules instance
                 group_molecules = GroupMolecules()
 
@@ -281,7 +277,6 @@ class RunManager:
                     args=args,
                     universe=u,
                     data_logger=self._data_logger,
-                    level_manager=level_manager,
                     group_molecules=group_molecules,
                     dihedral_analysis=dihedral_analysis,
                     universe_operations=universe_operations,

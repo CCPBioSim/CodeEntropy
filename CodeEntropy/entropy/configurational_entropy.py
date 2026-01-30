@@ -6,14 +6,11 @@ logger = logging.getLogger(__name__)
 
 
 class ConformationalEntropy:
-    def __init__(
-        self, run_manager, args, universe, data_logger, level_manager, group_molecules
-    ):
+    def __init__(self, run_manager, args, universe, data_logger, group_molecules):
         self._run_manager = run_manager
         self._args = args
         self._universe = universe
         self._data_logger = data_logger
-        self._level_manager = level_manager
         self._group_molecules = group_molecules
 
         self._GAS_CONST = 8.3144598484848
