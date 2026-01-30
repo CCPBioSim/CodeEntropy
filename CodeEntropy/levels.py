@@ -209,6 +209,112 @@ class LevelManager:
 
         return force_matrix, torque_matrix
 
+    def get_combined_forcetorque_matrices(
+        self,
+        data_container,
+        level,
+        highest_level,
+        forcetorque_matrix,
+        force_partitioning,
+    ):
+        """
+        Compute and accumulate combined force/torque covariance matrices for
+        a given level.
+
+        Parameters:
+          data_container (MDAnalysis.Universe): Data for a molecule or residue.
+          level (str): 'polymer', 'residue', or 'united_atom'.
+          highest_level (bool): Whether this is the top (largest bead size) level.
+          forcetorque_matrix (np.ndarray or None): Accumulated matrices to add
+          to.
+          force_partitioning (float): Factor to adjust force contributions,
+          default is 0.5.
+
+        Returns:
+          forcetorque_matrix (np.ndarray): Accumulated torque covariance matrix.
+        """
+
+        # Make beads
+        list_of_beads = self.get_beads(data_container, level)
+
+        # number of beads and frames in trajectory
+        number_beads = len(list_of_beads)
+
+        # initialize force and torque arrays
+        weighted_forces = [None for _ in range(number_beads)]
+        weighted_torques = [None for _ in range(number_beads)]
+
+        # Calculate forces/torques for each bead
+        for bead_index in range(number_beads):
+            bead = list_of_beads[bead_index]
+
+            # Set up axes
+            # translation and rotation use different axes
+            # how the axes are defined depends on the level
+            axes_manager = AxesManager()
+            if level == "residue":
+                trans_axes, rot_axes, center, moment_of_inertia = (
+                    axes_manager.get_residue_axes(data_container, bead_index)
+                )
+            else:
+                trans_axes = data_container.atoms.principal_axes()
+                rot_axes = np.real(bead.principal_axes())
+                eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
+                moment_of_inertia = sorted(eigenvalues, reverse=True)
+                center = bead.center_of_mass()
+
+            # Sort out coordinates, forces, and torques for each atom in the bead
+            weighted_forces[bead_index] = self.get_weighted_forces(
+                data_container,
+                bead,
+                trans_axes,
+                highest_level,
+                force_partitioning,
+            )
+            weighted_torques[bead_index] = self.get_weighted_torques(
+                bead,
+                rot_axes,
+                center,
+                force_partitioning,
+                moment_of_inertia,
+            )
+
+        # Create covariance submatrices
+        forcetorque_submatrix = [
+            [0 for _ in range(number_beads)] for _ in range(number_beads)
+        ]
+
+        for i in range(number_beads):
+            for j in range(i, number_beads):
+                ft_sub = self.create_FTsubmatrix(
+                    np.concatenate((weighted_forces[i], weighted_torques[i])),
+                    np.concatenate((weighted_forces[j], weighted_torques[j])),
+                )
+                forcetorque_submatrix[i][j] = ft_sub
+                forcetorque_submatrix[j][i] = ft_sub.T
+
+        # Convert block matrices to full matrix
+        forcetorque_block = np.block(
+            [
+                [forcetorque_submatrix[i][j] for j in range(number_beads)]
+                for i in range(number_beads)
+            ]
+        )
+
+        # Enforce consistent shape before accumulation
+        if forcetorque_matrix is None:
+            forcetorque_matrix = np.zeros_like(forcetorque_block)
+            forcetorque_matrix = forcetorque_block  # add first set of torques
+        elif forcetorque_matrix.shape != forcetorque_block.shape:
+            raise ValueError(
+                f"Inconsistent forcetorque matrix shape: existing "
+                f"{forcetorque_matrix.shape}, new {forcetorque_block.shape}"
+            )
+        else:
+            forcetorque_matrix = forcetorque_block
+
+        return forcetorque_matrix
+
     def get_beads(self, data_container, level):
         """
         Function to define beads depending on the level in the hierarchy.
@@ -364,7 +470,8 @@ class LevelManager:
         # scale forces
         rotated_forces *= force_partitioning
         # get torques here
-        torques = np.sum(np.cross(rotated_coords, rotated_forces), axis=0)
+        torques = np.cross(rotated_coords, rotated_forces)
+        torques = np.sum(torques, axis=0)
 
         weighted_torque = np.zeros((3,))
         for dimension in range(3):
@@ -415,6 +522,30 @@ class LevelManager:
 
         return submatrix
 
+    def create_FTsubmatrix(self, data_i, data_j):
+        """
+        Function for making covariance matrices.
+
+        Args
+        -----
+        data_i : values for bead i
+        data_j : values for bead j
+
+        Returns
+        ------
+        submatrix : 6x6 matrix for the covariance between i and j
+        """
+
+        # Start with 6 by 6 matrix of zeros
+        submatrix = np.zeros((6, 6))
+
+        # For each frame calculate the outer product (cross product) of the data from
+        # the two beads and add the result to the submatrix
+        outer_product_matrix = np.outer(data_i, data_j)
+        submatrix = np.add(submatrix, outer_product_matrix)
+
+        return submatrix
+
     def build_covariance_matrices(
         self,
         entropy_manager,
@@ -426,6 +557,7 @@ class LevelManager:
         step,
         number_frames,
         force_partitioning,
+        combined_forcetorque,
     ):
         """
         Construct average force and torque covariance matrices for all molecules and
@@ -451,7 +583,8 @@ class LevelManager:
             Total number of frames to process.
         force_partitioning : float
             Factor to adjust force contributions, default is 0.5.
-
+        combined_forcetorque : bool
+         Whether to use combined forcetorque covariance matrix.
 
         Returns
         -------
@@ -469,6 +602,12 @@ class LevelManager:
             "poly": [None] * number_groups,
         }
         torque_avg = {
+            "ua": {},
+            "res": [None] * number_groups,
+            "poly": [None] * number_groups,
+        }
+
+        forcetorque_avg = {
             "ua": {},
             "res": [None] * number_groups,
             "poly": [None] * number_groups,
@@ -532,13 +671,15 @@ class LevelManager:
                                 number_frames,
                                 force_avg,
                                 torque_avg,
+                                forcetorque_avg,
                                 frame_counts,
                                 force_partitioning,
+                                combined_forcetorque,
                             )
 
                             progress.advance(task)
 
-        return force_avg, torque_avg, frame_counts
+        return force_avg, torque_avg, forcetorque_avg, frame_counts
 
     def update_force_torque_matrices(
         self,
@@ -551,8 +692,10 @@ class LevelManager:
         num_frames,
         force_avg,
         torque_avg,
+        forcetorque_avg,
         frame_counts,
         force_partitioning,
+        combined_forcetorque,
     ):
         """
         Update the running averages of force and torque covariance matrices
@@ -595,6 +738,8 @@ class LevelManager:
             combination.
         force_partitioning : float
          Factor to adjust force contributions, default is 0.5.
+        combined_forcetorque : bool
+         Whether to use combined forcetorque covariance matrix.
         Returns
         -------
         None
@@ -649,28 +794,56 @@ class LevelManager:
             # Build the matrices, adding data from each timestep
             # Being careful for the first timestep when data has not yet
             # been added to the matrices
-            f_mat, t_mat = self.get_matrices(
-                mol,
-                level,
-                highest,
-                None if force_avg[key][group_id] is None else force_avg[key][group_id],
-                (
-                    None
-                    if torque_avg[key][group_id] is None
-                    else torque_avg[key][group_id]
-                ),
-                force_partitioning,
-            )
+            if highest and combined_forcetorque:
+                # use combined forcetorque covariance matrix for the highest level only
+                ft_mat = self.get_combined_forcetorque_matrices(
+                    mol,
+                    level,
+                    highest,
+                    (
+                        None
+                        if forcetorque_avg[key][group_id] is None
+                        else forcetorque_avg[key][group_id]
+                    ),
+                    force_partitioning,
+                )
 
-            if force_avg[key][group_id] is None:
-                force_avg[key][group_id] = f_mat.copy()
-                torque_avg[key][group_id] = t_mat.copy()
-                frame_counts[key][group_id] = 1
+                if forcetorque_avg[key][group_id] is None:
+                    forcetorque_avg[key][group_id] = ft_mat.copy()
+                    frame_counts[key][group_id] = 1
+                else:
+                    frame_counts[key][group_id] += 1
+                    n = frame_counts[key][group_id]
+                    forcetorque_avg[key][group_id] += (
+                        ft_mat - forcetorque_avg[key][group_id]
+                    ) / n
             else:
-                frame_counts[key][group_id] += 1
-                n = frame_counts[key][group_id]
-                force_avg[key][group_id] += (f_mat - force_avg[key][group_id]) / n
-                torque_avg[key][group_id] += (t_mat - torque_avg[key][group_id]) / n
+                f_mat, t_mat = self.get_matrices(
+                    mol,
+                    level,
+                    highest,
+                    (
+                        None
+                        if force_avg[key][group_id] is None
+                        else force_avg[key][group_id]
+                    ),
+                    (
+                        None
+                        if torque_avg[key][group_id] is None
+                        else torque_avg[key][group_id]
+                    ),
+                    force_partitioning,
+                )
+
+                if force_avg[key][group_id] is None:
+                    force_avg[key][group_id] = f_mat.copy()
+                    torque_avg[key][group_id] = t_mat.copy()
+                    frame_counts[key][group_id] = 1
+                else:
+                    frame_counts[key][group_id] += 1
+                    n = frame_counts[key][group_id]
+                    force_avg[key][group_id] += (f_mat - force_avg[key][group_id]) / n
+                    torque_avg[key][group_id] += (t_mat - torque_avg[key][group_id]) / n
 
         return frame_counts
 

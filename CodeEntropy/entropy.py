@@ -122,7 +122,7 @@ class EntropyManager:
         else:
             nonwater_groups.update(water_groups)
 
-        force_matrices, torque_matrices, frame_counts = (
+        force_matrices, torque_matrices, forcetorque_matrices, frame_counts = (
             self._level_manager.build_covariance_matrices(
                 self,
                 reduced_atom,
@@ -133,6 +133,7 @@ class EntropyManager:
                 step,
                 number_frames,
                 self._args.force_partitioning,
+                self._args.combined_forcetorque,
             )
         )
 
@@ -155,6 +156,7 @@ class EntropyManager:
             nonwater_groups,
             force_matrices,
             torque_matrices,
+            forcetorque_matrices,
             states_ua,
             states_res,
             frame_counts,
@@ -230,6 +232,7 @@ class EntropyManager:
         groups,
         force_matrices,
         torque_matrices,
+        forcetorque_matrices,
         states_ua,
         states_res,
         frame_counts,
@@ -309,6 +312,7 @@ class EntropyManager:
                         f"Level: {level}",
                     )
                     highest = level == levels[groups[group_id][0]][-1]
+                    forcetorque_matrix = None
 
                     if level == "united_atom":
                         self._process_united_atom_entropy(
@@ -326,6 +330,8 @@ class EntropyManager:
                         )
 
                     elif level == "residue":
+                        if highest:
+                            forcetorque_matrix = forcetorque_matrices["res"][group_id]
                         self._process_vibrational_entropy(
                             group_id,
                             mol,
@@ -334,6 +340,7 @@ class EntropyManager:
                             level,
                             force_matrices["res"][group_id],
                             torque_matrices["res"][group_id],
+                            forcetorque_matrix,
                             highest,
                         )
 
@@ -347,6 +354,8 @@ class EntropyManager:
                         )
 
                     elif level == "polymer":
+                        if highest:
+                            forcetorque_matrix = forcetorque_matrices["poly"][group_id]
                         self._process_vibrational_entropy(
                             group_id,
                             mol,
@@ -355,6 +364,7 @@ class EntropyManager:
                             level,
                             force_matrices["poly"][group_id],
                             torque_matrices["poly"][group_id],
+                            forcetorque_matrix,
                             highest,
                         )
 
@@ -463,21 +473,23 @@ class EntropyManager:
                 t_matrix, "torque", self._args.temperature, highest
             )
 
-            # Get the relevant conformational states
-            values = states[key]
-            # Check if there is information in the states array
-            contains_non_empty_states = (
-                np.any(values) if isinstance(values, np.ndarray) else any(values)
-            )
+            # SWITCH OFF SCONF
+            # # Get the relevant conformational states
+            # values = states[key]
+            # # Check if there is information in the states array
+            # contains_non_empty_states = (
+            #     np.any(values) if isinstance(values, np.ndarray) else any(values)
+            # )
 
-            # Calculate the conformational entropy
-            # If there are no conformational states (i.e. no dihedrals)
-            # then the conformational entropy is zero
-            S_conf_res = (
-                ce.conformational_entropy_calculation(values)
-                if contains_non_empty_states
-                else 0
-            )
+            # # Calculate the conformational entropy
+            # # If there are no conformational states (i.e. no dihedrals)
+            # # then the conformational entropy is zero
+            # S_conf_res = (
+            #     ce.conformational_entropy_calculation(values)
+            #     if contains_non_empty_states
+            #     else 0
+            # )
+            S_conf_res = 0
 
             # Add the data to the united atom level entropy
             S_trans += S_trans_res
@@ -530,6 +542,7 @@ class EntropyManager:
         level,
         force_matrix,
         torque_matrix,
+        forcetorque_matrix,
         highest,
     ):
         """
@@ -548,21 +561,43 @@ class EntropyManager:
         # Find the relevant force and torque matrices and tidy them up
         # by removing rows and columns that are all zeros
 
-        force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
+        if forcetorque_matrix is not None:
+            forcetorque_matrix = self._level_manager.filter_zero_rows_columns(
+                forcetorque_matrix
+            )
 
-        torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
+            S_FTtrans = ve.vibrational_entropy_calculation(
+                forcetorque_matrix, "forcetorqueTRANS", self._args.temperature, highest
+            )
+            S_FTrot = ve.vibrational_entropy_calculation(
+                forcetorque_matrix, "forcetorqueROT", self._args.temperature, highest
+            )
 
-        # Calculate the vibrational entropy
-        S_trans = ve.vibrational_entropy_calculation(
-            force_matrix, "force", self._args.temperature, highest
-        )
-        S_rot = ve.vibrational_entropy_calculation(
-            torque_matrix, "torque", self._args.temperature, highest
-        )
+            self._data_logger.add_results_data(
+                group_id, level, "FTmat-Transvibrational", S_FTtrans
+            )
+            self._data_logger.add_results_data(
+                group_id, level, "FTmat-Rovibrational", S_FTrot
+            )
 
-        # Print the vibrational entropy for the molecule group
-        self._data_logger.add_results_data(group_id, level, "Transvibrational", S_trans)
-        self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
+        else:
+            force_matrix = self._level_manager.filter_zero_rows_columns(force_matrix)
+
+            torque_matrix = self._level_manager.filter_zero_rows_columns(torque_matrix)
+
+            # Calculate the vibrational entropy
+            S_trans = ve.vibrational_entropy_calculation(
+                force_matrix, "force", self._args.temperature, highest
+            )
+            S_rot = ve.vibrational_entropy_calculation(
+                torque_matrix, "torque", self._args.temperature, highest
+            )
+
+            # Print the vibrational entropy for the molecule group
+            self._data_logger.add_results_data(
+                group_id, level, "Transvibrational", S_trans
+            )
+            self._data_logger.add_results_data(group_id, level, "Rovibrational", S_rot)
 
         residue_group = "_".join(
             sorted(set(res.resname for res in mol_container.residues))
@@ -899,6 +934,7 @@ class VibrationalEntropy(EntropyManager):
         """
         # N beads at a level => 3N x 3N covariance matrix => 3N eigenvalues
         # Get eigenvalues of the given matrix and change units to SI units
+        logger.debug(f"matrix_type: {matrix_type}")
         lambdas = la.eigvals(matrix)
         logger.debug(f"Eigenvalues (lambdas) before unit change: {lambdas}")
 
@@ -938,6 +974,11 @@ class VibrationalEntropy(EntropyManager):
             # internal motion of the level above
             else:
                 S_vib_total = sum(S_components[6:])
+
+        elif matrix_type == "forcetorqueTRANS":  # three lowest are translations
+            S_vib_total = sum(S_components[:3])
+        elif matrix_type == "forcetorqueROT":  # three highest are rotations
+            S_vib_total = sum(S_components[3:])
 
         else:  # torque covariance matrix - we always take all values into account
             S_vib_total = sum(S_components)

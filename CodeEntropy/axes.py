@@ -96,7 +96,18 @@ class AxesManager:
 
         index = int(index)
 
-        trans_axes = data_container.atoms.principal_axes()
+        # trans_axes = data_container.atoms.principal_axes()
+        # use the same customPI trans axes as the residue level
+        UAs = data_container.select_atoms("mass 2 to 999")
+        UA_masses = self.get_UA_masses(data_container.atoms)
+        center = data_container.atoms.center_of_mass()
+        moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
+            center, UAs.positions, UA_masses
+        )
+        trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
+            moment_of_inertia_tensor
+        )
+
         # look for heavy atoms in residue of interest
         heavy_atoms = data_container.select_atoms("prop mass > 1.1")
         heavy_atom_indices = []
@@ -174,12 +185,12 @@ class AxesManager:
         # find the heavy bonded atoms and light bonded atoms
         heavy_bonded, light_bonded = self.find_bonded_atoms(atom.index, system)
         UA = atom + light_bonded
-        UA_all = atom + heavy_bonded + light_bonded
+        # UA_all = atom + heavy_bonded + light_bonded
 
         # now find which atoms to select to find the axes for rotating forces:
-        # case1
-        if len(heavy_bonded) == 0:
-            custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(UA_all)
+        # case1, won't apply to UA level
+        # if len(heavy_bonded) == 0:
+        #     custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(UA_all)
         # case2
         if len(heavy_bonded) == 1 and len(light_bonded) == 0:
             custom_axes = self.get_custom_axes(
@@ -193,16 +204,16 @@ class AxesManager:
                 light_bonded[0].position,
                 dimensions,
             )
-        # case4
-        if len(heavy_bonded) == 2:
-            custom_axes = self.get_custom_axes(
-                atom.position,
-                [heavy_bonded[0].position],
-                heavy_bonded[1].position,
-                dimensions,
-            )
+        # case4, not used in Jon's code, use case5 instead
+        # if len(heavy_bonded) == 2:
+        #     custom_axes = self.get_custom_axes(
+        #         atom.position,
+        #         [heavy_bonded[0].position],
+        #         heavy_bonded[1].position,
+        #         dimensions,
+        #     )
         # case5
-        if len(heavy_bonded) > 2:
+        if len(heavy_bonded) >= 2:
             custom_axes = self.get_custom_axes(
                 atom.position,
                 heavy_bonded.positions,
@@ -210,16 +221,17 @@ class AxesManager:
                 dimensions,
             )
 
+        if custom_moment_of_inertia is None:
+            # find moment of inertia using custom axes and atom position as COM
+            custom_moment_of_inertia = self.get_custom_moment_of_inertia(
+                UA, custom_axes, atom.position
+            )
+
         # get the moment of inertia from the custom axes
         if custom_axes is not None:
             # flip axes to face correct way wrt COM
             custom_axes = self.get_flipped_axes(
                 UA, custom_axes, atom.position, dimensions
-            )
-        if custom_moment_of_inertia is None:
-            # find moment of inertia using custom axes and atom position as COM
-            custom_moment_of_inertia = self.get_custom_moment_of_inertia(
-                UA, custom_axes, atom.position
             )
 
         return custom_axes, custom_moment_of_inertia
@@ -304,31 +316,27 @@ class AxesManager:
         Returns:
             custom_axes: (3,3) array of the axes used to rotate forces
         """
-        axis1 = np.zeros(3)
+        unscaled_axis1 = np.zeros(3)
         # average of all heavy atom covalent bond vectors for axis1
         for b in b_list:
             ab_vector = self.get_vector(a, b, dimensions)
-            # scale vector with distance
-            ab_dist = np.sqrt((ab_vector**2).sum(axis=-1))
-            scaled_vector = np.divide(ab_vector, ab_dist)
-            axis1 += scaled_vector  # ab_vector
-        if len(b_list) > 2:
-            # use the first heavy bonded atom and atom c
-            ac_vector = self.get_vector(b_list[0], c, dimensions)
+            unscaled_axis1 += ab_vector
+        if len(b_list) >= 2:
+            # use the first heavy bonded atom as atom a
+            ac_vector = self.get_vector(c, b_list[0], dimensions)
         else:
-            ac_vector = self.get_vector(a, c, dimensions)
-        ac_dist = np.sqrt((ac_vector**2).sum(axis=-1))
-        ac_vector_norm = np.divide(ac_vector, ac_dist)
+            ac_vector = self.get_vector(c, a, dimensions)
 
-        if len(b_list) > 2:
-            axis2 = np.cross(ac_vector_norm, axis1)
-        else:
-            axis2 = np.cross(axis1, ac_vector_norm)
-        axis3 = np.cross(axis1, axis2)
+        unscaled_axis2 = np.cross(ac_vector, unscaled_axis1)
+        unscaled_axis3 = np.cross(unscaled_axis2, unscaled_axis1)
 
-        custom_axes = np.array((axis1, axis2, axis3))
+        unscaled_custom_axes = np.array(
+            (unscaled_axis1, unscaled_axis2, unscaled_axis3)
+        )
+        mod = np.sqrt(np.sum(unscaled_custom_axes**2, axis=1))
+        scaled_custom_axes = unscaled_custom_axes / mod[:, np.newaxis]
 
-        return custom_axes
+        return scaled_custom_axes
 
     def get_custom_moment_of_inertia(
         self, UA, custom_rotation_axes: np.ndarray, center_of_mass: np.ndarray
@@ -465,8 +473,6 @@ class AxesManager:
         dot_z = np.dot(cross_xy, principal_axes[2])
         if dot_z < 0:
             principal_axes[2] *= -1
-
-        logger.debug(f"principal_axes: {principal_axes}")
 
         return principal_axes, moment_of_inertia
 
