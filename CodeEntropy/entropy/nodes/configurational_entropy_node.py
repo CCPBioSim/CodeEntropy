@@ -1,3 +1,5 @@
+# CodeEntropy/entropy/nodes/configurational_entropy_node.py
+
 import logging
 from typing import Any, Dict
 
@@ -8,12 +10,13 @@ logger = logging.getLogger(__name__)
 
 class ConfigurationalEntropyNode:
     """
-    Computes conformational (configurational) entropy from conformational states.
+    Computes conformational entropy from conformational states produced by LevelDAG.
 
-    Requires:
-      shared_data["conformational_states"] = {"ua": ..., "res": ...}
-      shared_data["n_frames"]
-      shared_data["levels"], shared_data["groups"]
+    Expected shapes:
+      shared_data["conformational_states"]["ua"]
+      -> dict[(group_id, res_id)] = list[str]
+      shared_data["conformational_states"]["res"]
+      -> list indexed by group_id = list[str] or []
     """
 
     def run(self, shared_data: Dict[str, Any], **_kwargs):
@@ -22,65 +25,64 @@ class ConfigurationalEntropyNode:
         universe = shared_data["reduced_universe"]
         data_logger = shared_data.get("data_logger")
 
-        group_molecules = shared_data.get("group_molecules")
-
-        levels = shared_data["levels"]
-        groups = shared_data["groups"]
-        number_frames = shared_data["n_frames"]
-
-        if "conformational_states" in shared_data:
-            states_ua = shared_data["conformational_states"]["ua"]
-            states_res = shared_data["conformational_states"]["res"]
-        else:
-            states_ua = shared_data.get("states_united_atom", {})
-            states_res = shared_data.get("states_residue", [])
-
         ce = ConformationalEntropy(
             run_manager=run_manager,
             args=args,
             universe=universe,
             data_logger=data_logger,
-            group_molecules=group_molecules,
+            group_molecules=shared_data.get("group_molecules"),
         )
 
-        conf_results = {}
+        conf_states = shared_data["conformational_states"]
 
-        for group_id, mol_indices in groups.items():
-            group_total = 0.0
+        n_frames = shared_data.get("n_frames", shared_data.get("number_frames"))
+        if n_frames is None:
+            raise KeyError("shared_data must contain n_frames (or number_frames)")
 
-            mol_index = mol_indices[0]
-            for level in levels[mol_index]:
-                if level == "united_atom":
-                    group_total += self._ua_entropy(
-                        ce, group_id, states_ua, number_frames
+        groups = shared_data["groups"]
+        levels = shared_data["levels"]
+
+        results: Dict[int, Dict[str, float]] = {}
+
+        states_ua = conf_states.get("ua", {})
+        states_res = conf_states.get("res", [])
+
+        for group_id, mol_ids in groups.items():
+            mol_id = mol_ids[0]
+            level_list = levels[mol_id]
+
+            results[group_id] = {"ua": 0.0, "res": 0.0, "poly": 0.0}
+
+            # -------- united atom (sum over residues) --------
+            if "united_atom" in level_list:
+                total = 0.0
+                for (gid, _res_id), states in states_ua.items():
+                    if gid != group_id:
+                        continue
+                    if not states:
+                        continue
+                    total += ce.conformational_entropy_calculation(states, n_frames)
+
+                results[group_id]["ua"] = total
+                if data_logger is not None:
+                    data_logger.add_results_data(
+                        group_id, "united_atom", "Conformational", total
                     )
 
-                elif level == "residue":
-                    group_total += self._residue_entropy(
-                        ce, group_id, states_res, number_frames
+            # -------- residue (one per group) --------
+            if "residue" in level_list:
+                if group_id < len(states_res) and states_res[group_id]:
+                    val = ce.conformational_entropy_calculation(
+                        states_res[group_id], n_frames
                     )
+                else:
+                    val = 0.0
 
-            conf_results[group_id] = group_total
+                results[group_id]["res"] = val
+                if data_logger is not None:
+                    data_logger.add_results_data(
+                        group_id, "residue", "Conformational", val
+                    )
 
         logger.info("[ConfigurationalEntropyNode] Done")
-        return {"configurational_entropy": conf_results}
-
-    def _has_states(self, values):
-        return values is not None and len(values) > 0
-
-    def _ua_entropy(self, ce, group_id, states_ua, number_frames):
-        total = 0.0
-        for key, values in states_ua.items():
-            if key[0] != group_id:
-                continue
-            if self._has_states(values):
-                total += ce.conformational_entropy_calculation(values, number_frames)
-        return total
-
-    def _residue_entropy(self, ce, group_id, states_res, number_frames):
-        if group_id >= len(states_res):
-            return 0.0
-        values = states_res[group_id]
-        if not self._has_states(values):
-            return 0.0
-        return ce.conformational_entropy_calculation(values, number_frames)
+        return {"configurational_entropy": results}
