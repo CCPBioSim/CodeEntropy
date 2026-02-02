@@ -185,12 +185,9 @@ class AxesManager:
         # find the heavy bonded atoms and light bonded atoms
         heavy_bonded, light_bonded = self.find_bonded_atoms(atom.index, system)
         UA = atom + light_bonded
-        # UA_all = atom + heavy_bonded + light_bonded
 
         # now find which atoms to select to find the axes for rotating forces:
         # case1, won't apply to UA level
-        # if len(heavy_bonded) == 0:
-        #     custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(UA_all)
         # case2
         if len(heavy_bonded) == 1 and len(light_bonded) == 0:
             custom_axes = self.get_custom_axes(
@@ -205,13 +202,6 @@ class AxesManager:
                 dimensions,
             )
         # case4, not used in Jon's code, use case5 instead
-        # if len(heavy_bonded) == 2:
-        #     custom_axes = self.get_custom_axes(
-        #         atom.position,
-        #         [heavy_bonded[0].position],
-        #         heavy_bonded[1].position,
-        #         dimensions,
-        #     )
         # case5
         if len(heavy_bonded) >= 2:
             custom_axes = self.get_custom_axes(
@@ -235,32 +225,6 @@ class AxesManager:
             )
 
         return custom_axes, custom_moment_of_inertia
-
-    def get_vanilla_axes(self, molecule):
-        """
-        From a selection of atoms, get the ordered principal axes (3,3) and
-        the ordered moment of inertia axes (3,) for that selection of atoms
-
-        Args:
-            molecule: mdanalysis instance of molecule
-            molecule_scale: the length scale of molecule
-
-        Returns:
-            principal_axes: the principal axes, (3,3) array
-            moment_of_inertia: the moment of inertia, (3,) array
-        """
-        # default moment of inertia
-        moment_of_inertia = molecule.moment_of_inertia()
-        principal_axes = molecule.principal_axes()
-        # diagonalise moment of inertia tensor here
-        # pylint: disable=unused-variable
-        eigenvalues, _eigenvectors = np.linalg.eig(moment_of_inertia)
-        # sort eigenvalues of moi tensor by largest to smallest magnitude
-        order = abs(eigenvalues).argsort()[::-1]  # decending order
-        # principal_axes = principal_axes[order] # PI already ordered correctly
-        moment_of_inertia = eigenvalues[order]
-
-        return principal_axes, moment_of_inertia
 
     def find_bonded_atoms(self, atom_idx: int, system):
         """
