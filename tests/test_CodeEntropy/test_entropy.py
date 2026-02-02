@@ -83,7 +83,12 @@ class TestEntropyManager(BaseTestCase):
             return_value=(mock_reduced_atom, 3, mock_levels, mock_groups)
         )
         entropy_manager._level_manager.build_covariance_matrices = MagicMock(
-            return_value=("force_matrices", "torque_matrices", "frame_counts")
+            return_value=(
+                "force_matrices",
+                "torque_matrices",
+                "forcetorque_avg",
+                "frame_counts",
+            )
         )
         entropy_manager._dihedral_analysis.build_conformational_states = MagicMock(
             return_value=(["state_ua"], ["state_res"])
@@ -128,6 +133,7 @@ class TestEntropyManager(BaseTestCase):
             mock_groups,
             "force_matrices",
             "torque_matrices",
+            "forcetorque_avg",
             ["state_ua"],
             ["state_res"],
             "frame_counts",
@@ -173,7 +179,12 @@ class TestEntropyManager(BaseTestCase):
             return_value=(MagicMock(), 3, {}, {0: [0]})
         )
         entropy_manager._level_manager.build_covariance_matrices = MagicMock(
-            return_value=("force_matrices", "torque_matrices", "frame_counts")
+            return_value=(
+                "force_matrices",
+                "torque_matrices",
+                "forcetorque_avg",
+                "frame_counts",
+            )
         )
         entropy_manager._dihedral_analysis.build_conformational_states = MagicMock(
             return_value=(["state_ua"], ["state_res"])
@@ -715,6 +726,8 @@ class TestEntropyManager(BaseTestCase):
         ve = MagicMock()
         ve.vibrational_entropy_calculation.side_effect = [1.11, 2.22]
 
+        forcetorque_matrix = np.eye(6)
+
         # Run the method
         manager._process_vibrational_entropy(
             group_id=0,
@@ -724,6 +737,7 @@ class TestEntropyManager(BaseTestCase):
             level="Vibrational",
             force_matrix=force_matrix,
             torque_matrix=torque_matrix,
+            forcetorque_matrix=forcetorque_matrix,
             highest=True,
         )
 
@@ -731,7 +745,7 @@ class TestEntropyManager(BaseTestCase):
         df = data_logger.molecule_data
         self.assertEqual(len(df), 2)  # Transvibrational and Rovibrational
 
-        expected_types = {"Transvibrational", "Rovibrational"}
+        expected_types = {"FTmat-Transvibrational", "FTmat-Rovibrational"}
         actual_types = set(entry[2] for entry in df)
         self.assertSetEqual(actual_types, expected_types)
 
@@ -789,6 +803,7 @@ class TestEntropyManager(BaseTestCase):
             groups,
             force_matrices,
             torque_matrices,
+            force_matrices,
             states_ua,
             states_res,
             frame_counts,
@@ -942,6 +957,8 @@ class TestEntropyManager(BaseTestCase):
         universe_operations.get_molecule_container = MagicMock(return_value=mol_mock)
         manager._process_united_atom_entropy = MagicMock()
 
+        force_torque_matrices = MagicMock()
+
         ve = MagicMock()
         ce = MagicMock()
 
@@ -951,6 +968,7 @@ class TestEntropyManager(BaseTestCase):
             groups,
             force_matrices,
             torque_matrices,
+            force_torque_matrices,
             states_ua,
             states_res,
             frame_counts,
@@ -1017,6 +1035,8 @@ class TestEntropyManager(BaseTestCase):
         manager._process_vibrational_entropy = MagicMock()
         manager._process_conformational_entropy = MagicMock()
 
+        force_torque_matrices = MagicMock()
+
         # Mock entropy calculators
         ve = MagicMock()
         ce = MagicMock()
@@ -1028,6 +1048,7 @@ class TestEntropyManager(BaseTestCase):
             groups,
             force_matrices,
             torque_matrices,
+            force_torque_matrices,
             states_ua,
             states_res,
             frame_counts,
@@ -1048,6 +1069,7 @@ class TestEntropyManager(BaseTestCase):
         data_logger = DataLogger()
         group_molecules = MagicMock()
         dihedral_analysis = MagicMock()
+
         manager = EntropyManager(
             run_manager,
             args,
@@ -1066,9 +1088,10 @@ class TestEntropyManager(BaseTestCase):
 
         force_matrices = {"poly": {0: "force_poly"}}
         torque_matrices = {"poly": {0: "torque_poly"}}
+        force_torque_matrices = {"poly": {0: "ft_poly"}}
+
         states_ua = {}
         states_res = []
-
         frame_counts = {"poly": {(0, 0): 10}}
 
         mol_mock = MagicMock()
@@ -1085,6 +1108,7 @@ class TestEntropyManager(BaseTestCase):
             groups,
             force_matrices,
             torque_matrices,
+            force_torque_matrices,
             states_ua,
             states_res,
             frame_counts,
@@ -1101,6 +1125,7 @@ class TestEntropyManager(BaseTestCase):
             "polymer",
             force_matrices["poly"][0],
             torque_matrices["poly"][0],
+            force_torque_matrices["poly"][0],
             True,
         )
 
