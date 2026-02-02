@@ -49,6 +49,7 @@ class DihedralAnalysis:
         total_items = sum(
             len(levels[mol_id]) for mols in groups.values() for mol_id in mols
         )
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold blue]{task.fields[title]}", justify="right"),
