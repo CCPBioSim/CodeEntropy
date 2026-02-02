@@ -474,23 +474,21 @@ class EntropyManager:
                 t_matrix, "torque", self._args.temperature, highest
             )
 
-            # SWITCH OFF SCONF
-            # # Get the relevant conformational states
-            # values = states[key]
-            # # Check if there is information in the states array
-            # contains_non_empty_states = (
-            #     np.any(values) if isinstance(values, np.ndarray) else any(values)
-            # )
+            # Get the relevant conformational states
+            values = states[key]
+            # Check if there is information in the states array
+            contains_non_empty_states = (
+                np.any(values) if isinstance(values, np.ndarray) else any(values)
+            )
 
-            # # Calculate the conformational entropy
-            # # If there are no conformational states (i.e. no dihedrals)
-            # # then the conformational entropy is zero
-            # S_conf_res = (
-            #     ce.conformational_entropy_calculation(values)
-            #     if contains_non_empty_states
-            #     else 0
-            # )
-            S_conf_res = 0
+            # Calculate the conformational entropy
+            # If there are no conformational states (i.e. no dihedrals)
+            # then the conformational entropy is zero
+            S_conf_res = (
+                ce.conformational_entropy_calculation(values)
+                if contains_non_empty_states
+                else 0
+            )
 
             # Add the data to the united atom level entropy
             S_trans += S_trans_res

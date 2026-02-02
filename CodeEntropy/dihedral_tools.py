@@ -2,14 +2,13 @@ import logging
 
 import numpy as np
 from MDAnalysis.analysis.dihedrals import Dihedral
-
-# from rich.progress import (
-#     BarColumn,
-#     Progress,
-#     SpinnerColumn,
-#     TextColumn,
-#     TimeElapsedColumn,
-# )
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,122 +46,121 @@ class DihedralAnalysis:
         states_ua = {}
         states_res = [None] * number_groups
 
-        # SWITCH OFF SCONF
-        # total_items = sum(
-        #     len(levels[mol_id]) for mols in groups.values() for mol_id in mols
-        # )
-        # with Progress(
-        #     SpinnerColumn(),
-        #     TextColumn("[bold blue]{task.fields[title]}", justify="right"),
-        #     BarColumn(),
-        #     TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
-        #     TimeElapsedColumn(),
-        # ) as progress:
+        total_items = sum(
+            len(levels[mol_id]) for mols in groups.values() for mol_id in mols
+        )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
+            TimeElapsedColumn(),
+        ) as progress:
 
-        #     task = progress.add_task(
-        #         "[green]Building Conformational States...",
-        #         total=total_items,
-        #         title="Starting...",
-        #     )
+            task = progress.add_task(
+                "[green]Building Conformational States...",
+                total=total_items,
+                title="Starting...",
+            )
 
-        # for group_id in groups.keys():
-        #     molecules = groups[group_id]
-        #     mol = self._universe_operations.get_molecule_container(
-        #         data_container, molecules[0]
-        #     )
-        #     num_residues = len(mol.residues)
-        #     dihedrals_ua = [[] for _ in range(num_residues)]
-        #     peaks_ua = [{} for _ in range(num_residues)]
-        #     dihedrals_res = []
-        #     peaks_res = {}
+        for group_id in groups.keys():
+            molecules = groups[group_id]
+            mol = self._universe_operations.get_molecule_container(
+                data_container, molecules[0]
+            )
+            num_residues = len(mol.residues)
+            dihedrals_ua = [[] for _ in range(num_residues)]
+            peaks_ua = [{} for _ in range(num_residues)]
+            dihedrals_res = []
+            peaks_res = {}
 
-        #     # Identify dihedral AtomGroups
-        #     for level in levels[molecules[0]]:
-        #         if level == "united_atom":
-        #             for res_id in range(num_residues):
-        #                 selection1 = mol.residues[res_id].atoms.indices[0]
-        #                 selection2 = mol.residues[res_id].atoms.indices[-1]
-        #                 res_container = self._universe_operations.new_U_select_atom(
-        #                     mol,
-        #                     f"index {selection1}:" f"{selection2}",
-        #                 )
-        #                 heavy_res = self._universe_operations.new_U_select_atom(
-        #                     res_container, "prop mass > 1.1"
-        #                 )
+            # Identify dihedral AtomGroups
+            for level in levels[molecules[0]]:
+                if level == "united_atom":
+                    for res_id in range(num_residues):
+                        selection1 = mol.residues[res_id].atoms.indices[0]
+                        selection2 = mol.residues[res_id].atoms.indices[-1]
+                        res_container = self._universe_operations.new_U_select_atom(
+                            mol,
+                            f"index {selection1}:" f"{selection2}",
+                        )
+                        heavy_res = self._universe_operations.new_U_select_atom(
+                            res_container, "prop mass > 1.1"
+                        )
 
-        #                 dihedrals_ua[res_id] = self._get_dihedrals(heavy_res, level)
+                        dihedrals_ua[res_id] = self._get_dihedrals(heavy_res, level)
 
-        #         elif level == "residue":
-        #             dihedrals_res = self._get_dihedrals(mol, level)
+                elif level == "residue":
+                    dihedrals_res = self._get_dihedrals(mol, level)
 
-        #     # Identify peaks
-        #     for level in levels[molecules[0]]:
-        #         if level == "united_atom":
-        #             for res_id in range(num_residues):
-        #                 if len(dihedrals_ua[res_id]) == 0:
-        #                     # No dihedrals means no histogram or peaks
-        #                     peaks_ua[res_id] = []
-        #                 else:
-        #                     peaks_ua[res_id] = self._identify_peaks(
-        #                         data_container,
-        #                         molecules,
-        #                         dihedrals_ua[res_id],
-        #                         bin_width,
-        #                         start,
-        #                         end,
-        #                         step,
-        #                     )
+            # Identify peaks
+            for level in levels[molecules[0]]:
+                if level == "united_atom":
+                    for res_id in range(num_residues):
+                        if len(dihedrals_ua[res_id]) == 0:
+                            # No dihedrals means no histogram or peaks
+                            peaks_ua[res_id] = []
+                        else:
+                            peaks_ua[res_id] = self._identify_peaks(
+                                data_container,
+                                molecules,
+                                dihedrals_ua[res_id],
+                                bin_width,
+                                start,
+                                end,
+                                step,
+                            )
 
-        #         elif level == "residue":
-        #             if len(dihedrals_res) == 0:
-        #                 # No dihedrals means no histogram or peaks
-        #                 peaks_res = []
-        #             else:
-        #                 peaks_res = self._identify_peaks(
-        #                     data_container,
-        #                     molecules,
-        #                     dihedrals_res,
-        #                     bin_width,
-        #                     start,
-        #                     end,
-        #                     step,
-        #                 )
+                elif level == "residue":
+                    if len(dihedrals_res) == 0:
+                        # No dihedrals means no histogram or peaks
+                        peaks_res = []
+                    else:
+                        peaks_res = self._identify_peaks(
+                            data_container,
+                            molecules,
+                            dihedrals_res,
+                            bin_width,
+                            start,
+                            end,
+                            step,
+                        )
 
-        #     # Assign states for each group
-        #     for level in levels[molecules[0]]:
-        #         if level == "united_atom":
-        #             for res_id in range(num_residues):
-        #                 key = (group_id, res_id)
-        #                 if len(dihedrals_ua[res_id]) == 0:
-        #                     # No conformational states
-        #                     states_ua[key] = []
-        #                 else:
-        #                     states_ua[key] = self._assign_states(
-        #                         data_container,
-        #                         molecules,
-        #                         dihedrals_ua[res_id],
-        #                         peaks_ua[res_id],
-        #                         start,
-        #                         end,
-        #                         step,
-        #                     )
+            # Assign states for each group
+            for level in levels[molecules[0]]:
+                if level == "united_atom":
+                    for res_id in range(num_residues):
+                        key = (group_id, res_id)
+                        if len(dihedrals_ua[res_id]) == 0:
+                            # No conformational states
+                            states_ua[key] = []
+                        else:
+                            states_ua[key] = self._assign_states(
+                                data_container,
+                                molecules,
+                                dihedrals_ua[res_id],
+                                peaks_ua[res_id],
+                                start,
+                                end,
+                                step,
+                            )
 
-        #         elif level == "residue":
-        #             if len(dihedrals_res) == 0:
-        #                 # No conformational states
-        #                 states_res[group_id] = []
-        #             else:
-        #                 states_res[group_id] = self._assign_states(
-        #                     data_container,
-        #                     molecules,
-        #                     dihedrals_res,
-        #                     peaks_res,
-        #                     start,
-        #                     end,
-        #                     step,
-        #                 )
+                elif level == "residue":
+                    if len(dihedrals_res) == 0:
+                        # No conformational states
+                        states_res[group_id] = []
+                    else:
+                        states_res[group_id] = self._assign_states(
+                            data_container,
+                            molecules,
+                            dihedrals_res,
+                            peaks_res,
+                            start,
+                            end,
+                            step,
+                        )
 
-        #     progress.advance(task)
+            progress.advance(task)
 
         return states_ua, states_res
 
