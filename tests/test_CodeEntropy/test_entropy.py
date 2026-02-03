@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import MDAnalysis as mda
 import numpy as np
+import numpy.linalg as la
 import pytest
 
 import tests.data as data
@@ -752,6 +753,77 @@ class TestEntropyManager(BaseTestCase):
         results = [entry[3] for entry in df]
         self.assertIn(1.11, results)
         self.assertIn(2.22, results)
+
+    def test_process_vibrational_entropy_else_branch(self):
+        """
+        Atomic unit test for EntropyManager._process_vibrational_entropy else-branch:
+        - forcetorque_matrix is None
+        - force/torque matrices are filtered
+        - ve.vibrational_entropy_calculation called for force & torque
+        - results logged as Transvibrational/Rovibrational
+        - group label added from mol_container residues/atoms
+        """
+        manager = MagicMock()
+        manager._args = MagicMock(temperature=300)
+
+        manager._level_manager = MagicMock()
+        manager._data_logger = MagicMock()
+
+        force_matrix = np.eye(3)
+        torque_matrix = np.eye(3) * 2
+
+        filtered_force = np.eye(3) * 7
+        filtered_torque = np.eye(3) * 9
+        manager._level_manager.filter_zero_rows_columns.side_effect = [
+            filtered_force,
+            filtered_torque,
+        ]
+
+        ve = MagicMock()
+        ve.vibrational_entropy_calculation.side_effect = [1.11, 2.22]
+
+        res1 = MagicMock(resname="ALA")
+        res2 = MagicMock(resname="GLY")
+        res3 = MagicMock(resname="ALA")
+        mol_container = MagicMock()
+        mol_container.residues = [res1, res2, res3]
+        mol_container.atoms = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+
+        EntropyManager._process_vibrational_entropy(
+            manager,
+            group_id=0,
+            mol_container=mol_container,
+            number_frames=10,
+            ve=ve,
+            level="Vibrational",
+            force_matrix=force_matrix,
+            torque_matrix=torque_matrix,
+            forcetorque_matrix=None,
+            highest=True,
+        )
+
+        filter_calls = manager._level_manager.filter_zero_rows_columns.call_args_list
+        assert len(filter_calls) == 2
+
+        np.testing.assert_array_equal(filter_calls[0].args[0], force_matrix)
+        np.testing.assert_array_equal(filter_calls[1].args[0], torque_matrix)
+
+        ve_calls = ve.vibrational_entropy_calculation.call_args_list
+        assert len(ve_calls) == 2
+
+        np.testing.assert_array_equal(ve_calls[0].args[0], filtered_force)
+        assert ve_calls[0].args[1:] == ("force", 300, True)
+
+        np.testing.assert_array_equal(ve_calls[1].args[0], filtered_torque)
+        assert ve_calls[1].args[1:] == ("torque", 300, True)
+
+        manager._data_logger.add_results_data.assert_any_call(
+            0, "Vibrational", "Transvibrational", 1.11
+        )
+        manager._data_logger.add_results_data.assert_any_call(
+            0, "Vibrational", "Rovibrational", 2.22
+        )
+        manager._data_logger.add_group_label.assert_called_once_with(0, "ALA_GLY", 3, 4)
 
     def test_compute_entropies_polymer_branch(self):
         """
@@ -1545,6 +1617,108 @@ class TestVibrationalEntropy(unittest.TestCase):
         )
 
         assert S_vib == pytest.approx(48.45003266069881)
+
+    def test_vibrational_entropy_calculation_forcetorqueTRANS(self):
+        """
+        Test for matrix_type='forcetorqueTRANS':
+        - verifies S_vib_total = sum(S_components[:3])
+        """
+        run_manager = MagicMock()
+        run_manager.change_lambda_units.side_effect = lambda x: x
+        kT = 2.47e-21
+        run_manager.get_KT2J.return_value = kT
+
+        ve = VibrationalEntropy(
+            run_manager,
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+        )
+
+        orig_eigvals = la.eigvals
+        la.eigvals = lambda m: np.array(
+            [1.0] * 6
+        )  # length 6 -> 6 frequencies/components
+
+        try:
+            freqs = np.array([6.0, 5.0, 4.0, 3.0, 2.0, 1.0])
+            ve.frequency_calculation = MagicMock(return_value=freqs)
+
+            matrix = np.identity(6)
+
+            result = ve.vibrational_entropy_calculation(
+                matrix=matrix,
+                matrix_type="forcetorqueTRANS",
+                temp=298,
+                highest_level=True,
+            )
+
+            sorted_freqs = np.sort(freqs)
+            exponent = ve._PLANCK_CONST * sorted_freqs / kT
+            power_positive = np.exp(exponent)
+            power_negative = np.exp(-exponent)
+            S_components = exponent / (power_positive - 1) - np.log(1 - power_negative)
+            S_components *= ve._GAS_CONST
+
+            expected = float(np.sum(S_components[:3]))
+            self.assertAlmostEqual(result, expected, places=12)
+
+        finally:
+            la.eigvals = orig_eigvals
+
+    def test_vibrational_entropy_calculation_forcetorqueROT(self):
+        """
+        Test for matrix_type='forcetorqueROT':
+        - verifies S_vib_total = sum(S_components[3:])
+        """
+        run_manager = MagicMock()
+        run_manager.change_lambda_units.side_effect = lambda x: x
+        kT = 2.47e-21
+        run_manager.get_KT2J.return_value = kT
+
+        ve = VibrationalEntropy(
+            run_manager,
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+        )
+
+        orig_eigvals = la.eigvals
+        la.eigvals = lambda m: np.array([1.0] * 6)
+
+        try:
+            freqs = np.array([6.0, 5.0, 4.0, 3.0, 2.0, 1.0])
+            ve.frequency_calculation = MagicMock(return_value=freqs)
+
+            matrix = np.identity(6)
+
+            result = ve.vibrational_entropy_calculation(
+                matrix=matrix,
+                matrix_type="forcetorqueROT",
+                temp=298,
+                highest_level=True,
+            )
+
+            sorted_freqs = np.sort(freqs)
+            exponent = ve._PLANCK_CONST * sorted_freqs / kT
+            power_positive = np.exp(exponent)
+            power_negative = np.exp(-exponent)
+            S_components = exponent / (power_positive - 1) - np.log(1 - power_negative)
+            S_components *= ve._GAS_CONST
+
+            expected = float(np.sum(S_components[3:]))
+            self.assertAlmostEqual(result, expected, places=12)
+
+        finally:
+            la.eigvals = orig_eigvals
 
     def test_calculate_water_orientational_entropy(self):
         """
