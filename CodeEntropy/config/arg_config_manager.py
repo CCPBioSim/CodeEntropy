@@ -64,7 +64,10 @@ arg_map = {
         "help": "Temperature for entropy calculation (K)",
         "default": 298.0,
     },
-    "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
+    "verbose": {
+        "action": "store_true",
+        "help": "Enable verbose output",
+    },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
     "water_entropy": {
         "type": bool,
