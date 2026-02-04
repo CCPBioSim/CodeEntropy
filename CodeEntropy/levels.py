@@ -268,9 +268,6 @@ class LevelManager:
                 make_whole(bead)
                 trans_axes = data_container.atoms.principal_axes()
                 rot_axes, moment_of_inertia = axes_manager.get_vanilla_axes(bead)
-                # rot_axes = np.real(bead.principal_axes())
-                # eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
-                # moment_of_inertia = sorted(eigenvalues, reverse=True)
                 center = bead.center_of_mass(unwrap=True)
 
             # Sort out coordinates, forces, and torques for each atom in the bead

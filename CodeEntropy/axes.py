@@ -73,9 +73,6 @@ class AxesManager:
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
             rot_axes, moment_of_inertia = self.get_vanilla_axes(residue)
-            # rot_axes = np.real(residue.principal_axes())
-            # eigenvalues, _ = np.linalg.eig(residue.moment_of_inertia(unwrap=True))
-            # moment_of_inertia = sorted(eigenvalues, reverse=True)
             center = residue.center_of_mass(unwrap=True)
 
         return trans_axes, rot_axes, center, moment_of_inertia
