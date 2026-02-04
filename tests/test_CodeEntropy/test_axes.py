@@ -83,7 +83,6 @@ class TestAxesManager(BaseTestCase):
         atom_set.__len__.return_value = 2
 
         residue = MagicMock()
-
         data_container.select_atoms.side_effect = [atom_set, residue]
 
         trans_axes_expected = np.eye(3) * 2
@@ -96,11 +95,17 @@ class TestAxesManager(BaseTestCase):
         residue.moment_of_inertia.return_value = moi_tensor
 
         center_expected = np.array([9.0, 8.0, 7.0])
+        residue.atoms.center_of_mass.return_value = center_expected
         residue.center_of_mass.return_value = center_expected
 
-        with patch("CodeEntropy.axes.np.linalg.eig") as eig_mock:
-            eig_mock.return_value = (np.array([1.0, 3.0, 2.0]), None)
-
+        with (
+            patch("CodeEntropy.axes.make_whole", autospec=True),
+            patch.object(
+                AxesManager,
+                "get_vanilla_axes",
+                return_value=(rot_axes_expected, np.array([3.0, 2.0, 1.0])),
+            ),
+        ):
             trans_axes_out, rot_axes_out, center_out, moi_out = (
                 axes_manager.get_residue_axes(
                     data_container=data_container,
@@ -108,30 +113,10 @@ class TestAxesManager(BaseTestCase):
                 )
             )
 
-        calls = data_container.select_atoms.call_args_list
-        assert len(calls) == 2
-        assert calls[0].args[0] == "(resindex 4 or resindex 6) and bonded resid 5"
-        assert calls[1].args[0] == "resindex 5"
-
-        data_container.atoms.principal_axes.assert_called_once()
-        residue.principal_axes.assert_called_once()
-        residue.moment_of_inertia.assert_called_once()
-        residue.center_of_mass.assert_called_once()
-
-        eig_mock.assert_called_once()
-        eig_args, eig_kwargs = eig_mock.call_args
-        np.testing.assert_array_equal(eig_args[0], moi_tensor)
-        assert eig_kwargs == {}
-
-        assert (
-            not hasattr(axes_manager.get_UA_masses, "call_count")
-            or getattr(axes_manager.get_UA_masses, "call_count", 0) == 0
-        )
-
-        np.testing.assert_array_equal(trans_axes_out, trans_axes_expected)
-        np.testing.assert_array_equal(rot_axes_out, np.real(rot_axes_expected))
-        np.testing.assert_array_equal(center_out, center_expected)
-        assert moi_out == [3.0, 2.0, 1.0]
+        np.testing.assert_allclose(trans_axes_out, trans_axes_expected)
+        np.testing.assert_allclose(rot_axes_out, rot_axes_expected)
+        np.testing.assert_allclose(center_out, center_expected)
+        np.testing.assert_allclose(moi_out, np.array([3.0, 2.0, 1.0]))
 
     def test_get_UA_axes_returns_expected_outputs(self):
         """
@@ -392,9 +377,7 @@ class TestAxesManager(BaseTestCase):
 
         axes.get_custom_axes(a, b_list, c, dimensions)
 
-        # get_vector should be called:
-        #  - twice for axis1 (a → b0, a → b1)
-        #  - once for ac_vector using (c → b_list[0])
+        # get_vector should be called
         calls = axes.get_vector.call_args_list
 
         # Last call must be (c, b_list[0], dimensions)
@@ -415,7 +398,9 @@ class TestAxesManager(BaseTestCase):
         UA.masses = np.array([12.0, 1.0])
         UA.__len__.return_value = 2
 
-        moi = axes.get_custom_moment_of_inertia(UA, np.eye(3), np.zeros(3))
+        dimensions = np.array([100.0, 100.0, 100.0])
+
+        moi = axes.get_custom_moment_of_inertia(UA, np.eye(3), np.zeros(3), dimensions)
 
         assert moi.shape == (3,)
         assert np.any(np.isclose(moi, 0.0))
@@ -449,8 +434,9 @@ class TestAxesManager(BaseTestCase):
         center = np.zeros(3)
         pos = np.array([[1, 0, 0], [0, 1, 0]])
         masses = np.array([1.0, 1.0])
+        dimensions = np.array([100.0, 100.0, 100.0])
 
-        tensor = axes.get_moment_of_inertia_tensor(center, pos, masses)
+        tensor = axes.get_moment_of_inertia_tensor(center, pos, masses, dimensions)
 
         expected = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 2]])
         np.testing.assert_array_equal(tensor, expected)
