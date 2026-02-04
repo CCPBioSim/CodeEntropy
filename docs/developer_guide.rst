@@ -98,6 +98,7 @@ Edit docs in the following directories:
 
 Contributing Code
 -----------------
+If you would to contribution to **CodeEntropy** please refer to our `Contributing Guidelines <https://github.com/CCPBioSim/CodeEntropy?tab=contributing-ov-file>`_
 
 Creating an Issue
 ^^^^^^^^^^^^^^^^^

@@ -1,47 +1,53 @@
 Getting Started
 ===============
 
+This guide walks you through installing and running CodeEntropy, with examples ordered
+from the smallest and fastest to larger, more realistic systems.
+
+Each example includes:
+
+* a complete ``config.yaml``
+* the exact command used to run it
+* an estimated runtime
+* a clear explanation of where output files are written
+
+If you are new to CodeEntropy, start with **Example 1**.
+
+
 Requirements
-----------------
+------------
 
 * Python >= 3.12
 
+
 Installation
-----------------
+------------
+
 To install the released version:
 
 .. code-block:: bash
-    
-    pip install CodeEntropy
 
-To install the latest development version:
+   pip install CodeEntropy
 
-.. code-block:: bash
 
-    git clone https://github.com/CCPBioSim/CodeEntropy.git
+Input Files
+-----------
 
-.. code-block:: bash
-
-    cd CodeEntropy
-
-.. code-block:: bash
-
-    pip install .
-
-Input
-----------
-For supported format (any topology and trajectory formats that can be read by `MDAnalysis <https://userguide.mdanalysis.org/stable/formats/index.html>`_) you will need to output the **coordinates** and **forces** to the **same file**.
-Please consult the documentation for your MD simulation code if you need help outputting the forces.
+For supported formats (any topology and trajectory formats that can be read by
+`MDAnalysis <https://userguide.mdanalysis.org/stable/formats/index.html>`_) you will need
+to output the **coordinates** and **forces** to the **same file**. Please consult the documentation for your MD simulation code if you need help outputting
+the forces.
 
 Units
-------------
-The program assumes the following default unit
+-----
+
+The program assumes the following default units:
 
 .. list-table:: Units
    :widths: 20 20
    :class: tight-table
    :header-rows: 1
-   
+
    * - Quantity
      - Unit
    * - Length
@@ -49,135 +55,239 @@ The program assumes the following default unit
    * - Time
      - ps
    * - Charge
-     - `e`
+     - e
    * - Mass
      - u
    * - Force
      - kJ/(mol·Å)
 
-Quick start guide
---------------------
 
-A quick and easy way to get started is to use the command-line tool which you can run in bash by simply typing ``CodeEntropy``
+Quick Start
+-----------
 
-For help
-^^^^^^^^^^^
+A quick and easy way to get started is to use the command-line tool:
+
 .. code-block:: bash
-    
-    CodeEntropy --help
 
-Arguments
-^^^^^^^^^^^^^
-Arguments should go in a config.yaml file.
-The values in the yaml file can be overridden by command line arguments.
-The top_traj_file argument is necessary to identify your simulation data, the others can use default values.
+   CodeEntropy --help
+
+
+Working Directory and Output Location
+-------------------------------------
+
+CodeEntropy writes output **relative to the directory you run it from**.
+
+In practice, you should:
+
+#. Put (or download) your simulation input files and a ``config.yaml`` in a working directory.
+#. Change into that directory.
+#. Run CodeEntropy.
+
+Example:
+
+.. code-block:: bash
+
+   cd /path/to/my/workdir
+   CodeEntropy
+
+When you rerun CodeEntropy in the same working directory, CodeEntropy creates sequential
+output directories named ``job1/``, ``job2/``, etc. Each ``job*/`` directory contains the
+output JSON file and a subdirectory with log files.
+
+
+Configuration and Arguments
+---------------------------
+
+Arguments should go in a ``config.yaml`` file. Values in the YAML file can be overridden
+by command-line arguments.
+
+The ``top_traj_file`` argument is required; other arguments have default values.
 
 .. list-table:: Arguments
    :widths: 20 30 10 10
    :class: tight-table
    :header-rows: 1
-    
-   * - Arguments
+
+   * - Argument
      - Description
      - Default
      - Type
    * - ``--top_traj_file``
-     - Path to Structure/topology file followed by Trajectory file. Any MDAnalysis readable files should work  (for example ``GROMACS TPR and TRR`` or ``AMBER PRMTOP and NETCDF``). 
-     - Required, no default value
-     - list of ``str`` 
+     - Path to structure/topology file followed by trajectory file. Any MDAnalysis readable
+       files should work (for example ``GROMACS TPR and TRR`` or ``AMBER PRMTOP and NETCDF``).
+     - Required
+     - list of ``str``
    * - ``--force_file``
-     - Path to a file with forces. This option should be used if the forces are not in the same file as the coordinates. It is expected that the force file has the same number of atoms and frames as the trajectory file. Any MDAnalysis readable files should work  (for example ``AMBER NETCDF`` or ``LAMMPS DCD``). 
+     - Path to a file with forces. Use this option if the forces are not in the same file
+       as the coordinates. The force file must have the same number of atoms and frames as
+       the trajectory file. Any MDAnalysis readable files should work (for example
+       ``AMBER NETCDF`` or ``LAMMPS DCD``).
      - None
-     - ``str`` 
+     - ``str``
    * - ``--file_format``
-     - Use to tell MDAnalysis the format if the trajectory or force file does not have the standard extension recognised by MDAnalysis.
+     - Use to tell MDAnalysis the format if the trajectory or force file does not have the
+       standard extension recognised by MDAnalysis.
      - None
-     - ``str`` 
+     - ``str``
+   * - ``--kcal_force_units``
+     - Set this to True if you have a separate force file with kcal units.
+     - ``False``
+     - ``bool``
    * - ``--selection_string``
-     - Selection string for CodeEntropy such as protein or resid, refer to ``MDAnalysis.select_atoms`` for more information.
-     - ``"all"``: select all atom in trajectory
+     - Selection string for CodeEntropy such as ``protein`` or ``resid 1:10``. Refer to
+       ``MDAnalysis.select_atoms`` for more information.
+     - ``"all"``
      - ``str``
    * - ``--start``
      - Start analysing the trajectory from this frame index.
-     - ``0``: From begining
+     - ``0``
      - ``int``
    * - ``--end``
-     - Stop analysing the trajectory at this frame index
-     - ``-1``: end of trajectory
+     - Stop analysing the trajectory at this frame index (``-1`` means last frame).
+     - ``-1``
      - ``int``
    * - ``--step``
-     - Interval between two consecutive frame indices to be read
+     - Interval between two consecutive frame indices to be read.
      - ``1``
      - ``int``
    * - ``--bin_width``
-     - Bin width in degrees for making the dihedral angle histogram
+     - Bin width in degrees for making the dihedral angle histogram.
      - ``30``
      - ``int``
    * - ``--temperature``
-     - Temperature for entropy calculation (K)
+     - Temperature for entropy calculation (K).
      - ``298.0``
      - ``float``
    * - ``--verbose``
-     - Enable verbose output
+     - Enable verbose output.
      - ``False``
      - ``bool``
-   * - ``--outfile``
-     - Name of the file where the text format output will be written.
-     - ``outfile.out``
-     - ``str``
    * - ``--force_partitioning``
-     - Factor for partitioning forces when there are weak correlations
+     - Factor for partitioning forces when there are weak correlations.
      - ``0.5``
      - ``float``
    * - ``--water_entropy``
-     - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy
+     - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy.
      - ``False``
      - ``bool``
    * - ``--grouping``
-     - How to group molecules for averaging
+     - How to group molecules for averaging.
      - ``molecules``
      - ``str``
 
 Averaging
-^^^^^^^^^
-The code is able to average over molecules of the same type.
-The grouping arguement is used to control how the averaging is done.
-The default is "molecules" which defines molecules by the number and names of the atoms and groups molecules that are the same.
-You can also use "each" which makes each molecule its own group, effectively not averaging over molecules.
+---------
 
-Example #1
-^^^^^^^^^^
-Example config.yaml file.
+The code is able to average over molecules of the same type. The ``grouping`` argument
+controls how averaging is done.
 
-.. literalinclude:: config.yaml
+* ``molecules`` (default): molecules are grouped by atom names and counts.
+* ``each``: each molecule is treated as its own group (no averaging).
 
-You must specify the location of the topology/trajectory file(s) for the top_traj_file variable as there is no default and CodeEntropy cannot run without the data. The temperature variable should be adjusted to the temperature from the simulation. Changing the force_partitioning variable is possible, but not recommended unless you understand what it does and have a good reason to change it.
 
-If you set end to -1, it will stop at the last frame of the trajectory. So, start = 0, end = -1, and step = 1 will use the whole trajectory.
+Examples
+--------
 
-To run CodeEntropy, you want to use the command line and change into the directory where your config.yaml file is located. As long as the file is named config.yaml, CodeEntropy will find it automatically.
+The examples below are ordered so the smallest, fastest-running example appears first.
+
+
+Example 1: DNA Fragment (Smallest / Fastest)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Estimated runtime:** ~1-2 minutes (typical laptop/desktop; depends on I/O and CPU)
+
+Data files:
+
+`DNA fragment example (~1MB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/dna_example.tar>`_
+
+Create or edit ``config.yaml`` in your working directory:
+
+.. code-block:: yaml
+
+  ---
+
+  run1:
+    top_traj_file: ["md_A4_dna.tpr", "md_A4_dna_xf.trr"]
+    selection_string: 'all'
+    start: 0
+    end: -1
+    step: 1
+  
+Run CodeEntropy from that directory:
 
 .. code-block:: bash
 
-  CodeEntropy
+   cd /path/to/dna_example
+   CodeEntropy
 
-Example #2
-^^^^^^^^^^
-To use the same settings as in Example #1, but override trajectory information, you can use the command line flags.
+Run (equivalent CLI):
 
 .. code-block:: bash
 
-  CodeEntropy --top_traj_file "md_A4_dna.tpr" "md_A4_dna_xf.trr"
+   cd /path/to/dna_example
+   CodeEntropy --top_traj_file md_A4_dna.tpr md_A4_dna_xf.trr --temperature 298.0 --selection_string all --start 0 --end -1 --step 1
 
-Or as an alternative, you could edit the config.yaml file and use the CodeEntropy command as in the first example.
+Example 2: Lysozyme (Larger / Slower)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-CodeEntropy creates job* directories for the output, where * is a job number choosen by the so that there are sequentially numbered directories when you rerun CodeEntropy in the same working directory.
-Each job* directory contains the output json file and a subdirectory with the log files.
+**Estimated runtime:** ~30–60 minutes (typical workstation; depends strongly on trajectory length and hardware)
 
-Data Files
-^^^^^^^^^^
-The example files mentioned above can be downloaded.
+Data files:
 
 `Lysozyme example (~1.2GB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/lysozyme_example.tar>`_
 
-`DNA fragment example (~1MB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/dna_example.tar>`_
+Create or edit ``config.yaml`` in your working directory:
+
+.. code-block:: yaml
+
+  ---
+
+  run1:
+    top_traj_file: ["1AKI_prod.tpr", "1AKI_prod.trr"]
+    selection_string: 'all'
+    start: 0
+    end: 500
+    step: 1
+    bin_width: 30
+    temperature: 300
+    verbose: True
+
+Run CodeEntropy from that directory:
+
+.. code-block:: bash
+
+   cd /path/to/lysozyme_example
+   CodeEntropy
+
+Run (equivalent CLI):
+
+.. code-block:: bash
+
+   cd /path/to/lysozyme_example
+   CodeEntropy --top_traj_file 1AKI_prod.tpr 1AKI_prod.trr --temperature 300.0 --selection_string all --start 0 --end 500 --step 1 --verbose
+
+
+
+Overriding YAML Values from the CLI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Values in ``config.yaml`` can be overridden using command-line flags.
+
+Example (override the trajectory inputs):
+
+.. code-block:: bash
+
+   cd /path/to/dna_example
+   CodeEntropy --top_traj_file md_A4_dna.tpr md_A4_dna_xf.trr
+
+
+Output Structure
+----------------
+
+CodeEntropy creates ``job*`` directories for output, where ``*`` is a sequential job
+number when you rerun CodeEntropy in the same working directory.
+
+Each ``job*/`` directory contains:
+
+* the output JSON file
+* a subdirectory containing log files
