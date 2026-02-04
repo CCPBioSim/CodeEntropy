@@ -68,6 +68,14 @@ arg_map = {
         "action": "store_true",
         "help": "Enable verbose output",
     },
+    "output_file": {
+        "type": str,
+        "help": (
+            "Name of the output file to write results to (filename only). Defaults "
+            "to output_file.json"
+        ),
+        "default": "output_file.json",
+    },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
     "water_entropy": {
         "type": bool,

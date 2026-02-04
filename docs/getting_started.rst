@@ -162,6 +162,10 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - Enable verbose output.
      - ``False``
      - ``bool``
+   * - ``--outfile``
+     - Name of the JSON output file to write results to (filename only). Defaults to ``outfile.json``.
+     - ``outfile.json``
+     - ``str``
    * - ``--force_partitioning``
      - Factor for partitioning forces when there are weak correlations.
      - ``0.5``
