@@ -137,6 +137,18 @@ The top_traj_file argument is necessary to identify your simulation data, the ot
      - How to group molecules for averaging
      - ``molecules``
      - ``str``
+   * - ``--kcal_force_units``
+     - Set input units as kcal/mol 
+     - ``bool``
+     - ``False``
+   * - ``--combined_forcetorque``
+     - Use the combined force-torque covariance matrix for the highest level to match the 2019 paper
+     - ``bool``
+     - ``True``
+   * - ``--customised_axes``
+     - Use custom bonded axes to get COM, MOI and PA that match the 2019 paper
+     - ``bool``
+     - ``True``
 
 Averaging
 ^^^^^^^^^

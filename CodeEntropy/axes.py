@@ -18,7 +18,7 @@ class AxesManager:
 
     def __init__(self):
         """
-        Initializes the LevelManager with placeholders for level-related data,
+        Initializes the AxesManager with placeholders for level-related data,
         including translational and rotational axes, number of beads, and a
         general-purpose data container.
         """

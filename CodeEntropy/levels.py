@@ -100,6 +100,8 @@ class LevelManager:
           to.
           force_partitioning (float): Factor to adjust force contributions,
           default is 0.5.
+          customised_axes (bool): Whether to use customised axes for rotating
+          forces.
 
         Returns:
           force_matrix (np.ndarray): Accumulated force covariance matrix.
@@ -235,6 +237,8 @@ class LevelManager:
           to.
           force_partitioning (float): Factor to adjust force contributions,
           default is 0.5.
+          customised_axes (bool): Whether to use customised axes for rotating
+          forces.
 
         Returns:
           forcetorque_matrix (np.ndarray): Accumulated torque covariance matrix.
@@ -250,14 +254,15 @@ class LevelManager:
         weighted_forces = [None for _ in range(number_beads)]
         weighted_torques = [None for _ in range(number_beads)]
 
+        # Create axes manager for custom axes
+        axes_manager = AxesManager()
+
         # Calculate forces/torques for each bead
         for bead_index in range(number_beads):
             bead = list_of_beads[bead_index]
-
             # Set up axes
             # translation and rotation use different axes
             # how the axes are defined depends on the level
-            axes_manager = AxesManager()
             if level == "residue" and customised_axes:
                 trans_axes, rot_axes, center, moment_of_inertia = (
                     axes_manager.get_residue_axes(data_container, bead_index)
@@ -470,6 +475,8 @@ class LevelManager:
             contributions (typically 0.5).
         moment_of_inertia : np.ndarray
             Moment of inertia (3,)
+        customised_axes: bool
+            Whether to use customised axes for rotating forces.
 
         Returns
         -------
