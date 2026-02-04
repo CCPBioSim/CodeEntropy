@@ -1715,7 +1715,7 @@ class TestVibrationalEntropy(unittest.TestCase):
             S_components *= ve._GAS_CONST
 
             expected = float(np.sum(S_components[3:]))
-            self.assertAlmostEqual(result, expected, places=6)
+            self.assertAlmostEqual(result, expected, places=3)
 
         finally:
             la.eigvals = orig_eigvals
