@@ -245,27 +245,40 @@ class AxesManager:
 
     def get_vanilla_axes(self, molecule):
         """
-        From a selection of atoms, get the ordered principal axes (3,3) and
-        the ordered moment of inertia axes (3,) for that selection of atoms
+        Compute the principal axes and sorted moments of inertia for a molecule.
+
+        This method computes the translationally invariant principal axes and
+        corresponding moments of inertia for a molecular selection using the
+        default MDAnalysis routines. The molecule is first made whole to ensure
+        correct handling of periodic boundary conditions.
+
+        The moments of inertia are obtained by diagonalising the moment of inertia
+        tensor and are returned sorted from largest to smallest magnitude.
 
         Args:
-            molecule: mdanalysis instance of molecule
-            molecule_scale: the length scale of molecule
+            molecule (MDAnalysis.core.groups.AtomGroup):
+                AtomGroup representing the molecule or bead for which the axes
+                and moments of inertia are to be computed.
 
         Returns:
-            principal_axes: the principal axes, (3,3) array
-            moment_of_inertia: the moment of inertia, (3,) array
+            Tuple[np.ndarray, np.ndarray]:
+                A tuple containing:
+
+                - principal_axes (np.ndarray):
+                    Array of shape ``(3, 3)`` whose rows correspond to the
+                    principal axes of the molecule.
+                - moment_of_inertia (np.ndarray):
+                    Array of shape ``(3,)`` containing the moments of inertia
+                    sorted in descending order.
         """
-        # default moment of inertia
         moment_of_inertia = molecule.moment_of_inertia(unwrap=True)
         make_whole(molecule.atoms)
         principal_axes = molecule.principal_axes()
-        # diagonalise moment of inertia tensor here
-        # pylint: disable=unused-variable
+
         eigenvalues, _eigenvectors = np.linalg.eig(moment_of_inertia)
-        # sort eigenvalues of moi tensor by largest to smallest magnitude
-        order = sorted(eigenvalues, reverse=True)  # decending order
-        # principal_axes = principal_axes[order] # PI already ordered correctly
+
+        # Sort eigenvalues from largest to smallest magnitude
+        order = np.argsort(np.abs(eigenvalues))[::-1]
         moment_of_inertia = eigenvalues[order]
 
         return principal_axes, moment_of_inertia
