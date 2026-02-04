@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
+from CodeEntropy.axes import AxesManager
 from CodeEntropy.levels import LevelManager
 from CodeEntropy.mda_universe_operations import UniverseOperations
 from tests.test_CodeEntropy.test_base import BaseTestCase
@@ -383,48 +384,47 @@ class TestLevels(BaseTestCase):
         axes.get_UA_axes.assert_called_once()
         assert axes.get_residue_axes.call_count == 0
 
-    def test_get_matrices_non_customised_axes_path(self):
+    def test_get_matrices_non_customised_axes_path_atomic(self):
         """
-        Test that: customised_axes=False triggers the else axes path.
-        Covers:
-        trans_axes = data_container.atoms.principal_axes()
-        rot_axes = real(bead.principal_axes())
-        eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
-        moment_of_inertia sorted(...)
-        center = bead.center_of_mass()
+        Tests that `customised_axes=False` triggers the non-customised axes path.
+
+        Verifies that:
+        - translational axes are taken from `data_container.atoms.principal_axes()`
+        - rotational axes are taken from `bead.principal_axes()` (real-valued)
+        - bead moment of inertia and center of mass are queried
+        - force and torque matrices are assembled with size (3N, 3N) for N beads
         """
         universe_operations = UniverseOperations()
         level_manager = LevelManager(universe_operations)
 
-        bead1 = MagicMock()
-        bead2 = MagicMock()
-
-        bead1.principal_axes.return_value = np.eye(3)
-        bead2.principal_axes.return_value = np.eye(3)
-
+        bead1, bead2 = MagicMock(), MagicMock()
+        bead1.principal_axes.return_value = np.eye(3) * (1 + 2j)
+        bead2.principal_axes.return_value = np.eye(3) * (1 + 2j)
         bead1.center_of_mass.return_value = np.zeros(3)
         bead2.center_of_mass.return_value = np.zeros(3)
-
         bead1.moment_of_inertia.return_value = np.eye(3)
         bead2.moment_of_inertia.return_value = np.eye(3)
 
         level_manager.get_beads = MagicMock(return_value=[bead1, bead2])
-
         level_manager.get_weighted_forces = MagicMock(
             return_value=np.array([1.0, 2.0, 3.0])
         )
         level_manager.get_weighted_torques = MagicMock(
             return_value=np.array([0.5, 1.5, 2.5])
         )
-        level_manager.create_submatrix = MagicMock(return_value=np.identity(3))
+        level_manager.create_submatrix = MagicMock(return_value=np.eye(3))
 
         data_container = MagicMock()
         data_container.atoms = MagicMock()
         data_container.atoms.principal_axes.return_value = np.eye(3)
 
-        with patch("CodeEntropy.levels.np.linalg.eig") as eig_mock:
-            eig_mock.return_value = (np.array([3.0, 2.0, 1.0]), None)
-
+        with (
+            patch("CodeEntropy.levels.make_whole", autospec=True),
+            patch(
+                "CodeEntropy.levels.np.linalg.eig",
+                return_value=(np.array([1.0, 3.0, 2.0]), None),
+            ),
+        ):
             force_matrix, torque_matrix = level_manager.get_matrices(
                 data_container=data_container,
                 level="polymer",
@@ -435,14 +435,16 @@ class TestLevels(BaseTestCase):
                 customised_axes=False,
             )
 
+        data_container.atoms.principal_axes.assert_called()
+        bead1.principal_axes.assert_called()
+        bead2.principal_axes.assert_called()
+        bead1.center_of_mass.assert_called()
+        bead2.center_of_mass.assert_called()
+        bead1.moment_of_inertia.assert_called()
+        bead2.moment_of_inertia.assert_called()
+
         assert force_matrix.shape == (6, 6)
         assert torque_matrix.shape == (6, 6)
-
-        data_container.atoms.principal_axes.assert_called()
-        assert bead1.principal_axes.called and bead2.principal_axes.called
-        assert bead1.center_of_mass.called and bead2.center_of_mass.called
-        assert bead1.moment_of_inertia.called and bead2.moment_of_inertia.called
-        assert eig_mock.call_count == 2
 
     def test_get_matrices_accepts_existing_same_shape(self):
         """
@@ -558,43 +560,54 @@ class TestLevels(BaseTestCase):
     def test_get_combined_forcetorque_matrices_noncustomised_axes_path(self):
         """
         Test that: customised_axes=False forces else-path:
-        trans_axes = data_container.atoms.principal_axes()
-        rot_axes = real(bead.principal_axes())
-        eig(bead.moment_of_inertia()) called
-        center_of_mass called
+        - make_whole(data_container.atoms) and make_whole(bead) called
+        - trans_axes = data_container.atoms.principal_axes()
+        - rot_axes, moment_of_inertia = AxesManager.get_vanilla_axes(bead)
+        - center = bead.center_of_mass(unwrap=True)
+        - FT block matrix assembled via create_FTsubmatrix and np.block
         """
         universe_operations = UniverseOperations()
         level_manager = LevelManager(universe_operations)
 
-        bead1 = MagicMock()
-        bead2 = MagicMock()
+        bead1 = MagicMock(name="bead1")
+        bead2 = MagicMock(name="bead2")
+        beads = [bead1, bead2]
 
-        bead1.principal_axes.return_value = np.eye(3)
-        bead2.principal_axes.return_value = np.eye(3)
+        level_manager.get_beads = MagicMock(return_value=beads)
 
-        bead1.moment_of_inertia.return_value = np.eye(3)
-        bead2.moment_of_inertia.return_value = np.eye(3)
+        data_container = MagicMock(name="data_container")
+        data_container.atoms = MagicMock(name="atoms")
+        data_container.atoms.principal_axes.return_value = np.eye(3)
 
-        bead1.center_of_mass.return_value = np.zeros(3)
-        bead2.center_of_mass.return_value = np.zeros(3)
-
-        level_manager.get_beads = MagicMock(return_value=[bead1, bead2])
-
+        # Forces/torques are 3-vectors -> concatenated to length 6
         level_manager.get_weighted_forces = MagicMock(
-            return_value=np.array([1.0, 2.0, 3.0])
+            side_effect=[
+                np.array([1.0, 2.0, 3.0]),
+                np.array([1.1, 2.1, 3.1]),
+            ]
         )
         level_manager.get_weighted_torques = MagicMock(
-            return_value=np.array([4.0, 5.0, 6.0])
+            side_effect=[
+                np.array([4.0, 5.0, 6.0]),
+                np.array([4.1, 5.1, 6.1]),
+            ]
         )
 
         level_manager.create_FTsubmatrix = MagicMock(return_value=np.identity(6))
 
-        data_container = MagicMock()
-        data_container.atoms = MagicMock()
-        data_container.atoms.principal_axes.return_value = np.eye(3)
+        rot_axes_expected = np.eye(3)
+        moi_expected = np.array([3.0, 2.0, 1.0])
 
-        with patch("CodeEntropy.levels.np.linalg.eig") as eig_mock:
-            eig_mock.return_value = (np.array([3.0, 2.0, 1.0]), None)
+        with (
+            patch("CodeEntropy.levels.make_whole", autospec=True) as mw_mock,
+            patch(
+                "CodeEntropy.axes.AxesManager.get_vanilla_axes",
+                autospec=True,
+                return_value=(rot_axes_expected, moi_expected),
+            ) as vanilla_mock,
+        ):
+            bead1.center_of_mass.return_value = np.zeros(3)
+            bead2.center_of_mass.return_value = np.zeros(3)
 
             ft_matrix = level_manager.get_combined_forcetorque_matrices(
                 data_container=data_container,
@@ -605,13 +618,20 @@ class TestLevels(BaseTestCase):
                 customised_axes=False,
             )
 
-        assert ft_matrix.shape == (12, 12)
-
         data_container.atoms.principal_axes.assert_called()
-        assert bead1.principal_axes.called and bead2.principal_axes.called
-        assert bead1.moment_of_inertia.called and bead2.moment_of_inertia.called
-        assert bead1.center_of_mass.called and bead2.center_of_mass.called
-        assert eig_mock.call_count == 2
+        bead1.center_of_mass.assert_called_with(unwrap=True)
+        bead2.center_of_mass.assert_called_with(unwrap=True)
+
+        assert vanilla_mock.call_count == 2  # once per bead
+
+        # make_whole is called twice per bead: on data_container.atoms and on bead
+        assert mw_mock.call_count == 4
+        mw_mock.assert_any_call(data_container.atoms)
+        mw_mock.assert_any_call(bead1)
+        mw_mock.assert_any_call(bead2)
+
+        # result shape: (6N, 6N) with N=2
+        assert ft_matrix.shape == (12, 12)
 
     def test_get_combined_forcetorque_matrices_shape_mismatch_raises(self):
         """
@@ -924,31 +944,43 @@ class TestLevels(BaseTestCase):
 
     def test_get_weighted_torques_weighted_torque_basic(self):
         """
-        Test basic torque calculation with non-zero moment of inertia and torques.
+        Test basic weighted torque calculation for a single-atom bead.
+
+        Setup:
+        r = [1, 0, 0], F = [0, 1, 0]  => r x F = [0, 0, 1]
+        With force_partitioning=0.5, rot_axes=I, MOI=[1,1,1],
+        expected weighted torque is [0, 0, 0.5].
         """
         universe_operations = UniverseOperations()
         level_manager = LevelManager(universe_operations)
+        axes_manager = AxesManager()
 
-        # Bead with one "atom"
         bead = MagicMock()
-        bead.positions = np.array([[1.0, 0.0, 0.0]])  # r
-        bead.forces = np.array([[0.0, 1.0, 0.0]])  # F
+        bead.positions = np.array([[1.0, 0.0, 0.0]])
+        bead.forces = np.array([[0.0, 1.0, 0.0]])
+        bead.dimensions = np.array([10.0, 10.0, 10.0])
 
-        rot_axes = np.identity(3)
-        center = np.array([0.0, 0.0, 0.0])
+        rot_axes = np.eye(3)
+        center = np.zeros(3)
         force_partitioning = 0.5
         moment_of_inertia = np.array([1.0, 1.0, 1.0])
 
-        result = level_manager.get_weighted_torques(
-            bead=bead,
-            rot_axes=rot_axes,
-            center=center,
-            force_partitioning=force_partitioning,
-            moment_of_inertia=moment_of_inertia,
-        )
+        with patch.object(
+            AxesManager, "get_vector", return_value=bead.positions - center
+        ) as gv_mock:
+            result = level_manager.get_weighted_torques(
+                bead=bead,
+                rot_axes=rot_axes,
+                center=center,
+                force_partitioning=force_partitioning,
+                moment_of_inertia=moment_of_inertia,
+                axes_manager=axes_manager,
+            )
+
+        gv_mock.assert_called()
 
         expected = np.array([0.0, 0.0, 0.5])
-        np.testing.assert_allclose(result, expected, rtol=0, atol=1e-12)
+        np.testing.assert_allclose(result, expected)
 
     def test_get_weighted_torques_zero_torque_skips_division(self):
         """
@@ -956,29 +988,31 @@ class TestLevels(BaseTestCase):
         """
         universe_operations = UniverseOperations()
         level_manager = LevelManager(universe_operations)
+        axes_manager = AxesManager()
 
         bead = MagicMock()
-        # All zeros => r x F = 0
         bead.positions = np.array([[0.0, 0.0, 0.0]])
         bead.forces = np.array([[0.0, 0.0, 0.0]])
+        bead.dimensions = np.array([10.0, 10.0, 10.0])
 
         rot_axes = np.identity(3)
         center = np.array([0.0, 0.0, 0.0])
         force_partitioning = 0.5
-
-        # Use non-zero MOI so that "skip division" is only due to zero torque
         moment_of_inertia = np.array([1.0, 2.0, 3.0])
 
-        result = level_manager.get_weighted_torques(
-            bead=bead,
-            rot_axes=rot_axes,
-            center=center,
-            force_partitioning=force_partitioning,
-            moment_of_inertia=moment_of_inertia,
-        )
+        with patch.object(
+            AxesManager, "get_vector", return_value=bead.positions - center
+        ):
+            result = level_manager.get_weighted_torques(
+                bead=bead,
+                rot_axes=rot_axes,
+                center=center,
+                force_partitioning=force_partitioning,
+                moment_of_inertia=moment_of_inertia,
+                axes_manager=axes_manager,
+            )
 
-        expected = np.zeros(3)
-        np.testing.assert_array_equal(result, expected)
+        np.testing.assert_array_equal(result, np.zeros(3))
 
     def test_get_weighted_torques_zero_moi(self):
         """
@@ -987,31 +1021,31 @@ class TestLevels(BaseTestCase):
         """
         universe_operations = UniverseOperations()
         level_manager = LevelManager(universe_operations)
+        axes_manager = AxesManager()
 
         bead = MagicMock()
-        # r = (1,0,0), F = (0,1,0) => torque = (0,0,1)
         bead.positions = np.array([[1.0, 0.0, 0.0]])
         bead.forces = np.array([[0.0, 1.0, 0.0]])
+        bead.dimensions = np.array([10.0, 10.0, 10.0])
 
         rot_axes = np.identity(3)
         center = np.array([0.0, 0.0, 0.0])
         force_partitioning = 0.5
-
-        # MOI is zero in z dimension (index 2)
         moment_of_inertia = np.array([1.0, 1.0, 0.0])
 
-        torque = level_manager.get_weighted_torques(
-            bead=bead,
-            rot_axes=rot_axes,
-            center=center,
-            force_partitioning=force_partitioning,
-            moment_of_inertia=moment_of_inertia,
-        )
+        with patch.object(
+            AxesManager, "get_vector", return_value=bead.positions - center
+        ):
+            torque = level_manager.get_weighted_torques(
+                bead=bead,
+                rot_axes=rot_axes,
+                center=center,
+                force_partitioning=force_partitioning,
+                moment_of_inertia=moment_of_inertia,
+                axes_manager=axes_manager,
+            )
 
-        # x and y torques are zero; z torque is non-zero
-        # but MOI_z==0 => weighted z should be 0
-        expected = np.array([0.0, 0.0, 0.0])
-        np.testing.assert_array_equal(torque, expected)
+        np.testing.assert_array_equal(torque, np.zeros(3))
 
     def test_get_weighted_torques_negative_moi_sets_zero(self):
         """
@@ -1020,30 +1054,31 @@ class TestLevels(BaseTestCase):
         """
         universe_operations = UniverseOperations()
         level_manager = LevelManager(universe_operations)
+        axes_manager = AxesManager()
 
         bead = MagicMock()
-        # r=(1,0,0), F=(0,1,0) => raw torque in z is non-zero
         bead.positions = np.array([[1.0, 0.0, 0.0]])
         bead.forces = np.array([[0.0, 1.0, 0.0]])
+        bead.dimensions = np.array([10.0, 10.0, 10.0])
 
         rot_axes = np.identity(3)
         center = np.array([0.0, 0.0, 0.0])
         force_partitioning = 0.5
-
-        # Negative MOI in z dimension
         moment_of_inertia = np.array([1.0, 1.0, -1.0])
 
-        result = level_manager.get_weighted_torques(
-            bead=bead,
-            rot_axes=rot_axes,
-            center=center,
-            force_partitioning=force_partitioning,
-            moment_of_inertia=moment_of_inertia,
-        )
+        with patch.object(
+            AxesManager, "get_vector", return_value=bead.positions - center
+        ):
+            result = level_manager.get_weighted_torques(
+                bead=bead,
+                rot_axes=rot_axes,
+                center=center,
+                force_partitioning=force_partitioning,
+                moment_of_inertia=moment_of_inertia,
+                axes_manager=axes_manager,
+            )
 
-        # z torque would be non-zero, but negative MOI => z component forced to 0
-        expected = np.array([0.0, 0.0, 0.0])
-        np.testing.assert_array_equal(result, expected)
+        np.testing.assert_array_equal(result, np.zeros(3))
 
     def test_create_submatrix_basic_outer_product(self):
         """
