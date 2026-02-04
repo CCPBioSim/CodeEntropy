@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+from MDAnalysis.lib.mdamath import make_whole
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,7 @@ class AxesManager:
             f"and bonded resid {index}"
         )
         residue = data_container.select_atoms(f"resindex {index}")
-        # set center of rotation to center of mass of the residue
-        # we might want to change to center of bonding later
-        center = residue.atoms.center_of_mass()
+        center = residue.atoms.center_of_mass(unwrap=True)
 
         if len(atom_set) == 0:
             # No bonds to other residues
@@ -61,7 +60,7 @@ class AxesManager:
             UAs = residue.select_atoms("mass 2 to 999")
             UA_masses = self.get_UA_masses(residue)
             moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center, UAs.positions, UA_masses
+                center, UAs.positions, UA_masses, data_container.dimensions[:3]
             )
             rot_axes, moment_of_inertia = self.get_custom_principal_axes(
                 moment_of_inertia_tensor
@@ -71,11 +70,13 @@ class AxesManager:
             )
         else:
             # if bonded to other residues, use default axes and MOI
+            make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            rot_axes = np.real(residue.principal_axes())
-            eigenvalues, _ = np.linalg.eig(residue.moment_of_inertia())
-            moment_of_inertia = sorted(eigenvalues, reverse=True)
-            center = residue.center_of_mass()
+            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue)
+            # rot_axes = np.real(residue.principal_axes())
+            # eigenvalues, _ = np.linalg.eig(residue.moment_of_inertia(unwrap=True))
+            # moment_of_inertia = sorted(eigenvalues, reverse=True)
+            center = residue.center_of_mass(unwrap=True)
 
         return trans_axes, rot_axes, center, moment_of_inertia
 
@@ -96,13 +97,12 @@ class AxesManager:
 
         index = int(index)
 
-        # trans_axes = data_container.atoms.principal_axes()
         # use the same customPI trans axes as the residue level
         UAs = data_container.select_atoms("mass 2 to 999")
         UA_masses = self.get_UA_masses(data_container.atoms)
-        center = data_container.atoms.center_of_mass()
+        center = data_container.atoms.center_of_mass(unwrap=True)
         moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-            center, UAs.positions, UA_masses
+            center, UAs.positions, UA_masses, data_container.dimensions[:3]
         )
         trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
             moment_of_inertia_tensor
@@ -185,9 +185,12 @@ class AxesManager:
         # find the heavy bonded atoms and light bonded atoms
         heavy_bonded, light_bonded = self.find_bonded_atoms(atom.index, system)
         UA = atom + light_bonded
+        UA_all = atom + heavy_bonded + light_bonded
 
         # now find which atoms to select to find the axes for rotating forces:
-        # case1, won't apply to UA level
+        # case1
+        if len(heavy_bonded) == 0:
+            custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(UA_all)
         # case2
         if len(heavy_bonded) == 1 and len(light_bonded) == 0:
             custom_axes = self.get_custom_axes(
@@ -201,7 +204,7 @@ class AxesManager:
                 light_bonded[0].position,
                 dimensions,
             )
-        # case4, not used in Jon's code, use case5 instead
+        # case4, not used in Jon's 2019 paper code, use case5 instead
         # case5
         if len(heavy_bonded) >= 2:
             custom_axes = self.get_custom_axes(
@@ -214,7 +217,7 @@ class AxesManager:
         if custom_moment_of_inertia is None:
             # find moment of inertia using custom axes and atom position as COM
             custom_moment_of_inertia = self.get_custom_moment_of_inertia(
-                UA, custom_axes, atom.position
+                UA, custom_axes, atom.position, dimensions
             )
 
         # get the moment of inertia from the custom axes
@@ -242,6 +245,33 @@ class AxesManager:
         bonded_heavy_atoms = bonded_atoms.select_atoms("mass 2 to 999")
         bonded_H_atoms = bonded_atoms.select_atoms("mass 1 to 1.1")
         return bonded_heavy_atoms, bonded_H_atoms
+
+    def get_vanilla_axes(self, molecule):
+        """
+        From a selection of atoms, get the ordered principal axes (3,3) and
+        the ordered moment of inertia axes (3,) for that selection of atoms
+
+        Args:
+            molecule: mdanalysis instance of molecule
+            molecule_scale: the length scale of molecule
+
+        Returns:
+            principal_axes: the principal axes, (3,3) array
+            moment_of_inertia: the moment of inertia, (3,) array
+        """
+        # default moment of inertia
+        moment_of_inertia = molecule.moment_of_inertia(unwrap=True)
+        make_whole(molecule.atoms)
+        principal_axes = molecule.principal_axes()
+        # diagonalise moment of inertia tensor here
+        # pylint: disable=unused-variable
+        eigenvalues, _eigenvectors = np.linalg.eig(moment_of_inertia)
+        # sort eigenvalues of moi tensor by largest to smallest magnitude
+        order = sorted(eigenvalues, reverse=True)  # decending order
+        # principal_axes = principal_axes[order] # PI already ordered correctly
+        moment_of_inertia = eigenvalues[order]
+
+        return principal_axes, moment_of_inertia
 
     def get_custom_axes(
         self, a: np.ndarray, b_list: list, c: np.ndarray, dimensions: np.ndarray
@@ -303,7 +333,11 @@ class AxesManager:
         return scaled_custom_axes
 
     def get_custom_moment_of_inertia(
-        self, UA, custom_rotation_axes: np.ndarray, center_of_mass: np.ndarray
+        self,
+        UA,
+        custom_rotation_axes: np.ndarray,
+        center_of_mass: np.ndarray,
+        dimensions: np.ndarray,
     ):
         """
         Get the moment of inertia (specifically used for the united atom level)
@@ -318,7 +352,7 @@ class AxesManager:
         Returns:
             custom_moment_of_inertia: (3,) array for moment of inertia
         """
-        translated_coords = UA.positions - center_of_mass
+        translated_coords = self.get_vector(center_of_mass, UA.positions, dimensions)
         custom_moment_of_inertia = np.zeros(3)
         for coord, mass in zip(translated_coords, UA.masses):
             axis_component = np.sum(
@@ -366,27 +400,24 @@ class AxesManager:
         For vector of two coordinates over periodic boundary conditions (PBCs).
 
         Args:
-            a: (3,) array of atom cooordinates
+            a: (N,3) array of atom cooordinates
             b: (3,) array of atom cooordinates
             dimensions: (3,) array of system box dimensions.
 
         Returns:
-            delta_wrapped: (3,) array of the vector between two points
+            delta_wrapped: (N,3) array of the vector
         """
         delta = b - a
-        delta_wrapped = []
-        for delt, box in zip(delta, dimensions):
-            if delt < 0 and delt < 0.5 * box:
-                delt = delt + box
-            if delt > 0 and delt > 0.5 * box:
-                delt = delt - box
-            delta_wrapped.append(delt)
-        delta_wrapped = np.array(delta_wrapped)
+        delta -= dimensions * np.round(delta / dimensions)
 
-        return delta_wrapped
+        return delta
 
     def get_moment_of_inertia_tensor(
-        self, center_of_mass: np.ndarray, positions: np.ndarray, masses: list
+        self,
+        center_of_mass: np.ndarray,
+        positions: np.ndarray,
+        masses: list,
+        dimensions: np.array,
     ) -> np.ndarray:
         """
         Calculate a custom moment of inertia tensor.
@@ -402,7 +433,7 @@ class AxesManager:
         Returns:
             moment_of_inertia_tensor: a (3,3) moment of inertia tensor
         """
-        r = positions - center_of_mass
+        r = self.get_vector(center_of_mass, positions, dimensions)
         r2 = np.sum(r**2, axis=1)
         moment_of_inertia_tensor = np.eye(3) * np.sum(masses * r2)
         moment_of_inertia_tensor -= np.einsum("i,ij,ik->jk", masses, r, r)

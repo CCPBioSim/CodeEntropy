@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+from MDAnalysis.lib.mdamath import make_whole
 from rich.progress import (
     BarColumn,
     Progress,
@@ -132,11 +133,13 @@ class LevelManager:
                     axes_manager.get_residue_axes(data_container, bead_index)
                 )
             else:
+                make_whole(data_container.atoms)
+                make_whole(bead)
                 trans_axes = data_container.atoms.principal_axes()
                 rot_axes = np.real(bead.principal_axes())
-                eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
+                eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
                 moment_of_inertia = sorted(eigenvalues, reverse=True)
-                center = bead.center_of_mass()
+                center = bead.center_of_mass(unwrap=True)
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
@@ -152,6 +155,7 @@ class LevelManager:
                 center,
                 force_partitioning,
                 moment_of_inertia,
+                axes_manager,
             )
 
         # Create covariance submatrices
@@ -259,11 +263,15 @@ class LevelManager:
                     axes_manager.get_residue_axes(data_container, bead_index)
                 )
             else:
+                # ensure molecule is whole for PA calcs
+                make_whole(data_container.atoms)
+                make_whole(bead)
                 trans_axes = data_container.atoms.principal_axes()
-                rot_axes = np.real(bead.principal_axes())
-                eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia())
-                moment_of_inertia = sorted(eigenvalues, reverse=True)
-                center = bead.center_of_mass()
+                rot_axes, moment_of_inertia = axes_manager.get_vanilla_axes(bead)
+                # rot_axes = np.real(bead.principal_axes())
+                # eigenvalues, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
+                # moment_of_inertia = sorted(eigenvalues, reverse=True)
+                center = bead.center_of_mass(unwrap=True)
 
             # Sort out coordinates, forces, and torques for each atom in the bead
             weighted_forces[bead_index] = self.get_weighted_forces(
@@ -279,6 +287,7 @@ class LevelManager:
                 center,
                 force_partitioning,
                 moment_of_inertia,
+                axes_manager,
             )
 
         # Create covariance submatrices
@@ -427,7 +436,13 @@ class LevelManager:
         return weighted_force
 
     def get_weighted_torques(
-        self, bead, rot_axes, center, force_partitioning, moment_of_inertia
+        self,
+        bead,
+        rot_axes,
+        center,
+        force_partitioning,
+        moment_of_inertia,
+        axes_manager,
     ):
         """
         Compute moment-of-inertia weighted torques for a bead.
@@ -466,7 +481,10 @@ class LevelManager:
         """
 
         # translate and rotate positions and forces
-        translated_coords = bead.positions - center
+        # translated_coords = bead.positions - center
+        translated_coords = axes_manager.get_vector(
+            center, bead.positions, bead.dimensions[:3]
+        )
         rotated_coords = np.tensordot(translated_coords, rot_axes.T, axes=1)
         rotated_forces = np.tensordot(bead.forces, rot_axes.T, axes=1)
         # scale forces
@@ -481,12 +499,16 @@ class LevelManager:
                 weighted_torque[dimension] = 0
                 continue
 
-            if moment_of_inertia[dimension] == 0:
+            if np.iscomplex(moment_of_inertia[dimension]):
                 weighted_torque[dimension] = 0
                 continue
 
+            if moment_of_inertia[dimension] == 0:
+                moment_of_inertia[dimension] = 0
+                continue
+
             if moment_of_inertia[dimension] < 0:
-                weighted_torque[dimension] = 0
+                moment_of_inertia[dimension] = 0
                 continue
 
             # Compute weighted torque
