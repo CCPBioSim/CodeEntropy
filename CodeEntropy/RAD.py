@@ -19,10 +19,9 @@ def get_RAD_neighbors(universe, mol_id):
     for molecule_index_j in range(number_molecules):
         if molecule_index_j != mol_id:
             j_position = universe.atoms.fragments[molecule_index_j].center_of_mass()
-            x = j_position[0] - central_position[0]
-            y = j_position[1] - central_position[1]
-            z = j_position[2] - central_position[2]
-            distances[molecule_index_j] = np.sqrt(x**2 + y**2 + z**2)
+            distances[molecule_index_j] = get_distance(
+                j_position, central_position, universe.dimensions
+            )
 
     # Sort distances smallest to largest
     sorted_dist = sorted(distances.items(), key=lambda item: item[1])
@@ -91,100 +90,6 @@ def get_RAD_indices(i_coords, sorted_distances, system):
     return shell
 
 
-# def get_neighbourlist(
-#    atom: np.ndarray, neighbours, dimensions: np.ndarray, max_cutoff=9e9
-# ):
-#    """
-#    Use MDAnalysis to get distances between an atom and neighbours within
-#    a given cutoff. Each atom index pair sorted by distance are outputted.
-#
-#    :param atom: (3,) array of an atom coordinates.
-#    :param neighbours: MDAnalysis array of heavy atoms in the system,
-#        not the atom itself and not bonded to the atom.
-#    :param dimensions: (6,) array of system box dimensions.
-#    :param max_cutoff: set the maximum cutoff value for finding neighbour distances
-#    """
-#    # check atom coords are not in neighbour coords list
-#    if not (atom == neighbours.positions).all(axis=1).any():
-#        pairs, distances = MDAnalysis.lib.distances.capped_distance(
-#            atom,
-#            neighbours.positions,
-#            max_cutoff=max_cutoff,
-#            min_cutoff=None,
-#            box=dimensions,
-#            method=None,
-#            return_distances=True,
-#        )
-#        neighbour_indices = neighbours[pairs[:][:, 1]].indices
-#        sorted_distances, sorted_indices = zip(
-#            *sorted(zip(distances, neighbour_indices), key=lambda x: x[0])
-#        )
-#        return np.array(sorted_indices), np.array(sorted_distances)
-#    raise ValueError(
-#        f"Atom coordinates {atom} in neighbour list {neighbours.positions[:10]}"
-#    )
-
-
-# def get_sorted_neighbours(i_idx: int, system, max_cutoff=10):
-#    """
-#    For a given atom, find neighbouring united atoms from closest to furthest
-#    within a given cutoff.
-#
-#    :param i_idx: idx of atom i
-#    :param system: mdanalysis instance of atoms in a frame
-#    :param max_cutoff: set the maximum cutoff value for finding neighbours
-#    """
-#    i_coords = system.atoms.positions[i_idx]
-#    # 1. get the heavy atom neighbour distances within a given distance cutoff
-#    # CHECK Find out which of the options below is better for RAD shells
-#    #       Should the central atom bonded UAs be allowed to block?
-#    #       This was not done in original code, keep the same here
-#    neighbours = system.select_atoms(
-#        f"""mass 2 to 999 and not index {i_idx}
-#                                    and not bonded index {i_idx}"""
-#        # f"""mass 2 to 999 and not index {i_idx}"""  # bonded UAs can block
-#    )
-#    # 2. Get the neighbours sorted from closest to furthest
-#    sorted_indices, sorted_distances = get_neighbourlist(
-#        i_coords, neighbours.atoms, system.dimensions, max_cutoff
-#    )
-#    return sorted_indices, sorted_distances
-
-
-# def get_shell_neighbour_selection(
-#    shell, donator, system, heavy_atoms=True, max_cutoff=10
-# ):
-#    """
-#    get shell neighbours ordered by ascending distance, this is used for
-#    finding possible hydrogen bonding neighbours.
-#
-#    :param shell: the instance for class waterEntropy.neighbours.RAD.RAD
-#        containing coordination shell neighbours
-#    :param donator: the mdanalysis object for the donator
-#    :param system: mdanalysis instance of all atoms in current frame
-#    :param heavy_atoms: consider heavy atoms in a shell as neighbours
-#    :max_cutoff: set the maximum cutoff value for finding neighbours
-#    """
-#    # 1a. Select heavy atoms in shell, can only donate to heavy atoms in the shell
-#    neighbours = Selections.get_selection(system, "index", shell.UA_shell)
-#    if not heavy_atoms:
-#        # 1b. Select all atoms in the shell, included bonded to atoms (Hs included)
-#        #   Can donate to any atoms in a shell
-#        all_shell_bonded = neighbours[:].bonds.indices
-#        all_shell_indices = list(set().union(*all_shell_bonded))
-#        # can donate to any atom in the shell
-#        neighbours = Selections.get_selection(system, "index", all_shell_indices)
-#    # 1c. can donate to any neighbours outside a shell, not used
-#    # neighbours = system.select_atoms(
-#    f"all and not index {donator.index} and not bonded index {donator.index}")
-#    # 2. Get the neighbours sorted from closest to furthest
-#    sorted_indices, sorted_distances = get_neighbourlist(
-#        donator.position, neighbours, system.dimensions, max_cutoff
-#    )
-#
-#    return sorted_indices, sorted_distances
-
-
 def get_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray, dimensions: np.ndarray):
     """
     Get the angle between three atoms, taking into account PBC.
@@ -206,3 +111,27 @@ def get_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray, dimensions: np.ndarra
     cosine_angle = (dist_ac**2 - dist_bc**2 - dist_ba**2) / (-2 * dist_bc * dist_ba)
 
     return cosine_angle
+
+
+def get_distance(j_position, i_position, dimensions):
+    """
+    Function to calculate the distance between two points.
+    Take periodic boundary conditions into account.
+
+    Args:
+        j_position: the x, y, z coordinates of point 1
+        i_position: the x, y, z coordinates of the other point
+        dimensions: the dimensions of the simulation box
+
+    Returns:
+        distance: the distance between the two points
+    """
+
+    x = []
+    for coord in range(3):
+        x[coord] = j_position[coord] - i_position[coord]
+        if x[coord] > 0.5 * dimensions[coord]:
+            x[coord] = x[coord] - dimensions[coord]
+    distance = np.sqrt((x**2).sum)
+
+    return distance
