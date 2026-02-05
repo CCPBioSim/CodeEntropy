@@ -85,6 +85,18 @@ arg_map = {
         "help": "How to group molecules for averaging",
         "default": "molecules",
     },
+    "combined_forcetorque": {
+        "type": bool,
+        "help": """Use combined force-torque matrix for residue
+            level vibrational entropies""",
+        "default": True,
+    },
+    "customised_axes": {
+        "type": bool,
+        "help": """Use bonded axes to rotate forces for UA
+            level vibrational entropies""",
+        "default": True,
+    },
 }
 
 
