@@ -1,5 +1,3 @@
-# CodeEntropy/entropy/nodes/vibrational_entropy_node.py
-
 import logging
 from typing import Any, Dict
 
@@ -11,23 +9,29 @@ from CodeEntropy.levels.matrix_operations import MatrixOperations
 logger = logging.getLogger(__name__)
 
 
+def _build_gid2i(shared_data: Dict[str, Any]) -> Dict[int, int]:
+    gid2i = shared_data.get("group_id_to_index")
+    if isinstance(gid2i, dict) and gid2i:
+        return gid2i
+    groups = shared_data["groups"]
+    return {gid: i for i, gid in enumerate(groups.keys())}
+
+
 class VibrationalEntropyNode:
     """
-    Computes vibrational entropy from force and torque covariance matrices.
+    Computes vibrational entropy from force/torque covariance matrices.
 
-    Expects LevelDAG to have produced:
+    Expects:
       shared_data["force_covariances"]  : {"ua": dict, "res": list, "poly": list}
       shared_data["torque_covariances"] : {"ua": dict, "res": list, "poly": list}
-      shared_data["levels"], shared_data["groups"]
-
-    Also optionally uses:
-      shared_data["frame_counts"] for residue table counts
+      shared_data["frame_counts"]       : {"ua": dict, "res": array/list,
+      "poly": array/list}
     """
 
     def __init__(self):
         self._mat_ops = MatrixOperations()
 
-    def run(self, shared_data: Dict[str, Any], **_kwargs):
+    def run(self, shared_data: Dict[str, Any], **_kwargs) -> Dict[str, Any]:
         run_manager = shared_data["run_manager"]
         args = shared_data["args"]
         universe = shared_data["reduced_universe"]
@@ -43,12 +47,18 @@ class VibrationalEntropyNode:
         )
 
         temp = args.temperature
-        levels = shared_data["levels"]
         groups = shared_data["groups"]
+        levels = shared_data["levels"]
 
         force_cov = shared_data["force_covariances"]
         torque_cov = shared_data["torque_covariances"]
-        frame_counts = shared_data.get("frame_counts", None)
+        counts = shared_data.get("frame_counts", {})
+
+        ua_counts = counts.get("ua", {}) if isinstance(counts, dict) else {}
+        # res_counts = counts.get("res", None)
+        # poly_counts = counts.get("poly", None)
+
+        gid2i = _build_gid2i(shared_data)
 
         fragments = universe.atoms.fragments
 
@@ -56,148 +66,116 @@ class VibrationalEntropyNode:
 
         for group_id, mol_ids in groups.items():
             mol_id = mol_ids[0]
-            level_list = levels[mol_id]
             mol = fragments[mol_id]
+            level_list = levels[mol_id]
 
             vib_results[group_id] = {}
 
             for level in level_list:
+                # highest = level == level_list[-1]
+
                 if level == "united_atom":
-                    S_trans_total = 0.0
-                    S_rot_total = 0.0
+                    S_trans = 0.0
+                    S_rot = 0.0
 
-                    # UA is stored per (group_id, res_id)
-                    for (gid, res_id), fmat in force_cov["ua"].items():
-                        if gid != group_id:
-                            continue
+                    for res_id, res in enumerate(mol.residues):
+                        key = (group_id, res_id)
 
-                        tmat = torque_cov["ua"].get((gid, res_id))
-                        if tmat is None:
-                            continue
+                        fmat = force_cov["ua"].get(key)
+                        tmat = torque_cov["ua"].get(key)
 
-                        fmat_arr = self._mat_ops.filter_zero_rows_columns(
-                            np.array(fmat)
-                        )
-                        tmat_arr = self._mat_ops.filter_zero_rows_columns(
-                            np.array(tmat)
-                        )
+                        if fmat is None or tmat is None:
+                            val_trans, val_rot = 0.0, 0.0
+                        else:
+                            fmat = self._mat_ops.filter_zero_rows_columns(
+                                np.asarray(fmat)
+                            )
+                            tmat = self._mat_ops.filter_zero_rows_columns(
+                                np.asarray(tmat)
+                            )
 
-                        S_trans = ve.vibrational_entropy_calculation(
-                            fmat_arr, "force", temp, highest_level=False
-                        )
-                        S_rot = ve.vibrational_entropy_calculation(
-                            tmat_arr, "torque", temp, highest_level=False
-                        )
+                            val_trans = ve.vibrational_entropy_calculation(
+                                fmat, "force", temp, highest_level=False
+                            )
+                            val_rot = ve.vibrational_entropy_calculation(
+                                tmat, "torque", temp, highest_level=False
+                            )
 
-                        S_trans_total += S_trans
-                        S_rot_total += S_rot
+                        S_trans += val_trans
+                        S_rot += val_rot
 
                         if data_logger is not None:
-                            if res_id < len(mol.residues):
-                                resname = mol.residues[res_id].resname
-                            else:
-                                resname = f"RES{res_id}"
-
-                            count_val = None
-                            if frame_counts is not None:
-                                count_val = frame_counts["ua"].get(
-                                    (group_id, res_id), None
-                                )
-
+                            fc = ua_counts.get(key, shared_data.get("n_frames", 0))
                             data_logger.add_residue_data(
                                 group_id=group_id,
-                                resname=resname,
+                                resname=res.resname,
                                 level="united_atom",
                                 entropy_type="Transvibrational",
-                                frame_count=count_val,
-                                value=S_trans,
+                                frame_count=fc,
+                                value=val_trans,
                             )
                             data_logger.add_residue_data(
                                 group_id=group_id,
-                                resname=resname,
+                                resname=res.resname,
                                 level="united_atom",
                                 entropy_type="Rovibrational",
-                                frame_count=count_val,
-                                value=S_rot,
+                                frame_count=fc,
+                                value=val_rot,
                             )
 
-                    vib_results[group_id][level] = {
-                        "trans": S_trans_total,
-                        "rot": S_rot_total,
-                    }
-
-                    if data_logger is not None:
-                        data_logger.add_results_data(
-                            group_id, level, "Transvibrational", S_trans_total
-                        )
-                        data_logger.add_results_data(
-                            group_id, level, "Rovibrational", S_rot_total
-                        )
-
                 elif level == "residue":
-                    fmat = force_cov["res"][group_id]
-                    tmat = torque_cov["res"][group_id]
+                    gi = gid2i[group_id]
+
+                    fmat = force_cov["res"][gi] if gi < len(force_cov["res"]) else None
+                    tmat = (
+                        torque_cov["res"][gi] if gi < len(torque_cov["res"]) else None
+                    )
 
                     if fmat is None or tmat is None:
                         S_trans, S_rot = 0.0, 0.0
                     else:
-                        fmat_arr = self._mat_ops.filter_zero_rows_columns(
-                            np.array(fmat)
-                        )
-                        tmat_arr = self._mat_ops.filter_zero_rows_columns(
-                            np.array(tmat)
-                        )
-
+                        fmat = self._mat_ops.filter_zero_rows_columns(np.asarray(fmat))
+                        tmat = self._mat_ops.filter_zero_rows_columns(np.asarray(tmat))
                         S_trans = ve.vibrational_entropy_calculation(
-                            fmat_arr, "force", temp, highest_level=False
+                            fmat, "force", temp, highest_level=False
                         )
                         S_rot = ve.vibrational_entropy_calculation(
-                            tmat_arr, "torque", temp, highest_level=False
-                        )
-
-                    vib_results[group_id][level] = {"trans": S_trans, "rot": S_rot}
-
-                    if data_logger is not None:
-                        data_logger.add_results_data(
-                            group_id, level, "Transvibrational", S_trans
-                        )
-                        data_logger.add_results_data(
-                            group_id, level, "Rovibrational", S_rot
+                            tmat, "torque", temp, highest_level=False
                         )
 
                 elif level == "polymer":
-                    fmat = force_cov["poly"][group_id]
-                    tmat = torque_cov["poly"][group_id]
+                    gi = gid2i[group_id]
+
+                    fmat = (
+                        force_cov["poly"][gi] if gi < len(force_cov["poly"]) else None
+                    )
+                    tmat = (
+                        torque_cov["poly"][gi] if gi < len(torque_cov["poly"]) else None
+                    )
 
                     if fmat is None or tmat is None:
                         S_trans, S_rot = 0.0, 0.0
                     else:
-                        fmat_arr = self._mat_ops.filter_zero_rows_columns(
-                            np.array(fmat)
-                        )
-                        tmat_arr = self._mat_ops.filter_zero_rows_columns(
-                            np.array(tmat)
-                        )
-
+                        fmat = self._mat_ops.filter_zero_rows_columns(np.asarray(fmat))
+                        tmat = self._mat_ops.filter_zero_rows_columns(np.asarray(tmat))
                         S_trans = ve.vibrational_entropy_calculation(
-                            fmat_arr, "force", temp, highest_level=True
+                            fmat, "force", temp, highest_level=True
                         )
                         S_rot = ve.vibrational_entropy_calculation(
-                            tmat_arr, "torque", temp, highest_level=True
+                            tmat, "torque", temp, highest_level=True
                         )
-
-                    vib_results[group_id][level] = {"trans": S_trans, "rot": S_rot}
-
-                    if data_logger is not None:
-                        data_logger.add_results_data(
-                            group_id, level, "Transvibrational", S_trans
-                        )
-                        data_logger.add_results_data(
-                            group_id, level, "Rovibrational", S_rot
-                        )
-
                 else:
                     raise ValueError(f"Unknown level: {level}")
+
+                vib_results[group_id][level] = {"trans": S_trans, "rot": S_rot}
+
+                if data_logger is not None:
+                    data_logger.add_results_data(
+                        group_id, level, "Transvibrational", S_trans
+                    )
+                    data_logger.add_results_data(
+                        group_id, level, "Rovibrational", S_rot
+                    )
 
         logger.info("[VibrationalEntropyNode] Done")
         return {"vibrational_entropy": vib_results}

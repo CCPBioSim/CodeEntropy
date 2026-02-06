@@ -1,5 +1,7 @@
 # CodeEntropy/entropy/entropy_graph.py
 
+from __future__ import annotations
+
 import networkx as nx
 
 from CodeEntropy.entropy.nodes.aggregate_entropy_node import AggregateEntropyNode
@@ -10,29 +12,34 @@ from CodeEntropy.entropy.nodes.vibrational_entropy_node import VibrationalEntrop
 
 
 class EntropyGraph:
+    """
+    Entropy DAG.
+
+    Nodes operate on shared_data (produced by EntropyManager + LevelDAG) and
+    write results to DataLogger.
+
+    Graph:
+      vibrational_entropy  ----\
+                                -> aggregate_entropy
+      configurational_entropy --/
+    """
+
     def __init__(self):
         self.graph = nx.DiGraph()
         self.nodes = {}
 
-    def build(self):
-        self.add("vibrational_entropy", VibrationalEntropyNode())
-        self.add(
-            "configurational_entropy",
-            ConfigurationalEntropyNode(),
-            depends_on=["vibrational_entropy"],
-        )
-        self.add(
-            "aggregate_entropy",
-            AggregateEntropyNode(),
-            depends_on=["configurational_entropy"],
-        )
-        return self
+    def build(self) -> "EntropyGraph":
+        self.nodes["vibrational_entropy"] = VibrationalEntropyNode()
+        self.nodes["configurational_entropy"] = ConfigurationalEntropyNode()
+        self.nodes["aggregate_entropy"] = AggregateEntropyNode()
 
-    def add(self, name, obj, depends_on=None):
-        self.nodes[name] = obj
-        self.graph.add_node(name)
-        for dep in depends_on or []:
-            self.graph.add_edge(dep, name)
+        for n in self.nodes:
+            self.graph.add_node(n)
+
+        self.graph.add_edge("vibrational_entropy", "aggregate_entropy")
+        self.graph.add_edge("configurational_entropy", "aggregate_entropy")
+
+        return self
 
     def execute(self, shared_data):
         results = {}

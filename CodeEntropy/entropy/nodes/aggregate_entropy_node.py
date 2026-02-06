@@ -1,22 +1,26 @@
-# CodeEntropy/entropy/nodes/aggregate_entropy_node.py
-
+import logging
 from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 
 class AggregateEntropyNode:
     """
-    Aggregates entropy outputs into shared_data for downstream use.
+    Aggregates entropy results for convenience.
     """
 
     def run(
         self,
         shared_data: Dict[str, Any],
-        vibrational_entropy=None,
-        configurational_entropy=None,
-        **_,
-    ):
-        shared_data["entropy_results"] = {
-            "vibrational": vibrational_entropy,
-            "configurational": configurational_entropy,
+        vibrational_entropy: Dict[str, Any],
+        configurational_entropy: Dict[str, Any],
+        **_kwargs,
+    ) -> Dict[str, Any]:
+        out = {
+            "vibrational_entropy": vibrational_entropy.get("vibrational_entropy", {}),
+            "configurational_entropy": configurational_entropy.get(
+                "configurational_entropy", {}
+            ),
         }
-        return {"entropy_results": shared_data["entropy_results"]}
+        logger.info("[AggregateEntropyNode] Done")
+        return {"entropy": out}
