@@ -1,7 +1,7 @@
 # CodeEntropy/levels/force_torque_manager.py
 
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -14,6 +14,8 @@ class ForceTorqueManager:
     """
     Frame-local force/torque -> covariance builder.
 
+    This class is intentionally "physics/math heavy" (same as the procedural code):
+    DAG nodes orchestrate; this computes the actual per-frame matrices.
     """
 
     def __init__(self):
@@ -21,14 +23,21 @@ class ForceTorqueManager:
 
     def get_weighted_forces(
         self,
+        data_container,
         bead,
         trans_axes: np.ndarray,
         highest_level: bool,
         force_partitioning: float,
     ) -> np.ndarray:
+        """
+        Match procedural semantics:
+          - rotate each atom force into trans_axes frame
+          - sum over bead
+          - apply force_partitioning ONLY at highest_level
+          - mass-weight by sqrt(total_mass)
+        """
         forces_trans = np.zeros((3,), dtype=float)
 
-        # atom.force is in the current Universe timestep already
         for atom in bead.atoms:
             forces_local = np.matmul(trans_axes, atom.force)
             forces_trans += forces_local
@@ -46,13 +55,25 @@ class ForceTorqueManager:
         self,
         bead,
         rot_axes: np.ndarray,
+        center: np.ndarray,
         force_partitioning: float,
+        moment_of_inertia: np.ndarray,
+        axes_manager,
+        dimensions: np.ndarray,
     ) -> np.ndarray:
+        """
+        Match procedural semantics:
+          - compute r vectors with PBC wrapping using axes_manager.get_vector
+          - rotate r and f into rot_axes frame
+          - apply force_partitioning to forces (procedural does this for torques)
+          - torque = sum cross(r,f)
+          - MOI-weight component-wise by sqrt(moi_k)
+        """
         torques = np.zeros((3,), dtype=float)
 
-        com = bead.center_of_mass()
         for atom in bead.atoms:
-            r = atom.position - com
+            # PBC-safe vector from center -> atom.position
+            r = axes_manager.get_vector(center, atom.position, dimensions)
             r = np.matmul(rot_axes, r)
 
             f = np.matmul(rot_axes, atom.force)
@@ -60,20 +81,12 @@ class ForceTorqueManager:
 
             torques += np.cross(r, f)
 
-        # MOI weighting
-        eigvals, _ = np.linalg.eig(bead.moment_of_inertia())
-        moi = sorted(np.real(eigvals), reverse=True)
+        moi = np.array(moment_of_inertia, dtype=float)
 
         weighted = np.zeros((3,), dtype=float)
         for k in range(3):
-            if np.isclose(torques[k], 0.0):
+            if np.isclose(torques[k], 0.0) or np.isclose(moi[k], 0.0):
                 weighted[k] = 0.0
-                continue
-            if np.isclose(moi[k], 0.0):
-                weighted[k] = 0.0
-                logger.warning(
-                    "Zero principal moment of inertia; setting torque component to 0."
-                )
                 continue
             if moi[k] < 0:
                 raise ValueError(
@@ -85,15 +98,25 @@ class ForceTorqueManager:
 
     def compute_frame_covariance(
         self,
+        data_container,
         beads: List,
         trans_axes: np.ndarray,
         highest_level: bool,
         force_partitioning: float,
+        rot_axes_list: Optional[List[np.ndarray]] = None,
+        centers: Optional[List[np.ndarray]] = None,
+        mois: Optional[List[np.ndarray]] = None,
+        axes_manager=None,
+        dimensions: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Compute full block covariance matrices for this frame:
-        - force covariance (3N x 3N)
-        - torque covariance (3N x 3N)
+        Compute per-frame block covariance matrices:
+          - force covariance (3N x 3N)
+          - torque covariance (3N x 3N)
+
+        If rot_axes_list/centers/mois are supplied, they are used (this is how we
+        match the procedural AxesManager paths exactly).
+        Otherwise, caller should provide vanilla axes/mois/centers already or we error.
         """
         n_beads = len(beads)
         if n_beads == 0:
@@ -106,22 +129,33 @@ class ForceTorqueManager:
             if len(bead.atoms) == 0:
                 raise ValueError("AtomGroup is empty (bead has 0 atoms).")
 
-            # rotation axes per bead (principal axes)
-            rot_axes = np.real(bead.principal_axes())
+            rot_axes = rot_axes_list[i] if rot_axes_list is not None else None
+            center = centers[i] if centers is not None else None
+            moi = mois[i] if mois is not None else None
+
+            if rot_axes is None or center is None or moi is None:
+                raise ValueError(
+                    "rot_axes/center/moment_of_inertia must be provided per bead."
+                )
 
             weighted_forces[i] = self.get_weighted_forces(
+                data_container=data_container,
                 bead=bead,
                 trans_axes=trans_axes,
                 highest_level=highest_level,
                 force_partitioning=force_partitioning,
             )
+
             weighted_torques[i] = self.get_weighted_torques(
                 bead=bead,
                 rot_axes=rot_axes,
+                center=center,
                 force_partitioning=force_partitioning,
+                moment_of_inertia=moi,
+                axes_manager=axes_manager,
+                dimensions=dimensions,
             )
 
-        # build block matrices
         f_blocks = [[None] * n_beads for _ in range(n_beads)]
         t_blocks = [[None] * n_beads for _ in range(n_beads)]
 

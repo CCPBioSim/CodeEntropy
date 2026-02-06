@@ -82,10 +82,8 @@ class LevelHierarchy:
             list_of_beads = []
             heavy_atoms = data_container.select_atoms("prop mass > 1.1")
             if len(heavy_atoms) == 0:
-                # molecule without heavy atoms would be a hydrogen molecule
                 list_of_beads.append(data_container.select_atoms("all"))
             else:
-                # Select one heavy atom and all light atoms bonded to it
                 for atom in heavy_atoms:
                     atom_group = (
                         "index "

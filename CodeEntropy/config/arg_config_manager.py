@@ -68,10 +68,12 @@ arg_map = {
         "action": "store_true",
         "help": "Enable verbose output",
     },
-    "thread": {"type": int, "help": "How many multiprocess to use", "default": 1},
     "output_file": {
         "type": str,
-        "help": "Name of the file where the output will be written",
+        "help": (
+            "Name of the output file to write results to (filename only). Defaults "
+            "to output_file.json"
+        ),
         "default": "output_file.json",
     },
     "force_partitioning": {"type": float, "help": "Force partitioning", "default": 0.5},
@@ -84,6 +86,18 @@ arg_map = {
         "type": str,
         "help": "How to group molecules for averaging",
         "default": "molecules",
+    },
+    "combined_forcetorque": {
+        "type": bool,
+        "help": """Use combined force-torque matrix for residue
+            level vibrational entropies""",
+        "default": True,
+    },
+    "customised_axes": {
+        "type": bool,
+        "help": """Use bonded axes to rotate forces for UA
+            level vibrational entropies""",
+        "default": True,
     },
 }
 
