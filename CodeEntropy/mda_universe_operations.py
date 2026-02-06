@@ -59,6 +59,11 @@ class UniverseOperations:
             .run()
             .results["timeseries"][start:end:step]
         )
+        dimensions = (
+            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
+            .run()
+            .results["timeseries"][start:end:step]
+        )
         u2 = mda.Merge(select_atom)
         u2.load_new(
             coordinates, format=MemoryReader, forces=forces, dimensions=dimensions
@@ -98,6 +103,11 @@ class UniverseOperations:
         )
         forces = (
             AnalysisFromFunction(lambda ag: ag.forces.copy(), select_atom)
+            .run()
+            .results["timeseries"]
+        )
+        dimensions = (
+            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
             .run()
             .results["timeseries"]
         )
@@ -163,6 +173,12 @@ class UniverseOperations:
         )
         forces = (
             AnalysisFromFunction(lambda ag: ag.positions.copy(), select_atom_force)
+            .run()
+            .results["timeseries"]
+        )
+
+        dimensions = (
+            AnalysisFromFunction(lambda ag: ag.dimensions.copy(), select_atom)
             .run()
             .results["timeseries"]
         )

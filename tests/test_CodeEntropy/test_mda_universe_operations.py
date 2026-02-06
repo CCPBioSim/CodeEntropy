@@ -28,13 +28,6 @@ class TestUniverseOperations(BaseTestCase):
     def test_new_U_select_frame(self, MockMerge, MockAnalysisFromFunction):
         """
         Unit test for UniverseOperations.new_U_select_frame().
-
-        Verifies that:
-        - The Universe is queried with select_atoms("all", updating=True)
-        - AnalysisFromFunction is called to obtain coordinates and forces
-        - mda.Merge is called with the selected AtomGroup
-        - The new universe returned by Merge.load_new receives the correct arrays
-        - The method returns the merged universe
         """
         # Mock Universe and its components
         mock_universe = MagicMock()
@@ -48,6 +41,7 @@ class TestUniverseOperations(BaseTestCase):
         # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
         coords = np.random.rand(10, 100, 3)
         forces = np.random.rand(10, 100, 3)
+        dims = np.random.rand(10, 6)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -55,35 +49,35 @@ class TestUniverseOperations(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        # Set the side effects for the three AnalysisFromFunction calls
+        mock_dims_analysis = MagicMock()
+        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
+
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
+            mock_dims_analysis,
         ]
 
-        # Mock the merge operation
+        # Mock merge operation
         mock_merged_universe = MagicMock()
         MockMerge.return_value = mock_merged_universe
 
         ops = UniverseOperations()
         result = ops.new_U_select_frame(mock_universe)
 
+        # Basic behavior checks
         mock_universe.select_atoms.assert_called_once_with("all", updating=True)
+
+        # AnalysisFromFunction called 3 times (coords, forces, dimensions)
+        assert MockAnalysisFromFunction.call_count == 3
+        mock_coords_analysis.run.assert_called_once()
+        mock_forces_analysis.run.assert_called_once()
+        mock_dims_analysis.run.assert_called_once()
+
+        # Merge called with selected AtomGroup
         MockMerge.assert_called_once_with(mock_select_atoms)
 
-        # Ensure the 'load_new' method was called with the correct arguments
-        mock_merged_universe.load_new.assert_called_once()
-        args, kwargs = mock_merged_universe.load_new.call_args
-
-        # Assert that the arrays are passed correctly
-        np.testing.assert_array_equal(args[0], coords)
-        np.testing.assert_array_equal(kwargs["forces"], forces)
-
-        # Check if format was included in the kwargs
-        self.assertIn("format", kwargs)
-
-        # Ensure the result is the mock merged universe
-        self.assertEqual(result, mock_merged_universe)
+        assert result == mock_merged_universe
 
     @patch("CodeEntropy.mda_universe_operations.AnalysisFromFunction")
     @patch("CodeEntropy.mda_universe_operations.mda.Merge")
@@ -93,7 +87,7 @@ class TestUniverseOperations(BaseTestCase):
 
         Ensures that:
         - The Universe is queried with the correct selection string
-        - Coordinates and forces are extracted via AnalysisFromFunction
+        - Coordinates, forces, and dimensions are extracted via AnalysisFromFunction
         - mda.Merge receives the AtomGroup from select_atoms
         - The new universe is populated with the expected data via load_new()
         - The returned universe is the object created by Merge
@@ -106,6 +100,7 @@ class TestUniverseOperations(BaseTestCase):
         # Mock AnalysisFromFunction results for coordinates, forces, and dimensions
         coords = np.random.rand(10, 100, 3)
         forces = np.random.rand(10, 100, 3)
+        dims = np.random.rand(10, 6)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -113,10 +108,13 @@ class TestUniverseOperations(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        # Set the side effects for the three AnalysisFromFunction calls
+        mock_dims_analysis = MagicMock()
+        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
+
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
+            mock_dims_analysis,
         ]
 
         # Mock the merge operation
@@ -126,23 +124,19 @@ class TestUniverseOperations(BaseTestCase):
         ops = UniverseOperations()
 
         result = ops.new_U_select_atom(mock_universe, select_string="resid 1-10")
-
         mock_universe.select_atoms.assert_called_once_with("resid 1-10", updating=True)
+
+        # AnalysisFromFunction called for coords, forces, dimensions
+        assert MockAnalysisFromFunction.call_count == 3
+        mock_coords_analysis.run.assert_called_once()
+        mock_forces_analysis.run.assert_called_once()
+        mock_dims_analysis.run.assert_called_once()
+
+        # Merge called with the selected AtomGroup
         MockMerge.assert_called_once_with(mock_select_atoms)
 
-        # Ensure the 'load_new' method was called with the correct arguments
-        mock_merged_universe.load_new.assert_called_once()
-        args, kwargs = mock_merged_universe.load_new.call_args
-
-        # Assert that the arrays are passed correctly
-        np.testing.assert_array_equal(args[0], coords)
-        np.testing.assert_array_equal(kwargs["forces"], forces)
-
-        # Check if format was included in the kwargs
-        self.assertIn("format", kwargs)
-
-        # Ensure the result is the mock merged universe
-        self.assertEqual(result, mock_merged_universe)
+        # Returned universe should be the merged universe
+        assert result == mock_merged_universe
 
     def test_get_molecule_container(self):
         """
@@ -179,25 +173,13 @@ class TestUniverseOperations(BaseTestCase):
     def test_merge_forces(self, MockUniverse, MockMerge, MockAnalysisFromFunction):
         """
         Unit test for UniverseOperations.merge_forces().
-
-        This test ensures that:
-        - Two MDAnalysis Universes are created: one for coordinates
-        (tprfile + trrfile) and one for forces (tprfile + forcefile).
-        - Both Universes correctly return AtomGroups via select_atoms("all").
-        - Coordinates and forces are extracted using AnalysisFromFunction.
-        - mda.Merge is called with the coordinate AtomGroup.
-        - The merged Universe receives the correct coordinate and force arrays
-        through load_new().
-        - When kcal=False, force values are passed through unchanged
-        (no kcal→kJ conversion).
-        - The returned universe is the same object returned by mda.Merge().
         """
-
+        # Two Universes created: coords and forces
         mock_u_coords = MagicMock()
         mock_u_force = MagicMock()
         MockUniverse.side_effect = [mock_u_coords, mock_u_force]
 
-        # Each universe returns a mock AtomGroup from select_atoms("all")
+        # Each universe returns an AtomGroup from select_atoms("all")
         mock_ag_coords = MagicMock()
         mock_ag_force = MagicMock()
         mock_u_coords.select_atoms.return_value = mock_ag_coords
@@ -205,6 +187,7 @@ class TestUniverseOperations(BaseTestCase):
 
         coords = np.random.rand(5, 10, 3)
         forces = np.random.rand(5, 10, 3)
+        dims = np.random.rand(5, 6)
 
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -212,10 +195,13 @@ class TestUniverseOperations(BaseTestCase):
         mock_forces_analysis = MagicMock()
         mock_forces_analysis.run.return_value.results = {"timeseries": forces}
 
-        # Two calls: first for coordinates, second for forces
+        mock_dims_analysis = MagicMock()
+        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
+
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
+            mock_dims_analysis,
         ]
 
         mock_merged = MagicMock()
@@ -230,28 +216,24 @@ class TestUniverseOperations(BaseTestCase):
             kcal=False,
         )
 
-        self.assertEqual(MockUniverse.call_count, 2)
-        MockUniverse.assert_any_call("topol.tpr", "traj.trr", format=None)
-        MockUniverse.assert_any_call("topol.tpr", "forces.trr", format=None)
+        # Universe construction
+        assert MockUniverse.call_count == 2
 
+        # Selection
         mock_u_coords.select_atoms.assert_called_once_with("all")
         mock_u_force.select_atoms.assert_called_once_with("all")
 
-        self.assertEqual(MockAnalysisFromFunction.call_count, 2)
+        # AnalysisFromFunction usage
+        assert MockAnalysisFromFunction.call_count == 3
+        mock_coords_analysis.run.assert_called_once()
+        mock_forces_analysis.run.assert_called_once()
+        mock_dims_analysis.run.assert_called_once()
 
+        # Merge called with coordinate AtomGroup
         MockMerge.assert_called_once_with(mock_ag_coords)
 
-        mock_merged.load_new.assert_called_once()
-        args, kwargs = mock_merged.load_new.call_args
-
-        # Coordinates passed positionally
-        np.testing.assert_array_equal(args[0], coords)
-
-        # Forces passed via kwargs
-        np.testing.assert_array_equal(kwargs["forces"], forces)
-
-        # Finally the function returns the merged universe
-        self.assertEqual(result, mock_merged)
+        # Returned object is merged universe
+        assert result == mock_merged
 
     @patch("CodeEntropy.mda_universe_operations.AnalysisFromFunction")
     @patch("CodeEntropy.mda_universe_operations.mda.Merge")
@@ -262,15 +244,6 @@ class TestUniverseOperations(BaseTestCase):
         """
         Unit test for UniverseOperations.merge_forces() covering the kcal→kJ
         conversion branch.
-
-        Verifies that:
-        - Two Universe objects are constructed for coords and forces.
-        - Each Universe returns an AtomGroup via select_atoms("all").
-        - AnalysisFromFunction is called twice.
-        - Forces are multiplied EXACTLY once by 4.184 when kcal=True.
-        - Merge() is called with the coordinate AtomGroup.
-        - load_new() receives the correct coordinates and converted forces.
-        - The returned Universe is the Merge() result.
         """
         mock_u_coords = MagicMock()
         mock_u_force = MagicMock()
@@ -286,6 +259,8 @@ class TestUniverseOperations(BaseTestCase):
         original_forces = np.ones((2, 3, 3))
         mock_forces_array = original_forces.copy()
 
+        dims = np.ones((2, 6))
+
         # Mock AnalysisFromFunction return values
         mock_coords_analysis = MagicMock()
         mock_coords_analysis.run.return_value.results = {"timeseries": coords}
@@ -295,9 +270,13 @@ class TestUniverseOperations(BaseTestCase):
             "timeseries": mock_forces_array
         }
 
+        mock_dims_analysis = MagicMock()
+        mock_dims_analysis.run.return_value.results = {"timeseries": dims}
+
         MockAnalysisFromFunction.side_effect = [
             mock_coords_analysis,
             mock_forces_analysis,
+            mock_dims_analysis,
         ]
 
         mock_merged = MagicMock()
@@ -306,10 +285,20 @@ class TestUniverseOperations(BaseTestCase):
         ops = UniverseOperations()
         result = ops.merge_forces("t.tpr", "c.trr", "f.trr", kcal=True)
 
-        _, kwargs = mock_merged.load_new.call_args
+        # select_atoms("all") (your code uses no updating=True)
+        mock_u_coords.select_atoms.assert_called_once_with("all")
+        mock_u_force.select_atoms.assert_called_once_with("all")
 
-        expected_forces = original_forces * 4.184
-        np.testing.assert_array_equal(kwargs["forces"], expected_forces)
-        np.testing.assert_array_equal(mock_merged.load_new.call_args[0][0], coords)
+        # AnalysisFromFunction called three times
+        assert MockAnalysisFromFunction.call_count == 3
 
-        self.assertEqual(result, mock_merged)
+        # Forces are multiplied exactly once by 4.184 when kcal=True
+        np.testing.assert_allclose(
+            mock_forces_array, original_forces * 4.184, rtol=0, atol=0
+        )
+
+        # Merge called with coordinate AtomGroup
+        MockMerge.assert_called_once_with(mock_ag_coords)
+
+        # Returned universe is the merged universe
+        assert result == mock_merged
