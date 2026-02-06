@@ -128,10 +128,12 @@ def get_distance(j_position, i_position, dimensions):
     """
 
     x = []
+    total = 0
     for coord in range(3):
-        x[coord] = j_position[coord] - i_position[coord]
+        x.append(j_position[coord] - i_position[coord])
         if x[coord] > 0.5 * dimensions[coord]:
             x[coord] = x[coord] - dimensions[coord]
-    distance = np.sqrt((x**2).sum)
+        total += x[coord] ** 2
+    distance = np.sqrt(total)
 
     return distance

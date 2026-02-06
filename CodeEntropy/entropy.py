@@ -115,7 +115,7 @@ class EntropyManager:
         )
 
         reduced_atom, number_molecules, levels, groups = self._initialize_molecules()
-        logger.debug(f"Universe 3: {reduced_atom}")
+        logger.debug(f"Reduced Universe: {reduced_atom}")
         water_atoms = self._universe.select_atoms("water")
         water_resids = set(res.resid for res in water_atoms.residues)
 
@@ -137,6 +137,7 @@ class EntropyManager:
         else:
             nonwater_groups.update(water_groups)
 
+        # Create the covariance matrices for the vibrational entropy calculation
         force_matrices, torque_matrices, frame_counts = (
             self._level_manager.build_covariance_matrices(
                 self,
@@ -164,7 +165,7 @@ class EntropyManager:
         )
 
         # Count the neighbors for orientational entropy calculation
-        number_neighbors = self._neighbors.get_neighbors(
+        number_neighbors, symmetry_number = self._neighbors.get_neighbors(
             reduced_atom, groups, levels, self._args.use_RAD
         )
 
@@ -178,6 +179,7 @@ class EntropyManager:
             states_ua,
             states_res,
             number_neighbors,
+            symmetry_number,
             frame_counts,
             number_frames,
             ve,
@@ -255,6 +257,7 @@ class EntropyManager:
         states_ua,
         states_res,
         number_neighbors,
+        symmetry_number,
         frame_counts,
         number_frames,
         ve,
@@ -330,7 +333,7 @@ class EntropyManager:
 
                 highest_level = levels[groups[group_id][0]][-1]
                 self._process_orientational_entropy(
-                    oe, group_id, highest_level, number_neighbors
+                    oe, group_id, highest_level, number_neighbors, symmetry_number
                 )
 
                 for level in levels[groups[group_id][0]]:
@@ -643,20 +646,27 @@ class EntropyManager:
             group_id, residue_group, residue_count, atom_count
         )
 
-    def _process_orientational_entropy(self, oe, group_id, level, number_neighbors):
+    def _process_orientational_entropy(
+        self, oe, group_id, level, number_neighbors, symmetry_number
+    ):
         """
-        Computes conformational entropy at the residue level (whole-molecule dihedral
-        analysis).
+        Computes orientational entropy.
+
+        Orientational entropy is calculated at the molecule level.
 
         Args:
             group_id (int): ID of the group
-            number_neighbors (array): number of neighbors
+            number_neighbors (array): average number of neighbors for molecules
+                in each group.
         """
         # Get the relevant number of neighbors
         neighbors = number_neighbors[group_id]
 
+        # Get the relevant symmetry number
+        symmetry = symmetry_number[group_id]
+
         # Calculate the orientational entropy
-        S_orient = oe.orientational_entropy_calculation(neighbors)
+        S_orient = oe.orientational_entropy_calculation(neighbors, symmetry)
         self._data_logger.add_results_data(group_id, level, "Orientational", S_orient)
 
     def _finalize_molecule_results(self):
@@ -1097,36 +1107,43 @@ class OrientationalEntropy(EntropyManager):
             universe_operations,
         )
 
-    def orientational_entropy_calculation(self, number_neighbors):
+    def orientational_entropy_calculation(self, number_neighbors, symmetry):
         """
-        Function to calculate orientational entropies from eq. (10) in J. Higham,
+        Function to calculate orientational entropies
+
+        Based on eq. (10) in J. Higham,
         S.-Y. Chou, F. Gräter and R. H. Henchman, Molecular Physics, 2018, 116,
         3 1965–1976. Number of orientations, Ω, is calculated using eq. (8) in
         J. Higham, S.-Y. Chou, F. Gräter and R. H. Henchman,  Molecular Physics,
         2018, 116, 3 1965–1976.
 
-        σ is assumed to be 1 for the molecules so, max {1, (Nc^3*π)^(1/2)}
-        will always be (Nc^3*π)^(1/2).
+        number orientations = max {1, (N_average^3*π)^(1/2)/symmetry_number}
+        S_orient = R ln(number_orientations)
 
         TODO future release - refine theory to take symmetries, hydrogen
         bonds, etc into account.
 
-        Input
-        -----
-        number_neighbors : the average number of neighbors
+        Args:
+            number_neighbors (array): number of neighbors at each frame
 
-        Returns
-        -------
-        S_orientational : float - orientational entropy
+        Returns:
+            S_orientational (float): orientational entropy
         """
-        S_orientational = 0
 
-        omega = np.sqrt((number_neighbors**3) * math.pi)
+        # symmetry number 0 = spherically symmetric = no orientational entropy
+        if symmetry == 0:
+            omega = 0
+        else:
+            intermediate = np.sqrt((number_neighbors**3) * math.pi) / symmetry
+            if intermediate < 1:
+                intermediate = 1
+            omega = np.log(intermediate)
+
         logger.debug(f"Omega: {omega}")
 
         # orientational entropy
         # multiply by gas constant to get the units J/mol/K
-        S_orientational = math.log(omega) * self._GAS_CONST
+        S_orientational = omega * self._GAS_CONST
         logger.debug(f"S_orientational: {S_orientational}")
 
         return S_orientational
