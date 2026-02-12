@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import Any, Dict, Optional
 
@@ -8,6 +10,7 @@ from CodeEntropy.levels.nodes.build_beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.compute_dihedrals import ComputeConformationalStatesNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
+from CodeEntropy.levels.nodes.frame_axes import FrameAxesNode
 from CodeEntropy.levels.nodes.init_covariance_accumulators import (
     InitCovarianceAccumulatorsNode,
 )
@@ -16,19 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 class LevelDAG:
-    """
-    STATIC DAG:
-      detect_molecules -> detect_levels -> build_beads
-                       -> init_covariance_accumulators
-                       -> compute_conformational_states
-
-    FRAME MAP DAG (parallelisable later):
-      frame_axes -> frame_covariance
-
-    REDUCE:
-      incremental mean reduction into shared_data accumulators
-    """
-
     def __init__(self, universe_operations=None):
         self._universe_operations = universe_operations
 
@@ -41,6 +31,11 @@ class LevelDAG:
         self._add_static("detect_molecules", DetectMoleculesNode())
         self._add_static("detect_levels", DetectLevelsNode(), deps=["detect_molecules"])
         self._add_static("build_beads", BuildBeadsNode(), deps=["detect_levels"])
+
+        self._add_static(
+            "frame_axes_manager", FrameAxesNode(), deps=["detect_molecules"]
+        )
+
         self._add_static(
             "init_covariance_accumulators",
             InitCovarianceAccumulatorsNode(),
@@ -78,7 +73,6 @@ class LevelDAG:
         f_frame = frame_out["force"]
         t_frame = frame_out["torque"]
 
-        # UA keyed by (group_id, res_id)
         for key, F in f_frame["ua"].items():
             counts["ua"][key] = counts["ua"].get(key, 0) + 1
             n = counts["ua"][key]
@@ -88,7 +82,6 @@ class LevelDAG:
             n = counts["ua"][key]
             t_cov["ua"][key] = self._inc_mean(t_cov["ua"].get(key), T, n)
 
-        # residue / polymer indexed by contiguous group index
         for gid, F in f_frame["res"].items():
             gi = gid2i[gid]
             counts["res"][gi] += 1
@@ -111,13 +104,33 @@ class LevelDAG:
             n = counts["poly"][gi]
             t_cov["poly"][gi] = self._inc_mean(t_cov["poly"][gi], T, n)
 
+        if "forcetorque" in frame_out and "forcetorque_covariances" in shared_data:
+            ft_cov = shared_data["forcetorque_covariances"]
+            ft_counts = shared_data["forcetorque_frame_counts"]
+            ft_frame = frame_out["forcetorque"]
+
+            for key, M in ft_frame["ua"].items():
+                ft_counts["ua"][key] = ft_counts["ua"].get(key, 0) + 1
+                n = ft_counts["ua"][key]
+                ft_cov["ua"][key] = self._inc_mean(ft_cov["ua"].get(key), M, n)
+
+            for gid, M in ft_frame["res"].items():
+                gi = gid2i[gid]
+                ft_counts["res"][gi] += 1
+                n = ft_counts["res"][gi]
+                ft_cov["res"][gi] = self._inc_mean(ft_cov["res"][gi], M, n)
+
+            for gid, M in ft_frame["poly"].items():
+                gi = gid2i[gid]
+                ft_counts["poly"][gi] += 1
+                n = ft_counts["poly"][gi]
+                ft_cov["poly"][gi] = self._inc_mean(ft_cov["poly"][gi], M, n)
+
     def execute(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
-        # --- STATIC DAG ---
         for node_name in nx.topological_sort(self.static_graph):
             logger.info(f"[LevelDAG] static node: {node_name}")
             self.static_nodes[node_name].run(shared_data)
 
-        # --- FRAME MAP + REDUCE ---
         u = shared_data["reduced_universe"]
         start, end, step = shared_data["start"], shared_data["end"], shared_data["step"]
 

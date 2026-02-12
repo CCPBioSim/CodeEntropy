@@ -1,6 +1,5 @@
-# CodeEntropy/entropy/entropy_graph.py
-
-from __future__ import annotations
+import logging
+from typing import Any, Dict, Optional
 
 import networkx as nx
 
@@ -10,41 +9,42 @@ from CodeEntropy.entropy.nodes.configurational_entropy_node import (
 )
 from CodeEntropy.entropy.nodes.vibrational_entropy_node import VibrationalEntropyNode
 
+logger = logging.getLogger(__name__)
+
 
 class EntropyGraph:
     """
-    Entropy DAG.
-
-    Nodes operate on shared_data (produced by EntropyManager + LevelDAG) and
-    write results to DataLogger.
-
-    Graph:
-      vibrational_entropy  ----\
-                                -> aggregate_entropy
-      configurational_entropy --/
+    Entropy DAG (simple, stable):
+        vibrational_entropy
+        configurational_entropy
+        aggregate_entropy
     """
 
     def __init__(self):
         self.graph = nx.DiGraph()
-        self.nodes = {}
+        self.nodes: Dict[str, Any] = {}
 
     def build(self) -> "EntropyGraph":
-        self.nodes["vibrational_entropy"] = VibrationalEntropyNode()
-        self.nodes["configurational_entropy"] = ConfigurationalEntropyNode()
-        self.nodes["aggregate_entropy"] = AggregateEntropyNode()
-
-        for n in self.nodes:
-            self.graph.add_node(n)
-
-        self.graph.add_edge("vibrational_entropy", "aggregate_entropy")
-        self.graph.add_edge("configurational_entropy", "aggregate_entropy")
-
+        self._add("vibrational_entropy", VibrationalEntropyNode())
+        self._add("configurational_entropy", ConfigurationalEntropyNode())
+        self._add(
+            "aggregate_entropy",
+            AggregateEntropyNode(),
+            deps=["vibrational_entropy", "configurational_entropy"],
+        )
         return self
 
-    def execute(self, shared_data):
-        results = {}
-        for node in nx.topological_sort(self.graph):
-            preds = list(self.graph.predecessors(node))
-            kwargs = {p: results[p] for p in preds}
-            results[node] = self.nodes[node].run(shared_data, **kwargs)
+    def _add(self, name: str, node: Any, deps: Optional[list[str]] = None) -> None:
+        self.nodes[name] = node
+        self.graph.add_node(name)
+        for d in deps or []:
+            self.graph.add_edge(d, name)
+
+    def execute(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
+        results: Dict[str, Any] = {}
+        for node_name in nx.topological_sort(self.graph):
+            logger.info(f"[EntropyGraph] node: {node_name}")
+            out = self.nodes[node_name].run(shared_data)
+            if isinstance(out, dict):
+                results.update(out)
         return results
