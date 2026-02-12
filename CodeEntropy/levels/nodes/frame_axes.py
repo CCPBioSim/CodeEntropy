@@ -46,17 +46,7 @@ class FrameAxesNode:
         fragments = u.atoms.fragments
 
         for mol_id, mol in enumerate(fragments):
-            if use_custom:
-                if hasattr(self._axes_manager, "get_translation_axes"):
-                    A = np.asarray(self._axes_manager.get_translation_axes(mol))
-                elif hasattr(self._axes_manager, "translation_axes"):
-                    A = np.asarray(self._axes_manager.translation_axes(mol))
-                else:
-                    A = np.asarray(mol.principal_axes())
-            else:
-                A = np.asarray(mol.principal_axes())
-
-            trans_axes[mol_id] = A
+            _, trans_axes[mol_id] = self._axes_manager.get_vanilla_axes(mol)
 
         frame_ctx["frame_axes"] = {"trans": trans_axes, "custom": use_custom}
         return frame_ctx["frame_axes"]
