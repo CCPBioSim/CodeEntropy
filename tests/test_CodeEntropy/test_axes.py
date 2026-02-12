@@ -118,7 +118,8 @@ class TestAxesManager(BaseTestCase):
         np.testing.assert_allclose(center_out, center_expected)
         np.testing.assert_allclose(moi_out, np.array([3.0, 2.0, 1.0]))
 
-    def test_get_UA_axes_returns_expected_outputs(self):
+    @patch("CodeEntropy.axes.make_whole", autospec=True)
+    def test_get_UA_axes_returns_expected_outputs(self, mock_make_whole):
         """
         Tests that: `get_UA_axes` returns expected UA axes.
         """
@@ -129,20 +130,17 @@ class TestAxesManager(BaseTestCase):
         dc.dimensions = np.array([1.0, 2.0, 3.0, 90.0, 90.0, 90.0])
         dc.atoms.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
 
-        uas = MagicMock()
-        uas.positions = np.zeros((2, 3))
-
         a0 = MagicMock()
         a0.index = 7
         a1 = MagicMock()
         a1.index = 9
-        heavy_atoms = [a0, a1]
 
-        heavy_ag = MagicMock()
-        heavy_ag.positions = np.array([[9.9, 8.8, 7.7]])
-        heavy_ag.__getitem__.return_value = MagicMock()
+        heavy_atoms = MagicMock()
+        heavy_atoms.__len__.return_value = 2
+        heavy_atoms.__iter__.return_value = iter([a0, a1])
+        heavy_atoms.positions = np.array([[9.9, 8.8, 7.7], [1.1, 2.2, 3.3]])
 
-        dc.select_atoms.side_effect = [uas, heavy_atoms, heavy_ag]
+        dc.select_atoms.side_effect = [heavy_atoms, heavy_atoms]
 
         axes.get_UA_masses = MagicMock(return_value=[1.0, 1.0])
         axes.get_moment_of_inertia_tensor = MagicMock(return_value=np.eye(3))
@@ -160,13 +158,12 @@ class TestAxesManager(BaseTestCase):
 
         np.testing.assert_array_equal(trans_axes, trans_axes_expected)
         np.testing.assert_array_equal(rot_axes, rot_axes_expected)
-        np.testing.assert_array_equal(center, heavy_ag.positions[0])
+        np.testing.assert_array_equal(center, heavy_atoms.positions[0])
         np.testing.assert_array_equal(moi, moi_expected)
 
         calls = [c.args[0] for c in dc.select_atoms.call_args_list]
-        assert calls[0] == "mass 2 to 999"
-        assert calls[1] == "prop mass > 1.1"
-        assert calls[2] == "index 9"
+        assert calls[0] == "prop mass > 1.1"
+        assert calls[1] == "index 9"
 
     def test_get_bonded_axes_returns_none_for_light_atom(self):
         """
