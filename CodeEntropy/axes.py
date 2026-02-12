@@ -92,21 +92,25 @@ class AxesManager:
           moment_of_inertia: moment of inertia (3,)
         """
 
-        index = int(index)
+        index = int(index)  # bead index
 
         # use the same customPI trans axes as the residue level
-        UAs = data_container.select_atoms("mass 2 to 999")
-        UA_masses = self.get_UA_masses(data_container.atoms)
-        center = data_container.atoms.center_of_mass(unwrap=True)
-        moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-            center, UAs.positions, UA_masses, data_container.dimensions[:3]
-        )
-        trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
-            moment_of_inertia_tensor
-        )
+        heavy_atoms = data_container.select_atoms("prop mass > 1.1")
+        if len(heavy_atoms) > 1:
+            UA_masses = self.get_UA_masses(data_container.atoms)
+            center = data_container.atoms.center_of_mass(unwrap=True)
+            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
+                center, heavy_atoms.positions, UA_masses, data_container.dimensions[:3]
+            )
+            trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
+                moment_of_inertia_tensor
+            )
+        else:
+            # use standard PA for UA not bonded to anything else
+            make_whole(data_container.atoms)
+            trans_axes = data_container.atoms.principal_axes()
 
         # look for heavy atoms in residue of interest
-        heavy_atoms = data_container.select_atoms("prop mass > 1.1")
         heavy_atom_indices = []
         for atom in heavy_atoms:
             heavy_atom_indices.append(atom.index)
