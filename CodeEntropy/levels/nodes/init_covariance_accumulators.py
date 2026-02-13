@@ -11,13 +11,15 @@ def _empty_stats():
 
 class InitCovarianceAccumulatorsNode:
     """
-    Allocate Welford online covariance accumulators (procedural semantics).
+    Allocate accumulators for per-frame reductions.
 
-    After LevelDAG finishes iterating frames, it will "finalize" stats into:
+    LevelDAG iterates frames and accumulates *means* of per-frame second-moment
+    matrices into:
       shared_data["force_covariances"]
       shared_data["torque_covariances"]
+      shared_data["force_torque_stats"]   (mean of block-diag(F,T) per group)
 
-    Plus frame counts, and group_id_to_index mapping.
+    It also stores counts and group_id_to_index mapping.
     """
 
     def run(self, shared_data):
@@ -41,8 +43,19 @@ class InitCovarianceAccumulatorsNode:
             "res": [_empty_stats() for _ in range(n_groups)],
             "poly": [_empty_stats() for _ in range(n_groups)],
         }
+        force_torque_stats = {
+            "ua": {},
+            "res": [None] * n_groups,
+            "poly": [None] * n_groups,
+        }
 
         frame_counts = {
+            "ua": {},
+            "res": np.zeros(n_groups, dtype=int),
+            "poly": np.zeros(n_groups, dtype=int),
+        }
+
+        force_torque_counts = {
             "ua": {},
             "res": np.zeros(n_groups, dtype=int),
             "poly": np.zeros(n_groups, dtype=int),
@@ -58,6 +71,9 @@ class InitCovarianceAccumulatorsNode:
         shared_data["force_stats"] = force_stats
         shared_data["torque_stats"] = torque_stats
 
+        shared_data["force_torque_stats"] = force_torque_stats
+        shared_data["force_torque_counts"] = force_torque_counts
+
         logger.warning(f"[InitCovAcc] group_ids={group_ids} gid2i={gid2i}")
 
         return {
@@ -68,4 +84,6 @@ class InitCovarianceAccumulatorsNode:
             "frame_counts": frame_counts,
             "force_stats": force_stats,
             "torque_stats": torque_stats,
+            "force_torque_stats": force_torque_stats,
+            "force_torque_counts": force_torque_counts,
         }

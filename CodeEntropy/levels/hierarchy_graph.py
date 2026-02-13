@@ -60,7 +60,9 @@ class LevelDAG:
 
     @staticmethod
     def _inc_mean(old, new, n: int):
-        return new.copy() if old is None else old + (new - old) / float(n)
+        if old is None:
+            return new.copy() if hasattr(new, "copy") else new
+        return old + (new - old) / float(n)
 
     def _reduce_one_frame(
         self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
@@ -79,7 +81,10 @@ class LevelDAG:
             f_cov["ua"][key] = self._inc_mean(f_cov["ua"].get(key), F, n)
 
         for key, T in t_frame["ua"].items():
-            n = counts["ua"][key]
+            n = counts["ua"].get(key)
+            if n is None:
+                counts["ua"][key] = counts["ua"].get(key, 0) + 1
+                n = counts["ua"][key]
             t_cov["ua"][key] = self._inc_mean(t_cov["ua"].get(key), T, n)
 
         for gid, F in f_frame["res"].items():
@@ -91,6 +96,9 @@ class LevelDAG:
         for gid, T in t_frame["res"].items():
             gi = gid2i[gid]
             n = counts["res"][gi]
+            if n == 0:
+                counts["res"][gi] += 1
+                n = counts["res"][gi]
             t_cov["res"][gi] = self._inc_mean(t_cov["res"][gi], T, n)
 
         for gid, F in f_frame["poly"].items():
@@ -102,11 +110,14 @@ class LevelDAG:
         for gid, T in t_frame["poly"].items():
             gi = gid2i[gid]
             n = counts["poly"][gi]
+            if n == 0:
+                counts["poly"][gi] += 1
+                n = counts["poly"][gi]
             t_cov["poly"][gi] = self._inc_mean(t_cov["poly"][gi], T, n)
 
-        if "forcetorque" in frame_out and "forcetorque_covariances" in shared_data:
-            ft_cov = shared_data["forcetorque_covariances"]
-            ft_counts = shared_data["forcetorque_frame_counts"]
+        if "forcetorque" in frame_out and "force_torque_stats" in shared_data:
+            ft_cov = shared_data["force_torque_stats"]
+            ft_counts = shared_data["force_torque_counts"]
             ft_frame = frame_out["forcetorque"]
 
             for key, M in ft_frame["ua"].items():
