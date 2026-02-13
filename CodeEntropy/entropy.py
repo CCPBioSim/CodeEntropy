@@ -167,9 +167,10 @@ class EntropyManager:
         )
 
         # Count the neighbors for orientational entropy calculation
-        number_neighbors, symmetry_number = self._neighbors.get_neighbors(
+        number_neighbors = self._neighbors.get_neighbors(
             reduced_atom, groups, levels, self._args.use_RAD
         )
+        symmetry_number, linear = self._neighbors.get_symmetry(reduced_atom, groups)
 
         # Complete the entropy calculations
         self._compute_entropies(
@@ -183,6 +184,7 @@ class EntropyManager:
             states_res,
             number_neighbors,
             symmetry_number,
+            linear,
             frame_counts,
             number_frames,
             ve,
@@ -262,6 +264,7 @@ class EntropyManager:
         states_res,
         number_neighbors,
         symmetry_number,
+        linear,
         frame_counts,
         number_frames,
         ve,
@@ -337,7 +340,12 @@ class EntropyManager:
 
                 highest_level = levels[groups[group_id][0]][-1]
                 self._process_orientational_entropy(
-                    oe, group_id, highest_level, number_neighbors, symmetry_number
+                    oe,
+                    group_id,
+                    highest_level,
+                    number_neighbors,
+                    symmetry_number,
+                    linear,
                 )
 
                 for level in levels[groups[group_id][0]]:
@@ -681,7 +689,7 @@ class EntropyManager:
         )
 
     def _process_orientational_entropy(
-        self, oe, group_id, level, number_neighbors, symmetry_number
+        self, oe, group_id, level, number_neighbors, symmetry_number, linear
     ):
         """
         Computes orientational entropy.
@@ -698,9 +706,10 @@ class EntropyManager:
 
         # Get the relevant symmetry number
         symmetry = symmetry_number[group_id]
+        line = linear[group_id]
 
         # Calculate the orientational entropy
-        S_orient = oe.orientational_entropy_calculation(neighbors, symmetry)
+        S_orient = oe.orientational_entropy_calculation(neighbors, symmetry, line)
         self._data_logger.add_results_data(group_id, level, "Orientational", S_orient)
 
     def _finalize_molecule_results(self):
@@ -1147,7 +1156,7 @@ class OrientationalEntropy(EntropyManager):
             universe_operations,
         )
 
-    def orientational_entropy_calculation(self, number_neighbors, symmetry):
+    def orientational_entropy_calculation(self, number_neighbors, symmetry, linear):
         """
         Function to calculate orientational entropies
 
@@ -1160,11 +1169,16 @@ class OrientationalEntropy(EntropyManager):
         number orientations = max {1, (N_average^3*π)^(1/2)/symmetry_number}
         S_orient = R ln(number_orientations)
 
+        if molecule is linear (not taking hydrogens into account)
+        number orientations = max {1, N_average/symmetry_number}
+
         TODO future release - refine theory to take symmetries, hydrogen
         bonds, etc into account.
 
         Args:
-            number_neighbors (array): number of neighbors at each frame
+            number_neighbors (float): average number of neighbors
+            symmetry (int): symmetry number of molecule
+            linear(bool): True if molecule is linear
 
         Returns:
             S_orientational (float): orientational entropy
@@ -1174,7 +1188,10 @@ class OrientationalEntropy(EntropyManager):
         if symmetry == 0:
             omega = 0
         else:
-            intermediate = np.sqrt((number_neighbors**3) * math.pi) / symmetry
+            if linear:
+                intermediate = number_neighbors / symmetry
+            else:
+                intermediate = np.sqrt((number_neighbors**3) * math.pi) / symmetry
             if intermediate < 1:
                 intermediate = 1
             omega = np.log(intermediate)

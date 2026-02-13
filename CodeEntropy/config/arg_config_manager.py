@@ -102,6 +102,7 @@ arg_map = {
         "type": bool,
         "help": """Use bonded axes to rotate forces for UA
             level vibrational entropies""",
+        "default": True,
     },
 }
 

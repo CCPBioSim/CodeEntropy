@@ -56,7 +56,6 @@ class Neighbors:
 
         number_neighbors = {}
         average_number_neighbors = {}
-        symmetry_number = {}
         #        biases = {}
 
         number_frames = len(universe.trajectory)
@@ -65,12 +64,6 @@ class Neighbors:
         for group_id in groups.keys():
             molecules = groups[group_id]
             highest_level = levels[molecules[0]][-1]
-
-            # Determine symmetry number
-            # All molecules in the group have the same symmetry number
-            symmetry_number[group_id] = self._get_symmetry_number(
-                universe, molecules[0]
-            )
 
             for mol_id in molecules:
                 fragment = universe.atoms.fragments[mol_id]
@@ -137,9 +130,9 @@ class Neighbors:
         #                    number_frames
         #            )
 
-        return average_number_neighbors, symmetry_number
+        return average_number_neighbors
 
-    def _get_symmetry_number(self, universe, mol_id):
+    def get_symmetry(self, universe, groups):
         """
         Calculate symmetry number for the molecule.
 
@@ -150,6 +143,32 @@ class Neighbors:
         Returns:
             symmetry_number
         """
+        symmetry_number = {}
+        linear = {}
+
+        for group_id in groups.keys():
+            molecules = groups[group_id]
+
+            # Determine symmetry number
+            # All molecules in the group have the same symmetry number
+            symmetry_number[group_id], linear[group_id] = self._get_symmetry_number(
+                universe, molecules[0]
+            )
+
+        return symmetry_number, linear
+
+    def _get_symmetry_number(self, universe, mol_id):
+        """
+        Calculate symmetry number for the molecule.
+
+        Args:
+            universe: MDAnalysis object
+            mol_id: index of the molecule of interest
+
+        Returns:
+            symmetry_number (int): symmetry number of molecule
+            linear (bool): True if molecule linear
+        """
 
         # MDAnalysis convert_to(RDKIT) needs elements
         if not hasattr(universe.atoms, "elements"):
@@ -157,7 +176,7 @@ class Neighbors:
 
         # pick molecule and convert to rdkit format
         molecule = universe.atoms.fragments[mol_id]
-        rdkit_mol = molecule.convert_to("RDKIT")
+        rdkit_mol = molecule.convert_to("RDKIT", force=True)
         number_heavy = rdkit_mol.GetNumHeavyAtoms()
         number_hydrogen = rdkit_mol.GetNumAtoms() - number_heavy
 
@@ -166,19 +185,44 @@ class Neighbors:
             # if multiple heavy atoms remove hydrogens to prevent finding
             # too many permutations of atoms
             rdkit_heavy = Chem.RemoveHs(rdkit_mol)
-            matches = rdkit_mol.GetSubstructMatches(rdkit_heavy, uniquify=False)
+            matches = rdkit_mol.GetSubstructMatches(
+                rdkit_heavy, uniquify=False, useChirality=True
+            )
             symmetry_number = len(matches)
         elif number_hydrogen > 0:
             # if only one heavy atom use the hydrogens
-            matches = rdkit_mol.GetSubstructMatches(rdkit_mol, uniquify=False)
+            matches = rdkit_mol.GetSubstructMatches(
+                rdkit_mol, uniquify=False, useChirality=True
+            )
             symmetry_number = len(matches)
         else:
             # one heavy atom and no hydrogens = spherical symmetry
             symmetry_number = 0
 
-        logger.debug(f"molecule index: {mol_id}, symmetry number: {symmetry_number}")
+        # Check for linearity
+        # Don't consider hydrogens
+        # Think about how molecules of one united atom should be considered
+        linear = False
+        if number_heavy == 1:
+            linear = False
+        elif number_heavy == 2:
+            linear = True
+        else:
+            sp_count = 0
+            for x in rdkit_heavy.GetAtoms():
+                if x.GetHybridization() == Chem.HybridizationType.SP:
+                    sp_count += 1
+            if sp_count >= (number_heavy - 2):
+                linear = True
 
-        return symmetry_number
+        # TODO temp print
+        print(f"symmetry {symmetry_number} linear {linear}")
+
+        logger.debug(
+            f"molecule: {mol_id}, symmetry: {symmetry_number} linear: {linear}"
+        )
+
+        return symmetry_number, linear
 
     def _get_bias(self, universe, molecules, average_number_neighbors, number_frames):
         """
