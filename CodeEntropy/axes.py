@@ -28,7 +28,7 @@ class AxesManager:
         self._rot_axes = None
         self._number_of_beads = None
 
-    def get_residue_axes(self, data_container, index):
+    def get_residue_axes(self, data_container, index, residue=None):
         """
         The translational and rotational axes at the residue level.
 
@@ -45,12 +45,17 @@ class AxesManager:
         # TODO refine selection so that it will work for branched polymers
         index_prev = index - 1
         index_next = index + 1
+
+        if residue is None:
+            residue = data_container.select_atoms(f"resindex {index}")
+        if len(residue) == 0:
+            raise ValueError(f"Empty residue selection for resindex={index}")
+
+        center = residue.atoms.center_of_mass(unwrap=True)
         atom_set = data_container.select_atoms(
             f"(resindex {index_prev} or resindex {index_next}) "
             f"and bonded resid {index}"
         )
-        residue = data_container.select_atoms(f"resindex {index}")
-        center = residue.atoms.center_of_mass(unwrap=True)
 
         if len(atom_set) == 0:
             # No bonds to other residues

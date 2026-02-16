@@ -140,9 +140,10 @@ class FrameCovarianceNode:
 
                             for local_res_i, bead in enumerate(bead_groups):
                                 res = mol.residues[local_res_i]
+
                                 trans_axes, rot_axes, center, moi = (
                                     axes_manager.get_residue_axes(
-                                        mol, int(res.resindex)
+                                        mol, local_res_i, residue=res.atoms
                                     )
                                 )
 
