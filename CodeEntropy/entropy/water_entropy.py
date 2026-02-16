@@ -8,8 +8,9 @@ logger = logging.getLogger(__name__)
 
 class WaterEntropy:
 
-    def __init__(self):
-        """"""
+    def __init__(self, args):
+        """ """
+        self._args = args
 
     def _calculate_water_entropy(self, universe, start, end, step, group_id=None):
         """

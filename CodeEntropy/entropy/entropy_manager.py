@@ -6,6 +6,7 @@ import pandas as pd
 
 from CodeEntropy.config.logging_config import LoggingConfig
 from CodeEntropy.entropy.entropy_graph import EntropyGraph
+from CodeEntropy.entropy.water_entropy import WaterEntropy
 from CodeEntropy.levels.hierarchy_graph import LevelDAG
 from CodeEntropy.levels.level_hierarchy import LevelHierarchy
 
@@ -127,9 +128,11 @@ class EntropyManager:
         if not water_groups or not self._args.water_entropy:
             return
 
+        water_entropy = WaterEntropy(self._args)
+
         for group_id, atom_indices in water_groups.items():
 
-            self._calculate_water_entropy(
+            water_entropy._calculate_water_entropy(
                 universe=self._universe,
                 start=start,
                 end=end,
