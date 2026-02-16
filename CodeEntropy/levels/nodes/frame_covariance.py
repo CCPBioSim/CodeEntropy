@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -13,13 +13,36 @@ class FrameCovarianceNode:
         self._ft = ForceTorqueManager()
 
     @staticmethod
-    def _block_diag(F: np.ndarray, T: np.ndarray) -> np.ndarray:
-        nF = F.shape[0]
-        nT = T.shape[0]
-        M = np.zeros((nF + nT, nF + nT), dtype=float)
-        M[:nF, :nF] = F
-        M[nF:, nF:] = T
-        return M
+    def _full_ft_second_moment(
+        force_vecs: List[np.ndarray], torque_vecs: List[np.ndarray]
+    ) -> np.ndarray:
+        """
+        Procedural-equivalent FT construction:
+
+        Build a FULL 6N x 6N second-moment matrix from concatenated bead vectors:
+            [F1, F2, ... FN, T1, T2, ... TN]
+        where each Fi, Ti is a 3-vector (already projected/weighted).
+
+        This includes the F<->T cross blocks (off-diagonal blocks).
+        """
+        if len(force_vecs) != len(torque_vecs):
+            raise ValueError(
+                "force_vecs and torque_vecs must have the same number of beads"
+            )
+
+        if len(force_vecs) == 0:
+            raise ValueError("force_vecs/torque_vecs are empty")
+
+        f = [np.asarray(v, dtype=float).reshape(-1) for v in force_vecs]
+        t = [np.asarray(v, dtype=float).reshape(-1) for v in torque_vecs]
+
+        if any(v.shape[0] != 3 for v in f + t):
+            raise ValueError(
+                "Each force/torque vector must be length 3 after weighting"
+            )
+
+        flat = np.concatenate(f + t, axis=0)
+        return np.outer(flat, flat)
 
     def run(self, ctx: Dict[str, Any]) -> Dict[str, Any]:
         if "shared" not in ctx:
@@ -69,7 +92,6 @@ class FrameCovarianceNode:
                         torque_vecs = []
 
                         for ua_i, bead in enumerate(bead_groups):
-
                             trans_axes, rot_axes, center, moi = (
                                 axes_manager.get_UA_axes(res.atoms, ua_i)
                             )
@@ -102,7 +124,9 @@ class FrameCovarianceNode:
                         out_force["ua"][key] = F
                         out_torque["ua"][key] = T
                         if combined and out_ft is not None:
-                            out_ft["ua"][key] = self._block_diag(F, T)
+                            out_ft["ua"][key] = self._full_ft_second_moment(
+                                force_vecs, torque_vecs
+                            )
 
                 if "residue" in level_list:
                     bead_key = (mol_id, "residue")
@@ -148,8 +172,11 @@ class FrameCovarianceNode:
 
                             out_force["res"][group_id] = F
                             out_torque["res"][group_id] = T
+
                             if combined and out_ft is not None:
-                                out_ft["res"][group_id] = self._block_diag(F, T)
+                                out_ft["res"][group_id] = self._full_ft_second_moment(
+                                    force_vecs, torque_vecs
+                                )
 
                 if "polymer" in level_list:
                     bead_key = (mol_id, "polymer")
@@ -195,8 +222,16 @@ class FrameCovarianceNode:
 
                             out_force["poly"][group_id] = F
                             out_torque["poly"][group_id] = T
+
                             if combined and out_ft is not None:
-                                out_ft["poly"][group_id] = self._block_diag(F, T)
+                                out_ft["poly"][group_id] = self._full_ft_second_moment(
+                                    force_vecs, torque_vecs
+                                )
+                                # M = out_ft["poly"][group_id]
+                                # half = M.shape[0] // 2
+                                # cross_norm = np.linalg.norm(M[:half, half:])
+                                # logger.warning(f"[FT DEBUG] group={group_id} "
+                                # f"cross_norm={cross_norm:.6e}")
 
         frame_cov = {"force": out_force, "torque": out_torque}
         if combined and out_ft is not None:

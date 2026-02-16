@@ -13,13 +13,17 @@ class InitCovarianceAccumulatorsNode:
     """
     Allocate accumulators for per-frame reductions.
 
-    LevelDAG iterates frames and accumulates *means* of per-frame second-moment
-    matrices into:
+    Canonical mean accumulators:
       shared_data["force_covariances"]
       shared_data["torque_covariances"]
-      shared_data["force_torque_stats"]   (mean of block-diag(F,T) per group)
 
-    It also stores counts and group_id_to_index mapping.
+    Canonical combined (full 6N x 6N) mean accumulator:
+      shared_data["forcetorque_covariances"]
+      shared_data["forcetorque_counts"]
+
+    Backwards-compatible aliases (point to the same objects):
+      shared_data["force_torque_stats"]   -> shared_data["forcetorque_covariances"]
+      shared_data["force_torque_counts"]  -> shared_data["forcetorque_counts"]
     """
 
     def run(self, shared_data):
@@ -74,6 +78,9 @@ class InitCovarianceAccumulatorsNode:
         shared_data["force_torque_stats"] = force_torque_stats
         shared_data["force_torque_counts"] = force_torque_counts
 
+        shared_data["forcetorque_covariances"] = force_torque_stats
+        shared_data["forcetorque_counts"] = force_torque_counts
+
         logger.warning(f"[InitCovAcc] group_ids={group_ids} gid2i={gid2i}")
 
         return {
@@ -86,4 +93,6 @@ class InitCovarianceAccumulatorsNode:
             "torque_stats": torque_stats,
             "force_torque_stats": force_torque_stats,
             "force_torque_counts": force_torque_counts,
+            "forcetorque_covariances": force_torque_stats,
+            "forcetorque_counts": force_torque_counts,
         }

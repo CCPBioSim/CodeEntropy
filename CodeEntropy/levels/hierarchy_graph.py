@@ -120,18 +120,28 @@ class LevelDAG:
             ft_counts = shared_data["force_torque_counts"]
             ft_frame = frame_out["forcetorque"]
 
-            for key, M in ft_frame["ua"].items():
+            if ft_cov is None:
+                ft_cov = shared_data.get("force_torque_stats")
+            if ft_counts is None:
+                ft_counts = shared_data.get("force_torque_counts")
+
+            if ft_cov is None or ft_counts is None:
+                return
+
+            ft_frame = frame_out["forcetorque"]
+
+            for key, M in ft_frame.get("ua", {}).items():
                 ft_counts["ua"][key] = ft_counts["ua"].get(key, 0) + 1
                 n = ft_counts["ua"][key]
                 ft_cov["ua"][key] = self._inc_mean(ft_cov["ua"].get(key), M, n)
 
-            for gid, M in ft_frame["res"].items():
+            for gid, M in ft_frame.get("res", {}).items():
                 gi = gid2i[gid]
                 ft_counts["res"][gi] += 1
                 n = ft_counts["res"][gi]
                 ft_cov["res"][gi] = self._inc_mean(ft_cov["res"][gi], M, n)
 
-            for gid, M in ft_frame["poly"].items():
+            for gid, M in ft_frame.get("poly", {}).items():
                 gi = gid2i[gid]
                 ft_counts["poly"][gi] += 1
                 n = ft_counts["poly"][gi]

@@ -44,7 +44,12 @@ class VibrationalEntropyNode:
         torque_cov = shared_data["torque_covariances"]
 
         combined = bool(getattr(args, "combined_forcetorque", False))
-        ft_cov = shared_data.get("forcetorque_covariances") if combined else None
+
+        ft_cov = None
+        if combined:
+            ft_cov = shared_data.get("forcetorque_covariances")
+            if ft_cov is None:
+                ft_cov = shared_data.get("force_torque_stats")
 
         counts = shared_data.get("frame_counts", {})
         ua_counts = counts.get("ua", {}) if isinstance(counts, dict) else {}
@@ -134,11 +139,23 @@ class VibrationalEntropyNode:
                         )
 
                 elif level == "polymer":
+                    if combined and ft_cov is not None:
+                        gi = gid2i[group_id]
+                        ftmat = ft_cov["poly"][gi]
+                        logger.warning(
+                            f"[VibNode] group={group_id} "
+                            "ftmat_shape={None if ftmat is None else ftmat.shape}"
+                        )
+
                     gi = gid2i[group_id]
 
                     if combined and ft_cov is not None:
                         ftmat = ft_cov["poly"][gi] if gi < len(ft_cov["poly"]) else None
                         if ftmat is None:
+                            logger.warning(
+                                f"[VibNode] combined=True but ftmat is None for group "
+                                f"{group_id}; falling back to F/T"
+                            )
                             S_trans, S_rot = 0.0, 0.0
                         else:
                             ftmat = np.asarray(ftmat)
@@ -188,7 +205,7 @@ class VibrationalEntropyNode:
                 }
 
                 if data_logger is not None:
-                    if level == "polymer" and combined:
+                    if level == "polymer" and combined and ft_cov is not None:
                         data_logger.add_results_data(
                             group_id, level, "FTmat-Transvibrational", S_trans
                         )

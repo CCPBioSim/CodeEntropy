@@ -51,8 +51,10 @@ class VibrationalEntropy:
 
         Procedural matching behavior for FTmat:
           - compute entropy components from the full 6N spectrum
-          - split into first 3N and last 3N *after sorting frequencies*
-          - so: FTmat-Trans + FTmat-Rot == total FT entropy
+          - sort frequencies
+          - split into first 3N and last 3N after sorting
+          - ensures FTmat-Trans + FTmat-Rot == total FT entropy
+          - (and cross F↔T terms affect eigenmodes, as intended)
         """
         matrix = np.asarray(matrix)
         lambdas = la.eigvals(matrix)
@@ -91,10 +93,8 @@ class VibrationalEntropy:
             rot_part = float(np.sum(S_components[half:]))
 
             if not highest_level:
-                trans_keep = max(0, half - 6)
-                trans_part = (
-                    float(np.sum(S_components[6:half])) if trans_keep > 0 else 0.0
-                )
+                # Only drop within the trans half
+                trans_part = float(np.sum(S_components[6:half])) if half > 6 else 0.0
 
             return trans_part if matrix_type == "forcetorqueTRANS" else rot_part
 
