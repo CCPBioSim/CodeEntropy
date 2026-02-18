@@ -1,101 +1,298 @@
+"""Vibrational entropy calculations.
+
+This module provides `VibrationalEntropy`, which computes vibrational entropy
+from force, torque, or combined force-torque covariance matrices.
+
+The implementation is intentionally split into small, single-purpose methods:
+- Eigenvalue extraction + unit conversion
+- Frequency calculation with robust filtering
+- Entropy component computation
+- Mode selection / summation rules based on matrix type
+"""
+
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass
+from typing import Any, Literal, Tuple
 
 import numpy as np
 from numpy import linalg as la
 
 logger = logging.getLogger(__name__)
 
+MatrixType = Literal["force", "torque", "forcetorqueTRANS", "forcetorqueROT"]
+
+
+@dataclass(frozen=True)
+class VibrationalEntropyResult:
+    """Result of a vibrational entropy computation.
+
+    Attributes:
+        total: Computed entropy value (J/mol/K) for the requested matrix type.
+        n_modes: Number of vibrational modes used (after filtering eigenvalues).
+    """
+
+    total: float
+    n_modes: int
+
 
 class VibrationalEntropy:
-    """
-    Performs vibrational entropy calculations using molecular trajectory data.
+    """Compute vibrational entropy from covariance matrices.
+
+    This class focuses only on vibrational entropy math and relies on `run_manager`
+    for unit conversions (eigenvalue unit conversion and kT conversion).
     """
 
-    def __init__(self, run_manager, args, universe, data_logger, group_molecules):
+    def __init__(
+        self,
+        run_manager: Any,
+        args: Any,
+        universe: Any,
+        data_logger: Any,
+        group_molecules: Any,
+        planck_const: float = 6.62607004081818e-34,
+        gas_const: float = 8.3144598484848,
+    ) -> None:
+        """Initialize the vibrational entropy calculator.
+
+        Args:
+            run_manager: Provides thermodynamic conversions (e.g., kT in Joules) and
+                eigenvalue unit conversion.
+            args: User args (kept for compatibility; not required for math here).
+            universe: MDAnalysis Universe (kept for compatibility).
+            data_logger: Data logger (kept for compatibility).
+            group_molecules: Grouping helper (kept for compatibility).
+            planck_const: Planck constant (J*s).
+            gas_const: Gas constant (J/(mol*K)).
+        """
         self._run_manager = run_manager
         self._args = args
         self._universe = universe
         self._data_logger = data_logger
         self._group_molecules = group_molecules
 
-        self._PLANCK_CONST = 6.62607004081818e-34
-        self._GAS_CONST = 8.3144598484848
+        self._planck_const = float(planck_const)
+        self._gas_const = float(gas_const)
 
-    def frequency_calculation(self, lambdas, temp):
-        pi = np.pi
-        kT = self._run_manager.get_KT2J(temp)
+    def vibrational_entropy_calculation(
+        self,
+        matrix: np.ndarray,
+        matrix_type: MatrixType,
+        temp: float,
+        highest_level: bool,
+    ) -> float:
+        """Compute vibrational entropy for the given covariance matrix.
 
-        lambdas = np.array(lambdas)
+        Supported matrix types:
+            - "force": 3N x 3N force covariance.
+            - "torque": 3N x 3N torque covariance.
+            - "forcetorqueTRANS": 6N x 6N combined covariance (translational part).
+            - "forcetorqueROT": 6N x 6N combined covariance (rotational part).
+
+        Mode handling:
+            - Frequencies are computed from eigenvalues, filtered to valid values,
+              then sorted ascending.
+            - For "force":
+                - If highest_level, include all modes.
+                - Otherwise, drop the lowest 6 modes.
+            - For "torque": include all modes.
+            - For combined "forcetorque*":
+                - Split the sorted spectrum into two halves (first 3N, last 3N).
+                - If not highest_level, drop the lowest 6 modes only within the
+                  translational half.
+
+        Args:
+            matrix: Covariance matrix (shape depends on matrix_type).
+            matrix_type: Type of covariance matrix.
+            temp: Temperature in Kelvin.
+            highest_level: Whether this is the highest level in the hierarchy.
+
+        Returns:
+            Vibrational entropy value in J/mol/K.
+
+        Raises:
+            ValueError: If matrix_type is unknown.
+        """
+        components = self._entropy_components(matrix, temp)
+        total = self._sum_components(components, matrix_type, highest_level)
+        return float(total)
+
+    def _entropy_components(self, matrix: np.ndarray, temp: float) -> np.ndarray:
+        """Compute per-mode entropy components from a covariance matrix.
+
+        Args:
+            matrix: Covariance matrix.
+            temp: Temperature in Kelvin.
+
+        Returns:
+            Array of entropy components (J/mol/K) for each valid mode.
+        """
+        lambdas = self._matrix_eigenvalues(matrix)
+        lambdas = self._convert_lambda_units(lambdas)
+
+        freqs = self._frequencies_from_lambdas(lambdas, temp)
+        if freqs.size == 0:
+            return np.array([], dtype=float)
+
+        freqs = np.sort(freqs)
+        return self._entropy_components_from_frequencies(freqs, temp)
+
+    @staticmethod
+    def _matrix_eigenvalues(matrix: np.ndarray) -> np.ndarray:
+        """Compute eigenvalues of a matrix.
+
+        Args:
+            matrix: Input matrix.
+
+        Returns:
+            Eigenvalues as a NumPy array.
+        """
+        matrix = np.asarray(matrix, dtype=float)
+        return la.eigvals(matrix)
+
+    def _convert_lambda_units(self, lambdas: np.ndarray) -> np.ndarray:
+        """Convert eigenvalues into SI units using run_manager.
+
+        Args:
+            lambdas: Eigenvalues.
+
+        Returns:
+            Converted eigenvalues.
+        """
+        return self._run_manager.change_lambda_units(lambdas)
+
+    def _frequencies_from_lambdas(self, lambdas: np.ndarray, temp: float) -> np.ndarray:
+        """Convert eigenvalues to frequencies with robust filtering.
+
+        Filters out eigenvalues that are complex, non-positive, or near-zero to
+        avoid invalid frequencies and unstable entropies.
+
+        Args:
+            lambdas: Eigenvalues (post unit conversion).
+            temp: Temperature in Kelvin.
+
+        Returns:
+            Frequencies in Hz.
+        """
+        lambdas = np.asarray(lambdas)
         lambdas = np.real_if_close(lambdas, tol=1000)
 
         valid_mask = (
             np.isreal(lambdas) & (lambdas > 0) & (~np.isclose(lambdas, 0, atol=1e-7))
         )
-        if len(lambdas) > np.count_nonzero(valid_mask):
+
+        removed = int(len(lambdas) - np.count_nonzero(valid_mask))
+        if removed:
             logger.warning(
-                f"{len(lambdas) - np.count_nonzero(valid_mask)} "
-                f"invalid eigenvalues excluded (complex, non-positive, or near-zero)."
+                "%d invalid eigenvalues excluded (complex, non-positive, "
+                "or near-zero).",
+                removed,
             )
 
-        lambdas = lambdas[valid_mask].real
-        frequencies = 1 / (2 * pi) * np.sqrt(lambdas / kT)
-        return frequencies
+        lambdas = np.asarray(lambdas[valid_mask].real, dtype=float)
+        if lambdas.size == 0:
+            return np.array([], dtype=float)
 
-    def vibrational_entropy_calculation(self, matrix, matrix_type, temp, highest_level):
+        kT = float(self._run_manager.get_KT2J(temp))
+        pi = float(np.pi)
+        return (1.0 / (2.0 * pi)) * np.sqrt(lambdas / kT)
+
+    def _entropy_components_from_frequencies(
+        self, frequencies: np.ndarray, temp: float
+    ) -> np.ndarray:
+        """Compute per-mode entropy components from frequencies.
+
+        Args:
+            frequencies: Frequencies (Hz), sorted ascending.
+            temp: Temperature in Kelvin.
+
+        Returns:
+            Per-mode entropy components in J/mol/K.
         """
-        Supports matrix_type:
-          - "force"  (3N x 3N)
-          - "torque" (3N x 3N)
-          - "forcetorqueTRANS" (6N x 6N -> translational part)
-          - "forcetorqueROT"   (6N x 6N -> rotational part)
+        kT = float(self._run_manager.get_KT2J(temp))
+        exponent = (self._planck_const * frequencies) / kT
 
-        Procedural matching behavior for FTmat:
-          - compute entropy components from the full 6N spectrum
-          - sort frequencies
-          - split into first 3N and last 3N after sorting
-          - ensures FTmat-Trans + FTmat-Rot == total FT entropy
-          - (and cross F↔T terms affect eigenmodes, as intended)
+        # Numerically stable enough for typical ranges; callers filter eigenvalues.
+        exp_pos = np.exp(exponent)
+        exp_neg = np.exp(-exponent)
+
+        components = exponent / (exp_pos - 1.0) - np.log(1.0 - exp_neg)
+        return components * self._gas_const
+
+    @staticmethod
+    def _split_halves(components: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Split a component array into two equal halves.
+
+        Args:
+            components: Array with an even length.
+
+        Returns:
+            Tuple of (first_half, second_half). If odd-length, returns
+            (components, empty).
+
+        Notes:
+            For combined force-torque matrices (6N x 6N), the valid number of modes
+            should be 6N. After sorting, we split into two halves of size 3N.
         """
-        matrix = np.asarray(matrix)
-        lambdas = la.eigvals(matrix)
-        lambdas = self._run_manager.change_lambda_units(lambdas)
+        n = int(components.size)
+        if n % 2 != 0:
+            return components, np.array([], dtype=float)
+        half = n // 2
+        return components[:half], components[half:]
 
-        freqs = self.frequency_calculation(lambdas, temp)
-        freqs = np.sort(freqs)
+    def _sum_components(
+        self,
+        components: np.ndarray,
+        matrix_type: MatrixType,
+        highest_level: bool,
+    ) -> float:
+        """Sum entropy components according to the matrix type and level rules.
 
-        kT = self._run_manager.get_KT2J(temp)
-        exponent = self._PLANCK_CONST * freqs / kT
-        power_positive = np.exp(exponent)
-        power_negative = np.exp(-exponent)
+        Args:
+            components: Per-mode entropy components.
+            matrix_type: Type selector.
+            highest_level: Whether this is the highest level.
 
-        S_components = exponent / (power_positive - 1.0) - np.log(1.0 - power_negative)
-        S_components *= self._GAS_CONST
-
-        n_modes = len(S_components)
+        Returns:
+            Summed entropy value.
+        """
+        if components.size == 0:
+            return 0.0
 
         if matrix_type == "force":
-            if highest_level:
-                return float(np.sum(S_components))
-            return float(np.sum(S_components[6:]))
+            return float(
+                np.sum(components) if highest_level else np.sum(components[6:])
+            )
 
         if matrix_type == "torque":
-            return float(np.sum(S_components))
+            return float(np.sum(components))
 
         if matrix_type in ("forcetorqueTRANS", "forcetorqueROT"):
-            if n_modes % 2 != 0:
+            first, second = self._split_halves(components)
+            if second.size == 0:
+                # Odd number of modes; fallback to total.
                 logger.warning(
-                    f"FTmat has odd number of modes ({n_modes}); cannot cleanly split."
+                    "Combined FT spectrum has odd number of modes (%d); "
+                    "returning total.",
+                    components.size,
                 )
-                return float(np.sum(S_components))
+                return float(np.sum(components))
 
-            half = n_modes // 2  # == 3N
-            trans_part = float(np.sum(S_components[:half]))
-            rot_part = float(np.sum(S_components[half:]))
+            trans_components = first
+            rot_components = second
 
             if not highest_level:
-                # Only drop within the trans half
-                trans_part = float(np.sum(S_components[6:half])) if half > 6 else 0.0
+                trans_components = (
+                    trans_components[6:]
+                    if trans_components.size > 6
+                    else np.array([], dtype=float)
+                )
 
-            return trans_part if matrix_type == "forcetorqueTRANS" else rot_part
+            return (
+                float(np.sum(trans_components))
+                if matrix_type == "forcetorqueTRANS"
+                else float(np.sum(rot_components))
+            )
 
         raise ValueError(f"Unknown matrix_type: {matrix_type}")

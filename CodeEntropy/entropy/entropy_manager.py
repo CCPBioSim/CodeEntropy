@@ -1,6 +1,25 @@
+"""Entropy manager orchestration.
+
+This module defines `EntropyManager`, which coordinates the end-to-end entropy
+workflow:
+  * Determine trajectory bounds and frame count.
+  * Build a reduced universe based on atom selection.
+  * Identify molecule groups and hierarchy levels.
+  * Optionally compute water entropy and adjust selection.
+  * Execute the level DAG (matrix/state preparation).
+  * Execute the entropy graph (entropy calculations and aggregation).
+  * Finalize and persist results.
+
+The manager intentionally delegates calculations to dedicated components.
+"""
+
+from __future__ import annotations
+
 import logging
 import math
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Dict, Mapping, Tuple
 
 import pandas as pd
 
@@ -13,33 +32,55 @@ from CodeEntropy.levels.level_hierarchy import LevelHierarchy
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
 
+SharedData = Dict[str, Any]
+
+
+@dataclass(frozen=True)
+class TrajectorySlice:
+    """Trajectory slicing parameters.
+
+    Attributes:
+        start: Inclusive start frame index.
+        end: Exclusive end frame index (or a concrete index derived from args).
+        step: Step size between frames.
+        n_frames: Number of frames in the slice.
+    """
+
+    start: int
+    end: int
+    step: int
+    n_frames: int
+
 
 class EntropyManager:
-    """
-    Manages entropy calculations at multiple molecular levels, based on a
-    molecular dynamics trajectory.
+    """Coordinate entropy calculations across structural levels.
+
+    This class is responsible for orchestration and IO-level concerns (selection,
+    grouping, running graphs, and finalizing results). Domain calculations live in
+    dedicated components (LevelDAG, EntropyGraph, WaterEntropy, etc.).
     """
 
     def __init__(
         self,
-        run_manager,
-        args,
-        universe,
-        data_logger,
-        group_molecules,
-        dihedral_analysis,
-        universe_operations,
-    ):
-        """
-        Initializes the EntropyManager with required components.
+        run_manager: Any,
+        args: Any,
+        universe: Any,
+        data_logger: Any,
+        group_molecules: Any,
+        dihedral_analysis: Any,
+        universe_operations: Any,
+    ) -> None:
+        """Initialize the entropy workflow manager.
 
         Args:
-            run_manager: Manager for universe and selection operations.
-            args: Argument namespace containing user parameters.
-            universe: MDAnalysis universe representing the simulation system.
-            data_logger: Logger for storing and exporting entropy data.
-            group_molecules: includes the grouping functions for averaging over
-            molecules.
+            run_manager: Manager for universe IO and unit conversions.
+            args: Parsed CLI/user arguments.
+            universe: MDAnalysis Universe representing the simulation system.
+            data_logger: Collector for per-molecule and per-residue outputs.
+            group_molecules: Component that groups molecules for averaging.
+            dihedral_analysis: Component used to compute conformational states.
+                (Stored for completeness; computation is typically triggered by nodes.)
+            universe_operations: Adapter providing common universe operations.
         """
         self._run_manager = run_manager
         self._args = args
@@ -48,46 +89,67 @@ class EntropyManager:
         self._group_molecules = group_molecules
         self._dihedral_analysis = dihedral_analysis
         self._universe_operations = universe_operations
-        self._GAS_CONST = 8.3144598484848
 
-    def execute(self):
-        start, end, step = self._get_trajectory_bounds()
-        n_frames = self._get_number_frames(start, end, step)
+    def execute(self) -> None:
+        """Run the full entropy workflow and emit results.
 
-        console.print(f"Analyzing a total of {n_frames} frames in this calculation.")
+        This method orchestrates the complete pipeline, populates shared data,
+        and triggers the DAG/graph executions. Final results are logged and saved
+        via `DataLogger`.
+        """
+        traj = self._build_trajectory_slice()
+        console.print(
+            f"Analyzing a total of {traj.n_frames} frames in this calculation."
+        )
 
-        reduced_universe = self._get_reduced_universe()
+        reduced_universe = self._build_reduced_universe()
 
-        level_hierarchy = LevelHierarchy()
-        number_molecules, levels = level_hierarchy.select_levels(reduced_universe)
-
+        levels = self._detect_levels(reduced_universe)
         groups = self._group_molecules.grouping_molecules(
             reduced_universe, self._args.grouping
         )
-        logger.info(f"Number of molecule groups: {len(groups)}")
+        logger.info("Number of molecule groups: %d", len(groups))
 
-        water_atoms = self._universe.select_atoms("water")
-        water_resids = {res.resid for res in water_atoms.residues}
-
-        water_groups = {
-            gid: g
-            for gid, g in groups.items()
-            if any(
-                res.resid in water_resids
-                for mol in [self._universe.atoms.fragments[i] for i in g]
-                for res in mol.residues
-            )
-        }
-        nonwater_groups = {
-            gid: g for gid, g in groups.items() if gid not in water_groups
-        }
+        nonwater_groups, water_groups = self._split_water_groups(groups)
 
         if self._args.water_entropy and water_groups:
-            self._handle_water_entropy(start, end, step, water_groups)
+            self._compute_water_entropy(traj, water_groups)
         else:
+            # If water entropy isn't computed, include water in the remaining groups.
             nonwater_groups.update(water_groups)
 
-        shared_data = {
+        shared_data = self._build_shared_data(
+            reduced_universe=reduced_universe,
+            levels=levels,
+            groups=nonwater_groups,
+            traj=traj,
+        )
+
+        self._run_level_dag(shared_data)
+        self._run_entropy_graph(shared_data)
+
+        self._finalize_molecule_results()
+        self._data_logger.log_tables()
+
+    def _build_shared_data(
+        self,
+        reduced_universe: Any,
+        levels: Any,
+        groups: Mapping[int, Any],
+        traj: TrajectorySlice,
+    ) -> SharedData:
+        """Build the shared_data dict used by nodes and graphs.
+
+        Args:
+            reduced_universe: Universe after applying selection.
+            levels: Level definition per molecule id.
+            groups: Mapping of group id -> list of molecule ids.
+            traj: Trajectory slice parameters.
+
+        Returns:
+            Shared data dictionary for DAG/graph execution.
+        """
+        shared_data: SharedData = {
             "entropy_manager": self,
             "run_manager": self._run_manager,
             "data_logger": self._data_logger,
@@ -95,181 +157,196 @@ class EntropyManager:
             "universe": self._universe,
             "reduced_universe": reduced_universe,
             "levels": levels,
-            "groups": nonwater_groups,
-            "start": start,
-            "end": end,
-            "step": step,
-            "n_frames": n_frames,
+            "groups": dict(groups),
+            "start": traj.start,
+            "end": traj.end,
+            "step": traj.step,
+            "n_frames": traj.n_frames,
         }
+        return shared_data
 
-        logger.info(f"shared_data: {shared_data}")
-
-        LevelDAG(self._universe_operations).build().execute(shared_data)
-
-        entropy_results = EntropyGraph().build().execute(shared_data)
-        shared_data.update(entropy_results)
-
-        logger.info(f"entropy_results: {entropy_results}")
-
-        self._finalize_molecule_results()
-        self._data_logger.log_tables()
-
-    def _handle_water_entropy(self, start, end, step, water_groups):
-        """
-        Compute water entropy for each water group, log data, and update selection
-        string to exclude water from further analysis.
+    def _run_level_dag(self, shared_data: SharedData) -> None:
+        """Execute the structural/level DAG.
 
         Args:
-            start (int): Start frame index
-            end (int): End frame index
-            step (int): Step size
-            water_groups (dict): {group_id: [atom indices]} for water
+            shared_data: Shared data dict that will be mutated by the DAG.
+        """
+        LevelDAG(self._universe_operations).build().execute(shared_data)
+
+    def _run_entropy_graph(self, shared_data: SharedData) -> None:
+        """Execute the entropy calculation graph and merge results into shared_data.
+
+        Args:
+            shared_data: Shared data dict that will be mutated by the graph.
+        """
+        entropy_results = EntropyGraph().build().execute(shared_data)
+        shared_data.update(entropy_results)
+        logger.info("entropy_results: %s", entropy_results)
+
+    def _build_trajectory_slice(self) -> TrajectorySlice:
+        """Compute trajectory slicing parameters from args.
+
+        Returns:
+            A TrajectorySlice describing the frames to analyze.
+        """
+        start, end, step = self._get_trajectory_bounds()
+        n_frames = self._get_number_frames(start, end, step)
+        return TrajectorySlice(start=start, end=end, step=step, n_frames=n_frames)
+
+    def _get_trajectory_bounds(self) -> Tuple[int, int, int]:
+        """Return start, end, and step frame indices from args.
+
+        Returns:
+            Tuple of (start, end, step).
+        """
+        start = self._args.start or 0
+        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
+        step = self._args.step or 1
+        return start, end, step
+
+    def _get_number_frames(self, start: int, end: int, step: int) -> int:
+        """Compute the number of frames in a trajectory slice.
+
+        Args:
+            start: Inclusive start frame index.
+            end: Exclusive end frame index.
+            step: Step between frames.
+
+        Returns:
+            Number of frames processed.
+        """
+        return math.floor((end - start) / step)
+
+    def _build_reduced_universe(self) -> Any:
+        """Apply atom selection and return the reduced universe.
+
+        If `selection_string` is "all", the original universe is returned.
+
+        Returns:
+            MDAnalysis Universe (original or reduced).
+        """
+        selection = self._args.selection_string
+        if selection == "all":
+            return self._universe
+
+        reduced = self._universe_operations.new_U_select_atom(self._universe, selection)
+        name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
+        self._run_manager.write_universe(reduced, name)
+        return reduced
+
+    def _detect_levels(self, reduced_universe: Any) -> Any:
+        """Detect hierarchy levels for each molecule in the reduced universe.
+
+        Args:
+            reduced_universe: Reduced MDAnalysis Universe.
+
+        Returns:
+            Levels structure as returned by `LevelHierarchy.select_levels`.
+        """
+        level_hierarchy = LevelHierarchy()
+        _number_molecules, levels = level_hierarchy.select_levels(reduced_universe)
+        return levels
+
+    def _split_water_groups(
+        self, groups: Mapping[int, Any]
+    ) -> Tuple[Dict[int, Any], Dict[int, Any]]:
+        """Partition molecule groups into water and non-water groups.
+
+        Args:
+            groups: Mapping of group id -> molecule ids.
+
+        Returns:
+            Tuple of (nonwater_groups, water_groups).
+        """
+        water_atoms = self._universe.select_atoms("water")
+        water_resids = {res.resid for res in water_atoms.residues}
+
+        water_groups = {
+            gid: mol_ids
+            for gid, mol_ids in groups.items()
+            if any(
+                res.resid in water_resids
+                for mol in [self._universe.atoms.fragments[i] for i in mol_ids]
+                for res in mol.residues
+            )
+        }
+        nonwater_groups = {
+            gid: g for gid, g in groups.items() if gid not in water_groups
+        }
+        return nonwater_groups, water_groups
+
+    def _compute_water_entropy(
+        self, traj: TrajectorySlice, water_groups: Mapping[int, Any]
+    ) -> None:
+        """Compute water entropy for each water group and adjust selection string.
+
+        Args:
+            traj: Trajectory slice parameters.
+            water_groups: Mapping of group id -> molecule ids for waters.
         """
         if not water_groups or not self._args.water_entropy:
             return
 
         water_entropy = WaterEntropy(self._args)
 
-        for group_id, atom_indices in water_groups.items():
-
+        for group_id in water_groups.keys():
+            # WaterEntropy currently exposes a concrete API; keep this manager
+            # as an orchestrator and avoid duplicating internals here.
             water_entropy._calculate_water_entropy(
                 universe=self._universe,
-                start=start,
-                end=end,
-                step=step,
+                start=traj.start,
+                end=traj.end,
+                step=traj.step,
                 group_id=group_id,
             )
 
+        # Exclude water from subsequent analysis when water entropy has been computed.
         self._args.selection_string = (
-            self._args.selection_string + " and not water"
+            f"{self._args.selection_string} and not water"
             if self._args.selection_string != "all"
             else "not water"
         )
 
-        logger.debug(f"WaterEntropy: molecule_data: {self._data_logger.molecule_data}")
-        logger.debug(f"WaterEntropy: residue_data: {self._data_logger.residue_data}")
+        logger.debug("WaterEntropy: molecule_data=%s", self._data_logger.molecule_data)
+        logger.debug("WaterEntropy: residue_data=%s", self._data_logger.residue_data)
 
-    def _initialize_molecules(self):
+    def _finalize_molecule_results(self) -> None:
+        """Aggregate group totals and persist results to JSON.
+
+        Computes total entropy per group and appends "Group Total" rows to the
+        molecule results table, then writes molecule and residue tables to the
+        configured output file via the data logger.
         """
-        Prepare the reduced universe and determine molecule-level configurations.
+        entropy_by_group = defaultdict(float)
 
-        Returns:
-            tuple: A tuple containing:
-                - reduced_atom (Universe): The reduced atom selection.
-                - number_molecules (int): Number of molecules in the system.
-                - levels (list): List of entropy levels per molecule.
-                - groups (dict): Groups for averaging over molecules.
-        """
-        # Based on the selection string, create a new MDAnalysis universe
-        reduced_atom = self._get_reduced_universe()
+        for group_id, level, _etype, result in self._data_logger.molecule_data:
+            if level == "Group Total":
+                continue
+            try:
+                entropy_by_group[group_id] += float(result)
+            except (TypeError, ValueError):
+                logger.warning("Skipping invalid entry: %s, %s", group_id, result)
 
-        level_hierarchy = LevelHierarchy()
-
-        # Count the molecules and identify the length scale levels for each one
-        number_molecules, levels = level_hierarchy.select_levels(reduced_atom)
-
-        # Group the molecules for averaging
-        grouping = self._args.grouping
-        groups = self._group_molecules.grouping_molecules(reduced_atom, grouping)
-
-        return reduced_atom, number_molecules, levels, groups
-
-    def _get_trajectory_bounds(self):
-        """
-        Returns the start, end, and step frame indices based on input arguments.
-
-        Returns:
-            Tuple of (start, end, step) frame indices.
-        """
-        start = self._args.start or 0
-        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
-        step = self._args.step or 1
-
-        return start, end, step
-
-    def _get_number_frames(self, start, end, step):
-        """
-        Calculates the total number of trajectory frames used in the calculation.
-
-        Args:
-            start (int): Start frame index.
-            end (int): End frame index. If -1, it refers to the end of the trajectory.
-            step (int): Frame step size.
-
-        Returns:
-            int: Total number of frames considered.
-        """
-        return math.floor((end - start) / step)
-
-    def _get_reduced_universe(self):
-        """
-        Applies atom selection based on the user's input.
-
-        Returns:
-            MDAnalysis.Universe: Selected subset of the system.
-        """
-        # If selection string is "all" the universe does not change
-        if self._args.selection_string == "all":
-            return self._universe
-
-        # Otherwise create a new (smaller) universe based on the selection
-        u = self._universe
-        selection_string = self._args.selection_string
-        reduced = self._universe_operations.new_U_select_atom(u, selection_string)
-        name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
-        self._run_manager.write_universe(reduced, name)
-
-        return reduced
-
-    def _finalize_molecule_results(self):
-        """
-        Aggregates and logs total entropy and frame counts per molecule.
-        """
-        entropy_by_molecule = defaultdict(float)
-        for (
-            mol_id,
-            level,
-            entropy_type,
-            result,
-        ) in self._data_logger.molecule_data:
-            if level != "Group Total":
-                try:
-                    entropy_by_molecule[mol_id] += float(result)
-                except ValueError:
-                    logger.warning(f"Skipping invalid entry: {mol_id}, {result}")
-
-        for mol_id in entropy_by_molecule.keys():
-            total_entropy = entropy_by_molecule[mol_id]
-
+        for group_id, total in entropy_by_group.items():
             self._data_logger.molecule_data.append(
-                (
-                    mol_id,
-                    "Group Total",
-                    "Group Total Entropy",
-                    total_entropy,
-                )
+                (group_id, "Group Total", "Group Total Entropy", total)
             )
 
+        molecule_df = pd.DataFrame(
+            self._data_logger.molecule_data,
+            columns=["Group ID", "Level", "Type", "Result (J/mol/K)"],
+        )
+        residue_df = pd.DataFrame(
+            self._data_logger.residue_data,
+            columns=[
+                "Group ID",
+                "Residue Name",
+                "Level",
+                "Type",
+                "Frame Count",
+                "Result (J/mol/K)",
+            ],
+        )
         self._data_logger.save_dataframes_as_json(
-            pd.DataFrame(
-                self._data_logger.molecule_data,
-                columns=[
-                    "Group ID",
-                    "Level",
-                    "Type",
-                    "Result (J/mol/K)",
-                ],
-            ),
-            pd.DataFrame(
-                self._data_logger.residue_data,
-                columns=[
-                    "Group ID",
-                    "Residue Name",
-                    "Level",
-                    "Type",
-                    "Frame Count",
-                    "Result (J/mol/K)",
-                ],
-            ),
-            self._args.output_file,
+            molecule_df, residue_df, self._args.output_file
         )
