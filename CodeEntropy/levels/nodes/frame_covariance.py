@@ -1,7 +1,8 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
+from MDAnalysis.lib.mdamath import make_whole
 
 from CodeEntropy.levels.force_torque_manager import ForceTorqueManager
 
@@ -13,36 +14,43 @@ class FrameCovarianceNode:
         self._ft = ForceTorqueManager()
 
     @staticmethod
-    def _full_ft_second_moment(
-        force_vecs: List[np.ndarray], torque_vecs: List[np.ndarray]
-    ) -> np.ndarray:
+    def _inc_mean(old: np.ndarray | None, new: np.ndarray, n: int) -> np.ndarray:
+        """Incremental mean over molecules within the same frame."""
+        if old is None:
+            return new.copy()
+        return old + (new - old) / float(n)
+
+    @staticmethod
+    def _build_ft_block_procedural(force_vecs, torque_vecs) -> np.ndarray:
         """
-        Procedural-equivalent FT construction:
-
-        Build a FULL 6N x 6N second-moment matrix from concatenated bead vectors:
-            [F1, F2, ... FN, T1, T2, ... TN]
-        where each Fi, Ti is a 3-vector (already projected/weighted).
-
-        This includes the F<->T cross blocks (off-diagonal blocks).
+        Match procedural get_combined_forcetorque_matrices:
+        - per bead vector is [Fi, Ti]
+        - subblock(i,j) = outer([Fi,Ti], [Fj,Tj])
+        - assemble np.block over beads
         """
         if len(force_vecs) != len(torque_vecs):
-            raise ValueError(
-                "force_vecs and torque_vecs must have the same number of beads"
-            )
+            raise ValueError("force_vecs and torque_vecs must match length")
 
-        if len(force_vecs) == 0:
-            raise ValueError("force_vecs/torque_vecs are empty")
+        n = len(force_vecs)
+        if n == 0:
+            raise ValueError("No beads provided for FT matrix build")
 
-        f = [np.asarray(v, dtype=float).reshape(-1) for v in force_vecs]
-        t = [np.asarray(v, dtype=float).reshape(-1) for v in torque_vecs]
+        bead_vecs: List[np.ndarray] = []
+        for Fi, Ti in zip(force_vecs, torque_vecs):
+            Fi = np.asarray(Fi, dtype=float).reshape(-1)
+            Ti = np.asarray(Ti, dtype=float).reshape(-1)
+            if Fi.shape[0] != 3 or Ti.shape[0] != 3:
+                raise ValueError("Each force/torque must be length 3")
+            bead_vecs.append(np.concatenate([Fi, Ti], axis=0))
 
-        if any(v.shape[0] != 3 for v in f + t):
-            raise ValueError(
-                "Each force/torque vector must be length 3 after weighting"
-            )
+        blocks = [[None] * n for _ in range(n)]
+        for i in range(n):
+            for j in range(i, n):
+                sub = np.outer(bead_vecs[i], bead_vecs[j])
+                blocks[i][j] = sub
+                blocks[j][i] = sub.T
 
-        flat = np.concatenate(f + t, axis=0)
-        return np.outer(flat, flat)
+        return np.block(blocks)
 
     def run(self, ctx: Dict[str, Any]) -> Dict[str, Any]:
         if "shared" not in ctx:
@@ -58,9 +66,10 @@ class FrameCovarianceNode:
 
         fp = args.force_partitioning
         combined = bool(getattr(args, "combined_forcetorque", False))
+        customised_axes = bool(getattr(args, "customised_axes", False))
 
         axes_manager = shared.get("axes_manager", None)
-        box = None
+
         try:
             box = np.asarray(u.dimensions[:3], dtype=float)
         except Exception:
@@ -68,9 +77,15 @@ class FrameCovarianceNode:
 
         fragments = u.atoms.fragments
 
-        out_force = {"ua": {}, "res": {}, "poly": {}}
-        out_torque = {"ua": {}, "res": {}, "poly": {}}
-        out_ft = {"ua": {}, "res": {}, "poly": {}} if combined else None
+        out_force: Dict[str, Dict[Any, np.ndarray]] = {"ua": {}, "res": {}, "poly": {}}
+        out_torque: Dict[str, Dict[Any, np.ndarray]] = {"ua": {}, "res": {}, "poly": {}}
+        out_ft: Dict[str, Dict[Any, np.ndarray]] | None = (
+            {"ua": {}, "res": {}, "poly": {}} if combined else None
+        )
+
+        ua_molcount: Dict[Tuple[int, int], int] = {}
+        res_molcount: Dict[int, int] = {}
+        poly_molcount: Dict[int, int] = {}
 
         for group_id, mol_ids in groups.items():
             for mol_id in mol_ids:
@@ -121,12 +136,15 @@ class FrameCovarianceNode:
                         )
 
                         key = (group_id, local_res_i)
-                        out_force["ua"][key] = F
-                        out_torque["ua"][key] = T
-                        if combined and out_ft is not None:
-                            out_ft["ua"][key] = self._full_ft_second_moment(
-                                force_vecs, torque_vecs
-                            )
+
+                        n = ua_molcount.get(key, 0) + 1
+                        out_force["ua"][key] = self._inc_mean(
+                            out_force["ua"].get(key), F, n
+                        )
+                        out_torque["ua"][key] = self._inc_mean(
+                            out_torque["ua"].get(key), T, n
+                        )
+                        ua_molcount[key] = n
 
                 if "residue" in level_list:
                     bead_key = (mol_id, "residue")
@@ -134,24 +152,40 @@ class FrameCovarianceNode:
                     if bead_idx_list:
                         bead_groups = [u.atoms[idx] for idx in bead_idx_list]
                         if not any(len(bg) == 0 for bg in bead_groups):
-
                             force_vecs = []
                             torque_vecs = []
 
-                            for local_res_i, bead in enumerate(bead_groups):
-                                res = mol.residues[local_res_i]
+                            highest = "residue" == level_list[-1]
 
-                                trans_axes, rot_axes, center, moi = (
-                                    axes_manager.get_residue_axes(
-                                        mol, local_res_i, residue=res.atoms
+                            for local_res_i, bead in enumerate(bead_groups):
+                                if customised_axes and axes_manager is not None:
+                                    res = mol.residues[local_res_i]
+                                    trans_axes, rot_axes, center, moi = (
+                                        axes_manager.get_residue_axes(
+                                            mol, local_res_i, residue=res.atoms
+                                        )
                                     )
-                                )
+                                else:
+                                    make_whole(mol.atoms)
+                                    make_whole(bead)
+                                    trans_axes = mol.atoms.principal_axes()
+                                    if axes_manager is not None:
+                                        rot_axes, moi = axes_manager.get_vanilla_axes(
+                                            bead
+                                        )
+                                    else:
+                                        rot_axes = np.real(bead.principal_axes())
+                                        eigvals, _ = np.linalg.eig(
+                                            bead.moment_of_inertia(unwrap=True)
+                                        )
+                                        moi = sorted(eigvals, reverse=True)
+                                    center = bead.center_of_mass(unwrap=True)
 
                                 force_vecs.append(
                                     self._ft.get_weighted_forces(
                                         bead=bead,
                                         trans_axes=np.asarray(trans_axes),
-                                        highest_level=False,
+                                        highest_level=highest,
                                         force_partitioning=fp,
                                     )
                                 )
@@ -171,12 +205,21 @@ class FrameCovarianceNode:
                                 force_vecs, torque_vecs
                             )
 
-                            out_force["res"][group_id] = F
-                            out_torque["res"][group_id] = T
+                            n = res_molcount.get(group_id, 0) + 1
+                            out_force["res"][group_id] = self._inc_mean(
+                                out_force["res"].get(group_id), F, n
+                            )
+                            out_torque["res"][group_id] = self._inc_mean(
+                                out_torque["res"].get(group_id), T, n
+                            )
+                            res_molcount[group_id] = n
 
-                            if combined and out_ft is not None:
-                                out_ft["res"][group_id] = self._full_ft_second_moment(
+                            if combined and highest and out_ft is not None:
+                                M = self._build_ft_block_procedural(
                                     force_vecs, torque_vecs
+                                )
+                                out_ft["res"][group_id] = self._inc_mean(
+                                    out_ft["res"].get(group_id), M, n
                                 )
 
                 if "polymer" in level_list:
@@ -187,21 +230,28 @@ class FrameCovarianceNode:
                         if not any(len(bg) == 0 for bg in bead_groups):
                             bead = bead_groups[0]
 
+                            highest = "polymer" == level_list[-1]
+
                             if axes_manager is not None:
                                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
-                                trans_axes = rot_axes
+                                trans_axes = mol.atoms.principal_axes()
                                 center = bead.center_of_mass(unwrap=True)
                             else:
-                                trans_axes = bead.principal_axes()
-                                rot_axes = trans_axes
+                                make_whole(mol.atoms)
+                                make_whole(bead)
+                                trans_axes = mol.atoms.principal_axes()
+                                rot_axes = np.real(bead.principal_axes())
+                                eigvals, _ = np.linalg.eig(
+                                    bead.moment_of_inertia(unwrap=True)
+                                )
+                                moi = sorted(eigvals, reverse=True)
                                 center = bead.center_of_mass(unwrap=True)
-                                moi = np.linalg.eigvals(bead.moment_of_inertia())
 
                             force_vecs = [
                                 self._ft.get_weighted_forces(
                                     bead=bead,
                                     trans_axes=np.asarray(trans_axes),
-                                    highest_level=True,
+                                    highest_level=highest,
                                     force_partitioning=fp,
                                 )
                             ]
@@ -221,18 +271,22 @@ class FrameCovarianceNode:
                                 force_vecs, torque_vecs
                             )
 
-                            out_force["poly"][group_id] = F
-                            out_torque["poly"][group_id] = T
+                            n = poly_molcount.get(group_id, 0) + 1
+                            out_force["poly"][group_id] = self._inc_mean(
+                                out_force["poly"].get(group_id), F, n
+                            )
+                            out_torque["poly"][group_id] = self._inc_mean(
+                                out_torque["poly"].get(group_id), T, n
+                            )
+                            poly_molcount[group_id] = n
 
-                            if combined and out_ft is not None:
-                                out_ft["poly"][group_id] = self._full_ft_second_moment(
+                            if combined and highest and out_ft is not None:
+                                M = self._build_ft_block_procedural(
                                     force_vecs, torque_vecs
                                 )
-                                # M = out_ft["poly"][group_id]
-                                # half = M.shape[0] // 2
-                                # cross_norm = np.linalg.norm(M[:half, half:])
-                                # logger.warning(f"[FT DEBUG] group={group_id} "
-                                # f"cross_norm={cross_norm:.6e}")
+                                out_ft["poly"][group_id] = self._inc_mean(
+                                    out_ft["poly"].get(group_id), M, n
+                                )
 
         frame_cov = {"force": out_force, "torque": out_torque}
         if combined and out_ft is not None:

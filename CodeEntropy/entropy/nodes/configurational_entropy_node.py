@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict
 
+import numpy as np
+
 from CodeEntropy.entropy.configurational_entropy import ConformationalEntropy
 
 logger = logging.getLogger(__name__)
@@ -8,14 +10,19 @@ logger = logging.getLogger(__name__)
 
 class ConfigurationalEntropyNode:
     """
-    Computes conformational entropy from conformational states produced by LevelDAG.
-
-    Expected:
-      shared_data["conformational_states"]["ua"]
-        -> dict[(group_id, res_id)] = list/int states
-      shared_data["conformational_states"]["res"]
-        -> list indexed by group index OR dict[group_id]=states
+    Procedural-parity conformational entropy.
     """
+
+    @staticmethod
+    def _has_state_data(states) -> bool:
+        if states is None:
+            return False
+        if isinstance(states, np.ndarray):
+            return bool(np.any(states))
+        try:
+            return any(states)
+        except TypeError:
+            return bool(states)
 
     def run(self, shared_data: Dict[str, Any], **_kwargs) -> Dict[str, Any]:
         run_manager = shared_data["run_manager"]
@@ -31,78 +38,80 @@ class ConfigurationalEntropyNode:
             group_molecules=shared_data.get("group_molecules"),
         )
 
-        conf_states = shared_data["conformational_states"]
+        conf_states = shared_data.get("conformational_states", {}) or {}
+        states_ua = conf_states.get("ua", {}) or {}
+        states_res = conf_states.get("res", {})
 
         n_frames = shared_data.get("n_frames", shared_data.get("number_frames"))
         if n_frames is None:
             raise KeyError("shared_data must contain n_frames (or number_frames)")
+        n_frames = int(n_frames)
 
         groups = shared_data["groups"]
         levels = shared_data["levels"]
-        gid2i = shared_data.get(
-            "group_id_to_index", {gid: i for i, gid in enumerate(groups.keys())}
-        )
-
-        states_ua = conf_states.get("ua", {}) or {}
-        states_res = conf_states.get("res", {})
+        fragments = universe.atoms.fragments
 
         results: Dict[int, Dict[str, float]] = {}
 
-        fragments = universe.atoms.fragments
-
         for group_id, mol_ids in groups.items():
-            mol_id = mol_ids[0]
-            mol = fragments[mol_id]
-            level_list = levels[mol_id]
-
             results[group_id] = {"ua": 0.0, "res": 0.0, "poly": 0.0}
+            if not mol_ids:
+                continue
+
+            rep_mol_id = mol_ids[0]
+            rep_mol = fragments[rep_mol_id]
+            level_list = levels[rep_mol_id]
 
             if "united_atom" in level_list:
-                total = 0.0
-                for res_id, res in enumerate(mol.residues):
+                S_conf_ua = 0.0
+                for res_id, res in enumerate(rep_mol.residues):
                     key = (group_id, res_id)
                     states = states_ua.get(key, [])
-                    if not states:
-                        val = 0.0
-                    else:
-                        val = ce.conformational_entropy_calculation(states, n_frames)
 
-                    total += val
+                    if self._has_state_data(states):
+                        val = float(
+                            ce.conformational_entropy_calculation(states, n_frames)
+                        )
+                    else:
+                        val = 0.0
+
+                    S_conf_ua += val
 
                     if data_logger is not None:
                         data_logger.add_residue_data(
                             group_id=group_id,
-                            resname=res.resname,
+                            resname=getattr(res, "resname", "UNK"),
                             level="united_atom",
                             entropy_type="Conformational",
                             frame_count=n_frames,
                             value=val,
                         )
 
-                results[group_id]["ua"] = total
+                results[group_id]["ua"] = S_conf_ua
                 if data_logger is not None:
                     data_logger.add_results_data(
-                        group_id, "united_atom", "Conformational", total
+                        group_id, "united_atom", "Conformational", S_conf_ua
                     )
 
             if "residue" in level_list:
-                val = 0.0
-
                 if isinstance(states_res, dict):
-                    s = states_res.get(group_id, [])
-                    if s:
-                        val = ce.conformational_entropy_calculation(s, n_frames)
+                    group_states = states_res.get(group_id, None)
                 else:
-                    gi = gid2i[group_id]
-                    if gi < len(states_res) and states_res[gi]:
-                        val = ce.conformational_entropy_calculation(
-                            states_res[gi], n_frames
-                        )
+                    group_states = (
+                        states_res[group_id] if group_id < len(states_res) else None
+                    )
 
-                results[group_id]["res"] = val
+                if self._has_state_data(group_states):
+                    S_conf_res = float(
+                        ce.conformational_entropy_calculation(group_states, n_frames)
+                    )
+                else:
+                    S_conf_res = 0.0
+
+                results[group_id]["res"] = S_conf_res
                 if data_logger is not None:
                     data_logger.add_results_data(
-                        group_id, "residue", "Conformational", val
+                        group_id, "residue", "Conformational", S_conf_res
                     )
 
         logger.info("[ConfigurationalEntropyNode] Done")

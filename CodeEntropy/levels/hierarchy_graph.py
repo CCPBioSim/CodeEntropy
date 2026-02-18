@@ -64,9 +64,7 @@ class LevelDAG:
             return new.copy() if hasattr(new, "copy") else new
         return old + (new - old) / float(n)
 
-    def _reduce_one_frame(
-        self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
-    ) -> None:
+    def _reduce_one_frame(self, shared_data, frame_out):
         f_cov = shared_data["force_covariances"]
         t_cov = shared_data["torque_covariances"]
         counts = shared_data["frame_counts"]
@@ -115,25 +113,10 @@ class LevelDAG:
                 n = counts["poly"][gi]
             t_cov["poly"][gi] = self._inc_mean(t_cov["poly"][gi], T, n)
 
-        if "forcetorque" in frame_out and "force_torque_stats" in shared_data:
-            ft_cov = shared_data["force_torque_stats"]
-            ft_counts = shared_data["force_torque_counts"]
+        if "forcetorque" in frame_out:
+            ft_cov = shared_data["forcetorque_covariances"]
+            ft_counts = shared_data["forcetorque_counts"]
             ft_frame = frame_out["forcetorque"]
-
-            if ft_cov is None:
-                ft_cov = shared_data.get("force_torque_stats")
-            if ft_counts is None:
-                ft_counts = shared_data.get("force_torque_counts")
-
-            if ft_cov is None or ft_counts is None:
-                return
-
-            ft_frame = frame_out["forcetorque"]
-
-            for key, M in ft_frame.get("ua", {}).items():
-                ft_counts["ua"][key] = ft_counts["ua"].get(key, 0) + 1
-                n = ft_counts["ua"][key]
-                ft_cov["ua"][key] = self._inc_mean(ft_cov["ua"].get(key), M, n)
 
             for gid, M in ft_frame.get("res", {}).items():
                 gi = gid2i[gid]

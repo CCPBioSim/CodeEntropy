@@ -44,12 +44,7 @@ class VibrationalEntropyNode:
         torque_cov = shared_data["torque_covariances"]
 
         combined = bool(getattr(args, "combined_forcetorque", False))
-
-        ft_cov = None
-        if combined:
-            ft_cov = shared_data.get("forcetorque_covariances")
-            if ft_cov is None:
-                ft_cov = shared_data.get("force_torque_stats")
+        ft_cov = shared_data.get("forcetorque_covariances") if combined else None
 
         counts = shared_data.get("frame_counts", {})
         ua_counts = counts.get("ua", {}) if isinstance(counts, dict) else {}
@@ -60,22 +55,21 @@ class VibrationalEntropyNode:
         vib_results: Dict[int, Dict[str, Dict[str, float]]] = {}
 
         for group_id, mol_ids in groups.items():
-            mol_id = mol_ids[0]
-            mol = fragments[mol_id]
-            level_list = levels[mol_id]
-
             vib_results[group_id] = {}
 
+            rep_mol_id = mol_ids[0]
+            rep_mol = fragments[rep_mol_id]
+            level_list = levels[rep_mol_id]
+
             for level in level_list:
-                # highest = level == level_list[-1]
+                highest = level == level_list[-1]
 
                 if level == "united_atom":
                     S_trans = 0.0
                     S_rot = 0.0
 
-                    for res_id, res in enumerate(mol.residues):
+                    for res_id, res in enumerate(rep_mol.residues):
                         key = (group_id, res_id)
-
                         fmat = force_cov["ua"].get(key)
                         tmat = torque_cov["ua"].get(key)
 
@@ -118,8 +112,52 @@ class VibrationalEntropyNode:
                                 value=val_rot,
                             )
 
-                elif level == "residue":
+                    vib_results[group_id][level] = {
+                        "trans": float(S_trans),
+                        "rot": float(S_rot),
+                    }
+
+                    if data_logger is not None:
+                        data_logger.add_results_data(
+                            group_id, level, "Transvibrational", S_trans
+                        )
+                        data_logger.add_results_data(
+                            group_id, level, "Rovibrational", S_rot
+                        )
+
+                    continue
+
+                if level == "residue":
                     gi = gid2i[group_id]
+
+                    if combined and highest and ft_cov is not None:
+                        ftmat = ft_cov["res"][gi] if gi < len(ft_cov["res"]) else None
+                        if ftmat is None:
+                            S_trans, S_rot = 0.0, 0.0
+                        else:
+                            ftmat = self._mat_ops.filter_zero_rows_columns(
+                                np.asarray(ftmat)
+                            )
+                            S_trans = ve.vibrational_entropy_calculation(
+                                ftmat, "forcetorqueTRANS", temp, highest_level=True
+                            )
+                            S_rot = ve.vibrational_entropy_calculation(
+                                ftmat, "forcetorqueROT", temp, highest_level=True
+                            )
+
+                        vib_results[group_id][level] = {
+                            "trans": float(S_trans),
+                            "rot": float(S_rot),
+                        }
+                        if data_logger is not None:
+                            data_logger.add_results_data(
+                                group_id, level, "FTmat-Transvibrational", S_trans
+                            )
+                            data_logger.add_results_data(
+                                group_id, level, "FTmat-Rovibrational", S_rot
+                            )
+                        continue
+
                     fmat = force_cov["res"][gi] if gi < len(force_cov["res"]) else None
                     tmat = (
                         torque_cov["res"][gi] if gi < len(torque_cov["res"]) else None
@@ -130,95 +168,90 @@ class VibrationalEntropyNode:
                     else:
                         fmat = self._mat_ops.filter_zero_rows_columns(np.asarray(fmat))
                         tmat = self._mat_ops.filter_zero_rows_columns(np.asarray(tmat))
-
                         S_trans = ve.vibrational_entropy_calculation(
-                            fmat, "force", temp, highest_level=False
+                            fmat, "force", temp, highest_level=highest
                         )
                         S_rot = ve.vibrational_entropy_calculation(
-                            tmat, "torque", temp, highest_level=False
+                            tmat, "torque", temp, highest_level=highest
                         )
 
-                elif level == "polymer":
-                    if combined and ft_cov is not None:
-                        gi = gid2i[group_id]
-                        ftmat = ft_cov["poly"][gi]
-                        logger.warning(
-                            f"[VibNode] group={group_id} "
-                            "ftmat_shape={None if ftmat is None else ftmat.shape}"
-                        )
-
-                    gi = gid2i[group_id]
-
-                    if combined and ft_cov is not None:
-                        ftmat = ft_cov["poly"][gi] if gi < len(ft_cov["poly"]) else None
-                        if ftmat is None:
-                            logger.warning(
-                                f"[VibNode] combined=True but ftmat is None for group "
-                                f"{group_id}; falling back to F/T"
-                            )
-                            S_trans, S_rot = 0.0, 0.0
-                        else:
-                            ftmat = np.asarray(ftmat)
-                            ftmat = self._mat_ops.filter_zero_rows_columns(ftmat)
-
-                            S_trans = ve.vibrational_entropy_calculation(
-                                ftmat, "forcetorqueTRANS", temp, highest_level=True
-                            )
-                            S_rot = ve.vibrational_entropy_calculation(
-                                ftmat, "forcetorqueROT", temp, highest_level=True
-                            )
-                    else:
-                        fmat = (
-                            force_cov["poly"][gi]
-                            if gi < len(force_cov["poly"])
-                            else None
-                        )
-                        tmat = (
-                            torque_cov["poly"][gi]
-                            if gi < len(torque_cov["poly"])
-                            else None
-                        )
-
-                        if fmat is None or tmat is None:
-                            S_trans, S_rot = 0.0, 0.0
-                        else:
-                            fmat = self._mat_ops.filter_zero_rows_columns(
-                                np.asarray(fmat)
-                            )
-                            tmat = self._mat_ops.filter_zero_rows_columns(
-                                np.asarray(tmat)
-                            )
-
-                            S_trans = ve.vibrational_entropy_calculation(
-                                fmat, "force", temp, highest_level=True
-                            )
-                            S_rot = ve.vibrational_entropy_calculation(
-                                tmat, "torque", temp, highest_level=True
-                            )
-
-                else:
-                    raise ValueError(f"Unknown level: {level}")
-
-                vib_results[group_id][level] = {
-                    "trans": float(S_trans),
-                    "rot": float(S_rot),
-                }
-
-                if data_logger is not None:
-                    if level == "polymer" and combined and ft_cov is not None:
-                        data_logger.add_results_data(
-                            group_id, level, "FTmat-Transvibrational", S_trans
-                        )
-                        data_logger.add_results_data(
-                            group_id, level, "FTmat-Rovibrational", S_rot
-                        )
-                    else:
+                    vib_results[group_id][level] = {
+                        "trans": float(S_trans),
+                        "rot": float(S_rot),
+                    }
+                    if data_logger is not None:
                         data_logger.add_results_data(
                             group_id, level, "Transvibrational", S_trans
                         )
                         data_logger.add_results_data(
                             group_id, level, "Rovibrational", S_rot
                         )
+                    continue
+
+                if level == "polymer":
+                    gi = gid2i[group_id]
+
+                    if combined and highest and ft_cov is not None:
+                        ftmat = ft_cov["poly"][gi] if gi < len(ft_cov["poly"]) else None
+                        if ftmat is None:
+                            S_trans, S_rot = 0.0, 0.0
+                        else:
+                            ftmat = self._mat_ops.filter_zero_rows_columns(
+                                np.asarray(ftmat)
+                            )
+                            S_trans = ve.vibrational_entropy_calculation(
+                                ftmat, "forcetorqueTRANS", temp, highest_level=True
+                            )
+                            S_rot = ve.vibrational_entropy_calculation(
+                                ftmat, "forcetorqueROT", temp, highest_level=True
+                            )
+
+                        vib_results[group_id][level] = {
+                            "trans": float(S_trans),
+                            "rot": float(S_rot),
+                        }
+                        if data_logger is not None:
+                            data_logger.add_results_data(
+                                group_id, level, "FTmat-Transvibrational", S_trans
+                            )
+                            data_logger.add_results_data(
+                                group_id, level, "FTmat-Rovibrational", S_rot
+                            )
+                        continue
+
+                    fmat = (
+                        force_cov["poly"][gi] if gi < len(force_cov["poly"]) else None
+                    )
+                    tmat = (
+                        torque_cov["poly"][gi] if gi < len(torque_cov["poly"]) else None
+                    )
+
+                    if fmat is None or tmat is None:
+                        S_trans, S_rot = 0.0, 0.0
+                    else:
+                        fmat = self._mat_ops.filter_zero_rows_columns(np.asarray(fmat))
+                        tmat = self._mat_ops.filter_zero_rows_columns(np.asarray(tmat))
+                        S_trans = ve.vibrational_entropy_calculation(
+                            fmat, "force", temp, highest_level=highest
+                        )
+                        S_rot = ve.vibrational_entropy_calculation(
+                            tmat, "torque", temp, highest_level=highest
+                        )
+
+                    vib_results[group_id][level] = {
+                        "trans": float(S_trans),
+                        "rot": float(S_rot),
+                    }
+                    if data_logger is not None:
+                        data_logger.add_results_data(
+                            group_id, level, "Transvibrational", S_trans
+                        )
+                        data_logger.add_results_data(
+                            group_id, level, "Rovibrational", S_rot
+                        )
+                    continue
+
+                raise ValueError(f"Unknown level: {level}")
 
         logger.info("[VibrationalEntropyNode] Done")
         return {"vibrational_entropy": vib_results}

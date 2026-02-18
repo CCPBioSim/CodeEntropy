@@ -1,12 +1,9 @@
 import logging
+from typing import Any, Dict
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-
-def _empty_stats():
-    return {"n": 0, "mean": None, "M2": None}
 
 
 class InitCovarianceAccumulatorsNode:
@@ -16,17 +13,18 @@ class InitCovarianceAccumulatorsNode:
     Canonical mean accumulators:
       shared_data["force_covariances"]
       shared_data["torque_covariances"]
+      shared_data["forcetorque_covariances"]   # 6N x 6N mean (highest level only)
 
-    Canonical combined (full 6N x 6N) mean accumulator:
-      shared_data["forcetorque_covariances"]
+    Counters:
+      shared_data["frame_counts"]
       shared_data["forcetorque_counts"]
 
-    Backwards-compatible aliases (point to the same objects):
+    Backwards-compatible aliases:
       shared_data["force_torque_stats"]   -> shared_data["forcetorque_covariances"]
       shared_data["force_torque_counts"]  -> shared_data["forcetorque_counts"]
     """
 
-    def run(self, shared_data):
+    def run(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
         groups = shared_data["groups"]
         group_ids = list(groups.keys())
         n_groups = len(group_ids)
@@ -37,30 +35,17 @@ class InitCovarianceAccumulatorsNode:
         force_cov = {"ua": {}, "res": [None] * n_groups, "poly": [None] * n_groups}
         torque_cov = {"ua": {}, "res": [None] * n_groups, "poly": [None] * n_groups}
 
-        force_stats = {
-            "ua": {},
-            "res": [_empty_stats() for _ in range(n_groups)],
-            "poly": [_empty_stats() for _ in range(n_groups)],
-        }
-        torque_stats = {
-            "ua": {},
-            "res": [_empty_stats() for _ in range(n_groups)],
-            "poly": [_empty_stats() for _ in range(n_groups)],
-        }
-        force_torque_stats = {
-            "ua": {},
-            "res": [None] * n_groups,
-            "poly": [None] * n_groups,
-        }
-
         frame_counts = {
             "ua": {},
             "res": np.zeros(n_groups, dtype=int),
             "poly": np.zeros(n_groups, dtype=int),
         }
 
-        force_torque_counts = {
-            "ua": {},
+        forcetorque_cov = {
+            "res": [None] * n_groups,
+            "poly": [None] * n_groups,
+        }
+        forcetorque_counts = {
             "res": np.zeros(n_groups, dtype=int),
             "poly": np.zeros(n_groups, dtype=int),
         }
@@ -72,16 +57,13 @@ class InitCovarianceAccumulatorsNode:
         shared_data["torque_covariances"] = torque_cov
         shared_data["frame_counts"] = frame_counts
 
-        shared_data["force_stats"] = force_stats
-        shared_data["torque_stats"] = torque_stats
+        shared_data["forcetorque_covariances"] = forcetorque_cov
+        shared_data["forcetorque_counts"] = forcetorque_counts
 
-        shared_data["force_torque_stats"] = force_torque_stats
-        shared_data["force_torque_counts"] = force_torque_counts
+        shared_data["force_torque_stats"] = forcetorque_cov
+        shared_data["force_torque_counts"] = forcetorque_counts
 
-        shared_data["forcetorque_covariances"] = force_torque_stats
-        shared_data["forcetorque_counts"] = force_torque_counts
-
-        logger.warning(f"[InitCovAcc] group_ids={group_ids} gid2i={gid2i}")
+        logger.info(f"[InitCovAcc] group_ids={group_ids} gid2i={gid2i}")
 
         return {
             "group_id_to_index": gid2i,
@@ -89,10 +71,8 @@ class InitCovarianceAccumulatorsNode:
             "force_covariances": force_cov,
             "torque_covariances": torque_cov,
             "frame_counts": frame_counts,
-            "force_stats": force_stats,
-            "torque_stats": torque_stats,
-            "force_torque_stats": force_torque_stats,
-            "force_torque_counts": force_torque_counts,
-            "forcetorque_covariances": force_torque_stats,
-            "forcetorque_counts": force_torque_counts,
+            "forcetorque_covariances": forcetorque_cov,
+            "forcetorque_counts": forcetorque_counts,
+            "force_torque_stats": forcetorque_cov,
+            "force_torque_counts": forcetorque_counts,
         }
