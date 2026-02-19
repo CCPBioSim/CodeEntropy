@@ -269,30 +269,8 @@ class VibrationalEntropy:
             return float(np.sum(components))
 
         if matrix_type in ("forcetorqueTRANS", "forcetorqueROT"):
-            first, second = self._split_halves(components)
-            if second.size == 0:
-                # Odd number of modes; fallback to total.
-                logger.warning(
-                    "Combined FT spectrum has odd number of modes (%d); "
-                    "returning total.",
-                    components.size,
-                )
-                return float(np.sum(components))
-
-            trans_components = first
-            rot_components = second
-
-            if not highest_level:
-                trans_components = (
-                    trans_components[6:]
-                    if trans_components.size > 6
-                    else np.array([], dtype=float)
-                )
-
-            return (
-                float(np.sum(trans_components))
-                if matrix_type == "forcetorqueTRANS"
-                else float(np.sum(rot_components))
-            )
+            if matrix_type == "forcetorqueTRANS":
+                return float(np.sum(components[:3]))
+            return float(np.sum(components[3:]))
 
         raise ValueError(f"Unknown matrix_type: {matrix_type}")
