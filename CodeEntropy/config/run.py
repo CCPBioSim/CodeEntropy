@@ -1,6 +1,24 @@
+"""Run orchestration for CodeEntropy.
+
+This module provides the RunManager, which is responsible for:
+- Creating a new job folder for each run
+- Loading YAML configuration and merging it with CLI arguments
+- Setting up logging and displaying a Rich splash screen
+- Building the MDAnalysis Universe (including optional force merging)
+- Wiring dependencies and executing the EntropyManager workflow
+- Providing physical-constants helpers used by entropy calculations
+
+Notes on design:
+- RunManager focuses on orchestration and simple utilities only.
+- Computational logic lives in EntropyManager and the level/entropy DAG modules.
+"""
+
+from __future__ import annotations
+
 import logging
 import os
 import pickle
+from typing import Any, Dict, Optional
 
 import MDAnalysis as mda
 import requests
@@ -27,78 +45,80 @@ console = LoggingConfig.get_console()
 
 
 class RunManager:
-    """
-    Handles the setup and execution of entropy analysis runs, including configuration
-    loading, logging, and access to physical constants used in calculations.
+    """Coordinate setup and execution of entropy analysis runs.
+
+    Responsibilities:
+      - Bootstrapping: job folder, logging, splash screen
+      - Configuration: YAML loading + CLI parsing + merge and validation
+      - Universe creation: MDAnalysis Universe (optionally merging forces)
+      - Dependency wiring and execution: EntropyManager
+      - Utilities used by downstream modules: constants and unit conversions
+
+    Attributes:
+        folder: Working directory for the current job (e.g., job001).
     """
 
-    def __init__(self, folder):
-        """
-        Initializes the RunManager with the working folder and sets up configuration,
-        data logging, and logging systems. Also defines physical constants used in
-        entropy calculations.
+    _N_AVOGADRO = 6.0221415e23
+    _DEF_TEMPER = 298
+
+    def __init__(self, folder: str) -> None:
+        """Initialize a RunManager for a given working folder.
+
+        This sets up configuration helpers, data logging, and logging configuration.
+        It also defines physical constants used in entropy calculations.
+
+        Args:
+            folder: Job folder path where logs and outputs will be written.
         """
         self.folder = folder
         self._config_manager = ConfigManager()
         self._data_logger = DataLogger()
         self._logging_config = LoggingConfig(folder)
-        self._N_AVOGADRO = 6.0221415e23
-        self._DEF_TEMPER = 298
 
     @property
-    def N_AVOGADRO(self):
-        """Returns Avogadro's number used in entropy calculations."""
+    def N_AVOGADRO(self) -> float:
+        """Return Avogadro's number used in entropy calculations."""
         return self._N_AVOGADRO
 
     @property
-    def DEF_TEMPER(self):
-        """Returns the default temperature (in Kelvin) used in the analysis."""
+    def DEF_TEMPER(self) -> float:
+        """Return the default temperature (K) used in the analysis."""
         return self._DEF_TEMPER
 
     @staticmethod
-    def create_job_folder():
-        """
-        Create a new job folder with an incremented job number based on existing
-        folders.
-        """
-        # Get the current working directory
-        current_dir = os.getcwd()
+    def create_job_folder() -> str:
+        """Create a new job folder (job###) in the current working directory.
 
-        # Get a list of existing folders that start with "job"
+        The method searches existing folders that start with "job" and picks the next
+        integer suffix. If none exist, it creates job001.
+
+        Returns:
+            The full path to the newly created job folder.
+        """
+        current_dir = os.getcwd()
         existing_folders = [f for f in os.listdir(current_dir) if f.startswith("job")]
 
-        # Extract numbers from existing folder names
         job_numbers = []
         for folder in existing_folders:
             try:
-                # Assuming folder names are in the format "jobXXX"
-                job_number = int(folder[3:])  # Get the number part after "job"
-                job_numbers.append(job_number)
+                job_numbers.append(int(folder[3:]))
             except ValueError:
-                continue  # Ignore any folder names that don't follow the pattern
+                continue
 
-        # If no folders exist, start with job001
-        if not job_numbers:
-            next_job_number = 1
-        else:
-            next_job_number = max(job_numbers) + 1
-
-        # Create the new job folder name
+        next_job_number = 1 if not job_numbers else max(job_numbers) + 1
         new_job_folder = f"job{next_job_number:03d}"
-
-        # Create the full path to the new folder
         new_folder_path = os.path.join(current_dir, new_job_folder)
-
-        # Create the directory
         os.makedirs(new_folder_path, exist_ok=True)
 
-        # Return the path of the newly created folder
         return new_folder_path
 
-    def load_citation_data(self):
-        """
-        Load CITATION.cff from GitHub into memory.
-        Return empty dict if offline.
+    def load_citation_data(self) -> Optional[Dict[str, Any]]:
+        """Load CITATION.cff from GitHub.
+
+        If the request fails (offline, blocked, etc.), returns None.
+
+        Returns:
+            Parsed CITATION.cff content as a dict, or None if unavailable.
         """
         url = (
             "https://raw.githubusercontent.com/CCPBioSim/"
@@ -111,16 +131,14 @@ class RunManager:
         except requests.exceptions.RequestException:
             return None
 
-    def show_splash(self):
-        """Render splash screen with optional citation metadata."""
+    def show_splash(self) -> None:
+        """Render a Rich splash screen with optional citation metadata."""
         citation = self.load_citation_data()
 
         if citation:
-            # ASCII Title
             ascii_title = text2art(citation.get("title", "CodeEntropy"))
             ascii_render = Align.center(Text(ascii_title, style="bold white"))
 
-            # Metadata
             version = citation.get("version", "?")
             release_date = citation.get("date-released", "?")
             url = citation.get("url", citation.get("repository-code", ""))
@@ -130,7 +148,6 @@ class RunManager:
             )
             url_text = Align.center(Text(url, style="blue underline"))
 
-            # Description block
             abstract = citation.get("abstract", "No description available.")
             description_title = Align.center(
                 Text("Description", style="bold magenta underline")
@@ -139,7 +156,6 @@ class RunManager:
                 Padding(Text(abstract, style="white", justify="left"), (0, 4))
             )
 
-            # Contributors table
             contributors_title = Align.center(
                 Text("Contributors", style="bold magenta underline")
             )
@@ -159,7 +175,6 @@ class RunManager:
 
             contributors_table = Align.center(Padding(author_table, (0, 4)))
 
-            # Full layout
             splash_content = Group(
                 ascii_render,
                 Rule(style="cyan"),
@@ -173,13 +188,9 @@ class RunManager:
                 contributors_table,
             )
         else:
-            # ASCII Title
             ascii_title = text2art("CodeEntropy")
             ascii_render = Align.center(Text(ascii_title, style="bold white"))
-
-            splash_content = Group(
-                ascii_render,
-            )
+            splash_content = Group(ascii_render)
 
         splash_panel = Panel(
             splash_content,
@@ -192,9 +203,13 @@ class RunManager:
 
         console.print(splash_panel)
 
-    def print_args_table(self, args):
-        table = Table(title="Run Configuration", expand=True)
+    def print_args_table(self, args: Any) -> None:
+        """Print a Rich table of the run configuration arguments.
 
+        Args:
+            args: argparse Namespace or object with attributes for configuration.
+        """
+        table = Table(title="Run Configuration", expand=True)
         table.add_column("Argument", style="cyan", no_wrap=True)
         table.add_column("Value", style="magenta")
 
@@ -203,75 +218,63 @@ class RunManager:
 
         console.print(table)
 
-    def run_entropy_workflow(self):
-        """
-        Runs the entropy analysis workflow by setting up logging, loading configuration
-        files, parsing arguments, and executing the analysis for each configured run.
-        Initializes the MDAnalysis Universe and supporting managers, and logs all
-        relevant inputs and commands.
+    def run_entropy_workflow(self) -> None:
+        """Run the end-to-end entropy workflow.
+
+        This method:
+          - Sets up logging and prints the splash screen
+          - Loads YAML config from CWD and parses CLI args
+          - Merges args with YAML per-run config
+          - Builds the MDAnalysis Universe (with optional force merging)
+          - Validates user parameters
+          - Constructs dependencies and executes EntropyManager
+          - Saves recorded console output to a log file
+
+        Raises:
+            Exception: Re-raises any exception after logging with traceback.
         """
         try:
-            logger = self._logging_config.setup_logging()
+            run_logger = self._logging_config.setup_logging()
             self.show_splash()
 
             current_directory = os.getcwd()
-
             config = self._config_manager.load_config(current_directory)
+
             parser = self._config_manager.setup_argparse()
             args, _ = parser.parse_known_args()
             args.output_file = os.path.join(self.folder, args.output_file)
 
             for run_name, run_config in config.items():
                 if not isinstance(run_config, dict):
-                    logger.warning(
-                        f"Run configuration for {run_name} is not a dictionary."
+                    run_logger.warning(
+                        "Run configuration for %s is not a dictionary.", run_name
                     )
                     continue
 
                 args = self._config_manager.merge_configs(args, run_config)
 
-                log_level = logging.DEBUG if args.verbose else logging.INFO
+                log_level = (
+                    logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
+                )
                 self._logging_config.update_logging_level(log_level)
 
                 command = " ".join(os.sys.argv)
                 logging.getLogger("commands").info(command)
 
-                if not getattr(args, "top_traj_file", None):
-                    raise ValueError("Missing 'top_traj_file' argument.")
-                if not getattr(args, "selection_string", None):
-                    raise ValueError("Missing 'selection_string' argument.")
+                self._validate_required_args(args)
 
                 self.print_args_table(args)
 
-                # Load MDAnalysis Universe
-                tprfile = args.top_traj_file[0]
-                trrfile = args.top_traj_file[1:]
-                forcefile = args.force_file
-                fileformat = args.file_format
-                kcal_units = args.kcal_force_units
-
-                # Create shared UniverseOperations instance
                 universe_operations = UniverseOperations()
-
-                if forcefile is None:
-                    logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
-                    u = mda.Universe(tprfile, trrfile, format=fileformat)
-                else:
-                    u = universe_operations.merge_forces(
-                        tprfile, trrfile, forcefile, fileformat, kcal_units
-                    )
+                u = self._build_universe(args, universe_operations)
 
                 self._config_manager.input_parameters_validation(u, args)
 
-                # Create GroupMolecules instance
                 group_molecules = GroupMolecules()
-
-                # Create shared DihedralAnalysis with injected universe_operations
                 dihedral_analysis = DihedralAnalysis(
                     universe_operations=universe_operations
                 )
 
-                # Inject all dependencies into EntropyManager
                 entropy_manager = EntropyManager(
                     run_manager=self,
                     args=args,
@@ -281,17 +284,58 @@ class RunManager:
                     dihedral_analysis=dihedral_analysis,
                     universe_operations=universe_operations,
                 )
-
                 entropy_manager.execute()
 
             self._logging_config.save_console_log()
 
         except Exception as e:
-            logger.error(f"RunManager encountered an error: {e}", exc_info=True)
+            logger.error("RunManager encountered an error: %s", e, exc_info=True)
             raise
 
-    def write_universe(self, u, name="default"):
-        """Write a universe to working directories as pickle
+    @staticmethod
+    def _validate_required_args(args: Any) -> None:
+        """Validate presence of required arguments.
+
+        Args:
+            args: argparse Namespace or similar.
+
+        Raises:
+            ValueError: If required arguments are missing.
+        """
+        if not getattr(args, "top_traj_file", None):
+            raise ValueError("Missing 'top_traj_file' argument.")
+        if not getattr(args, "selection_string", None):
+            raise ValueError("Missing 'selection_string' argument.")
+
+    @staticmethod
+    def _build_universe(
+        args: Any, universe_operations: UniverseOperations
+    ) -> mda.Universe:
+        """Create an MDAnalysis Universe from args.
+
+        Args:
+            args: Parsed arguments containing topology/trajectory and force settings.
+            universe_operations: UniverseOperations utility instance.
+
+        Returns:
+            An MDAnalysis Universe ready for analysis.
+        """
+        tprfile = args.top_traj_file[0]
+        trrfile = args.top_traj_file[1:]
+        forcefile = args.force_file
+        fileformat = args.file_format
+        kcal_units = args.kcal_force_units
+
+        if forcefile is None:
+            logger.debug("Loading Universe with %s and %s", tprfile, trrfile)
+            return mda.Universe(tprfile, trrfile, format=fileformat)
+
+        return universe_operations.merge_forces(
+            tprfile, trrfile, forcefile, fileformat, kcal_units
+        )
+
+    def write_universe(self, u: mda.Universe, name: str = "default") -> str:
+        """Write a universe to disk as a pickle.
 
         Parameters
         ----------
@@ -307,11 +351,12 @@ class RunManager:
                 filename of saved universe
         """
         filename = f"{name}.pkl"
-        pickle.dump(u, open(filename, "wb"))
+        with open(filename, "wb") as f:
+            pickle.dump(u, f)
         return name
 
-    def read_universe(self, path):
-        """read a universe to working directories as pickle
+    def read_universe(self, path: str) -> mda.Universe:
+        """Read a universe from disk (pickle).
 
         Parameters
         ----------
@@ -324,15 +369,15 @@ class RunManager:
                 A Universe object will all topology, dihedrals,coordinates and force
                 information.
         """
-        u = pickle.load(open(path, "rb"))
-        return u
+        with open(path, "rb") as f:
+            return pickle.load(f)
 
-    def change_lambda_units(self, arg_lambdas):
+    def change_lambda_units(self, arg_lambdas: Any) -> Any:
         """Unit of lambdas : kJ2 mol-2 A-2 amu-1
         change units of lambda to J/s2"""
         # return arg_lambdas * N_AVOGADRO * N_AVOGADRO * AMU2KG * 1e-26
         return arg_lambdas * 1e29 / self.N_AVOGADRO
 
-    def get_KT2J(self, arg_temper):
+    def get_KT2J(self, arg_temper: float) -> float:
         """A temperature dependent KT to Joule conversion"""
         return 4.11e-21 * arg_temper / self.DEF_TEMPER
