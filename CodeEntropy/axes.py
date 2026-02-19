@@ -171,24 +171,32 @@ class AxesManager:
             ValueError:
                 If bonded-axis construction fails.
         """
-        index = int(index)
 
-        # Translational axes: same customPI approach as residue level.
-        uas = data_container.select_atoms("mass 2 to 999")
-        ua_masses = self.get_UA_masses(data_container.atoms)
-        center = data_container.atoms.center_of_mass(unwrap=True)
-        moi_tensor = self.get_moment_of_inertia_tensor(
-            center_of_mass=center,
-            positions=uas.positions,
-            masses=ua_masses,
-            dimensions=data_container.dimensions[:3],
-        )
-        trans_axes, _ = self.get_custom_principal_axes(moi_tensor)
+        index = int(index)  # bead index
 
-        # Rotational axes: choose the nth heavy atom where n is bead index.
+        # use the same customPI trans axes as the residue level
         heavy_atoms = data_container.select_atoms("prop mass > 1.1")
-        heavy_atom_indices = [atom.index for atom in heavy_atoms]
-        heavy_atom_index = heavy_atom_indices[index]  # may raise IndexError
+        if len(heavy_atoms) > 1:
+            UA_masses = self.get_UA_masses(data_container.atoms)
+            center = data_container.atoms.center_of_mass(unwrap=True)
+            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
+                center, heavy_atoms.positions, UA_masses, data_container.dimensions[:3]
+            )
+            trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
+                moment_of_inertia_tensor
+            )
+        else:
+            # use standard PA for UA not bonded to anything else
+            make_whole(data_container.atoms)
+            trans_axes = data_container.atoms.principal_axes()
+
+        # look for heavy atoms in residue of interest
+        heavy_atom_indices = []
+        for atom in heavy_atoms:
+            heavy_atom_indices.append(atom.index)
+        # we find the nth heavy atom
+        # where n is the bead index
+        heavy_atom_index = heavy_atom_indices[index]
         heavy_atom = data_container.select_atoms(f"index {heavy_atom_index}")
 
         center = heavy_atom.positions[0]
