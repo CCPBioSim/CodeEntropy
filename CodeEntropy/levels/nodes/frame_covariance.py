@@ -94,6 +94,8 @@ class FrameCovarianceNode:
                         axes_manager=axes_manager,
                         box=box,
                         force_partitioning=fp,
+                        customised_axes=customised_axes,
+                        is_highest=("united_atom" == level_list[-1]),
                         out_force=out_force,
                         out_torque=out_torque,
                         molcount=ua_molcount,
@@ -154,11 +156,12 @@ class FrameCovarianceNode:
         axes_manager: Any,
         box: Optional[np.ndarray],
         force_partitioning: float,
+        customised_axes: bool,
+        is_highest: bool,
         out_force: Dict[str, Dict[Any, Matrix]],
         out_torque: Dict[str, Dict[Any, Matrix]],
         molcount: Dict[Tuple[int, int], int],
     ) -> None:
-        """Compute UA-level per-residue force/torque second moments for one molecule."""
         for local_res_i, res in enumerate(mol.residues):
             bead_key = (mol_id, "united_atom", local_res_i)
             bead_idx_list = beads.get(bead_key, [])
@@ -170,11 +173,13 @@ class FrameCovarianceNode:
                 continue
 
             force_vecs, torque_vecs = self._build_ua_vectors(
-                bead_groups=bead_groups,
                 residue_atoms=res.atoms,
+                bead_groups=bead_groups,
                 axes_manager=axes_manager,
                 box=box,
                 force_partitioning=force_partitioning,
+                customised_axes=customised_axes,
+                is_highest=is_highest,
             )
 
             F, T = self._ft.compute_frame_covariance(force_vecs, torque_vecs)
@@ -322,21 +327,32 @@ class FrameCovarianceNode:
         axes_manager: Any,
         box: Optional[np.ndarray],
         force_partitioning: float,
+        customised_axes: bool,
+        is_highest: bool,
     ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
-        """Build force/torque vectors for UA beads belonging to a single residue."""
         force_vecs: List[np.ndarray] = []
         torque_vecs: List[np.ndarray] = []
 
         for ua_i, bead in enumerate(bead_groups):
-            trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
-                residue_atoms, ua_i
-            )
+            if customised_axes and axes_manager is not None:
+                trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
+                    residue_atoms, ua_i
+                )
+            else:
+                make_whole(residue_atoms)
+                make_whole(bead)
+
+                trans_axes = residue_atoms.principal_axes()
+                rot_axes = np.real(bead.principal_axes())
+                eigvals, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
+                moi = sorted(eigvals, reverse=True)
+                center = bead.center_of_mass(unwrap=True)
 
             force_vecs.append(
                 self._ft.get_weighted_forces(
                     bead=bead,
                     trans_axes=np.asarray(trans_axes),
-                    highest_level=False,
+                    highest_level=is_highest,
                     force_partitioning=force_partitioning,
                 )
             )
