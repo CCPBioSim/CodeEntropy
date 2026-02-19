@@ -95,10 +95,6 @@ class LevelHierarchy:
 
         raise ValueError(f"Unknown level: {level}")
 
-    # ------------------------------------------------------------------
-    # Bead builders (single responsibility, testable)
-    # ------------------------------------------------------------------
-
     def _build_residue_beads(self, data_container) -> List:
         """Build one bead per residue using the container's residues.
 
