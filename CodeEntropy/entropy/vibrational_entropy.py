@@ -247,16 +247,6 @@ class VibrationalEntropy:
         matrix_type: MatrixType,
         highest_level: bool,
     ) -> float:
-        """Sum entropy components according to the matrix type and level rules.
-
-        Args:
-            components: Per-mode entropy components.
-            matrix_type: Type selector.
-            highest_level: Whether this is the highest level.
-
-        Returns:
-            Summed entropy value.
-        """
         if components.size == 0:
             return 0.0
 

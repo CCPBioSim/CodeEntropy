@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 GroupId = int
 ResidueId = int
-GroupIndex = int
 CovKey = Tuple[GroupId, ResidueId]
 
 
@@ -29,34 +28,13 @@ class _EntropyPair:
 
 
 class VibrationalEntropyNode:
-    """Compute vibrational entropy from force/torque (and optional FT) covariances.
-
-    This node reads covariance matrices from ``shared_data`` and computes entropy
-    contributions for each group and level (e.g., united_atom, residue, polymer).
-
-    If combined force/torque matrices are enabled and available, FT matrices are
-    used for the highest level at each group/level, otherwise separate force and
-    torque matrices are used.
-
-    Results are written back into ``shared_data["vibrational_entropy"]``.
-    """
+    """Compute vibrational entropy from force/torque (and optional FT) covariances."""
 
     def __init__(self) -> None:
         self._mat_ops = MatrixOperations()
+        self._zero_atol = 1e-8
 
     def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> Dict[str, Any]:
-        """Execute vibrational entropy calculation.
-
-        Args:
-            shared_data: Shared workflow state dictionary.
-
-        Returns:
-            Dictionary containing vibrational entropy results.
-
-        Raises:
-            KeyError: If required keys are missing.
-            ValueError: If an unknown level is encountered.
-        """
         ve = self._build_entropy_engine(shared_data)
         temp = shared_data["args"].temperature
 
@@ -100,6 +78,7 @@ class VibrationalEntropyNode:
                         ua_frame_counts=ua_frame_counts,
                         data_logger=data_logger,
                         n_frames_default=shared_data.get("n_frames", 0),
+                        highest=highest,  # IMPORTANT: matches main
                     )
                     self._store_results(results, group_id, level, pair)
                     self._log_molecule_level_results(
@@ -110,15 +89,12 @@ class VibrationalEntropyNode:
                 if level in ("residue", "polymer"):
                     gi = gid2i[group_id]
 
+                    # FT only applies at the highest level (same as main)
                     if combined and highest and ft_cov is not None:
                         ft_key = "res" if level == "residue" else "poly"
                         ftmat = self._get_indexed_matrix(ft_cov.get(ft_key, []), gi)
 
-                        pair = self._compute_ft_entropy(
-                            ve=ve,
-                            temp=temp,
-                            ftmat=ftmat,
-                        )
+                        pair = self._compute_ft_entropy(ve=ve, temp=temp, ftmat=ftmat)
                         self._store_results(results, group_id, level, pair)
                         self._log_molecule_level_results(
                             data_logger, group_id, level, pair, use_ft_labels=True
@@ -151,14 +127,6 @@ class VibrationalEntropyNode:
     def _build_entropy_engine(
         self, shared_data: Mapping[str, Any]
     ) -> VibrationalEntropy:
-        """Create the entropy calculation engine.
-
-        Args:
-            shared_data: Shared workflow state.
-
-        Returns:
-            VibrationalEntropy instance.
-        """
         return VibrationalEntropy(
             run_manager=shared_data["run_manager"],
             args=shared_data["args"],
@@ -168,14 +136,6 @@ class VibrationalEntropyNode:
         )
 
     def _get_group_id_to_index(self, shared_data: Mapping[str, Any]) -> Dict[int, int]:
-        """Get mapping from group id to contiguous index.
-
-        Args:
-            shared_data: Shared workflow state.
-
-        Returns:
-            Mapping of group id -> index.
-        """
         gid2i = shared_data.get("group_id_to_index")
         if isinstance(gid2i, dict) and gid2i:
             return gid2i
@@ -183,14 +143,6 @@ class VibrationalEntropyNode:
         return {gid: i for i, gid in enumerate(groups.keys())}
 
     def _get_ua_frame_counts(self, shared_data: Mapping[str, Any]) -> Dict[CovKey, int]:
-        """Get per-residue frame counts for united atom computations.
-
-        Args:
-            shared_data: Shared workflow state.
-
-        Returns:
-            Mapping (group_id, res_id) -> frame count.
-        """
         counts = shared_data.get("frame_counts", {})
         if isinstance(counts, dict):
             ua_counts = counts.get("ua", {})
@@ -210,23 +162,8 @@ class VibrationalEntropyNode:
         ua_frame_counts: Mapping[CovKey, int],
         data_logger: Optional[Any],
         n_frames_default: int,
+        highest: bool,
     ) -> _EntropyPair:
-        """Compute united atom vibrational entropy for a group.
-
-        Args:
-            ve: Vibrational entropy engine.
-            temp: Temperature used for entropy calculation.
-            group_id: Group identifier.
-            residues: Residues iterable for the representative molecule.
-            force_ua: UA-level force covariance matrices.
-            torque_ua: UA-level torque covariance matrices.
-            ua_frame_counts: UA per-residue frame counts.
-            data_logger: Optional data logger for residue-level output.
-            n_frames_default: Default frame count if per-residue count is missing.
-
-        Returns:
-            Total translational and rotational entropy for UA level.
-        """
         s_trans_total = 0.0
         s_rot_total = 0.0
 
@@ -240,7 +177,7 @@ class VibrationalEntropyNode:
                 temp=temp,
                 fmat=fmat,
                 tmat=tmat,
-                highest=False,
+                highest=highest,
             )
 
             s_trans_total += pair.trans
@@ -276,23 +213,19 @@ class VibrationalEntropyNode:
         tmat: Any,
         highest: bool,
     ) -> _EntropyPair:
-        """Compute entropy from separate force and torque covariance matrices.
-
-        Args:
-            ve: Vibrational entropy engine.
-            temp: Temperature.
-            fmat: Force covariance matrix.
-            tmat: Torque covariance matrix.
-            highest: Whether this is the highest level.
-
-        Returns:
-            Translational and rotational entropy pair.
-        """
         if fmat is None or tmat is None:
             return _EntropyPair(trans=0.0, rot=0.0)
 
-        f = self._mat_ops.filter_zero_rows_columns(np.asarray(fmat))
-        t = self._mat_ops.filter_zero_rows_columns(np.asarray(tmat))
+        f = self._mat_ops.filter_zero_rows_columns(
+            np.asarray(fmat), atol=self._zero_atol
+        )
+        t = self._mat_ops.filter_zero_rows_columns(
+            np.asarray(tmat), atol=self._zero_atol
+        )
+
+        # If filtering removes everything, behave like "no data"
+        if f.size == 0 or t.size == 0:
+            return _EntropyPair(trans=0.0, rot=0.0)
 
         s_trans = ve.vibrational_entropy_calculation(
             f, "force", temp, highest_level=highest
@@ -309,21 +242,16 @@ class VibrationalEntropyNode:
         temp: float,
         ftmat: Any,
     ) -> _EntropyPair:
-        """Compute entropy from a combined force/torque covariance matrix.
-
-        Args:
-            ve: Vibrational entropy engine.
-            temp: Temperature.
-            ftmat: Combined force/torque covariance matrix.
-
-        Returns:
-            Translational and rotational entropy pair.
-        """
         if ftmat is None:
             return _EntropyPair(trans=0.0, rot=0.0)
 
-        ft = self._mat_ops.filter_zero_rows_columns(np.asarray(ftmat))
+        ft = self._mat_ops.filter_zero_rows_columns(
+            np.asarray(ftmat), atol=self._zero_atol
+        )
+        if ft.size == 0:
+            return _EntropyPair(trans=0.0, rot=0.0)
 
+        # FT is only used at highest level in main branch
         s_trans = ve.vibrational_entropy_calculation(
             ft, "forcetorqueTRANS", temp, highest_level=True
         )
@@ -339,7 +267,6 @@ class VibrationalEntropyNode:
         level: str,
         pair: _EntropyPair,
     ) -> None:
-        """Store computed entropy pair into results dict."""
         results[group_id][level] = {"trans": pair.trans, "rot": pair.rot}
 
     @staticmethod
@@ -351,7 +278,6 @@ class VibrationalEntropyNode:
         *,
         use_ft_labels: bool,
     ) -> None:
-        """Log molecule-level results, if a data logger is present."""
         if data_logger is None:
             return
 
@@ -369,7 +295,6 @@ class VibrationalEntropyNode:
 
     @staticmethod
     def _get_indexed_matrix(mats: Any, index: int) -> Any:
-        """Safely fetch a matrix from a list-like container."""
         try:
             return mats[index] if index < len(mats) else None
         except TypeError:
