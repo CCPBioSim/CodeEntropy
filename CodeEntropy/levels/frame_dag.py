@@ -1,4 +1,15 @@
+"""Frame-local DAG execution.
+
+This module defines the frame-scoped DAG used during the MAP stage of the
+hierarchy workflow. Each frame is processed independently to produce
+frame-local outputs (e.g., axes and covariance data), which are later reduced
+outside this DAG.
+"""
+
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import networkx as nx
@@ -9,48 +20,103 @@ from CodeEntropy.levels.nodes.frame_covariance import FrameCovarianceNode
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class FrameContext:
+    """Container for per-frame execution context.
+
+    Attributes:
+        shared: Shared workflow data (mutated across the full workflow).
+        frame_index: Absolute trajectory frame index being processed.
+        frame_axes: Frame-local axes output produced by FrameAxesNode.
+        frame_covariance: Frame-local covariance output produced by FrameCovarianceNode.
+        data: Additional frame-local scratch space for nodes, if needed.
+    """
+
+    shared: Dict[str, Any]
+    frame_index: int
+    frame_axes: Any = None
+    frame_covariance: Any = None
+    data: Dict[str, Any] = None
+
+
 class FrameDAG:
-    """
-    Frame-local DAG (MAP stage).
+    """Execute a frame-local directed acyclic graph.
 
-    Contract:
-      - execute_frame(shared_data, frame_index) builds a frame_ctx
-      - frame_ctx ALWAYS contains:
-          frame_ctx["shared"]      -> the shared_data dict
-          frame_ctx["frame_index"] -> absolute trajectory frame index
-      - nodes write only frame-local outputs:
-          frame_ctx["frame_axes"], frame_ctx["frame_covariance"]
-      - reduction/averaging happens outside this DAG (in LevelDAG)
+    The graph is run once per trajectory frame. Nodes may read shared inputs from
+    `ctx["shared"]` and must write only frame-local outputs into the frame context.
+
+    Expected node outputs:
+      - "frame_axes"
+      - "frame_covariance"
     """
 
-    def __init__(self, universe_operations=None):
+    def __init__(self, universe_operations: Optional[Any] = None) -> None:
+        """Initialise a FrameDAG.
+
+        Args:
+            universe_operations: Optional adapter providing universe operations used
+                by frame-level nodes (e.g., selections / molecule containers).
+        """
         self._universe_operations = universe_operations
-        self.graph = nx.DiGraph()
-        self.nodes: Dict[str, Any] = {}
+        self._graph = nx.DiGraph()
+        self._nodes: Dict[str, Any] = {}
 
     def build(self) -> "FrameDAG":
+        """Build the default frame DAG topology.
+
+        Returns:
+            Self, to allow fluent chaining.
+        """
         self._add("frame_axes", FrameAxesNode(self._universe_operations))
         self._add("frame_covariance", FrameCovarianceNode(), deps=["frame_axes"])
         return self
 
+    def execute_frame(self, shared_data: Dict[str, Any], frame_index: int) -> Any:
+        """Execute the frame DAG for a single trajectory frame.
+
+        Args:
+            shared_data: Shared workflow data dict.
+            frame_index: Absolute trajectory frame index.
+
+        Returns:
+            Frame-local covariance payload produced by FrameCovarianceNode.
+        """
+        ctx = self._make_frame_ctx(shared_data=shared_data, frame_index=frame_index)
+
+        for node_name in nx.topological_sort(self._graph):
+            logger.debug("[FrameDAG] running %s @ frame=%s", node_name, frame_index)
+            self._nodes[node_name].run(ctx)
+
+        return ctx["frame_covariance"]
+
     def _add(self, name: str, node: Any, deps: Optional[list[str]] = None) -> None:
-        self.nodes[name] = node
-        self.graph.add_node(name)
-        for d in deps or []:
-            self.graph.add_edge(d, name)
+        """Register a node and its dependencies in the DAG."""
+        self._nodes[name] = node
+        self._graph.add_node(name)
+        for dep in deps or []:
+            self._graph.add_edge(dep, name)
 
-    def execute_frame(
-        self, shared_data: Dict[str, Any], frame_index: int
+    @staticmethod
+    def _make_frame_ctx(
+        shared_data: Dict[str, Any], frame_index: int
     ) -> Dict[str, Any]:
-        frame_ctx: Dict[str, Any] = dict(shared_data)
-        frame_ctx["shared"] = shared_data
-        frame_ctx["frame_index"] = frame_index
+        """Create a frame context dictionary for node execution.
 
-        frame_ctx["frame_axes"] = None
-        frame_ctx["frame_covariance"] = None
+        Notes:
+            - The context includes a reference to `shared_data` via "shared".
+            - The context is intentionally frame-scoped and should not be used as
+              a replacement for shared workflow state.
 
-        for node_name in nx.topological_sort(self.graph):
-            logger.debug(f"[FrameDAG] running {node_name} @ frame={frame_index}")
-            self.nodes[node_name].run(frame_ctx)
+        Args:
+            shared_data: Shared workflow data dict.
+            frame_index: Absolute trajectory frame index.
 
-        return frame_ctx["frame_covariance"]
+        Returns:
+            Frame context dict with required keys.
+        """
+        return {
+            "shared": shared_data,
+            "frame_index": frame_index,
+            "frame_axes": None,
+            "frame_covariance": None,
+        }

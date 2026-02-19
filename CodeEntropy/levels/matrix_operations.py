@@ -1,3 +1,16 @@
+"""Matrix utilities used across covariance and entropy calculations.
+
+This module contains small, focused helpers for matrix construction and cleanup.
+All functions are pure (no side effects beyond logging) and operate on NumPy
+arrays.
+
+Key behaviors:
+- `create_submatrix` computes a 3x3 outer-product block for two 3-vectors.
+- `filter_zero_rows_columns` removes rows/columns that are all (near) zero.
+"""
+
+from __future__ import annotations
+
 import logging
 
 import numpy as np
@@ -6,85 +19,89 @@ logger = logging.getLogger(__name__)
 
 
 class MatrixOperations:
-    """ """
+    """Utility operations for small matrix manipulations."""
 
-    def __init__(self):
-        """
-        Initializes the MatrixOperations with placeholders for level-related data,
-        including translational and rotational axes, number of beads, and a
-        general-purpose data container.
-        """
+    def create_submatrix(self, data_i: np.ndarray, data_j: np.ndarray) -> np.ndarray:
+        """Create a 3x3 covariance-style submatrix from two 3-vectors.
 
-    def create_submatrix(self, data_i, data_j):
-        """
-        Function for making covariance matrices.
+        This computes the outer product of `data_i` and `data_j`:
 
-        Args
-        -----
-        data_i : values for bead i
-        data_j : values for bead j
-
-        Returns
-        ------
-        submatrix : 3x3 matrix for the covariance between i and j
-        """
-
-        # Start with 3 by 3 matrix of zeros
-        submatrix = np.zeros((3, 3))
-
-        # For each frame calculate the outer product (cross product) of the data from
-        # the two beads and add the result to the submatrix
-        outer_product_matrix = np.outer(data_i, data_j)
-        submatrix = np.add(submatrix, outer_product_matrix)
-
-        logger.debug(f"Submatrix: {submatrix}")
-
-        return submatrix
-
-    def filter_zero_rows_columns(self, arg_matrix):
-        """
-        function for removing rows and columns that contain only zeros from a matrix
+            submatrix = outer(data_i, data_j)
 
         Args:
-            arg_matrix : matrix
+            data_i: Vector of shape (3,) representing bead i values.
+            data_j: Vector of shape (3,) representing bead j values.
 
         Returns:
-            arg_matrix : the reduced size matrix
+            A (3, 3) NumPy array corresponding to the outer product.
+
+        Raises:
+            ValueError: If either input cannot be reshaped to (3,).
         """
+        v_i = np.asarray(data_i, dtype=float).reshape(-1)
+        v_j = np.asarray(data_j, dtype=float).reshape(-1)
 
-        # record the initial size
-        init_shape = np.shape(arg_matrix)
-
-        zero_indices = list(
-            filter(
-                lambda row: np.all(np.isclose(arg_matrix[row, :], 0.0)),
-                np.arange(np.shape(arg_matrix)[0]),
+        if v_i.shape[0] != 3 or v_j.shape[0] != 3:
+            raise ValueError(
+                f"Expected 3-vectors for outer product, got {v_i.shape} "
+                f"and {v_j.shape}."
             )
-        )
-        all_indices = np.ones((np.shape(arg_matrix)[0]), dtype=bool)
-        all_indices[zero_indices] = False
-        arg_matrix = arg_matrix[all_indices, :]
 
-        all_indices = np.ones((np.shape(arg_matrix)[1]), dtype=bool)
-        zero_indices = list(
-            filter(
-                lambda col: np.all(np.isclose(arg_matrix[:, col], 0.0)),
-                np.arange(np.shape(arg_matrix)[1]),
-            )
-        )
-        all_indices[zero_indices] = False
-        arg_matrix = arg_matrix[:, all_indices]
+        submatrix = np.outer(v_i, v_j)
+        logger.debug("Submatrix: %s", submatrix)
+        return submatrix
 
-        # get the final shape
-        final_shape = np.shape(arg_matrix)
+    def filter_zero_rows_columns(
+        self, matrix: np.ndarray, atol: float = 0.0
+    ) -> np.ndarray:
+        """Remove rows and columns that are entirely (near) zero.
 
+        A row (or column) is removed if all entries are close to zero according
+        to `np.isclose(..., atol=atol)`.
+
+        Args:
+            matrix: Input 2D array.
+            atol: Absolute tolerance used to determine "zero". Defaults to 0.0.
+
+        Returns:
+            A new matrix with all-zero rows and columns removed. If no such rows
+            or columns exist, returns a view/copy of the original with consistent
+            NumPy typing.
+
+        Raises:
+            ValueError: If `matrix` is not 2D.
+        """
+        mat = np.asarray(matrix, dtype=float)
+        if mat.ndim != 2:
+            raise ValueError(f"Expected a 2D matrix, got ndim={mat.ndim}.")
+
+        init_shape = mat.shape
+
+        row_mask = self._nonzero_row_mask(mat, atol=atol)
+        mat = mat[row_mask, :]
+
+        col_mask = self._nonzero_col_mask(mat, atol=atol)
+        mat = mat[:, col_mask]
+
+        final_shape = mat.shape
         if init_shape != final_shape:
             logger.debug(
-                "A shape change has occurred ({},{}) -> ({}, {})".format(
-                    *init_shape, *final_shape
-                )
+                "Matrix shape changed %s -> %s after removing zero rows/cols.",
+                init_shape,
+                final_shape,
             )
 
-        logger.debug(f"arg_matrix: {arg_matrix}")
+        logger.debug("Filtered matrix: %s", mat)
+        return mat
 
-        return arg_matrix
+    @staticmethod
+    def _nonzero_row_mask(matrix: np.ndarray, atol: float) -> np.ndarray:
+        """Return a boolean mask selecting rows that are not all (near) zero."""
+        is_zero_row = np.all(np.isclose(matrix, 0.0, atol=atol), axis=1)
+        return ~is_zero_row
+
+    @staticmethod
+    def _nonzero_col_mask(matrix: np.ndarray, atol: float) -> np.ndarray:
+        """Return a boolean mask selecting columns that are not all (near) zero."""
+        is_zero_col = np.all(np.isclose(matrix, 0.0, atol=atol), axis=0)
+        return ~is_zero_col
