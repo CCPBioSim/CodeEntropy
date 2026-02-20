@@ -214,15 +214,9 @@ class ForceTorqueManager:
         box: Optional[np.ndarray],
     ) -> np.ndarray:
         """
-        Compute displacement vectors from center to positions (optionally PBC-aware).
+        Compute displacement vectors from center to positions.
         """
-        if (
-            axes_manager is not None
-            and hasattr(axes_manager, "get_vector")
-            and box is not None
-        ):
-            return axes_manager.get_vector(center, positions, box)
-        return positions - center
+        return axes_manager.get_vector(center, positions, box)
 
     @staticmethod
     def _outer_second_moment(vectors: Sequence[Vector3]) -> Matrix:

@@ -14,7 +14,6 @@ from typing import Any, Dict, Optional
 
 import networkx as nx
 
-from CodeEntropy.levels.nodes.frame_axes import FrameAxesNode
 from CodeEntropy.levels.nodes.frame_covariance import FrameCovarianceNode
 
 logger = logging.getLogger(__name__)
@@ -27,14 +26,12 @@ class FrameContext:
     Attributes:
         shared: Shared workflow data (mutated across the full workflow).
         frame_index: Absolute trajectory frame index being processed.
-        frame_axes: Frame-local axes output produced by FrameAxesNode.
         frame_covariance: Frame-local covariance output produced by FrameCovarianceNode.
         data: Additional frame-local scratch space for nodes, if needed.
     """
 
     shared: Dict[str, Any]
     frame_index: int
-    frame_axes: Any = None
     frame_covariance: Any = None
     data: Dict[str, Any] = None
 
@@ -46,7 +43,6 @@ class FrameDAG:
     `ctx["shared"]` and must write only frame-local outputs into the frame context.
 
     Expected node outputs:
-      - "frame_axes"
       - "frame_covariance"
     """
 
@@ -67,8 +63,7 @@ class FrameDAG:
         Returns:
             Self, to allow fluent chaining.
         """
-        self._add("frame_axes", FrameAxesNode(self._universe_operations))
-        self._add("frame_covariance", FrameCovarianceNode(), deps=["frame_axes"])
+        self._add("frame_covariance", FrameCovarianceNode())
         return self
 
     def execute_frame(self, shared_data: Dict[str, Any], frame_index: int) -> Any:
@@ -117,6 +112,5 @@ class FrameDAG:
         return {
             "shared": shared_data,
             "frame_index": frame_index,
-            "frame_axes": None,
             "frame_covariance": None,
         }

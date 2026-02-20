@@ -12,7 +12,7 @@ Responsibilities:
 
 Not responsible for:
 - Defining groups/levels/beads mapping (provided via shared context).
-- Axis construction policy (delegated to axes_manager when present).
+- Axis construction policy (delegated to axes_manager).
 - Accumulating across frames (handled by the higher-level reducer).
 """
 
@@ -27,7 +27,6 @@ from MDAnalysis.lib.mdamath import make_whole
 from CodeEntropy.levels.force_torque_manager import ForceTorqueManager
 
 logger = logging.getLogger(__name__)
-
 
 FrameCtx = Dict[str, Any]
 Matrix = np.ndarray
@@ -46,7 +45,7 @@ class FrameCovarianceNode:
             ctx: Frame context dict expected to include:
                 - "shared": dict containing reduced_universe, groups, levels, beads,
                 args
-                - may include axes_manager
+                - MUST include shared["axes_manager"] (created in static stage)
 
         Returns:
             The frame covariance payload also stored at ctx["frame_covariance"].
@@ -55,16 +54,17 @@ class FrameCovarianceNode:
             KeyError: If ctx is missing required fields.
         """
         shared = self._get_shared(ctx)
+
         u = shared["reduced_universe"]
         groups = shared["groups"]
         levels = shared["levels"]
         beads = shared["beads"]
         args = shared["args"]
+        axes_manager = shared.get("axes_manager")
 
         fp = float(args.force_partitioning)
         combined = bool(getattr(args, "combined_forcetorque", False))
         customised_axes = bool(getattr(args, "customised_axes", False))
-        axes_manager = shared.get("axes_manager")
 
         box = self._try_get_box(u)
         fragments = u.atoms.fragments
@@ -138,7 +138,7 @@ class FrameCovarianceNode:
                         combined=combined,
                     )
 
-        frame_cov = {"force": out_force, "torque": out_torque}
+        frame_cov: Dict[str, Any] = {"force": out_force, "torque": out_torque}
         if combined and out_ft is not None:
             frame_cov["forcetorque"] = out_ft
 
@@ -330,11 +330,12 @@ class FrameCovarianceNode:
         customised_axes: bool,
         is_highest: bool,
     ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+        """Build force/torque vectors for UA-level beads of one residue."""
         force_vecs: List[np.ndarray] = []
         torque_vecs: List[np.ndarray] = []
 
         for ua_i, bead in enumerate(bead_groups):
-            if customised_axes and axes_manager is not None:
+            if customised_axes:
                 trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
                     residue_atoms, ua_i
                 )
@@ -343,9 +344,7 @@ class FrameCovarianceNode:
                 make_whole(bead)
 
                 trans_axes = residue_atoms.principal_axes()
-                rot_axes = np.real(bead.principal_axes())
-                eigvals, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
-                moi = sorted(eigvals, reverse=True)
+                rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
             force_vecs.append(
@@ -426,7 +425,7 @@ class FrameCovarianceNode:
         customised_axes: bool,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Get translation/rotation axes, center and MOI for a residue bead."""
-        if customised_axes and axes_manager is not None:
+        if customised_axes:
             res = mol.residues[local_res_i]
             return axes_manager.get_residue_axes(mol, local_res_i, residue=res.atoms)
 
@@ -434,14 +433,7 @@ class FrameCovarianceNode:
         make_whole(bead)
 
         trans_axes = mol.atoms.principal_axes()
-
-        if axes_manager is not None:
-            rot_axes, moi = axes_manager.get_vanilla_axes(bead)
-        else:
-            rot_axes = np.real(bead.principal_axes())
-            eigvals, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
-            moi = sorted(eigvals, reverse=True)
-
+        rot_axes, moi = axes_manager.get_vanilla_axes(bead)
         center = bead.center_of_mass(unwrap=True)
         return (
             np.asarray(trans_axes),
@@ -462,15 +454,9 @@ class FrameCovarianceNode:
         make_whole(bead)
 
         trans_axes = mol.atoms.principal_axes()
-
-        if axes_manager is not None:
-            rot_axes, moi = axes_manager.get_vanilla_axes(bead)
-        else:
-            rot_axes = np.real(bead.principal_axes())
-            eigvals, _ = np.linalg.eig(bead.moment_of_inertia(unwrap=True))
-            moi = sorted(eigvals, reverse=True)
-
+        rot_axes, moi = axes_manager.get_vanilla_axes(bead)
         center = bead.center_of_mass(unwrap=True)
+
         return (
             np.asarray(trans_axes),
             np.asarray(rot_axes),
@@ -495,16 +481,7 @@ class FrameCovarianceNode:
 
     @staticmethod
     def _inc_mean(old: Optional[np.ndarray], new: np.ndarray, n: int) -> np.ndarray:
-        """Compute an incremental mean (streaming average).
-
-        Args:
-            old: Existing mean matrix or None.
-            new: New sample matrix.
-            n: 1-indexed number of samples incorporated into the mean.
-
-        Returns:
-            Updated mean matrix.
-        """
+        """Compute an incremental mean (streaming average)."""
         if old is None:
             return new.copy()
         return old + (new - old) / float(n)
@@ -517,16 +494,6 @@ class FrameCovarianceNode:
 
         For each bead i, create a 6-vector [Fi, Ti]. The block matrix is built
         from outer products of these 6-vectors.
-
-        Args:
-            force_vecs: List of force vectors, each shape (3,).
-            torque_vecs: List of torque vectors, each shape (3,).
-
-        Returns:
-            Block matrix of shape (6N, 6N).
-
-        Raises:
-            ValueError: If vector sizes are invalid.
         """
         if len(force_vecs) != len(torque_vecs):
             raise ValueError("force_vecs and torque_vecs must have the same length.")

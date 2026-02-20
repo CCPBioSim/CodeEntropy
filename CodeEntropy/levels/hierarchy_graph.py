@@ -21,12 +21,12 @@ from typing import Any, Dict, Optional
 
 import networkx as nx
 
+from CodeEntropy.axes import AxesManager
 from CodeEntropy.levels.frame_dag import FrameDAG
 from CodeEntropy.levels.nodes.build_beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.compute_dihedrals import ComputeConformationalStatesNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
-from CodeEntropy.levels.nodes.frame_axes import FrameAxesNode
 from CodeEntropy.levels.nodes.init_covariance_accumulators import (
     InitCovarianceAccumulatorsNode,
 )
@@ -70,14 +70,6 @@ class LevelDAG:
         self._add_static("detect_levels", DetectLevelsNode(), deps=["detect_molecules"])
         self._add_static("build_beads", BuildBeadsNode(), deps=["detect_levels"])
 
-        # Produces a frame axes manager stored in shared_data (node name is explicit
-        # to avoid ambiguity with per-frame axes).
-        self._add_static(
-            "frame_axes_manager",
-            FrameAxesNode(),
-            deps=["detect_molecules"],
-        )
-
         self._add_static(
             "init_covariance_accumulators",
             InitCovarianceAccumulatorsNode(),
@@ -101,6 +93,7 @@ class LevelDAG:
         Returns:
             The mutated shared_data dict.
         """
+        shared_data.setdefault("axes_manager", AxesManager())
         self._run_static_stage(shared_data)
         self._run_frame_stage(shared_data)
         return shared_data
