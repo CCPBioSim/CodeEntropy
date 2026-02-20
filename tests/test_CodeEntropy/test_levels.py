@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from CodeEntropy.axes import AxesManager
 from CodeEntropy.levels import LevelManager
+from CodeEntropy.levels.axes import AxesManager
 from CodeEntropy.mda_universe_operations import UniverseOperations
 from tests.test_CodeEntropy.test_base import BaseTestCase
 

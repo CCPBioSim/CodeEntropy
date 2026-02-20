@@ -23,11 +23,11 @@ from typing import Any, Dict, Mapping, Tuple
 
 import pandas as pd
 
-from CodeEntropy.config.logging_config import LoggingConfig
-from CodeEntropy.entropy.entropy_graph import EntropyGraph
-from CodeEntropy.entropy.water_entropy import WaterEntropy
-from CodeEntropy.levels.hierarchy_graph import LevelDAG
-from CodeEntropy.levels.level_hierarchy import LevelHierarchy
+from CodeEntropy.core.logging import LoggingConfig
+from CodeEntropy.entropy.graph import EntropyGraph
+from CodeEntropy.entropy.water import WaterEntropy
+from CodeEntropy.levels.hierarchy import LevelHierarchy
+from CodeEntropy.levels.level_dag import LevelDAG
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()

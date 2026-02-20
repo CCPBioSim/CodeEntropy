@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from CodeEntropy.group_molecules.group_molecules import GroupMolecules
+from CodeEntropy.molecules.grouping import GroupMolecules
 
 logger = logging.getLogger(__name__)
 

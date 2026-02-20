@@ -12,7 +12,6 @@ import numpy.linalg as la
 import pytest
 
 import tests.data as data
-from CodeEntropy.config.data_logger import DataLogger
 from CodeEntropy.entropy import (
     ConformationalEntropy,
     EntropyManager,
@@ -22,6 +21,7 @@ from CodeEntropy.entropy import (
 from CodeEntropy.levels import LevelManager
 from CodeEntropy.main import main
 from CodeEntropy.mda_universe_operations import UniverseOperations
+from CodeEntropy.results.reporter import DataLogger
 from CodeEntropy.run import ConfigManager, RunManager
 from tests.test_CodeEntropy.test_base import BaseTestCase
 

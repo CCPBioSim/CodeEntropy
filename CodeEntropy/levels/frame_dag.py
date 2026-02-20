@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 import networkx as nx
 
-from CodeEntropy.levels.nodes.frame_covariance import FrameCovarianceNode
+from CodeEntropy.levels.nodes.covariance import FrameCovarianceNode
 
 logger = logging.getLogger(__name__)
 

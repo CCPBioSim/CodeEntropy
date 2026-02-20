@@ -19,11 +19,9 @@ from typing import Any, Dict
 
 import networkx as nx
 
-from CodeEntropy.entropy.nodes.aggregate_entropy_node import AggregateEntropyNode
-from CodeEntropy.entropy.nodes.configurational_entropy_node import (
-    ConfigurationalEntropyNode,
-)
-from CodeEntropy.entropy.nodes.vibrational_entropy_node import VibrationalEntropyNode
+from CodeEntropy.entropy.nodes.aggregate import AggregateEntropyNode
+from CodeEntropy.entropy.nodes.configurational import ConfigurationalEntropyNode
+from CodeEntropy.entropy.nodes.vibrational import VibrationalEntropyNode
 
 logger = logging.getLogger(__name__)
 

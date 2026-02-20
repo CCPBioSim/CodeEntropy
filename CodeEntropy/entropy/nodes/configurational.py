@@ -17,7 +17,7 @@ from typing import (
 
 import numpy as np
 
-from CodeEntropy.entropy.configurational_entropy import ConformationalEntropy
+from CodeEntropy.entropy.configurational import ConformationalEntropy
 
 logger = logging.getLogger(__name__)
 

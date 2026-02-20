@@ -21,15 +21,13 @@ from typing import Any, Dict, Optional
 
 import networkx as nx
 
-from CodeEntropy.axes import AxesManager
+from CodeEntropy.levels.axes import AxesManager
 from CodeEntropy.levels.frame_dag import FrameDAG
-from CodeEntropy.levels.nodes.build_beads import BuildBeadsNode
-from CodeEntropy.levels.nodes.compute_dihedrals import ComputeConformationalStatesNode
+from CodeEntropy.levels.nodes.accumulators import InitCovarianceAccumulatorsNode
+from CodeEntropy.levels.nodes.beads import BuildBeadsNode
+from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
-from CodeEntropy.levels.nodes.init_covariance_accumulators import (
-    InitCovarianceAccumulatorsNode,
-)
 
 logger = logging.getLogger(__name__)
 

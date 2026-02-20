@@ -32,13 +32,13 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from CodeEntropy.config.arg_config_manager import ConfigManager
-from CodeEntropy.config.data_logger import DataLogger
-from CodeEntropy.config.logging_config import LoggingConfig
-from CodeEntropy.entropy.entropy_manager import EntropyManager
-from CodeEntropy.group_molecules.group_molecules import GroupMolecules
-from CodeEntropy.levels.dihedral_tools import DihedralAnalysis
-from CodeEntropy.levels.mda_universe_operations import UniverseOperations
+from CodeEntropy.config.argparse import ConfigManager
+from CodeEntropy.core.logging import LoggingConfig
+from CodeEntropy.entropy.manager import EntropyManager
+from CodeEntropy.levels.dihedrals import DihedralAnalysis
+from CodeEntropy.levels.mda import UniverseOperations
+from CodeEntropy.molecules.grouping import GroupMolecules
+from CodeEntropy.results.reporter import DataLogger
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()

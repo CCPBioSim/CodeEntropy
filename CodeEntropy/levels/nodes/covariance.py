@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from MDAnalysis.lib.mdamath import make_whole
 
-from CodeEntropy.levels.force_torque_manager import ForceTorqueManager
+from CodeEntropy.levels.forces import ForceTorqueManager
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,7 @@ from typing import Any, DefaultDict, Dict, List, MutableMapping, Tuple
 
 import numpy as np
 
-from CodeEntropy.levels.level_hierarchy import LevelHierarchy
+from CodeEntropy.levels.hierarchy import LevelHierarchy
 
 logger = logging.getLogger(__name__)
 

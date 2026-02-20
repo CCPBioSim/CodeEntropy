@@ -18,7 +18,7 @@ import numpy as np
 from rich.console import Console
 from rich.table import Table
 
-from CodeEntropy.config.logging_config import LoggingConfig
+from CodeEntropy.core.logging import LoggingConfig
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()

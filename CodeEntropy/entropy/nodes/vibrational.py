@@ -8,8 +8,8 @@ from typing import Any, Dict, Mapping, MutableMapping, Optional, Tuple
 
 import numpy as np
 
-from CodeEntropy.entropy.vibrational_entropy import VibrationalEntropy
-from CodeEntropy.levels.matrix_operations import MatrixOperations
+from CodeEntropy.entropy.vibrational import VibrationalEntropy
+from CodeEntropy.levels.linalg import MatrixOperations
 
 logger = logging.getLogger(__name__)
 

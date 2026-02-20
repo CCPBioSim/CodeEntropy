@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
 import tests.data as data
-from CodeEntropy.config.arg_config_manager import ConfigManager
+from CodeEntropy.config.argparse import ConfigManager
 from CodeEntropy.main import main
 from tests.test_CodeEntropy.test_base import BaseTestCase
 

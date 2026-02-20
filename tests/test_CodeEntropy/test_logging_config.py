@@ -3,7 +3,7 @@ import os
 import unittest
 from unittest.mock import MagicMock
 
-from CodeEntropy.config.logging_config import LoggingConfig
+from CodeEntropy.core.logging import LoggingConfig
 from tests.test_CodeEntropy.test_base import BaseTestCase
 
 

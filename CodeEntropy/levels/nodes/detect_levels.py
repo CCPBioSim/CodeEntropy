@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from CodeEntropy.levels.level_hierarchy import LevelHierarchy
+from CodeEntropy.levels.hierarchy import LevelHierarchy
 
 SharedData = Dict[str, Any]
 Levels = List[List[str]]

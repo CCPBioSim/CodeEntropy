@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from CodeEntropy.levels.dihedral_tools import DihedralAnalysis
+from CodeEntropy.levels.dihedrals import DihedralAnalysis
 
 SharedData = Dict[str, Any]
 ConformationalStates = Dict[str, Any]

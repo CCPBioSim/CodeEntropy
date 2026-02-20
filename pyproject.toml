@@ -82,7 +82,7 @@ docs = [
 ]
 
 [project.scripts]
-CodeEntropy = "CodeEntropy.main:main"
+CodeEntropy = "CodeEntropy.cli:main"
 
 [tool.isort]
 profile = "black"

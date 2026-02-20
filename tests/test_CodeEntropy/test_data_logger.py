@@ -4,9 +4,9 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from CodeEntropy.config.data_logger import DataLogger
-from CodeEntropy.config.logging_config import LoggingConfig
+from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.main import main
+from CodeEntropy.results.reporter import DataLogger
 from tests.test_CodeEntropy.test_base import BaseTestCase
 
 
