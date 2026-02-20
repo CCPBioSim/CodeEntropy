@@ -47,31 +47,18 @@ class VibrationalEntropy:
     def __init__(
         self,
         run_manager: Any,
-        args: Any,
-        universe: Any,
-        data_logger: Any,
-        group_molecules: Any,
         planck_const: float = 6.62607004081818e-34,
         gas_const: float = 8.3144598484848,
     ) -> None:
         """Initialize the vibrational entropy calculator.
 
         Args:
-            run_manager: Provides thermodynamic conversions (e.g., kT in Joules) and
-                eigenvalue unit conversion.
-            args: User args (kept for compatibility; not required for math here).
-            universe: MDAnalysis Universe (kept for compatibility).
-            data_logger: Data logger (kept for compatibility).
-            group_molecules: Grouping helper (kept for compatibility).
+            run_manager: Provides thermodynamic conversions (e.g., kT in Joules)
+                and eigenvalue unit conversion.
             planck_const: Planck constant (J*s).
             gas_const: Gas constant (J/(mol*K)).
         """
         self._run_manager = run_manager
-        self._args = args
-        self._universe = universe
-        self._data_logger = data_logger
-        self._group_molecules = group_molecules
-
         self._planck_const = float(planck_const)
         self._gas_const = float(gas_const)
 

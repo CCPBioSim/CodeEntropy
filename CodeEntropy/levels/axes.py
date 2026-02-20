@@ -1,6 +1,6 @@
 """Axes utilities for entropy calculations.
 
-This module contains the :class:`AxesManager`, a geometry-focused helper used by
+This module contains the :class:`AxesCalculator`, a geometry-focused helper used by
 the entropy pipeline to compute translational and rotational axes, centres, and
 moments of inertia at different hierarchy levels (residue / united-atom).
 """
@@ -16,7 +16,7 @@ from MDAnalysis.lib.mdamath import make_whole
 logger = logging.getLogger(__name__)
 
 
-class AxesManager:
+class AxesCalculator:
     """Compute translation/rotation axes and inertia utilities used by entropy.
 
     Manages the structural and dynamic levels involved in entropy calculations.
@@ -33,16 +33,16 @@ class AxesManager:
 
     Notes:
         This class deliberately does **not**:
-          - compute weighted forces/torques (that belongs in ForceTorqueManager),
+          - compute weighted forces/torques (that belongs in ForceTorqueCalculator),
           - build covariances,
           - compute entropies.
     """
 
     def __init__(self) -> None:
-        """Initialize the AxesManager.
+        """Initialize the AxesCalculator.
 
         The original implementation stored a few placeholders for level-related
-        data (axes, bead counts, etc.). In the current design, AxesManager is a
+        data (axes, bead counts, etc.). In the current design, AxesCalculator is a
         stateless helper, but we keep the attributes for compatibility and
         debugging/extension.
 

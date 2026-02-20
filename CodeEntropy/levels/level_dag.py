@@ -10,7 +10,7 @@ workflow:
    - Compute conformational state descriptors required later by entropy nodes.
 
 2) Frame stage (runs for each trajectory frame):
-   - Execute the `FrameDAG` to produce frame-local covariance outputs.
+   - Execute the `FrameGraph` to produce frame-local covariance outputs.
    - Reduce frame-local outputs into running (incremental) means.
 """
 
@@ -21,8 +21,8 @@ from typing import Any, Dict, Optional
 
 import networkx as nx
 
-from CodeEntropy.levels.axes import AxesManager
-from CodeEntropy.levels.frame_dag import FrameDAG
+from CodeEntropy.levels.axes import AxesCalculator
+from CodeEntropy.levels.frame_dag import FrameGraph
 from CodeEntropy.levels.nodes.accumulators import InitCovarianceAccumulatorsNode
 from CodeEntropy.levels.nodes.beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNode
@@ -49,14 +49,14 @@ class LevelDAG:
 
         Args:
             universe_operations: Optional adapter providing universe operations.
-                Passed to the FrameDAG and the conformational-state node.
+                Passed to the FrameGraph and the conformational-state node.
         """
         self._universe_operations = universe_operations
 
         self._static_graph = nx.DiGraph()
         self._static_nodes: Dict[str, Any] = {}
 
-        self._frame_dag = FrameDAG(universe_operations=universe_operations)
+        self._frame_dag = FrameGraph(universe_operations=universe_operations)
 
     def build(self) -> "LevelDAG":
         """Build the static and frame DAG topology.
@@ -91,7 +91,7 @@ class LevelDAG:
         Returns:
             The mutated shared_data dict.
         """
-        shared_data.setdefault("axes_manager", AxesManager())
+        shared_data.setdefault("axes_manager", AxesCalculator())
         self._run_static_stage(shared_data)
         self._run_frame_stage(shared_data)
         return shared_data
@@ -144,7 +144,7 @@ class LevelDAG:
 
         Args:
             shared_data: Shared workflow data dict containing accumulators.
-            frame_out: Frame-local covariance outputs produced by FrameDAG.
+            frame_out: Frame-local covariance outputs produced by FrameGraph.
         """
         self._reduce_force_and_torque(shared_data, frame_out)
         self._reduce_forcetorque(shared_data, frame_out)

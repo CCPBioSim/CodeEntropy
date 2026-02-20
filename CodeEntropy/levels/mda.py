@@ -26,7 +26,7 @@ class UniverseOperations:
         """Initialise the operations helper."""
         self._universe = None
 
-    def new_U_select_frame(
+    def select_frames(
         self,
         u: mda.Universe,
         start: Optional[int] = None,
@@ -79,9 +79,7 @@ class UniverseOperations:
         logger.debug("MDAnalysis.Universe - reduced universe (frame-selected): %s", u2)
         return u2
 
-    def new_U_select_atom(
-        self, u: mda.Universe, select_string: str = "all"
-    ) -> mda.Universe:
+    def select_atoms(self, u: mda.Universe, select_string: str = "all") -> mda.Universe:
         """Create a reduced universe by dropping atoms according to user selection.
 
         Parameters
@@ -114,7 +112,7 @@ class UniverseOperations:
         logger.debug("MDAnalysis.Universe - reduced universe (atom-selected): %s", u2)
         return u2
 
-    def get_molecule_container(
+    def extract_fragment(
         self, universe: mda.Universe, molecule_id: int
     ) -> mda.Universe:
         """Extract a single molecule (fragment) as a standalone reduced universe.
@@ -131,7 +129,7 @@ class UniverseOperations:
         """
         frag = universe.atoms.fragments[molecule_id]
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
-        return self.new_U_select_atom(universe, selection_string)
+        return self.select_atoms(universe, selection_string)
 
     def merge_forces(
         self,

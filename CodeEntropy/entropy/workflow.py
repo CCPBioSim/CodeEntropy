@@ -1,6 +1,6 @@
 """Entropy manager orchestration.
 
-This module defines `EntropyManager`, which coordinates the end-to-end entropy
+This module defines `EntropyWorkflow`, which coordinates the end-to-end entropy
 workflow:
   * Determine trajectory bounds and frame count.
   * Build a reduced universe based on atom selection.
@@ -26,7 +26,7 @@ import pandas as pd
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.graph import EntropyGraph
 from CodeEntropy.entropy.water import WaterEntropy
-from CodeEntropy.levels.hierarchy import LevelHierarchy
+from CodeEntropy.levels.hierarchy import HierarchyBuilder
 from CodeEntropy.levels.level_dag import LevelDAG
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class TrajectorySlice:
     n_frames: int
 
 
-class EntropyManager:
+class EntropyWorkflow:
     """Coordinate entropy calculations across structural levels.
 
     This class is responsible for orchestration and IO-level concerns (selection,
@@ -65,7 +65,7 @@ class EntropyManager:
         run_manager: Any,
         args: Any,
         universe: Any,
-        data_logger: Any,
+        reporter: Any,
         group_molecules: Any,
         dihedral_analysis: Any,
         universe_operations: Any,
@@ -76,7 +76,7 @@ class EntropyManager:
             run_manager: Manager for universe IO and unit conversions.
             args: Parsed CLI/user arguments.
             universe: MDAnalysis Universe representing the simulation system.
-            data_logger: Collector for per-molecule and per-residue outputs.
+            reporter: Collector for per-molecule and per-residue outputs.
             group_molecules: Component that groups molecules for averaging.
             dihedral_analysis: Component used to compute conformational states.
                 (Stored for completeness; computation is typically triggered by nodes.)
@@ -85,7 +85,7 @@ class EntropyManager:
         self._run_manager = run_manager
         self._args = args
         self._universe = universe
-        self._data_logger = data_logger
+        self._reporter = reporter
         self._group_molecules = group_molecules
         self._dihedral_analysis = dihedral_analysis
         self._universe_operations = universe_operations
@@ -95,7 +95,7 @@ class EntropyManager:
 
         This method orchestrates the complete pipeline, populates shared data,
         and triggers the DAG/graph executions. Final results are logged and saved
-        via `DataLogger`.
+        via `ResultsReporter`.
         """
         traj = self._build_trajectory_slice()
         console.print(
@@ -129,7 +129,7 @@ class EntropyManager:
         self._run_entropy_graph(shared_data)
 
         self._finalize_molecule_results()
-        self._data_logger.log_tables()
+        self._reporter.log_tables()
 
     def _build_shared_data(
         self,
@@ -152,7 +152,7 @@ class EntropyManager:
         shared_data: SharedData = {
             "entropy_manager": self,
             "run_manager": self._run_manager,
-            "data_logger": self._data_logger,
+            "reporter": self._reporter,
             "args": self._args,
             "universe": self._universe,
             "reduced_universe": reduced_universe,
@@ -229,7 +229,7 @@ class EntropyManager:
         if selection == "all":
             return self._universe
 
-        reduced = self._universe_operations.new_U_select_atom(self._universe, selection)
+        reduced = self._universe_operations.select_atoms(self._universe, selection)
         name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
         self._run_manager.write_universe(reduced, name)
         return reduced
@@ -241,9 +241,9 @@ class EntropyManager:
             reduced_universe: Reduced MDAnalysis Universe.
 
         Returns:
-            Levels structure as returned by `LevelHierarchy.select_levels`.
+            Levels structure as returned by `HierarchyBuilder.select_levels`.
         """
-        level_hierarchy = LevelHierarchy()
+        level_hierarchy = HierarchyBuilder()
         _number_molecules, levels = level_hierarchy.select_levels(reduced_universe)
         return levels
 
@@ -307,8 +307,8 @@ class EntropyManager:
             else "not water"
         )
 
-        logger.debug("WaterEntropy: molecule_data=%s", self._data_logger.molecule_data)
-        logger.debug("WaterEntropy: residue_data=%s", self._data_logger.residue_data)
+        logger.debug("WaterEntropy: molecule_data=%s", self._reporter.molecule_data)
+        logger.debug("WaterEntropy: residue_data=%s", self._reporter.residue_data)
 
     def _finalize_molecule_results(self) -> None:
         """Aggregate group totals and persist results to JSON.
@@ -319,7 +319,7 @@ class EntropyManager:
         """
         entropy_by_group = defaultdict(float)
 
-        for group_id, level, _etype, result in self._data_logger.molecule_data:
+        for group_id, level, _etype, result in self._reporter.molecule_data:
             if level == "Group Total":
                 continue
             try:
@@ -328,16 +328,16 @@ class EntropyManager:
                 logger.warning("Skipping invalid entry: %s, %s", group_id, result)
 
         for group_id, total in entropy_by_group.items():
-            self._data_logger.molecule_data.append(
+            self._reporter.molecule_data.append(
                 (group_id, "Group Total", "Group Total Entropy", total)
             )
 
         molecule_df = pd.DataFrame(
-            self._data_logger.molecule_data,
+            self._reporter.molecule_data,
             columns=["Group ID", "Level", "Type", "Result (J/mol/K)"],
         )
         residue_df = pd.DataFrame(
-            self._data_logger.residue_data,
+            self._reporter.residue_data,
             columns=[
                 "Group ID",
                 "Residue Name",
@@ -347,6 +347,6 @@ class EntropyManager:
                 "Result (J/mol/K)",
             ],
         )
-        self._data_logger.save_dataframes_as_json(
+        self._reporter.save_dataframes_as_json(
             molecule_df, residue_df, self._args.output_file
         )

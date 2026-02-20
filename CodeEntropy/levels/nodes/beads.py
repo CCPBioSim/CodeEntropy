@@ -17,7 +17,7 @@ from typing import Any, DefaultDict, Dict, List, MutableMapping, Tuple
 
 import numpy as np
 
-from CodeEntropy.levels.hierarchy import LevelHierarchy
+from CodeEntropy.levels.hierarchy import HierarchyBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -49,18 +49,18 @@ class BuildBeadsNode:
 
     Notes:
         United-atom beads are generated at the molecule level (preserving the
-        underlying ordering provided by `LevelHierarchy.get_beads`) and then
+        underlying ordering provided by `HierarchyBuilder.get_beads`) and then
         grouped into residue buckets based on the heavy atom that defines the bead.
     """
 
-    def __init__(self, hierarchy: LevelHierarchy | None = None) -> None:
+    def __init__(self, hierarchy: HierarchyBuilder | None = None) -> None:
         """Initialize the node.
 
         Args:
-            hierarchy: Optional `LevelHierarchy` dependency. If not provided,
+            hierarchy: Optional `HierarchyBuilder` dependency. If not provided,
                 a default instance is created.
         """
-        self._hier = hierarchy or LevelHierarchy()
+        self._hier = hierarchy or HierarchyBuilder()
 
     def run(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
         """Build bead definitions for all molecules and levels.

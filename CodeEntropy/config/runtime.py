@@ -1,16 +1,16 @@
 """Run orchestration for CodeEntropy.
 
-This module provides the RunManager, which is responsible for:
+This module provides the CodeEntropyRunner, which is responsible for:
 - Creating a new job folder for each run
 - Loading YAML configuration and merging it with CLI arguments
 - Setting up logging and displaying a Rich splash screen
 - Building the MDAnalysis Universe (including optional force merging)
-- Wiring dependencies and executing the EntropyManager workflow
+- Wiring dependencies and executing the EntropyWorkflow workflow
 - Providing physical-constants helpers used by entropy calculations
 
 Notes on design:
-- RunManager focuses on orchestration and simple utilities only.
-- Computational logic lives in EntropyManager and the level/entropy DAG modules.
+- CodeEntropyRunner focuses on orchestration and simple utilities only.
+- Computational logic lives in EntropyWorkflow and the level/entropy DAG modules.
 """
 
 from __future__ import annotations
@@ -32,26 +32,26 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from CodeEntropy.config.argparse import ConfigManager
+from CodeEntropy.config.argparse import ConfigResolver
 from CodeEntropy.core.logging import LoggingConfig
-from CodeEntropy.entropy.manager import EntropyManager
-from CodeEntropy.levels.dihedrals import DihedralAnalysis
+from CodeEntropy.entropy.workflow import EntropyWorkflow
+from CodeEntropy.levels.dihedrals import ConformationStateBuilder
 from CodeEntropy.levels.mda import UniverseOperations
-from CodeEntropy.molecules.grouping import GroupMolecules
-from CodeEntropy.results.reporter import DataLogger
+from CodeEntropy.molecules.grouping import MoleculeGrouper
+from CodeEntropy.results.reporter import ResultsReporter
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
 
 
-class RunManager:
+class CodeEntropyRunner:
     """Coordinate setup and execution of entropy analysis runs.
 
     Responsibilities:
       - Bootstrapping: job folder, logging, splash screen
       - Configuration: YAML loading + CLI parsing + merge and validation
       - Universe creation: MDAnalysis Universe (optionally merging forces)
-      - Dependency wiring and execution: EntropyManager
+      - Dependency wiring and execution: EntropyWorkflow
       - Utilities used by downstream modules: constants and unit conversions
 
     Attributes:
@@ -62,7 +62,7 @@ class RunManager:
     _DEF_TEMPER = 298
 
     def __init__(self, folder: str) -> None:
-        """Initialize a RunManager for a given working folder.
+        """Initialize a CodeEntropyRunner for a given working folder.
 
         This sets up configuration helpers, data logging, and logging configuration.
         It also defines physical constants used in entropy calculations.
@@ -71,8 +71,8 @@ class RunManager:
             folder: Job folder path where logs and outputs will be written.
         """
         self.folder = folder
-        self._config_manager = ConfigManager()
-        self._data_logger = DataLogger()
+        self._config_manager = ConfigResolver()
+        self._reporter = ResultsReporter()
         self._logging_config = LoggingConfig(folder)
 
     @property
@@ -227,20 +227,20 @@ class RunManager:
           - Merges args with YAML per-run config
           - Builds the MDAnalysis Universe (with optional force merging)
           - Validates user parameters
-          - Constructs dependencies and executes EntropyManager
+          - Constructs dependencies and executes EntropyWorkflow
           - Saves recorded console output to a log file
 
         Raises:
             Exception: Re-raises any exception after logging with traceback.
         """
         try:
-            run_logger = self._logging_config.setup_logging()
+            run_logger = self._logging_config.configure()
             self.show_splash()
 
             current_directory = os.getcwd()
             config = self._config_manager.load_config(current_directory)
 
-            parser = self._config_manager.setup_argparse()
+            parser = self._config_manager.build_parser()
             args, _ = parser.parse_known_args()
             args.output_file = os.path.join(self.folder, args.output_file)
 
@@ -251,12 +251,12 @@ class RunManager:
                     )
                     continue
 
-                args = self._config_manager.merge_configs(args, run_config)
+                args = self._config_manager.resolve(args, run_config)
 
                 log_level = (
                     logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
                 )
-                self._logging_config.update_logging_level(log_level)
+                self._logging_config.set_level(log_level)
 
                 command = " ".join(os.sys.argv)
                 logging.getLogger("commands").info(command)
@@ -268,28 +268,28 @@ class RunManager:
                 universe_operations = UniverseOperations()
                 u = self._build_universe(args, universe_operations)
 
-                self._config_manager.input_parameters_validation(u, args)
+                self._config_manager.validate_inputs(u, args)
 
-                group_molecules = GroupMolecules()
-                dihedral_analysis = DihedralAnalysis(
+                group_molecules = MoleculeGrouper()
+                dihedral_analysis = ConformationStateBuilder(
                     universe_operations=universe_operations
                 )
 
-                entropy_manager = EntropyManager(
+                entropy_manager = EntropyWorkflow(
                     run_manager=self,
                     args=args,
                     universe=u,
-                    data_logger=self._data_logger,
+                    reporter=self._reporter,
                     group_molecules=group_molecules,
                     dihedral_analysis=dihedral_analysis,
                     universe_operations=universe_operations,
                 )
                 entropy_manager.execute()
 
-            self._logging_config.save_console_log()
+            self._logging_config.export_console()
 
         except Exception as e:
-            logger.error("RunManager encountered an error: %s", e, exc_info=True)
+            logger.error("CodeEntropyRunner encountered an error: %s", e, exc_info=True)
             raise
 
     @staticmethod

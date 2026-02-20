@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from CodeEntropy.levels.hierarchy import LevelHierarchy
+from CodeEntropy.levels.hierarchy import HierarchyBuilder
 
 SharedData = Dict[str, Any]
 Levels = List[List[str]]
@@ -23,8 +23,8 @@ class DetectLevelsNode:
     """
 
     def __init__(self) -> None:
-        """Initialize the node with a LevelHierarchy helper."""
-        self._hierarchy = LevelHierarchy()
+        """Initialize the node with a HierarchyBuilder helper."""
+        self._hierarchy = HierarchyBuilder()
 
     def run(self, shared_data: SharedData) -> Dict[str, Any]:
         """Detect levels and store results in shared_data.
@@ -54,7 +54,7 @@ class DetectLevelsNode:
         }
 
     def _detect_levels(self, universe: Any) -> Tuple[int, Levels]:
-        """Delegate level detection to LevelHierarchy.
+        """Delegate level detection to HierarchyBuilder.
 
         Args:
             universe: Reduced MDAnalysis universe.

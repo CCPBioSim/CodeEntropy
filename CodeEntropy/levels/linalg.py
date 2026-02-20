@@ -18,7 +18,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-class MatrixOperations:
+class MatrixUtils:
     """Utility operations for small matrix manipulations."""
 
     def create_submatrix(self, data_i: np.ndarray, data_j: np.ndarray) -> np.ndarray:

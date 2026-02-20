@@ -9,7 +9,7 @@ from typing import Any, Dict, Mapping, MutableMapping, Optional, Tuple
 import numpy as np
 
 from CodeEntropy.entropy.vibrational import VibrationalEntropy
-from CodeEntropy.levels.linalg import MatrixOperations
+from CodeEntropy.levels.linalg import MatrixUtils
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ CovKey = Tuple[GroupId, ResidueId]
 
 
 @dataclass(frozen=True)
-class _EntropyPair:
+class EntropyPair:
     """Container for paired translational and rotational entropy values."""
 
     trans: float
@@ -31,7 +31,7 @@ class VibrationalEntropyNode:
     """Compute vibrational entropy from force/torque (and optional FT) covariances."""
 
     def __init__(self) -> None:
-        self._mat_ops = MatrixOperations()
+        self._mat_ops = MatrixUtils()
         self._zero_atol = 1e-8
 
     def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> Dict[str, Any]:
@@ -51,7 +51,7 @@ class VibrationalEntropyNode:
         ft_cov = shared_data.get("forcetorque_covariances") if combined else None
 
         ua_frame_counts = self._get_ua_frame_counts(shared_data)
-        data_logger = shared_data.get("data_logger")
+        reporter = shared_data.get("reporter")
 
         results: Dict[int, Dict[str, Dict[str, float]]] = {}
 
@@ -76,13 +76,13 @@ class VibrationalEntropyNode:
                         force_ua=force_cov["ua"],
                         torque_ua=torque_cov["ua"],
                         ua_frame_counts=ua_frame_counts,
-                        data_logger=data_logger,
+                        reporter=reporter,
                         n_frames_default=shared_data.get("n_frames", 0),
                         highest=highest,  # IMPORTANT: matches main
                     )
                     self._store_results(results, group_id, level, pair)
                     self._log_molecule_level_results(
-                        data_logger, group_id, level, pair, use_ft_labels=False
+                        reporter, group_id, level, pair, use_ft_labels=False
                     )
                     continue
 
@@ -97,7 +97,7 @@ class VibrationalEntropyNode:
                         pair = self._compute_ft_entropy(ve=ve, temp=temp, ftmat=ftmat)
                         self._store_results(results, group_id, level, pair)
                         self._log_molecule_level_results(
-                            data_logger, group_id, level, pair, use_ft_labels=True
+                            reporter, group_id, level, pair, use_ft_labels=True
                         )
                         continue
 
@@ -114,7 +114,7 @@ class VibrationalEntropyNode:
                     )
                     self._store_results(results, group_id, level, pair)
                     self._log_molecule_level_results(
-                        data_logger, group_id, level, pair, use_ft_labels=False
+                        reporter, group_id, level, pair, use_ft_labels=False
                     )
                     continue
 
@@ -129,10 +129,6 @@ class VibrationalEntropyNode:
     ) -> VibrationalEntropy:
         return VibrationalEntropy(
             run_manager=shared_data["run_manager"],
-            args=shared_data["args"],
-            universe=shared_data["reduced_universe"],
-            data_logger=shared_data.get("data_logger"),
-            group_molecules=shared_data.get("group_molecules"),
         )
 
     def _get_group_id_to_index(self, shared_data: Mapping[str, Any]) -> Dict[int, int]:
@@ -160,10 +156,10 @@ class VibrationalEntropyNode:
         force_ua: Mapping[CovKey, Any],
         torque_ua: Mapping[CovKey, Any],
         ua_frame_counts: Mapping[CovKey, int],
-        data_logger: Optional[Any],
+        reporter: Optional[Any],
         n_frames_default: int,
         highest: bool,
-    ) -> _EntropyPair:
+    ) -> EntropyPair:
         s_trans_total = 0.0
         s_rot_total = 0.0
 
@@ -183,9 +179,9 @@ class VibrationalEntropyNode:
             s_trans_total += pair.trans
             s_rot_total += pair.rot
 
-            if data_logger is not None:
+            if reporter is not None:
                 frame_count = ua_frame_counts.get(key, int(n_frames_default or 0))
-                data_logger.add_residue_data(
+                reporter.add_residue_data(
                     group_id=group_id,
                     resname=getattr(res, "resname", "UNK"),
                     level="united_atom",
@@ -193,7 +189,7 @@ class VibrationalEntropyNode:
                     frame_count=frame_count,
                     value=pair.trans,
                 )
-                data_logger.add_residue_data(
+                reporter.add_residue_data(
                     group_id=group_id,
                     resname=getattr(res, "resname", "UNK"),
                     level="united_atom",
@@ -202,7 +198,7 @@ class VibrationalEntropyNode:
                     value=pair.rot,
                 )
 
-        return _EntropyPair(trans=float(s_trans_total), rot=float(s_rot_total))
+        return EntropyPair(trans=float(s_trans_total), rot=float(s_rot_total))
 
     def _compute_force_torque_entropy(
         self,
@@ -212,9 +208,9 @@ class VibrationalEntropyNode:
         fmat: Any,
         tmat: Any,
         highest: bool,
-    ) -> _EntropyPair:
+    ) -> EntropyPair:
         if fmat is None or tmat is None:
-            return _EntropyPair(trans=0.0, rot=0.0)
+            return EntropyPair(trans=0.0, rot=0.0)
 
         f = self._mat_ops.filter_zero_rows_columns(
             np.asarray(fmat), atol=self._zero_atol
@@ -225,7 +221,7 @@ class VibrationalEntropyNode:
 
         # If filtering removes everything, behave like "no data"
         if f.size == 0 or t.size == 0:
-            return _EntropyPair(trans=0.0, rot=0.0)
+            return EntropyPair(trans=0.0, rot=0.0)
 
         s_trans = ve.vibrational_entropy_calculation(
             f, "force", temp, highest_level=highest
@@ -233,7 +229,7 @@ class VibrationalEntropyNode:
         s_rot = ve.vibrational_entropy_calculation(
             t, "torque", temp, highest_level=highest
         )
-        return _EntropyPair(trans=float(s_trans), rot=float(s_rot))
+        return EntropyPair(trans=float(s_trans), rot=float(s_rot))
 
     def _compute_ft_entropy(
         self,
@@ -241,15 +237,15 @@ class VibrationalEntropyNode:
         ve: VibrationalEntropy,
         temp: float,
         ftmat: Any,
-    ) -> _EntropyPair:
+    ) -> EntropyPair:
         if ftmat is None:
-            return _EntropyPair(trans=0.0, rot=0.0)
+            return EntropyPair(trans=0.0, rot=0.0)
 
         ft = self._mat_ops.filter_zero_rows_columns(
             np.asarray(ftmat), atol=self._zero_atol
         )
         if ft.size == 0:
-            return _EntropyPair(trans=0.0, rot=0.0)
+            return EntropyPair(trans=0.0, rot=0.0)
 
         # FT is only used at highest level in main branch
         s_trans = ve.vibrational_entropy_calculation(
@@ -258,40 +254,38 @@ class VibrationalEntropyNode:
         s_rot = ve.vibrational_entropy_calculation(
             ft, "forcetorqueROT", temp, highest_level=True
         )
-        return _EntropyPair(trans=float(s_trans), rot=float(s_rot))
+        return EntropyPair(trans=float(s_trans), rot=float(s_rot))
 
     @staticmethod
     def _store_results(
         results: Dict[int, Dict[str, Dict[str, float]]],
         group_id: int,
         level: str,
-        pair: _EntropyPair,
+        pair: EntropyPair,
     ) -> None:
         results[group_id][level] = {"trans": pair.trans, "rot": pair.rot}
 
     @staticmethod
     def _log_molecule_level_results(
-        data_logger: Optional[Any],
+        reporter: Optional[Any],
         group_id: int,
         level: str,
-        pair: _EntropyPair,
+        pair: EntropyPair,
         *,
         use_ft_labels: bool,
     ) -> None:
-        if data_logger is None:
+        if reporter is None:
             return
 
         if use_ft_labels:
-            data_logger.add_results_data(
+            reporter.add_results_data(
                 group_id, level, "FTmat-Transvibrational", pair.trans
             )
-            data_logger.add_results_data(
-                group_id, level, "FTmat-Rovibrational", pair.rot
-            )
+            reporter.add_results_data(group_id, level, "FTmat-Rovibrational", pair.rot)
             return
 
-        data_logger.add_results_data(group_id, level, "Transvibrational", pair.trans)
-        data_logger.add_results_data(group_id, level, "Rovibrational", pair.rot)
+        reporter.add_results_data(group_id, level, "Transvibrational", pair.trans)
+        reporter.add_results_data(group_id, level, "Rovibrational", pair.rot)
 
     @staticmethod
     def _get_indexed_matrix(mats: Any, index: int) -> Any:

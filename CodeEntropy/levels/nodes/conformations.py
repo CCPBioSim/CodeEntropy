@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from CodeEntropy.levels.dihedrals import DihedralAnalysis
+from CodeEntropy.levels.dihedrals import ConformationStateBuilder
 
 SharedData = Dict[str, Any]
 ConformationalStates = Dict[str, Any]
@@ -50,9 +50,9 @@ class ComputeConformationalStatesNode:
 
         Args:
             universe_operations: Object providing universe selection utilities used
-                by `DihedralAnalysis`.
+                by `ConformationStateBuilder`.
         """
-        self._dihedral_analysis = DihedralAnalysis(
+        self._dihedral_analysis = ConformationStateBuilder(
             universe_operations=universe_operations
         )
 

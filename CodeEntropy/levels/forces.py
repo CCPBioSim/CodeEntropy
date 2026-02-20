@@ -43,7 +43,7 @@ class TorqueInputs:
     box: Optional[np.ndarray] = None
 
 
-class ForceTorqueManager:
+class ForceTorqueCalculator:
     """Computes weighted generalized forces/torques and per-frame second moments."""
 
     def get_weighted_forces(

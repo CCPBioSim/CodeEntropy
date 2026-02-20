@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from CodeEntropy.molecules.grouping import GroupMolecules
+from CodeEntropy.molecules.grouping import MoleculeGrouper
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class DetectMoleculesNode:
 
     def __init__(self) -> None:
         """Initialize the node with a molecule grouping helper."""
-        self._grouping = GroupMolecules()
+        self._grouping = MoleculeGrouper()
 
     def run(self, shared_data: SharedData) -> Dict[str, Any]:
         """Detect molecules and create grouping definitions.

@@ -1,7 +1,7 @@
 """Water entropy aggregation.
 
 This module wraps the waterEntropy routines and maps their
-outputs into the project `DataLogger` format.
+outputs into the project `ResultsReporter` format.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class WaterEntropyInputs:
+class WaterEntropyInput:
     """Inputs for water entropy computation.
 
     Attributes:
@@ -51,7 +51,7 @@ class WaterEntropy:
     def __init__(
         self,
         args: Any,
-        data_logger: Any,
+        reporter: Any,
         solver: Callable[..., Tuple[dict, Any, Any, Any, Any]] = (
             GetSolvent.get_interfacial_water_orient_entropy
         ),
@@ -60,14 +60,14 @@ class WaterEntropy:
 
         Args:
             args: Argument namespace; must include `temperature`.
-            data_logger: Logger used to record residue and group results.
+            reporter: Logger used to record residue and group results.
             solver: Callable compatible with
                 `get_interfacial_water_orient_entropy
                 (universe, start, end, step, temperature, parallel=True)`.
                 Dependency injection allows unit testing without the external package.
         """
         self._args = args
-        self._data_logger = data_logger
+        self._reporter = reporter
         self._solver = solver
 
     def calculate_and_log(
@@ -87,7 +87,7 @@ class WaterEntropy:
             step: Frame stride.
             group_id: Group ID to assign all water contributions to.
         """
-        inputs = WaterEntropyInputs(
+        inputs = WaterEntropyInput(
             universe=universe,
             start=start,
             end=end,
@@ -97,7 +97,7 @@ class WaterEntropy:
         )
         self._calculate_and_log_from_inputs(inputs)
 
-    def _calculate_and_log_from_inputs(self, inputs: WaterEntropyInputs) -> None:
+    def _calculate_and_log_from_inputs(self, inputs: WaterEntropyInput) -> None:
         """Run the solver and log all returned entropy components."""
         Sorient_dict, covariances, vibrations, _unused, _water_count = self._run_solver(
             inputs
@@ -108,11 +108,11 @@ class WaterEntropy:
         self._log_rotational_entropy(vibrations, covariances, inputs.group_id)
         self._log_group_label(inputs.universe, Sorient_dict, inputs.group_id)
 
-    def _run_solver(self, inputs: WaterEntropyInputs):
+    def _run_solver(self, inputs: WaterEntropyInput):
         """Call the external solver.
 
         Args:
-            inputs: WaterEntropyInputs.
+            inputs: WaterEntropyInput.
 
         Returns:
             Tuple of solver outputs.
@@ -145,7 +145,7 @@ class WaterEntropy:
             for resname, values in resname_dict.items():
                 if isinstance(values, list) and len(values) == 2:
                     entropy, count = values
-                    self._data_logger.add_residue_data(
+                    self._reporter.add_residue_data(
                         group_id, resname, "Water", "Orientational", count, entropy
                     )
 
@@ -170,7 +170,7 @@ class WaterEntropy:
             )
             count = counts.get((solute_id, "WAT"), 1)
             resname = self._solute_id_to_resname(solute_id)
-            self._data_logger.add_residue_data(
+            self._reporter.add_residue_data(
                 group_id, resname, "Water", "Transvibrational", count, value
             )
 
@@ -195,7 +195,7 @@ class WaterEntropy:
             )
             count = counts.get((solute_id, "WAT"), 1)
             resname = self._solute_id_to_resname(solute_id)
-            self._data_logger.add_residue_data(
+            self._reporter.add_residue_data(
                 group_id, resname, "Water", "Rovibrational", count, value
             )
 
@@ -224,7 +224,7 @@ class WaterEntropy:
         }
 
         residue_group = "_".join(sorted(residue_names)) if residue_names else "WAT"
-        self._data_logger.add_group_label(
+        self._reporter.add_group_label(
             group_id, residue_group, actual_water_residues, len(water_selection.atoms)
         )
 

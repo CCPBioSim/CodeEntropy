@@ -1,6 +1,6 @@
 """Hierarchy level selection and bead construction.
 
-This module defines `LevelHierarchy`, which is responsible for:
+This module defines `HierarchyBuilder`, which is responsible for:
   1) Determining which hierarchy levels apply to each molecule.
   2) Constructing "beads" (AtomGroups) for a given molecule at a given level.
 
@@ -19,7 +19,7 @@ from typing import List, Tuple
 logger = logging.getLogger(__name__)
 
 
-class LevelHierarchy:
+class HierarchyBuilder:
     """Determine applicable hierarchy levels and build beads for each level.
 
     A "level" represents a resolution scale used throughout the entropy workflow:

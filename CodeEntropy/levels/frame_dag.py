@@ -36,7 +36,7 @@ class FrameContext:
     data: Dict[str, Any] = None
 
 
-class FrameDAG:
+class FrameGraph:
     """Execute a frame-local directed acyclic graph.
 
     The graph is run once per trajectory frame. Nodes may read shared inputs from
@@ -47,7 +47,7 @@ class FrameDAG:
     """
 
     def __init__(self, universe_operations: Optional[Any] = None) -> None:
-        """Initialise a FrameDAG.
+        """Initialise a FrameGraph.
 
         Args:
             universe_operations: Optional adapter providing universe operations used
@@ -57,7 +57,7 @@ class FrameDAG:
         self._graph = nx.DiGraph()
         self._nodes: Dict[str, Any] = {}
 
-    def build(self) -> "FrameDAG":
+    def build(self) -> "FrameGraph":
         """Build the default frame DAG topology.
 
         Returns:
@@ -79,7 +79,7 @@ class FrameDAG:
         ctx = self._make_frame_ctx(shared_data=shared_data, frame_index=frame_index)
 
         for node_name in nx.topological_sort(self._graph):
-            logger.debug("[FrameDAG] running %s @ frame=%s", node_name, frame_index)
+            logger.debug("[FrameGraph] running %s @ frame=%s", node_name, frame_index)
             self._nodes[node_name].run(ctx)
 
         return ctx["frame_covariance"]

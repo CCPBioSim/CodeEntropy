@@ -4,7 +4,7 @@ This module provides:
 
 1) A declarative argument specification (`ARG_SPECS`) used to build an
    ``argparse.ArgumentParser``.
-2) A `ConfigManager` that:
+2) A `ConfigResolver` that:
    - loads YAML configuration (if present),
    - merges YAML values with CLI values (CLI wins),
    - adjusts logging verbosity,
@@ -37,7 +37,7 @@ class ArgSpec:
         help: Help text shown in CLI usage.
         default: Default value if not provided via CLI or YAML.
         type: Python type for parsing (e.g., int, float, str, bool). If bool,
-            `ConfigManager.str2bool` will be used.
+            `ConfigResolver.str2bool` will be used.
         action: Optional argparse action (e.g., "store_true").
         nargs: Optional nargs spec (e.g., "+").
     """
@@ -145,7 +145,7 @@ ARG_SPECS: Dict[str, ArgSpec] = {
 }
 
 
-class ConfigManager:
+class ConfigResolver:
     """Load, merge, and validate CodeEntropy configuration.
 
     This class provides a consistent interface for:
@@ -224,7 +224,7 @@ class ConfigManager:
             return False
         raise argparse.ArgumentTypeError("Boolean value expected (True/False).")
 
-    def setup_argparse(self) -> argparse.ArgumentParser:
+    def build_parser(self) -> argparse.ArgumentParser:
         """Build an ArgumentParser from argument specs.
 
         Returns:
@@ -262,7 +262,7 @@ class ConfigManager:
 
         return parser
 
-    def merge_configs(
+    def resolve(
         self, args: argparse.Namespace, run_config: Optional[Dict[str, Any]]
     ) -> argparse.Namespace:
         """Merge CLI arguments with YAML configuration and adjust logging level.
@@ -289,7 +289,7 @@ class ConfigManager:
 
         args_dict = vars(args)
 
-        parser = self.setup_argparse()
+        parser = self.build_parser()
         default_args = parser.parse_args([])
         default_dict = vars(default_args)
 
@@ -360,7 +360,7 @@ class ConfigManager:
         if verbose:
             logger.debug("Verbose mode enabled. Logger set to DEBUG level.")
 
-    def input_parameters_validation(self, u: Any, args: argparse.Namespace) -> None:
+    def validate_inputs(self, u: Any, args: argparse.Namespace) -> None:
         """Validate user inputs against sensible runtime constraints.
 
         Args:

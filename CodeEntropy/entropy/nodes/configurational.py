@@ -52,10 +52,10 @@ class ConfigurationalEntropyNode:
         groups = shared_data["groups"]
         levels = shared_data["levels"]
         universe = shared_data["reduced_universe"]
-        data_logger = shared_data.get("data_logger")
+        reporter = shared_data.get("reporter")
 
         states_ua, states_res = self._get_state_containers(shared_data)
-        ce = self._build_entropy_engine(shared_data)
+        ce = self._build_entropy_engine()
 
         fragments = universe.atoms.fragments
         results: Dict[int, Dict[str, float]] = {}
@@ -76,7 +76,7 @@ class ConfigurationalEntropyNode:
                     residues=rep_mol.residues,
                     states_ua=states_ua,
                     n_frames=n_frames,
-                    data_logger=data_logger,
+                    reporter=reporter,
                 )
                 results[group_id]["ua"] = ua_total
 
@@ -89,8 +89,8 @@ class ConfigurationalEntropyNode:
                 )
                 results[group_id]["res"] = res_val
 
-                if data_logger is not None:
-                    data_logger.add_results_data(
+                if reporter is not None:
+                    reporter.add_results_data(
                         group_id, "residue", "Conformational", res_val
                     )
 
@@ -99,24 +99,9 @@ class ConfigurationalEntropyNode:
 
         return {"configurational_entropy": results}
 
-    def _build_entropy_engine(
-        self, shared_data: Mapping[str, Any]
-    ) -> ConformationalEntropy:
-        """Create the entropy calculation engine.
-
-        Args:
-            shared_data: Shared workflow state.
-
-        Returns:
-            ConformationalEntropy instance.
-        """
-        return ConformationalEntropy(
-            run_manager=shared_data["run_manager"],
-            args=shared_data["args"],
-            universe=shared_data["reduced_universe"],
-            data_logger=shared_data.get("data_logger"),
-            group_molecules=shared_data.get("group_molecules"),
-        )
+    def _build_entropy_engine(self) -> ConformationalEntropy:
+        """Create the entropy calculation engine."""
+        return ConformationalEntropy()
 
     def _get_state_containers(self, shared_data: Mapping[str, Any]) -> Tuple[
         Dict[StateKey, StateSequence],
@@ -158,7 +143,7 @@ class ConfigurationalEntropyNode:
         residues: Iterable[Any],
         states_ua: Mapping[StateKey, StateSequence],
         n_frames: int,
-        data_logger: Optional[Any],
+        reporter: Optional[Any],
     ) -> float:
         """Compute united atom entropy for a group.
 
@@ -168,7 +153,7 @@ class ConfigurationalEntropyNode:
             residues: Residue iterable.
             states_ua: Mapping of states.
             n_frames: Frame count.
-            data_logger: Optional logger.
+            reporter: Optional logger.
 
         Returns:
             Total entropy for united atom level.
@@ -180,8 +165,8 @@ class ConfigurationalEntropyNode:
             val = self._entropy_or_zero(ce, states, n_frames)
             total += val
 
-            if data_logger is not None:
-                data_logger.add_residue_data(
+            if reporter is not None:
+                reporter.add_residue_data(
                     group_id=group_id,
                     resname=getattr(res, "resname", "UNK"),
                     level="united_atom",
@@ -190,10 +175,8 @@ class ConfigurationalEntropyNode:
                     value=val,
                 )
 
-        if data_logger is not None:
-            data_logger.add_results_data(
-                group_id, "united_atom", "Conformational", total
-            )
+        if reporter is not None:
+            reporter.add_results_data(group_id, "united_atom", "Conformational", total)
 
         return total
 

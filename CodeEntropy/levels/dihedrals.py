@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 UAKey = Tuple[int, int]
 
 
-class DihedralAnalysis:
+class ConformationStateBuilder:
     """Build conformational state labels from dihedral angles."""
 
     def __init__(self, universe_operations=None):
@@ -31,8 +31,8 @@ class DihedralAnalysis:
 
         Args:
             universe_operations: Object providing helper methods:
-                - get_molecule_container(data_container, molecule_id)
-                - new_U_select_atom(atomgroup, selection_string)
+                - extract_fragment(data_container, molecule_id)
+                - select_atoms(atomgroup, selection_string)
         """
         self._universe_operations = universe_operations
 
@@ -81,7 +81,7 @@ class DihedralAnalysis:
                     progress.advance(task)
                     continue
 
-                mol = self._universe_operations.get_molecule_container(
+                mol = self._universe_operations.extract_fragment(
                     data_container, molecules[0]
                 )
 
@@ -162,12 +162,10 @@ class DihedralAnalysis:
         selection1 = mol.residues[res_id].atoms.indices[0]
         selection2 = mol.residues[res_id].atoms.indices[-1]
 
-        res_container = self._universe_operations.new_U_select_atom(
+        res_container = self._universe_operations.select_atoms(
             mol, f"index {selection1}:{selection2}"
         )
-        return self._universe_operations.new_U_select_atom(
-            res_container, "prop mass > 1.1"
-        )
+        return self._universe_operations.select_atoms(res_container, "prop mass > 1.1")
 
     def _get_dihedrals(self, data_container, level: str):
         """Return dihedral AtomGroups for a container at a given level.
@@ -297,7 +295,7 @@ class DihedralAnalysis:
             phi = []
 
             for molecule in molecules:
-                mol = self._universe_operations.get_molecule_container(
+                mol = self._universe_operations.extract_fragment(
                     data_container, molecule
                 )
                 number_frames = len(mol.trajectory)
@@ -429,9 +427,7 @@ class DihedralAnalysis:
 
         for molecule in molecules:
             conformations = []
-            mol = self._universe_operations.get_molecule_container(
-                data_container, molecule
-            )
+            mol = self._universe_operations.extract_fragment(data_container, molecule)
             number_frames = len(mol.trajectory)
 
             dihedral_results = Dihedral(dihedrals).run()

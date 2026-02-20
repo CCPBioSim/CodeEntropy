@@ -132,7 +132,7 @@ class LoggingConfig:
             "mdanalysis": mdanalysis_handler,
         }
 
-    def setup_logging(self) -> logging.Logger:
+    def configure(self) -> logging.Logger:
         """Attach configured handlers to the appropriate loggers.
 
         This method:
@@ -173,7 +173,7 @@ class LoggingConfig:
         if handler not in logger_obj.handlers:
             logger_obj.addHandler(handler)
 
-    def update_logging_level(self, log_level: int) -> None:
+    def set_level(self, log_level: int) -> None:
         """Update logging levels for root and named loggers.
 
         Notes:
@@ -207,7 +207,7 @@ class LoggingConfig:
             else:
                 handler.setLevel(logging.INFO)
 
-    def save_console_log(self, filename: str = "program_output.txt") -> None:
+    def export_console(self, filename: str = "program_output.txt") -> None:
         """Save recorded console output to a file.
 
         Args:

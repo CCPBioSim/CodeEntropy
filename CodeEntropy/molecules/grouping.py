@@ -39,7 +39,7 @@ class GroupingConfig:
     strategy: str
 
 
-class GroupMolecules:
+class MoleculeGrouper:
     """Build groups of molecules for averaging.
 
     This class provides strategies for grouping molecule fragments from an

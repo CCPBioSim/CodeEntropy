@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ConformationAssignmentConfig:
+class ConformationConfig:
     """Configuration for assigning conformational states from a dihedral.
 
     Attributes:
@@ -53,28 +53,13 @@ class ConformationalEntropy:
 
     _GAS_CONST: float = 8.3144598484848
 
-    def __init__(
-        self,
-        run_manager: Any,
-        args: Any,
-        universe: Any,
-        data_logger: Any,
-        group_molecules: Any,
-    ) -> None:
-        """Initialize the conformational entropy helper.
+    def __init__(self) -> None:
+        """Math-only engine.
 
-        Args:
-            run_manager: Workflow run manager.
-            args: Parsed CLI/config arguments.
-            universe: MDAnalysis Universe (or compatible container).
-            data_logger: Optional logger/collector for results.
-            group_molecules: Grouping helper used elsewhere in the workflow.
+        This class assigns conformational states and computes conformational entropy.
+        It does not depend on the workflow runner, universe, grouping, or reporting.
         """
-        self._run_manager = run_manager
-        self._args = args
-        self._universe = universe
-        self._data_logger = data_logger
-        self._group_molecules = group_molecules
+        pass
 
     def assign_conformation(
         self,
@@ -113,7 +98,7 @@ class ConformationalEntropy:
         """
         _ = number_frames  # kept for compatibility; sizing follows the slice length.
 
-        config = ConformationAssignmentConfig(
+        config = ConformationConfig(
             bin_width=int(bin_width),
             start=int(start),
             end=int(end),
@@ -175,7 +160,7 @@ class ConformationalEntropy:
         return s_conf
 
     @staticmethod
-    def _validate_assignment_config(config: ConformationAssignmentConfig) -> None:
+    def _validate_assignment_config(config: ConformationConfig) -> None:
         """Validate conformation assignment configuration.
 
         Args:

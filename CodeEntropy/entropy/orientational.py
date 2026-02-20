@@ -51,7 +51,7 @@ class OrientationalEntropy:
         run_manager: Any,
         args: Any,
         universe: Any,
-        data_logger: Any,
+        reporter: Any,
         group_molecules: Any,
         gas_constant: float = _GAS_CONST_J_PER_MOL_K,
     ) -> None:
@@ -61,14 +61,14 @@ class OrientationalEntropy:
             run_manager: Run manager (currently unused by this class).
             args: User arguments (currently unused by this class).
             universe: MDAnalysis Universe (currently unused by this class).
-            data_logger: Data logger (currently unused by this class).
+            reporter: Data logger (currently unused by this class).
             group_molecules: Grouping helper (currently unused by this class).
             gas_constant: Gas constant in J/(mol*K).
         """
         self._run_manager = run_manager
         self._args = args
         self._universe = universe
-        self._data_logger = data_logger
+        self._reporter = reporter
         self._group_molecules = group_molecules
         self._gas_constant = float(gas_constant)
 

@@ -5,7 +5,7 @@ vectors at each hierarchy level (united_atom, residue, polymer). Results are
 incrementally averaged across molecules within a group for the current frame.
 
 Responsibilities:
-- Build bead-level force/torque vectors using ForceTorqueManager.
+- Build bead-level force/torque vectors using ForceTorqueCalculator.
 - Construct per-frame force/torque second moments (outer products).
 - Optionally construct combined force-torque block matrices.
 - Average per-frame matrices across molecules in the same group.
@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from MDAnalysis.lib.mdamath import make_whole
 
-from CodeEntropy.levels.forces import ForceTorqueManager
+from CodeEntropy.levels.forces import ForceTorqueCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class FrameCovarianceNode:
     """Build per-frame covariance-like (second-moment) matrices for each group."""
 
     def __init__(self) -> None:
-        self._ft = ForceTorqueManager()
+        self._ft = ForceTorqueCalculator()
 
     def run(self, ctx: FrameCtx) -> Dict[str, Any]:
         """Compute and store per-frame force/torque (and optional FT) matrices.

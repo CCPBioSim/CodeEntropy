@@ -1,6 +1,6 @@
 """Utilities for logging entropy results and exporting data.
 
-This module provides the DataLogger class, which is responsible for:
+This module provides the ResultsReporter class, which is responsible for:
 
 - Collecting molecule-level entropy results
 - Collecting residue-level entropy results
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
 
 
-class DataLogger:
+class ResultsReporter:
     """Collect, format, and output entropy calculation results."""
 
     def __init__(self, console: Optional[Console] = None) -> None:

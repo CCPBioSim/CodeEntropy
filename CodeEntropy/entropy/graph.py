@@ -30,7 +30,7 @@ SharedData = Dict[str, Any]
 
 
 @dataclass(frozen=True)
-class GraphNodeSpec:
+class NodeSpec:
     """Specification for a node within the entropy graph.
 
     Attributes:
@@ -66,9 +66,9 @@ class EntropyGraph:
             Self for fluent chaining.
         """
         specs = (
-            GraphNodeSpec("vibrational_entropy", VibrationalEntropyNode()),
-            GraphNodeSpec("configurational_entropy", ConfigurationalEntropyNode()),
-            GraphNodeSpec(
+            NodeSpec("vibrational_entropy", VibrationalEntropyNode()),
+            NodeSpec("configurational_entropy", ConfigurationalEntropyNode()),
+            NodeSpec(
                 "aggregate_entropy",
                 AggregateEntropyNode(),
                 deps=("vibrational_entropy", "configurational_entropy"),
@@ -102,7 +102,7 @@ class EntropyGraph:
                 results.update(out)
         return results
 
-    def _add_node(self, spec: GraphNodeSpec) -> None:
+    def _add_node(self, spec: NodeSpec) -> None:
         """Add a node and its dependencies to the graph.
 
         Args:
