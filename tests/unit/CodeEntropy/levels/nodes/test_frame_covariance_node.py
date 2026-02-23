@@ -528,3 +528,107 @@ def test_process_residue_returns_early_when_any_bead_group_is_empty():
 
     assert out_force["res"] == {}
     assert out_torque["res"] == {}
+
+
+def test_process_polymer_skips_when_any_bead_group_is_empty():
+    node = FrameCovarianceNode()
+
+    u = MagicMock()
+    u.atoms = MagicMock()
+    u.atoms.__getitem__.side_effect = lambda idx: _EmptyGroup()
+
+    out_force = {"ua": {}, "res": {}, "poly": {}}
+    out_torque = {"ua": {}, "res": {}, "poly": {}}
+    out_ft = {"ua": {}, "res": {}, "poly": {}}
+
+    node._process_polymer(
+        u=u,
+        mol=MagicMock(),
+        mol_id=0,
+        group_id=7,
+        beads={(0, "polymer"): [np.array([1, 2, 3])]},
+        axes_manager=MagicMock(),
+        box=np.array([10.0, 10.0, 10.0]),
+        force_partitioning=1.0,
+        is_highest=True,
+        out_force=out_force,
+        out_torque=out_torque,
+        out_ft=out_ft,
+        molcount={},
+        combined=True,
+    )
+
+    assert out_force["poly"] == {}
+    assert out_torque["poly"] == {}
+    assert out_ft["poly"] == {}
+
+
+def test_process_polymer_happy_path_updates_force_torque_and_optional_ft():
+    node = FrameCovarianceNode()
+
+    u = MagicMock()
+    u.atoms = MagicMock()
+
+    bead_obj = _BeadGroup(1)
+    u.atoms.__getitem__.side_effect = lambda idx: bead_obj
+
+    mol = MagicMock()
+    mol.atoms = MagicMock()
+
+    axes_manager = MagicMock()
+
+    f_vec = np.array([1.0, 0.0, 0.0], dtype=float)
+    t_vec = np.array([0.0, 1.0, 0.0], dtype=float)
+
+    F = np.eye(3)
+    T = 2.0 * np.eye(3)
+    FT = np.eye(6)
+
+    out_force = {"ua": {}, "res": {}, "poly": {}}
+    out_torque = {"ua": {}, "res": {}, "poly": {}}
+    out_ft = {"ua": {}, "res": {}, "poly": {}}
+    molcount = {}
+
+    with (
+        patch.object(
+            node,
+            "_get_polymer_axes",
+            return_value=(np.eye(3), np.eye(3), np.zeros(3), np.ones(3)),
+        ) as axes_spy,
+        patch.object(node._ft, "get_weighted_forces", return_value=f_vec) as f_spy,
+        patch.object(node._ft, "get_weighted_torques", return_value=t_vec) as t_spy,
+        patch.object(
+            node._ft, "compute_frame_covariance", return_value=(F, T)
+        ) as cov_spy,
+        patch.object(node, "_build_ft_block", return_value=FT) as ft_spy,
+    ):
+        node._process_polymer(
+            u=u,
+            mol=mol,
+            mol_id=0,
+            group_id=7,
+            beads={(0, "polymer"): [np.array([1, 2, 3])]},
+            axes_manager=axes_manager,
+            box=np.array([10.0, 10.0, 10.0]),
+            force_partitioning=0.5,
+            is_highest=True,
+            out_force=out_force,
+            out_torque=out_torque,
+            out_ft=out_ft,
+            molcount=molcount,
+            combined=True,
+        )
+
+    assert u.atoms.__getitem__.call_count == 1
+    axes_spy.assert_called_once_with(mol=mol, bead=bead_obj, axes_manager=axes_manager)
+
+    f_spy.assert_called_once()
+    t_spy.assert_called_once()
+    cov_spy.assert_called_once()
+
+    np.testing.assert_allclose(out_force["poly"][7], F)
+    np.testing.assert_allclose(out_torque["poly"][7], T)
+    assert molcount[7] == 1
+
+    ft_spy.assert_called_once()
+    np.testing.assert_allclose(out_ft["poly"][7], FT)
