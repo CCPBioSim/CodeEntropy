@@ -78,7 +78,7 @@ class VibrationalEntropyNode:
                         ua_frame_counts=ua_frame_counts,
                         reporter=reporter,
                         n_frames_default=shared_data.get("n_frames", 0),
-                        highest=highest,  # IMPORTANT: matches main
+                        highest=highest,
                     )
                     self._store_results(results, group_id, level, pair)
                     self._log_molecule_level_results(
@@ -89,7 +89,6 @@ class VibrationalEntropyNode:
                 if level in ("residue", "polymer"):
                     gi = gid2i[group_id]
 
-                    # FT only applies at the highest level (same as main)
                     if combined and highest and ft_cov is not None:
                         ft_key = "res" if level == "residue" else "poly"
                         ftmat = self._get_indexed_matrix(ft_cov.get(ft_key, []), gi)
@@ -219,7 +218,6 @@ class VibrationalEntropyNode:
             np.asarray(tmat), atol=self._zero_atol
         )
 
-        # If filtering removes everything, behave like "no data"
         if f.size == 0 or t.size == 0:
             return EntropyPair(trans=0.0, rot=0.0)
 
@@ -247,7 +245,6 @@ class VibrationalEntropyNode:
         if ft.size == 0:
             return EntropyPair(trans=0.0, rot=0.0)
 
-        # FT is only used at highest level in main branch
         s_trans = ve.vibrational_entropy_calculation(
             ft, "forcetorqueTRANS", temp, highest_level=True
         )

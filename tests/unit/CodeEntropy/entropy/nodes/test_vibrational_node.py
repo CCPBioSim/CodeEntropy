@@ -364,3 +364,19 @@ def test_run_unknown_level_raises(shared_groups):
 
     with pytest.raises(ValueError):
         node.run(shared_groups)
+
+
+def test_compute_ft_entropy_returns_zeros_when_filtered_ft_matrix_is_empty(monkeypatch):
+    node = VibrationalEntropyNode()
+    ve = MagicMock()
+
+    monkeypatch.setattr(
+        node._mat_ops,
+        "filter_zero_rows_columns",
+        lambda _arr, atol: np.empty((0, 0), dtype=float),
+    )
+
+    out = node._compute_ft_entropy(ve=ve, temp=298.0, ftmat=np.eye(6))
+
+    assert out == EntropyPair(trans=0.0, rot=0.0)
+    ve.vibrational_entropy_calculation.assert_not_called()
