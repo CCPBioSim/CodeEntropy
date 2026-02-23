@@ -182,3 +182,27 @@ def test_reduce_force_and_torque_hits_ua_force_count_increment_line():
     dag._reduce_force_and_torque(shared, frame_out)
 
     assert shared["frame_counts"]["ua"][key] == 1
+
+
+def test_reduce_force_and_torque_ua_torque_increments_count_when_force_missing_key():
+    dag = LevelDAG()
+
+    key = (9, 0)
+    T = np.eye(3)
+
+    shared = {
+        "force_covariances": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_covariances": {"ua": {}, "res": [None], "poly": [None]},
+        "frame_counts": {"ua": {}, "res": [0], "poly": [0]},
+        "group_id_to_index": {7: 0},
+    }
+
+    frame_out = {
+        "force": {"ua": {}, "res": {}, "poly": {}},
+        "torque": {"ua": {key: T}, "res": {}, "poly": {}},
+    }
+
+    dag._reduce_force_and_torque(shared, frame_out)
+
+    assert shared["frame_counts"]["ua"][key] == 1
+    np.testing.assert_array_equal(shared["torque_covariances"]["ua"][key], T)
