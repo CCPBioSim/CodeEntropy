@@ -83,3 +83,8 @@ def test_find_histogram_peaks_skips_zero_population_bins():
     peaks = ce._find_histogram_peaks(phi, bin_width=30)
 
     assert peaks.size >= 1
+
+
+def test_to_1d_array_returns_none_when_states_is_none():
+    ce = ConformationalEntropy()
+    assert ce._to_1d_array(None) is None
