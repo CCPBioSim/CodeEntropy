@@ -176,3 +176,13 @@ def test_log_group_label_defaults_to_WAT_when_no_names_match():
     reporter.add_group_label.assert_called_once()
 
     assert reporter.add_group_label.call_args.args[1] == "WAT"
+
+
+def test_solute_id_to_resname_strips_suffix_after_last_underscore():
+    assert WaterEntropy._solute_id_to_resname("ALA_0") == "ALA"
+    assert WaterEntropy._solute_id_to_resname("ALA_BLA_12") == "ALA_BLA"
+
+
+def test_solute_id_to_resname_returns_string_when_no_underscore():
+    assert WaterEntropy._solute_id_to_resname("WAT") == "WAT"
+    assert WaterEntropy._solute_id_to_resname(123) == "123"
