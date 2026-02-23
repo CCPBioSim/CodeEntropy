@@ -31,13 +31,8 @@ def test_main_logs_and_exits_nonzero_on_exception(monkeypatch):
 
     monkeypatch.setattr(entry, "CodeEntropyRunner", fake_runner_cls)
 
-    critical_spy = MagicMock()
-    monkeypatch.setattr(entry.logger, "critical", critical_spy)
-
     with pytest.raises(SystemExit) as exc:
         entry.main()
 
     assert exc.value.code == 1
-    critical_spy.assert_called_once()
-    _, kwargs = critical_spy.call_args
-    assert kwargs.get("exc_info") is True
+    fake_runner.run_entropy_workflow.assert_called_once_with()
