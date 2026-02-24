@@ -348,5 +348,9 @@ class EntropyWorkflow:
             ],
         )
         self._reporter.save_dataframes_as_json(
-            molecule_df, residue_df, self._args.output_file
+            molecule_df,
+            residue_df,
+            self._args.output_file,
+            args=self._args,
+            include_raw_tables=False,
         )
