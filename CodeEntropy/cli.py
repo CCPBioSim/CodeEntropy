@@ -30,8 +30,6 @@ def main() -> None:
     try:
         run_manager = CodeEntropyRunner(folder=folder)
         run_manager.run_entropy_workflow()
-    except Exception as exc:
-        logger.critical(
-            "Fatal error during entropy calculation: %s", exc, exc_info=True
-        )
-        raise SystemExit(1) from exc
+    except Exception:
+        logger.exception("Fatal error during entropy calculation")
+        raise SystemExit(1) from None

@@ -222,17 +222,20 @@ class CodeEntropyRunner:
         """Run the end-to-end entropy workflow.
 
         This method:
-          - Sets up logging and prints the splash screen
-          - Loads YAML config from CWD and parses CLI args
-          - Merges args with YAML per-run config
-          - Builds the MDAnalysis Universe (with optional force merging)
-          - Validates user parameters
-          - Constructs dependencies and executes EntropyWorkflow
-          - Saves recorded console output to a log file
+        - Sets up logging and prints the splash screen
+        - Loads YAML config from CWD and parses CLI args
+        - Merges args with YAML per-run config
+        - Builds the MDAnalysis Universe (with optional force merging)
+        - Validates user parameters
+        - Constructs dependencies and executes EntropyWorkflow
+        - Saves recorded console output to a log file
+        - Logs run arguments if an error occurs to aid debugging
 
         Raises:
-            Exception: Re-raises any exception after logging with traceback.
+            RuntimeError: If the workflow fails for any reason. The original
+                exception is chained to preserve traceback information.
         """
+        args = None
         try:
             run_logger = self._logging_config.configure()
             self.show_splash()
@@ -288,9 +291,14 @@ class CodeEntropyRunner:
 
             self._logging_config.export_console()
 
-        except Exception as e:
-            logger.error("CodeEntropyRunner encountered an error: %s", e, exc_info=True)
-            raise
+        except Exception as exc:
+            if args is not None:
+                try:
+                    logger.error("Run arguments at failure: %s", vars(args))
+                except Exception:
+                    logger.error("Run arguments at failure could not be serialized")
+
+            raise RuntimeError("CodeEntropyRunner encountered an error") from exc
 
     @staticmethod
     def _validate_required_args(args: Any) -> None:
