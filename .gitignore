@@ -127,3 +127,6 @@ job*
 *.txt
 
 .testdata/
+
+!tests/regression/baselines/
+!tests/regression/baselines/*.json
