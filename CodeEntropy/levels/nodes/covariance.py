@@ -503,7 +503,7 @@ class FrameCovarianceNode:
             raise ValueError("No bead vectors available to build an FT matrix.")
 
         bead_vecs: List[np.ndarray] = []
-        for Fi, Ti in zip(force_vecs, torque_vecs):
+        for Fi, Ti in zip(force_vecs, torque_vecs, strict=True):
             Fi = np.asarray(Fi, dtype=float).reshape(-1)
             Ti = np.asarray(Ti, dtype=float).reshape(-1)
             if Fi.size != 3 or Ti.size != 3:

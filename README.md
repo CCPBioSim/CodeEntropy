@@ -19,8 +19,8 @@ CodeEntropy is a Python package for computing the configurational entropy of mac
 See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest/) for more information.
 
 ## Acknowledgements
- 
-Project based on 
+
+Project based on
 
 - [arghya90/CodeEntropy](https://github.com/arghya90/CodeEntropy) version 0.3
 - [jkalayan/PoseidonBeta](https://github.com/jkalayan/PoseidonBeta)

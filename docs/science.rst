@@ -3,9 +3,9 @@ Multiscale Cell Correlation Theory
 
 This section is to describe the scientific theory behind the method used in CodeEntropy.
 
-The multiscale cell correlation (MCC) method [1-3] has been developed in the group of Richard Henchman to calculate entropy from molecular dynamics (MD) simulations. 
+The multiscale cell correlation (MCC) method [1-3] has been developed in the group of Richard Henchman to calculate entropy from molecular dynamics (MD) simulations.
 It has been applied to liquids [1,3,4], proteins [2,5,6], solutions [6-9], and complexes [6,7].
-The purpose of this project is to develop and release well written code that enables users from any group to calculate the entropy from their simulations using the MCC. 
+The purpose of this project is to develop and release well written code that enables users from any group to calculate the entropy from their simulations using the MCC.
 The latest code can be found at github.com/ccpbiosim/codeentropy.
 
 The method requires forces to be written to the MD trajectory files along with the coordinates.
@@ -42,8 +42,8 @@ Additional application examples
 
 Hierarchy
 ---------
-   
-Atoms are grouped into beads. 
+
+Atoms are grouped into beads.
 The levels refer to the size of the beads and the different entropy terms are calculated at each level, taking care to avoid over counting.
 This is done at three different levels of the hierarchy - united atom, residues, and polymers.
 Not all molecules have all the levels of hierarchy, for example water has only the united atom level, benzene would have united atoms and residue, and a protein would have all three levels.
@@ -68,7 +68,7 @@ The axes for this transformation are calculated for each bead in each time step.
 
 For the polymer level, the translational and rotational axes are defined as the principal axes of the molecule.
 
-For the residue level, there are two situations. 
+For the residue level, there are two situations.
 When the residue is not bonded to any other residues, the translational and rotational axes are the principal axes of the molecule.
 When the residue is part of a larger polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the average position of the bonds to neighbouring residues.
 
@@ -80,13 +80,13 @@ Conformational Entropy
 
 This term is based on the intramolecular conformational states.
 
-The united atom level dihedrals are defined for every linear sequence of four bonded atoms, but only using the heavy atoms no hydrogens are involved. 
+The united atom level dihedrals are defined for every linear sequence of four bonded atoms, but only using the heavy atoms no hydrogens are involved.
 The MDAnalysis package is used to identify and calculate the united atom dihedral values.
 
-For the residue level dihedrals, the bond between the first and second residues and the bond between the third and fourth residues are found. 
+For the residue level dihedrals, the bond between the first and second residues and the bond between the third and fourth residues are found.
 The four atoms at the ends of these two bonds are used as points for the dihedral angle calculation.
 
-To discretise dihedrals, a histogram is constructed from each set of dihedral values and peaks are identified. 
+To discretise dihedrals, a histogram is constructed from each set of dihedral values and peaks are identified.
 Then at each timestep, every dihedral is assigned to its nearest peak and a state is created from all the assigned peaks in the residue (for united atom level) or molecule (for residue level).
 Once the states are defined, the probability of finding the residue or molecule in each state is calculated.
 Then the Boltzmann equation is used to calculate the entropy:
@@ -96,7 +96,7 @@ Then the Boltzmann equation is used to calculate the entropy:
 
 Orientational Entropy
 ---------------------
-Orientational entropy is the term that comes from the molecule's environment (or the intermolecular configuration). 
+Orientational entropy is the term that comes from the molecule's environment (or the intermolecular configuration).
 The different environments are the different states for the molecule, and the statistics can be used to calculate the entropy.
 The simplest part is counting the number of neighbours, but symmetry should be accounted for in determining the number of orientations.
 

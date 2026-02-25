@@ -103,7 +103,9 @@ class ConfigurationalEntropyNode:
         """Create the entropy calculation engine."""
         return ConformationalEntropy()
 
-    def _get_state_containers(self, shared_data: Mapping[str, Any]) -> Tuple[
+    def _get_state_containers(
+        self, shared_data: Mapping[str, Any]
+    ) -> Tuple[
         Dict[StateKey, StateSequence],
         Union[Dict[GroupId, StateSequence], Sequence[Optional[StateSequence]]],
     ]:

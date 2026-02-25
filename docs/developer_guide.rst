@@ -53,7 +53,7 @@ This ensures:
 - **Import sorting** via ``isort`` with the ``black`` profile
 - **Linting** via ``flake8`` with ``flake8-pyproject``
 - **Basic checks** via ``pre-commit-hooks``, including:
-  
+
   - Detection of large added files
   - AST validity checks
   - Case conflict detection

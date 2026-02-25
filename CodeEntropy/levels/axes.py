@@ -107,8 +107,7 @@ class AxesCalculator:
 
         center = residue.atoms.center_of_mass(unwrap=True)
         atom_set = data_container.select_atoms(
-            f"(resindex {index_prev} or resindex {index_next}) "
-            f"and bonded resid {index}"
+            f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}"
         )
 
         if len(atom_set) == 0:
@@ -476,7 +475,7 @@ class AxesCalculator:
         translated_coords = self.get_vector(center_of_mass, UA.positions, dimensions)
         custom_moment_of_inertia = np.zeros(3, dtype=float)
 
-        for coord, mass in zip(translated_coords, UA.masses):
+        for coord, mass in zip(translated_coords, UA.masses, strict=True):
             axis_component = np.sum(
                 np.cross(custom_rotation_axes, coord) ** 2 * mass, axis=1
             )

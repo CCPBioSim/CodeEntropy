@@ -12,11 +12,11 @@ assignees: ''
 
 ---
 
-## To Reproduce  
+## To Reproduce
 <!-- Provide the YAML configuration and the exact CLI command that reproduces the issue. -->
 
 ### YAML configuration
-<!-- Paste the YAML file or the smallest excerpt that reproduces the issue.  
+<!-- Paste the YAML file or the smallest excerpt that reproduces the issue.
 Remove unrelated fields to make it minimal. -->
 ```yaml
 # Paste the YAML snippet here
@@ -46,7 +46,7 @@ Remove unrelated fields to make it minimal. -->
 - Python Version:
 - Package list:
   - If using conda, run: `conda list > packages.txt` and paste the contents here.
-    
+
     ``` bash
     # Paste packages.txt here
     ```
