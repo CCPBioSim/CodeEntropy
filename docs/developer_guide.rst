@@ -1,7 +1,10 @@
 Developer Guide
 ===============
 
-CodeEntropy is open-source, and we welcome contributions from the wider community to help improve and extend its functionality. This guide walks you through setting up a development environment, running tests, submitting contributions, and maintaining coding standards.
+CodeEntropy is open-source, and we welcome contributions from the wider community
+to help improve and extend its functionality. This guide walks you through setting
+up a development environment, running tests, contributing code, and understanding
+the continuous integration workflows.
 
 Getting Started for Developers
 ------------------------------
@@ -24,44 +27,77 @@ Install development dependencies::
 Running Tests
 -------------
 
-Run the full test suite::
+CodeEntropy uses **pytest** with separate unit and regression suites.
 
-    pytest -v
+Run all tests::
 
-Run tests with code coverage::
+    pytest
+
+Run only unit tests::
+
+    pytest tests/unit
+
+Run regression tests::
+
+    pytest tests/regression
+
+Run regression tests excluding slow systems::
+
+    pytest tests/regression -m "not slow"
+
+Run slow regression tests::
+
+    pytest tests/regression -m slow
+
+Run tests with coverage::
 
     pytest --cov CodeEntropy --cov-report=term-missing
 
-Run tests for a specific module::
+Update regression baselines::
 
-    pytest CodeEntropy/tests/test_CodeEntropy/test_levels.py
+    pytest tests/regression --update-baselines
 
 Run a specific test::
 
-    pytest CodeEntropy/tests/test_CodeEntropy/test_levels.py::test_select_levels
+    pytest tests/unit/.../test_file.py::test_function
+
+Regression Test Data
+--------------------
+
+Regression datasets are automatically downloaded from the CCPBioSim filestore
+and cached locally in ``.testdata/`` when tests are run.
+
+No manual setup is required.
+
+The test configuration files reference datasets using the ``${TESTDATA}``
+placeholder, which is expanded automatically during test execution.
 
 Coding Standards
 ----------------
 
-We use **pre-commit hooks** to maintain code quality and consistent style. To enable these hooks::
+We use **pre-commit hooks** to maintain code quality and consistent style.
+
+Enable hooks::
 
     pre-commit install
 
-This ensures:
+Our tooling stack:
 
-- **Formatting** via ``black`` (`psf/black`)
-- **Import sorting** via ``isort`` with the ``black`` profile
-- **Linting** via ``flake8`` with ``flake8-pyproject``
-- **Basic checks** via ``pre-commit-hooks``, including:
+- **Linting and formatting** via ``ruff``
+- **Basic repository checks** via ``pre-commit-hooks``
 
-  - Detection of large added files
-  - AST validity checks
-  - Case conflict detection
-  - Executable shebang verification
-  - Merge conflict detection
-  - TOML and YAML syntax validation
+Ruff performs:
 
-To skip pre-commit checks for a commit::
+- Code formatting
+- Import sorting
+- Static analysis
+- Style enforcement
+
+Run checks manually::
+
+    pre-commit run --all-files
+
+Skip checks for a commit (not recommended)::
 
     git commit -n
 
@@ -72,33 +108,50 @@ To skip pre-commit checks for a commit::
 Continuous Integration (CI)
 ---------------------------
 
-CodeEntropy uses **GitHub Actions** to automatically:
+CodeEntropy uses **GitHub Actions** with multiple workflows to ensure stability
+across platforms and Python versions.
 
-- Run all tests
-- Check coding style
-- Build documentation
-- Validate versioning
+Pull Request checks include:
 
-Every pull request will trigger these checks to ensure quality and stability.
+- Unit tests on Linux, macOS, and Windows
+- Python versions 3.12-3.14
+- Quick regression tests
+- Documentation build
+- Pre-commit validation
+
+Daily workflow:
+
+- Runs automated test validation
+
+Weekly workflows:
+
+- Full regression suite including slow tests
+- Documentation build across all Python versions
+
+CI also caches regression datasets to improve performance.
 
 Building Documentation
 ----------------------
 
-Build locally::
+Build documentation locally::
 
     cd docs
     make html
 
-The generated HTML files will be in ``docs/build/html/``. Open ``index.html`` in your browser to view the documentation.
+The generated HTML files will be in ``docs/build/html/``.
 
-Edit docs in the following directories:
+Open ``index.html`` in your browser to preview.
+
+Documentation sources are located in:
 
 - ``docs/user_guide/``
 - ``docs/developer_guide/``
 
 Contributing Code
 -----------------
-If you would to contribution to **CodeEntropy** please refer to our `Contributing Guidelines <https://github.com/CCPBioSim/CodeEntropy?tab=contributing-ov-file>`_
+
+If you would like to contribute to **CodeEntropy**, please refer to the
+`Contributing Guidelines <https://github.com/CCPBioSim/CodeEntropy?tab=contributing-ov-file>`_.
 
 Creating an Issue
 ^^^^^^^^^^^^^^^^^
@@ -114,7 +167,7 @@ Branching
 - Never commit directly to ``main``.
 - Create a branch named after the issue::
 
-    git checkout -b 123-fix-levels
+    git checkout -b 123-feature-description
 
 Pull Requests
 ^^^^^^^^^^^^^
@@ -132,6 +185,6 @@ Full developer setup::
 
     git clone https://github.com/CCPBioSim/CodeEntropy.git
     cd CodeEntropy
-    pip install -e .[testing,docs,pre-commit]
+    pip install -e ".[testing,docs,pre-commit]"
     pre-commit install
-    pytest --cov CodeEntropy --cov-report=term-missing
+    pytest
