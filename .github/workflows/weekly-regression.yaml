@@ -1,0 +1,52 @@
+name: CodeEntropy Weekly Regression
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly Monday checks
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: Regression tests (including slow)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Cache regression test data downloads
+        uses: actions/cache@v4
+        with:
+          path: .testdata
+          key: codeentropy-testdata-${{ runner.os }}-py314
+
+      - name: Install CodeEntropy and its testing dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .[testing]
+
+      - name: Run regression test suite
+        run: pytest tests/regression -q --run-slow
+
+      - name: Upload regression artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-failure-artifacts
+          path: |
+            .testdata/**
+            tests/regression/**/.pytest_cache/**
+            /tmp/pytest-of-*/pytest-*/**/config.yaml
+            /tmp/pytest-of-*/pytest-*/**/codeentropy_stdout.txt
+            /tmp/pytest-of-*/pytest-*/**/codeentropy_stderr.txt
+            /tmp/pytest-of-*/pytest-*/**/codeentropy_output.json
