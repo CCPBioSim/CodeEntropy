@@ -96,7 +96,6 @@ class EntropyGraph:
         results: Dict[str, Any] = {}
         for node_name in nx.topological_sort(self._graph):
             node = self._nodes[node_name]
-            logger.info("[EntropyGraph] node: %s", node_name)
             out = node.run(shared_data)
             if isinstance(out, dict):
                 results.update(out)

@@ -95,7 +95,6 @@ class ConfigurationalEntropyNode:
                     )
 
         shared_data["configurational_entropy"] = results
-        logger.info("[ConfigurationalEntropyNode] Completed")
 
         return {"configurational_entropy": results}
 

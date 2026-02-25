@@ -56,11 +56,6 @@ class DetectMoleculesNode:
         shared_data["groups"] = groups
         shared_data["number_molecules"] = number_molecules
 
-        logger.info(
-            "[DetectMoleculesNode] %s molecules detected (reduced_universe)",
-            number_molecules,
-        )
-
         return {
             "groups": groups,
             "number_molecules": number_molecules,

@@ -99,7 +99,6 @@ class LevelDAG:
     def _run_static_stage(self, shared_data: Dict[str, Any]) -> None:
         """Run all static nodes in dependency order."""
         for node_name in nx.topological_sort(self._static_graph):
-            logger.info("[LevelDAG] static node: %s", node_name)
             self._static_nodes[node_name].run(shared_data)
 
     def _add_static(

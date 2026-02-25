@@ -200,5 +200,5 @@ class MoleculeGrouper:
         Args:
             groups: Group mapping to summarize.
         """
-        logger.info("Number of molecule groups: %d", len(groups))
+        logger.debug("Number of molecule groups: %d", len(groups))
         logger.debug("Molecule groups: %s", groups)

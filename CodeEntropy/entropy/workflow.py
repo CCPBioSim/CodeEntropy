@@ -108,7 +108,6 @@ class EntropyWorkflow:
         groups = self._group_molecules.grouping_molecules(
             reduced_universe, self._args.grouping
         )
-        logger.info("Number of molecule groups: %d", len(groups))
 
         nonwater_groups, water_groups = self._split_water_groups(groups)
 
@@ -181,7 +180,6 @@ class EntropyWorkflow:
         """
         entropy_results = EntropyGraph().build().execute(shared_data)
         shared_data.update(entropy_results)
-        logger.info("entropy_results: %s", entropy_results)
 
     def _build_trajectory_slice(self) -> TrajectorySlice:
         """Compute trajectory slicing parameters from args.

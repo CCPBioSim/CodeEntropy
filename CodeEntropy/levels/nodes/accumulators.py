@@ -90,12 +90,6 @@ class InitCovarianceAccumulatorsNode:
         self._attach_to_shared_data(shared_data, group_index, accumulators)
         self._attach_backwards_compatible_aliases(shared_data)
 
-        logger.info(
-            "[InitCovAcc] group_ids=%s gid2i=%s",
-            group_index.index_to_group_id,
-            group_index.group_id_to_index,
-        )
-
         return self._build_return_payload(shared_data)
 
     @staticmethod

@@ -120,7 +120,6 @@ class VibrationalEntropyNode:
                 raise ValueError(f"Unknown level: {level}")
 
         shared_data["vibrational_entropy"] = results
-        logger.info("[VibrationalEntropyNode] Completed")
         return {"vibrational_entropy": results}
 
     def _build_entropy_engine(
