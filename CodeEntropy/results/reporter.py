@@ -48,25 +48,69 @@ class _RichProgressSink:
     """
 
     def __init__(self, progress: Progress):
+        """Initialise a progress sink that delegates to a rich.Progress instance.
+
+        Args:
+            progress: Rich Progress instance used to create/update/advance tasks.
+        """
         self._progress = progress
 
     def add_task(self, description: str, total: int, **fields):
+        """Add a progress task to the underlying rich.Progress instance.
+
+        Args:
+            description: Task description shown by Rich.
+            total: Total number of steps for the task.
+            **fields: Additional Rich task fields (e.g., title).
+
+        Returns:
+            The task id returned by rich.Progress.add_task.
+        """
         fields.setdefault("title", "")
         return self._progress.add_task(description, total=total, **fields)
 
     def advance(self, task_id, step: int = 1) -> None:
+        """Advance a progress task by a number of steps.
+
+        Args:
+            task_id: Rich task identifier.
+            step: Number of steps to advance the task by.
+        """
         self._progress.advance(task_id, step)
 
     def update(self, task_id, **fields) -> None:
+        """Update fields for an existing progress task.
+
+        Args:
+            task_id: Rich task identifier.
+            **fields: Task fields to update. If "title" is provided as None, it is
+                coerced to an empty string for compatibility with Rich rendering.
+        """
         if "title" in fields and fields["title"] is None:
             fields["title"] = ""
         self._progress.update(task_id, **fields)
 
 
 class ResultsReporter:
-    """Collect, format, and output entropy calculation results."""
+    """Collect, format, and output entropy calculation results.
+
+    This reporter accumulates:
+      - Molecule-level results (group_id, level, entropy_type, value)
+      - Residue-level results (group_id, resname, level, entropy_type, frame_count,
+      value)
+      - Group metadata labels (label, residue_count, atom_count)
+
+    It can render tables using Rich and export grouped results to JSON with basic
+    provenance metadata.
+    """
 
     def __init__(self, console: Optional[Console] = None) -> None:
+        """Initialise a ResultsReporter.
+
+        Args:
+            console: Optional Rich Console to use for rendering. If None, a default
+                Console instance is created.
+        """
         self.console: Console = console or Console()
         self.molecule_data: List[Tuple[Any, Any, Any, Any]] = []
         self.residue_data: List[List[Any]] = []
@@ -74,18 +118,31 @@ class ResultsReporter:
 
     @staticmethod
     def clean_residue_name(resname: Any) -> str:
-        """Clean residue name by removing dash-like characters."""
+        """Clean residue name by removing dash-like characters.
+
+        Args:
+            resname: Residue name (any type, will be converted to str).
+
+        Returns:
+            Residue name with dash-like characters removed.
+        """
         return re.sub(r"[-–—]", "", str(resname))
 
     @staticmethod
     def _gid_sort_key(x: Any) -> Tuple[int, Any]:
-        """
-        Stable sort key for group IDs that may be numeric strings, ints, or other
-        objects.
+        """Stable sort key for group IDs.
 
-        Returns (rank, value):
+        Group IDs may be numeric strings, ints, or other objects.
+
+        Returns a tuple (rank, value):
           - numeric IDs -> (0, int_value)
           - non-numeric -> (1, str_value)
+
+        Args:
+            x: Group identifier.
+
+        Returns:
+            Tuple used as a stable sorting key.
         """
         sx = str(x)
         try:
@@ -95,7 +152,15 @@ class ResultsReporter:
 
     @staticmethod
     def _safe_float(value: Any) -> Optional[float]:
-        """Convert value to float if possible; otherwise return None."""
+        """Convert value to float if possible; otherwise return None.
+
+        Args:
+            value: Value to convert.
+
+        Returns:
+            Float representation of value, or None if conversion is not possible or
+            value is a boolean.
+        """
         try:
             if isinstance(value, bool):
                 return None
@@ -106,7 +171,14 @@ class ResultsReporter:
     def add_results_data(
         self, group_id: Any, level: str, entropy_type: str, value: Any
     ) -> None:
-        """Add molecule-level entropy result."""
+        """Add molecule-level entropy result.
+
+        Args:
+            group_id: Group identifier.
+            level: Hierarchy level label.
+            entropy_type: Entropy component/type label.
+            value: Result value to store (kept as-is).
+        """
         self.molecule_data.append((group_id, level, entropy_type, value))
 
     def add_residue_data(
@@ -118,7 +190,16 @@ class ResultsReporter:
         frame_count: Any,
         value: Any,
     ) -> None:
-        """Add residue-level entropy result."""
+        """Add residue-level entropy result.
+
+        Args:
+            group_id: Group identifier.
+            resname: Residue name (will be cleaned to remove dash-like characters).
+            level: Hierarchy level label.
+            entropy_type: Entropy component/type label.
+            frame_count: Number of frames contributing to the value (may be ndarray).
+            value: Result value to store (kept as-is).
+        """
         resname = self.clean_residue_name(resname)
         if isinstance(frame_count, np.ndarray):
             frame_count = frame_count.tolist()
@@ -133,7 +214,14 @@ class ResultsReporter:
         residue_count: Optional[int] = None,
         atom_count: Optional[int] = None,
     ) -> None:
-        """Store metadata label for a group."""
+        """Store metadata label for a group.
+
+        Args:
+            group_id: Group identifier.
+            label: Human-readable label for the group.
+            residue_count: Optional residue count for the group.
+            atom_count: Optional atom count for the group.
+        """
         self.group_labels[group_id] = {
             "label": label,
             "residue_count": residue_count,
@@ -147,9 +235,9 @@ class ResultsReporter:
         self._log_group_label_table()
 
     def _log_grouped_results_tables(self) -> None:
-        """
-        Print molecule-level results grouped by group_id with components + total
-        together.
+        """Print molecule-level results grouped by group_id with components + total.
+
+        Results are grouped by group_id and rendered as separate tables per group.
         """
         if not self.molecule_data:
             return
@@ -248,8 +336,7 @@ class ResultsReporter:
         args: Optional[Any] = None,
         include_raw_tables: bool = False,
     ) -> None:
-        """
-        Save results to a grouped JSON structure.
+        """Save results to a grouped JSON structure.
 
         JSON contains:
           - args: arguments used (serialized)
@@ -282,6 +369,17 @@ class ResultsReporter:
         args: Optional[Any],
         include_raw_tables: bool,
     ) -> Dict[str, Any]:
+        """Build a grouped JSON-serializable payload from result dataframes.
+
+        Args:
+            molecule_df: Pandas DataFrame containing molecule results.
+            residue_df: Pandas DataFrame containing residue results.
+            args: Optional argparse Namespace or dict of arguments used.
+            include_raw_tables: If True, include raw dataframe record arrays in payload.
+
+        Returns:
+            Dictionary payload suitable for JSON serialization.
+        """
         mol_rows = molecule_df.to_dict(orient="records")
         res_rows = residue_df.to_dict(orient="records")
 
@@ -327,7 +425,15 @@ class ResultsReporter:
 
     @staticmethod
     def _serialize_args(args: Optional[Any]) -> Dict[str, Any]:
-        """Turn argparse Namespace / dict / object into a JSON-serializable dict."""
+        """Turn argparse Namespace / dict / object into a JSON-serializable dict.
+
+        Args:
+            args: argparse Namespace, dict, or other object with __dict__/iterable.
+
+        Returns:
+            JSON-serializable dict of argument values. Unsupported/unreadable inputs
+            return an empty dict.
+        """
         if args is None:
             return {}
 
@@ -353,6 +459,12 @@ class ResultsReporter:
 
     @staticmethod
     def _provenance() -> Dict[str, Any]:
+        """Build a provenance dictionary for exported results.
+
+        Returns:
+            Dictionary with python version, platform string, CodeEntropy package
+            version (if available), and git sha (if available).
+        """
         prov: Dict[str, Any] = {
             "python": sys.version.split()[0],
             "platform": platform.platform(),
@@ -370,6 +482,16 @@ class ResultsReporter:
 
     @staticmethod
     def _try_get_git_sha() -> Optional[str]:
+        """Try to determine the current git commit SHA.
+
+        The SHA is obtained from:
+          1) Environment variable CODEENTROPY_GIT_SHA, if set.
+          2) A git repository discovered by walking up from this file path and
+             running `git rev-parse HEAD`.
+
+        Returns:
+            Git SHA string if found, otherwise None.
+        """
         env_sha = os.environ.get("CODEENTROPY_GIT_SHA")
         if env_sha:
             return env_sha
@@ -407,6 +529,12 @@ class ResultsReporter:
         Usage:
             with reporter.progress() as p:
                 ...
+
+        Args:
+            transient: Whether the progress display should be removed on exit.
+
+        Yields:
+            A _RichProgressSink that exposes add_task(), update(), and advance().
         """
         progress = Progress(
             SpinnerColumn(),

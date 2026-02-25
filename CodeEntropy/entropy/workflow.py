@@ -114,7 +114,6 @@ class EntropyWorkflow:
         if self._args.water_entropy and water_groups:
             self._compute_water_entropy(traj, water_groups)
         else:
-            # If water entropy isn't computed, include water in the remaining groups.
             nonwater_groups.update(water_groups)
 
         shared_data = self._build_shared_data(
@@ -297,8 +296,6 @@ class EntropyWorkflow:
         water_entropy = WaterEntropy(self._args)
 
         for group_id in water_groups.keys():
-            # WaterEntropy currently exposes a concrete API; keep this manager
-            # as an orchestrator and avoid duplicating internals here.
             water_entropy._calculate_water_entropy(
                 universe=self._universe,
                 start=traj.start,
@@ -307,7 +304,6 @@ class EntropyWorkflow:
                 group_id=group_id,
             )
 
-        # Exclude water from subsequent analysis when water entropy has been computed.
         self._args.selection_string = (
             f"{self._args.selection_string} and not water"
             if self._args.selection_string != "all"

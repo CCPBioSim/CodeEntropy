@@ -96,7 +96,7 @@ class ConformationalEntropy:
         Raises:
             ValueError: If `bin_width` or `step` are invalid.
         """
-        _ = number_frames  # kept for compatibility; sizing follows the slice length.
+        _ = number_frames
 
         config = ConformationConfig(
             bin_width=int(bin_width),
@@ -115,7 +115,6 @@ class ConformationalEntropy:
         peak_values = self._find_histogram_peaks(phi, config.bin_width)
 
         if peak_values.size == 0:
-            # No peaks means no distinguishable states; assign everything to 0.
             return np.zeros(n_slice, dtype=int)
 
         states = self._assign_nearest_peaks(phi, peak_values)
@@ -138,21 +137,18 @@ class ConformationalEntropy:
         Returns:
             Conformational entropy in J/mol/K.
         """
-        _ = number_frames  # accepted as metadata; distribution uses observed counts.
+        _ = number_frames
 
         arr = self._to_1d_array(states)
         if arr is None or arr.size == 0:
             return 0.0
 
-        # If states contain only falsy values (e.g., all zeros) this is still valid:
-        # entropy would be 0 because only one state is present.
         values, counts = np.unique(arr, return_counts=True)
         total_count = int(np.sum(counts))
         if total_count <= 0 or values.size <= 1:
             return 0.0
 
         probs = counts.astype(float) / float(total_count)
-        # Guard against log(0) (shouldn't happen because counts>0), but keep robust.
         probs = probs[probs > 0.0]
 
         s_conf = -self._GAS_CONST * float(np.sum(probs * np.log(probs)))
@@ -174,7 +170,6 @@ class ConformationalEntropy:
         if config.bin_width <= 0 or config.bin_width > 360:
             raise ValueError("bin_width must be in the range (0, 360]")
         if 360 % config.bin_width != 0:
-            # Not strictly required, but prevents uneven bins and edge-case confusion.
             logger.warning(
                 "bin_width=%s does not evenly divide 360; histogram bins will be "
                 "uneven.",
@@ -242,8 +237,6 @@ class ConformationalEntropy:
         Returns:
             Integer state labels aligned with `phi`.
         """
-        # Vectorized nearest-peak assignment
-        # shape: (n_frames, n_peaks)
         distances = np.abs(phi[:, None] - peak_values[None, :])
         return np.argmin(distances, axis=1).astype(int)
 

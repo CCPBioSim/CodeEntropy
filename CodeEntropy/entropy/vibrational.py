@@ -200,7 +200,6 @@ class VibrationalEntropy:
         kT = float(self._run_manager.get_KT2J(temp))
         exponent = (self._planck_const * frequencies) / kT
 
-        # Numerically stable enough for typical ranges; callers filter eigenvalues.
         exp_pos = np.exp(exponent)
         exp_neg = np.exp(-exponent)
 

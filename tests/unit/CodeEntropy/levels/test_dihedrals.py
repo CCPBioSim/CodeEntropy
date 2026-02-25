@@ -254,7 +254,6 @@ def test_assign_states_for_group_sets_empty_lists_and_delegates_for_nonempty():
 def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatch):
     uops = MagicMock()
     dt = ConformationStateBuilder(universe_operations=uops)
-    monkeypatch.setattr(dt, "_progress_bar", _fake_progress_bar)
 
     groups = {0: [], 1: [7]}
     levels = {7: ["residue"]}
@@ -277,19 +276,6 @@ def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatc
 
     assert states_ua == {}
     assert len(states_res) == 2
-
-
-def test_count_total_items_counts_all_levels_across_grouped_molecules():
-    levels = {10: ["residue"], 11: ["united_atom", "residue"]}
-    groups = {0: [10], 1: [11]}
-    assert (
-        ConformationStateBuilder._count_total_items(levels=levels, groups=groups) == 3
-    )
-
-
-def test_progress_bar_constructs_rich_progress_instance():
-    prog = ConformationStateBuilder._progress_bar(total_items=1)
-    assert hasattr(prog, "add_task")
 
 
 def test_identify_peaks_handles_multiple_dihedrals_and_calls_histogram_each_time():

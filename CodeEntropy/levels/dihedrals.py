@@ -10,13 +10,6 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 from MDAnalysis.analysis.dihedrals import Dihedral
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -497,19 +490,3 @@ class ConformationStateBuilder:
 
         logger.debug("States: %s", states)
         return states
-
-    @staticmethod
-    def _count_total_items(levels, groups) -> int:
-        """Count total progress items."""
-        return sum(len(levels[mol_id]) for mols in groups.values() for mol_id in mols)
-
-    @staticmethod
-    def _progress_bar(total_items: int) -> Progress:
-        """Create a Rich progress bar."""
-        return Progress(
-            SpinnerColumn(),
-            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
-            TimeElapsedColumn(),
-        )

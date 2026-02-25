@@ -228,5 +228,4 @@ class BuildBeadsNode:
             if int(res.resindex) == target_resindex:
                 return local_i
 
-        # Conservative fallback: bucket into residue 0 rather than dropping.
         return 0

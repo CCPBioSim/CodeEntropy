@@ -383,7 +383,6 @@ class CodeEntropyRunner:
     def change_lambda_units(self, arg_lambdas: Any) -> Any:
         """Unit of lambdas : kJ2 mol-2 A-2 amu-1
         change units of lambda to J/s2"""
-        # return arg_lambdas * N_AVOGADRO * N_AVOGADRO * AMU2KG * 1e-26
         return arg_lambdas * 1e29 / self.N_AVOGADRO
 
     def get_KT2J(self, arg_temper: float) -> float:

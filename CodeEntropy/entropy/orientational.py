@@ -95,7 +95,6 @@ class OrientationalEntropy:
         total = 0.0
         for species, count in neighbours.items():
             if self._is_water(species):
-                # Water handling can be added later (e.g., via a strategy).
                 logger.debug(
                     "Skipping water species %s in orientational entropy.", species
                 )
@@ -141,7 +140,6 @@ class OrientationalEntropy:
             return 0.0
 
         omega = self._omega(neighbour_count)
-        # omega should always be > 0 when neighbour_count > 0, but guard anyway.
         if omega <= 0.0:
             return 0.0
 

@@ -44,7 +44,15 @@ class TorqueInputs:
 
 
 class ForceTorqueCalculator:
-    """Computes weighted generalized forces/torques and per-frame second moments."""
+    """Computes weighted generalized forces/torques and per-frame second moments.
+
+    This class provides:
+      - Mass-weighted generalized translational forces from per-atom forces.
+      - Moment-of-inertia-weighted generalized torques from per-atom positions
+        and forces, optionally using an axes_manager for PBC-aware displacements.
+      - Per-frame second-moment (outer product) matrices for concatenated bead
+        vectors, used downstream for covariance/entropy calculations.
+    """
 
     def get_weighted_forces(
         self,
@@ -140,7 +148,24 @@ class ForceTorqueCalculator:
         apply_partitioning: bool,
         force_partitioning: float,
     ) -> Vector3:
-        """Implementation of translational generalized force computation."""
+        """Compute a translational generalized force vector for a bead.
+
+        The bead's atomic forces are transformed by trans_axes, summed, optionally
+        scaled by force_partitioning, and then mass-weighted by 1/sqrt(mass).
+
+        Args:
+            bead: Bead-like object with .atoms and .total_mass(). Each atom must
+                provide .force with shape (3,).
+            trans_axes: Transform matrix for translational forces, shape (3, 3).
+            apply_partitioning: Whether to apply the force_partitioning scaling.
+            force_partitioning: Scaling factor applied when apply_partitioning is True.
+
+        Returns:
+            Mass-weighted generalized force vector of shape (3,).
+
+        Raises:
+            ValueError: If trans_axes is not (3,3) or bead mass is non-positive.
+        """
         trans_axes = np.asarray(trans_axes, dtype=float)
         if trans_axes.shape != (3, 3):
             raise ValueError(f"trans_axes must be (3,3), got {trans_axes.shape}")
@@ -159,7 +184,23 @@ class ForceTorqueCalculator:
         return forces_trans / np.sqrt(mass)
 
     def _compute_weighted_torque(self, bead: Any, inputs: TorqueInputs) -> Vector3:
-        """Implementation of rotational generalized torque computation."""
+        """Compute a rotational generalized torque vector for a bead.
+
+        Positions are displaced relative to inputs.center (optionally PBC-aware),
+        rotated into the bead frame, and crossed with rotated (and scaled) forces
+        to form a torque vector. Each component is then weighted by 1/sqrt(I_d)
+        where I_d is the corresponding principal moment of inertia.
+
+        Args:
+            bead: Bead-like object with .positions (N,3) and .forces (N,3).
+            inputs: TorqueInputs containing axes, center, scaling, and inertia.
+
+        Returns:
+            Moment-of-inertia-weighted torque vector of shape (3,).
+
+        Raises:
+            ValueError: If rot_axes is not (3,3) or moment_of_inertia is not length 3.
+        """
         rot_axes = np.asarray(inputs.rot_axes, dtype=float)
         if rot_axes.shape != (3, 3):
             raise ValueError(f"rot_axes must be (3,3), got {rot_axes.shape}")
@@ -200,7 +241,16 @@ class ForceTorqueCalculator:
         force_vectors: Sequence[Vector3],
         torque_vectors: Sequence[Vector3],
     ) -> Tuple[Matrix, Matrix]:
-        """Build outer products for concatenated force/torque vectors."""
+        """Build outer-product second-moment matrices for a single frame.
+
+        Args:
+            force_vectors: Sequence of per-bead force vectors of shape (3,).
+            torque_vectors: Sequence of per-bead torque vectors of shape (3,).
+
+        Returns:
+            Tuple (F, T) where each is the outer-product second moment of the
+            concatenated vectors, with shape (3N, 3N).
+        """
         f = self._outer_second_moment(force_vectors)
         t = self._outer_second_moment(torque_vectors)
         return f, t
@@ -213,8 +263,22 @@ class ForceTorqueCalculator:
         axes_manager: Optional[Any],
         box: Optional[np.ndarray],
     ) -> np.ndarray:
-        """
-        Compute displacement vectors from center to positions.
+        """Compute displacement vectors from center to positions.
+
+        This method delegates displacement computation to axes_manager.get_vector,
+        which is expected to handle periodic boundary conditions if applicable.
+
+        Args:
+            center: Reference center position of shape (3,).
+            positions: Array of positions of shape (N, 3).
+            axes_manager: Object providing get_vector(center, positions, box).
+            box: Periodic box passed through to axes_manager.get_vector.
+
+        Returns:
+            Displacement vectors of shape (N, 3).
+
+        Raises:
+            AttributeError: If axes_manager does not provide get_vector.
         """
         return axes_manager.get_vector(center, positions, box)
 

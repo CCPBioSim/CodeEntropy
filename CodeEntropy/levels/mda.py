@@ -20,7 +20,13 @@ logger = logging.getLogger(__name__)
 
 
 class UniverseOperations:
-    """Functions to create and manipulate MDAnalysis Universe objects."""
+    """Functions to create and manipulate MDAnalysis Universe objects.
+
+    This helper provides methods to:
+      - Build reduced universes by selecting subsets of frames or atoms.
+      - Extract a single fragment (molecule) into a standalone universe.
+      - Merge coordinates from one trajectory with forces from another trajectory.
+    """
 
     def __init__(self) -> None:
         """Initialise the operations helper."""
@@ -35,21 +41,14 @@ class UniverseOperations:
     ) -> mda.Universe:
         """Create a reduced universe by dropping frames according to user selection.
 
-        Parameters
-        ----------
-        u:
-            A Universe object with topology, coordinates and (optionally) forces.
-        start:
-            Frame index to start analysis. If None, defaults to 0.
-        end:
-            Frame index to stop analysis (Python slicing semantics). If None, defaults
-            to the full trajectory length.
-        step:
-            Step size between frames.
+        Args:
+            u: A Universe object with topology, coordinates and (optionally) forces.
+            start: Frame index to start analysis. If None, defaults to 0.
+            end: Frame index to stop analysis (Python slicing semantics). If None,
+                defaults to the full trajectory length.
+            step: Step size between frames.
 
-        Returns
-        -------
-        mda.Universe:
+        Returns:
             A reduced universe containing the selected frames, with coordinates,
             forces (if present) and unit cell dimensions loaded into memory.
         """
@@ -82,16 +81,11 @@ class UniverseOperations:
     def select_atoms(self, u: mda.Universe, select_string: str = "all") -> mda.Universe:
         """Create a reduced universe by dropping atoms according to user selection.
 
-        Parameters
-        ----------
-        u:
-            A Universe object with topology, coordinates and (optionally) forces.
-        select_string:
-            MDAnalysis `select_atoms` selection string.
+        Args:
+            u: A Universe object with topology, coordinates and (optionally) forces.
+            select_string: MDAnalysis `select_atoms` selection string.
 
-        Returns
-        -------
-        mda.Universe:
+        Returns:
             A reduced universe containing only the selected atoms. Coordinates,
             forces (if present) and dimensions are loaded into memory.
         """
@@ -118,14 +112,11 @@ class UniverseOperations:
         """Extract a single molecule (fragment) as a standalone reduced universe.
 
         Args:
-            universe:
-                The source universe.
-            molecule_id:
-                Fragment index in `universe.atoms.fragments`.
+            universe: The source universe.
+            molecule_id: Fragment index in `universe.atoms.fragments`.
 
         Returns:
-            mda.Universe:
-                A reduced universe containing only the atoms of the selected fragment.
+            A reduced universe containing only the atoms of the selected fragment.
         """
         frag = universe.atoms.fragments[molecule_id]
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
@@ -156,29 +147,22 @@ class UniverseOperations:
         - otherwise, the underlying `NoDataError` is raised.
 
         Args:
-            tprfile:
-                Topology input file.
-            trrfile:
-                Coordinate trajectory file(s). This can be a single path or a list,
-                as accepted by MDAnalysis.
-            forcefile:
-                Trajectory containing forces.
-            fileformat:
-                Optional file format for the coordinate trajectory, as recognised by
-                MDAnalysis.
-            kcal:
-                If True, scale the force array by 4.184 to convert from kcal to kJ.
-            force_format:
-                Optional file format for the force trajectory. If not provided, uses
-                `fileformat`.
-            fallback_to_positions_if_no_forces:
-                If True, and the force trajectory has no accessible forces, use
-                positions from the force trajectory as a fallback (legacy behaviour).
+            tprfile: Topology input file.
+            trrfile: Coordinate trajectory file(s). This can be a single path or a
+                list, as accepted by MDAnalysis.
+            forcefile: Trajectory containing forces.
+            fileformat: Optional file format for the coordinate trajectory, as
+                recognised by MDAnalysis.
+            kcal: If True, scale the force array by 4.184 to convert from kcal to kJ.
+            force_format: Optional file format for the force trajectory. If not
+                provided, uses `fileformat`.
+            fallback_to_positions_if_no_forces: If True, and the force trajectory has
+                no accessible forces, use positions from the force trajectory as a
+                fallback (legacy behaviour).
 
         Returns:
-            mda.Universe:
-                A new Universe containing coordinates, forces and dimensions loaded
-                into memory.
+            A new Universe containing coordinates, forces and dimensions loaded into
+            memory.
         """
         logger.debug("Loading coordinate Universe with %s", trrfile)
         u = mda.Universe(tprfile, trrfile, format=fileformat)
@@ -215,18 +199,19 @@ class UniverseOperations:
         """Extract a time series array for the requested kind from an AtomGroup.
 
         Args:
-            atomgroup:
-                MDAnalysis AtomGroup (may be updating).
-            kind:
-                One of {"positions", "forces", "dimensions"}.
+            atomgroup: MDAnalysis AtomGroup (may be updating).
+            kind: One of {"positions", "forces", "dimensions"}.
 
         Returns:
-            np.ndarray:
-                Time series with shape:
-                - positions: (n_frames, n_atoms, 3)
-                - forces:    (n_frames, n_atoms, 3) if available, else raises
-                NoDataError
-                - dimensions:(n_frames, 6) or (n_frames, 3) depending on reader
+            Time series with shape:
+              - positions: (n_frames, n_atoms, 3)
+              - forces: (n_frames, n_atoms, 3) if available, else raises NoDataError
+              - dimensions: (n_frames, 6) or (n_frames, 3) depending on reader
+
+        Raises:
+            ValueError: If kind is not one of the supported values.
+            NoDataError: If kind is "forces" and the trajectory does not provide
+                forces via the configured reader.
         """
         if kind == "positions":
             func = self._positions_copy
@@ -240,15 +225,36 @@ class UniverseOperations:
         return AnalysisFromFunction(func, atomgroup).run().results["timeseries"]
 
     def _positions_copy(self, ag):
-        """Return a copy of positions for AnalysisFromFunction."""
+        """Return a copy of positions for AnalysisFromFunction.
+
+        Args:
+            ag: MDAnalysis AtomGroup.
+
+        Returns:
+            Copy of ag.positions.
+        """
         return ag.positions.copy()
 
     def _forces_copy(self, ag):
-        """Return a copy of forces for AnalysisFromFunction."""
+        """Return a copy of forces for AnalysisFromFunction.
+
+        Args:
+            ag: MDAnalysis AtomGroup.
+
+        Returns:
+            Copy of ag.forces.
+        """
         return ag.forces.copy()
 
     def _dimensions_copy(self, ag):
-        """Return a copy of box dimensions for AnalysisFromFunction."""
+        """Return a copy of box dimensions for AnalysisFromFunction.
+
+        Args:
+            ag: MDAnalysis AtomGroup.
+
+        Returns:
+            Copy of ag.dimensions.
+        """
         return ag.dimensions.copy()
 
     def _extract_force_timeseries_with_fallback(
@@ -262,6 +268,19 @@ class UniverseOperations:
         This isolates the behaviour that changed your runtime outcome: older code
         used positions from the force trajectory, which never triggered `NoDataError`.
         This method keeps that behaviour available for backwards compatibility.
+
+        Args:
+            atomgroup_force: MDAnalysis AtomGroup sourced from the force trajectory.
+            fallback_to_positions_if_no_forces: If True, fall back to extracting
+                positions when forces are unavailable; otherwise re-raise NoDataError.
+
+        Returns:
+            A time series array of shape (n_frames, n_atoms, 3). The returned array
+            contains forces when available, otherwise positions if fallback is enabled.
+
+        Raises:
+            NoDataError: If forces are unavailable and
+            fallback_to_positions_if_no_forces is False.
         """
         try:
             return self._extract_timeseries(atomgroup_force, kind="forces")

@@ -61,6 +61,9 @@ class LevelDAG:
     def build(self) -> "LevelDAG":
         """Build the static and frame DAG topology.
 
+        This registers all static nodes and their dependencies, and builds the
+        internal FrameGraph used for per-frame execution.
+
         Returns:
             Self, to allow fluent chaining.
         """
@@ -85,7 +88,21 @@ class LevelDAG:
     def execute(
         self, shared_data: Dict[str, Any], *, progress: object | None = None
     ) -> Dict[str, Any]:
-        """Execute the full hierarchy workflow and mutate shared_data."""
+        """Execute the full hierarchy workflow and mutate shared_data.
+
+        This method ensures required shared components exist, runs the static stage
+        once, then iterates through trajectory frames to run the per-frame stage and
+        reduce outputs into running means.
+
+        Args:
+            shared_data: Shared workflow data dict. This mapping is mutated in-place
+                by both static and frame stages.
+            progress: Optional progress sink passed through to nodes and used for
+                per-frame progress reporting when supported.
+
+        Returns:
+            The same shared_data mapping passed in, after mutation.
+        """
         shared_data.setdefault("axes_manager", AxesCalculator())
         self._run_static_stage(shared_data, progress=progress)
         self._run_frame_stage(shared_data, progress=progress)
@@ -94,7 +111,15 @@ class LevelDAG:
     def _run_static_stage(
         self, shared_data: Dict[str, Any], *, progress: object | None = None
     ) -> None:
-        """Run all static nodes in dependency order."""
+        """Run all static nodes in dependency order.
+
+        Nodes are executed in topological order of the static DAG. If a progress
+        object is provided, it is passed to node.run when the node accepts it.
+
+        Args:
+            shared_data: Shared workflow data dict to be mutated by static nodes.
+            progress: Optional progress sink to pass to nodes that support it.
+        """
         for node_name in nx.topological_sort(self._static_graph):
             node = self._static_nodes[node_name]
             if progress is not None:
@@ -108,7 +133,16 @@ class LevelDAG:
     def _add_static(
         self, name: str, node: Any, deps: Optional[list[str]] = None
     ) -> None:
-        """Register a static node and its dependencies in the static DAG."""
+        """Register a static node and its dependencies in the static DAG.
+
+        Args:
+            name: Unique node name used in the static DAG.
+            node: Node object exposing a run(shared_data, **kwargs) method.
+            deps: Optional list of upstream node names that must run before this node.
+
+        Returns:
+            None. Mutates the internal static graph and node registry.
+        """
         self._static_nodes[name] = node
         self._static_graph.add_node(name)
         for dep in deps or []:
@@ -213,7 +247,18 @@ class LevelDAG:
     def _reduce_force_and_torque(
         self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
     ) -> None:
-        """Reduce force/torque covariance outputs into shared accumulators."""
+        """Reduce force/torque covariance outputs into shared accumulators.
+
+        Args:
+            shared_data: Shared workflow data dict containing:
+                - "force_covariances", "torque_covariances": accumulator structures.
+                - "frame_counts": running sample counts for each accumulator slot.
+                - "group_id_to_index": mapping from group id to accumulator index.
+            frame_out: Frame-local outputs containing "force" and "torque" sections.
+
+        Returns:
+            None. Mutates accumulator values and counts in shared_data in-place.
+        """
         f_cov = shared_data["force_covariances"]
         t_cov = shared_data["torque_covariances"]
         counts = shared_data["frame_counts"]
@@ -262,7 +307,18 @@ class LevelDAG:
     def _reduce_forcetorque(
         self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
     ) -> None:
-        """Reduce combined force-torque covariance outputs into shared accumulators."""
+        """Reduce combined force-torque covariance outputs into shared accumulators.
+
+        Args:
+            shared_data: Shared workflow data dict containing:
+                - "forcetorque_covariances": accumulator structures.
+                - "forcetorque_counts": running sample counts for each accumulator slot.
+                - "group_id_to_index": mapping from group id to accumulator index.
+            frame_out: Frame-local outputs that may include a "forcetorque" section.
+
+        Returns:
+            None. Mutates accumulator values and counts in shared_data in-place.
+        """
         if "forcetorque" not in frame_out:
             return
 
