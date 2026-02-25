@@ -548,3 +548,86 @@ def test_assign_states_wraps_negative_angles():
         )
 
     assert states == ["1", "0"]
+
+
+def test_build_conformational_states_with_progress_handles_no_groups():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    progress = MagicMock()
+    progress.add_task.return_value = 123
+
+    states_ua, states_res = dt.build_conformational_states(
+        data_container=MagicMock(),
+        levels={},
+        groups={},  # empty
+        start=0,
+        end=1,
+        step=1,
+        bin_width=30.0,
+        progress=progress,
+    )
+
+    assert states_ua == {}
+    assert states_res == []
+    progress.add_task.assert_called_once()
+    progress.update.assert_called_once_with(123, title="No groups")
+    progress.advance.assert_called_once_with(123)
+
+
+def test_build_conformational_states_with_progress_skips_empty_molecule_group():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    progress = MagicMock()
+    progress.add_task.return_value = 5
+
+    groups = {0: []}
+    levels = {}
+
+    states_ua, states_res = dt.build_conformational_states(
+        data_container=MagicMock(),
+        levels=levels,
+        groups=groups,
+        start=0,
+        end=1,
+        step=1,
+        bin_width=30.0,
+        progress=progress,
+    )
+
+    assert states_ua == {}
+    assert len(states_res) == 1
+    progress.update.assert_called_with(5, title="Group 0 (empty)")
+    progress.advance.assert_called_with(5)
+
+
+def test_build_conformational_states_with_progress_updates_title_per_group(monkeypatch):
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    progress = MagicMock()
+    progress.add_task.return_value = 9
+
+    groups = {1: [7]}
+    levels = {7: ["residue"]}
+
+    uops.extract_fragment.return_value = MagicMock(trajectory=[0])
+
+    monkeypatch.setattr(dt, "_collect_dihedrals_for_group", lambda **kw: ([], []))
+    monkeypatch.setattr(dt, "_collect_peaks_for_group", lambda **kw: ([], []))
+    monkeypatch.setattr(dt, "_assign_states_for_group", lambda **kw: None)
+
+    dt.build_conformational_states(
+        data_container=MagicMock(),
+        levels=levels,
+        groups=groups,
+        start=0,
+        end=1,
+        step=1,
+        bin_width=30.0,
+        progress=progress,
+    )
+
+    progress.update.assert_any_call(9, title="Group 1")
+    progress.advance.assert_called_with(9)

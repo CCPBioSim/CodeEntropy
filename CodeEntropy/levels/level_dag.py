@@ -82,24 +82,28 @@ class LevelDAG:
         self._frame_dag.build()
         return self
 
-    def execute(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute the full hierarchy workflow and mutate shared_data.
-
-        Args:
-            shared_data: Shared workflow data dict that will be mutated by the DAG.
-
-        Returns:
-            The mutated shared_data dict.
-        """
+    def execute(
+        self, shared_data: Dict[str, Any], *, progress: object | None = None
+    ) -> Dict[str, Any]:
+        """Execute the full hierarchy workflow and mutate shared_data."""
         shared_data.setdefault("axes_manager", AxesCalculator())
-        self._run_static_stage(shared_data)
-        self._run_frame_stage(shared_data)
+        self._run_static_stage(shared_data, progress=progress)
+        self._run_frame_stage(shared_data, progress=progress)
         return shared_data
 
-    def _run_static_stage(self, shared_data: Dict[str, Any]) -> None:
+    def _run_static_stage(
+        self, shared_data: Dict[str, Any], *, progress: object | None = None
+    ) -> None:
         """Run all static nodes in dependency order."""
         for node_name in nx.topological_sort(self._static_graph):
-            self._static_nodes[node_name].run(shared_data)
+            node = self._static_nodes[node_name]
+            if progress is not None:
+                try:
+                    node.run(shared_data, progress=progress)
+                    continue
+                except TypeError:
+                    pass
+            node.run(shared_data)
 
     def _add_static(
         self, name: str, node: Any, deps: Optional[list[str]] = None
@@ -110,15 +114,73 @@ class LevelDAG:
         for dep in deps or []:
             self._static_graph.add_edge(dep, name)
 
-    def _run_frame_stage(self, shared_data: Dict[str, Any]) -> None:
-        """Run the frame DAG for each selected trajectory frame and reduce outputs."""
+    def _run_frame_stage(
+        self, shared_data: Dict[str, Any], *, progress: object | None = None
+    ) -> None:
+        """Execute the per-frame DAG stage and reduce frame outputs.
+
+        This method iterates over the selected trajectory frames, executes the
+        frame-local DAG for each frame, and reduces the resulting outputs into the
+        shared accumulators stored in `shared_data`.
+
+        Progress reporting is optional. If a progress sink is provided, a task is
+        always created. When the total number of frames cannot be determined, the
+        task is created with total=None (indeterminate).
+
+        Args:
+            shared_data: Shared data dictionary. Must contain:
+                - "reduced_universe": MDAnalysis Universe providing the trajectory.
+                - "start", "end", "step": frame slicing parameters.
+                - any additional keys required by the frame DAG and reducer.
+            progress: Optional progress sink (e.g., from ResultsReporter.progress()).
+                Must expose add_task(), update(), and advance().
+
+        Returns:
+            None. Mutates `shared_data` in-place via reduction.
+
+        Notes:
+            The task title shows the current frame index being processed.
+        """
         u = shared_data["reduced_universe"]
         start, end, step = shared_data["start"], shared_data["end"], shared_data["step"]
 
+        task = None
+        total_frames = None
+
+        if progress is not None:
+            try:
+                n_frames = len(u.trajectory)
+
+                s = 0 if start is None else int(start)
+                e = n_frames if end is None else int(end)
+
+                if e < 0:
+                    e = n_frames + e
+
+                e = max(0, min(e, n_frames))
+                s = max(0, min(s, e))
+
+                st = 1 if step is None else int(step)
+                if st > 0:
+                    total_frames = max(0, (e - s + st - 1) // st)
+            except Exception:
+                total_frames = None
+
+            task = progress.add_task(
+                "[green]Frame processing",
+                total=total_frames,
+                title="Initializing",
+            )
+
         for ts in u.trajectory[start:end:step]:
-            frame_index = ts.frame
-            frame_out = self._frame_dag.execute_frame(shared_data, frame_index)
+            if task is not None:
+                progress.update(task, title=f"Frame {ts.frame}")
+
+            frame_out = self._frame_dag.execute_frame(shared_data, ts.frame)
             self._reduce_one_frame(shared_data, frame_out)
+
+            if task is not None:
+                progress.advance(task)
 
     @staticmethod
     def _incremental_mean(old: Any, new: Any, n: int) -> Any:

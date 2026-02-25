@@ -56,7 +56,9 @@ class ComputeConformationalStatesNode:
             universe_operations=universe_operations
         )
 
-    def run(self, shared_data: SharedData) -> Dict[str, ConformationalStates]:
+    def run(
+        self, shared_data: SharedData, *, progress: object | None = None
+    ) -> Dict[str, ConformationalStates]:
         """Compute conformational states and store them in shared_data.
 
         Args:
@@ -66,13 +68,10 @@ class ComputeConformationalStatesNode:
                 - "groups"
                 - "start", "end", "step"
                 - "args" with attribute "bin_width"
+            progress: Optional progress sink provided by ResultsReporter.progress().
 
         Returns:
             Dict containing "conformational_states" (also written into shared_data).
-
-        Raises:
-            KeyError: If required keys are missing.
-            AttributeError: If `shared_data["args"]` lacks `bin_width`.
         """
         u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
@@ -88,6 +87,7 @@ class ComputeConformationalStatesNode:
             end=cfg.end,
             step=cfg.step,
             bin_width=cfg.bin_width,
+            progress=progress,
         )
 
         conformational_states: ConformationalStates = {

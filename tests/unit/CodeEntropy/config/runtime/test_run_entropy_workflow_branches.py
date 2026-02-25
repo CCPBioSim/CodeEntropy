@@ -3,9 +3,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import CodeEntropy.config.runtime as runtime_mod
+
 
 def test_run_entropy_workflow_warns_and_skips_non_dict_run_config(runner):
-    # Arrange: mock all collaborators so the method stays unit-level
     runner._logging_config = MagicMock()
     runner._config_manager = MagicMock()
     runner._reporter = MagicMock()
@@ -21,10 +22,8 @@ def test_run_entropy_workflow_warns_and_skips_non_dict_run_config(runner):
 
     runner.show_splash = MagicMock()
 
-    # Act
     runner.run_entropy_workflow()
 
-    # Assert: one behavior only — warning + skip
     run_logger.warning.assert_called_once()
     runner._config_manager.resolve.assert_not_called()
 
@@ -37,10 +36,8 @@ def test_run_entropy_workflow_raises_when_required_args_missing(runner):
     runner._logging_config.configure.return_value = MagicMock()
     runner.show_splash = MagicMock()
 
-    # config contains a valid dict run so it will try to process it
     runner._config_manager.load_config.return_value = {"run1": {}}
 
-    # parser returns args with missing top_traj_file/selection_string
     parser = MagicMock()
     args = SimpleNamespace(
         output_file="out.json",
@@ -53,16 +50,17 @@ def test_run_entropy_workflow_raises_when_required_args_missing(runner):
     )
     parser.parse_known_args.return_value = (args, [])
     runner._config_manager.build_parser.return_value = parser
-
-    # resolve returns same args (still missing required)
     runner._config_manager.resolve.return_value = args
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError) as exc:
         runner.run_entropy_workflow()
+
+    assert str(exc.value) == "CodeEntropyRunner encountered an error"
+    assert isinstance(exc.value.__cause__, ValueError)
+    assert "Missing 'top_traj_file' argument." in str(exc.value.__cause__)
 
 
 def test_run_entropy_workflow_happy_path_calls_execute_once(runner):
-    # Mock collaborators
     runner._logging_config = MagicMock()
     runner._config_manager = MagicMock()
     runner._reporter = MagicMock()
@@ -72,10 +70,8 @@ def test_run_entropy_workflow_happy_path_calls_execute_once(runner):
     run_logger = MagicMock()
     runner._logging_config.configure.return_value = run_logger
 
-    # One valid run config dict (so it doesn't hit the "warning+continue" branch)
     runner._config_manager.load_config.return_value = {"run1": {}}
 
-    # CLI args (must satisfy required args)
     args = SimpleNamespace(
         output_file="out.json",
         verbose=False,
@@ -89,14 +85,11 @@ def test_run_entropy_workflow_happy_path_calls_execute_once(runner):
     parser.parse_known_args.return_value = (args, [])
     runner._config_manager.build_parser.return_value = parser
 
-    # resolve returns the args
     runner._config_manager.resolve.return_value = args
 
-    # Avoid MDAnalysis/real work: stub universe creation + validation
     runner._build_universe = MagicMock(return_value="U")
     runner._config_manager.validate_inputs = MagicMock()
 
-    # Patch constructors used in the happy path
     with (
         patch("CodeEntropy.config.runtime.UniverseOperations") as _,
         patch("CodeEntropy.config.runtime.MoleculeGrouper") as _,
@@ -114,3 +107,52 @@ def test_run_entropy_workflow_happy_path_calls_execute_once(runner):
     EWCls.assert_called_once()
     entropy_instance.execute.assert_called_once()
     runner._logging_config.export_console.assert_called_once()
+
+
+def test_run_entropy_workflow_logs_when_args_cannot_be_serialized(runner, monkeypatch):
+    runner._logging_config = MagicMock()
+    runner._config_manager = MagicMock()
+    runner._reporter = MagicMock()
+
+    runner._logging_config.configure.return_value = MagicMock()
+    runner.show_splash = MagicMock()
+    runner._config_manager.load_config.return_value = {"run1": {}}
+
+    class BadArgs:
+        __slots__ = (
+            "output_file",
+            "verbose",
+            "top_traj_file",
+            "selection_string",
+            "force_file",
+            "file_format",
+            "kcal_force_units",
+        )
+
+    args = BadArgs()
+    args.output_file = "out.json"
+    args.verbose = False
+    args.top_traj_file = None
+    args.selection_string = None
+    args.force_file = None
+    args.file_format = None
+    args.kcal_force_units = False
+
+    parser = MagicMock()
+    parser.parse_known_args.return_value = (args, [])
+    runner._config_manager.build_parser.return_value = parser
+    runner._config_manager.resolve.return_value = args
+
+    error_spy = MagicMock()
+    monkeypatch.setattr(runtime_mod.logger, "error", error_spy)
+
+    with pytest.raises(RuntimeError) as exc:
+        runner.run_entropy_workflow()
+
+    assert str(exc.value) == "CodeEntropyRunner encountered an error"
+    assert isinstance(exc.value.__cause__, ValueError)
+
+    assert any(
+        "Run arguments at failure could not be serialized" in str(call.args[0])
+        for call in error_spy.call_args_list
+    )

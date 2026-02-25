@@ -80,23 +80,44 @@ class EntropyGraph:
 
         return self
 
-    def execute(self, shared_data: SharedData) -> Dict[str, Any]:
+    def execute(
+        self, shared_data: SharedData, *, progress: object | None = None
+    ) -> Dict[str, Any]:
         """Execute the entropy graph in topological order.
+
+        Nodes are executed in dependency order (topological sort). Each node reads
+        from and may mutate `shared_data`. Dict-like outputs returned by nodes are
+        merged into a single results dictionary.
+
+        This method intentionally does *not* create a progress bar/task for the
+        entropy graph itself because the graph is typically very fast. If a progress
+        sink is provided, it is forwarded to nodes that accept it.
 
         Args:
             shared_data: Mutable shared data dictionary passed to each node.
+            progress: Optional progress sink (e.g., from ResultsReporter.progress()).
+                Forwarded to node `run()` methods that accept a `progress` keyword.
 
         Returns:
-            Dictionary containing the merged outputs of all nodes (only including
-            outputs that are dict-like).
+            Dictionary containing merged dict outputs produced by nodes. On key
+            collision, later nodes overwrite earlier keys.
 
         Raises:
             KeyError: If a node name is missing from the internal node registry.
         """
         results: Dict[str, Any] = {}
+
         for node_name in nx.topological_sort(self._graph):
             node = self._nodes[node_name]
-            out = node.run(shared_data)
+
+            if progress is not None:
+                try:
+                    out = node.run(shared_data, progress=progress)
+                except TypeError:
+                    out = node.run(shared_data)
+            else:
+                out = node.run(shared_data)
+
             if isinstance(out, dict):
                 results.update(out)
         return results

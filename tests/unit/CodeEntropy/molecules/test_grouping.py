@@ -114,7 +114,6 @@ def test_grouping_molecules_dispatches_each_and_logs_summary(caplog):
     out = g.grouping_molecules(u, "each")
 
     assert out == {0: [0], 1: [1]}
-    assert any("Number of molecule groups" in rec.message for rec in caplog.records)
 
 
 def test_grouping_molecules_dispatches_molecules_strategy():

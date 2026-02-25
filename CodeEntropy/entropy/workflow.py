@@ -124,8 +124,9 @@ class EntropyWorkflow:
             traj=traj,
         )
 
-        self._run_level_dag(shared_data)
-        self._run_entropy_graph(shared_data)
+        with self._reporter.progress(transient=False) as p:
+            self._run_level_dag(shared_data, progress=p)
+            self._run_entropy_graph(shared_data, progress=p)
 
         self._finalize_molecule_results()
         self._reporter.log_tables()
@@ -164,21 +165,29 @@ class EntropyWorkflow:
         }
         return shared_data
 
-    def _run_level_dag(self, shared_data: SharedData) -> None:
+    def _run_level_dag(
+        self, shared_data: SharedData, *, progress: object | None = None
+    ) -> None:
         """Execute the structural/level DAG.
 
         Args:
             shared_data: Shared data dict that will be mutated by the DAG.
+            progress: Optional progress sink provided by ResultsReporter.progress().
         """
-        LevelDAG(self._universe_operations).build().execute(shared_data)
+        LevelDAG(self._universe_operations).build().execute(
+            shared_data, progress=progress
+        )
 
-    def _run_entropy_graph(self, shared_data: SharedData) -> None:
+    def _run_entropy_graph(
+        self, shared_data: SharedData, *, progress: object | None = None
+    ) -> None:
         """Execute the entropy calculation graph and merge results into shared_data.
 
         Args:
             shared_data: Shared data dict that will be mutated by the graph.
+            progress: Optional progress sink provided by ResultsReporter.progress().
         """
-        entropy_results = EntropyGraph().build().execute(shared_data)
+        entropy_results = EntropyGraph().build().execute(shared_data, progress=progress)
         shared_data.update(entropy_results)
 
     def _build_trajectory_slice(self) -> TrajectorySlice:

@@ -255,3 +255,127 @@ def test_reduce_force_and_torque_skips_when_counts_are_zero():
     assert shared["reduced_torque_covariances"] == {}
     assert shared["reduced_force_counts"] == {}
     assert shared["reduced_torque_counts"] == {}
+
+
+def test_run_static_stage_forwards_progress_when_node_accepts_it():
+    dag = LevelDAG()
+    dag._static_graph.add_node("a")
+
+    node = MagicMock()
+    dag._static_nodes["a"] = node
+
+    progress = MagicMock()
+
+    with patch("networkx.topological_sort", return_value=["a"]):
+        dag._run_static_stage({"X": 1}, progress=progress)
+
+    node.run.assert_called_once_with({"X": 1}, progress=progress)
+
+
+def test_run_static_stage_falls_back_when_node_does_not_accept_progress():
+    dag = LevelDAG()
+    dag._static_graph.add_node("a")
+
+    class NoProgressNode:
+        def run(self, shared_data):
+            return None
+
+    dag._static_nodes["a"] = NoProgressNode()
+    progress = MagicMock()
+
+    with patch("networkx.topological_sort", return_value=["a"]):
+        dag._run_static_stage({"X": 1}, progress=progress)  # should not raise
+
+
+def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
+    dag = LevelDAG()
+
+    ts0 = MagicMock(frame=10)
+    ts1 = MagicMock(frame=11)
+    u = MagicMock()
+    u.trajectory = [ts0, ts1]
+
+    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1}
+
+    dag._frame_dag = MagicMock()
+    dag._frame_dag.execute_frame.return_value = {
+        "force": {"ua": {}, "res": {}, "poly": {}},
+        "torque": {"ua": {}, "res": {}, "poly": {}},
+    }
+    dag._reduce_one_frame = MagicMock()
+
+    progress = MagicMock()
+    progress.add_task.return_value = 77
+
+    dag._run_frame_stage(shared, progress=progress)
+
+    progress.add_task.assert_called_once()
+    progress.update.assert_any_call(77, title="Frame 10")
+    progress.update.assert_any_call(77, title="Frame 11")
+    assert progress.advance.call_count == 2
+
+
+def test_run_frame_stage_with_negative_end_computes_total_frames():
+    dag = LevelDAG()
+
+    ts_list = [MagicMock(frame=i) for i in range(10)]
+    u = MagicMock()
+    u.trajectory = ts_list
+
+    shared = {
+        "reduced_universe": u,
+        "start": 0,
+        "end": -1,
+        "step": 1,
+    }
+
+    dag._frame_dag = MagicMock()
+    dag._frame_dag.execute_frame.return_value = {
+        "force": {"ua": {}, "res": {}, "poly": {}},
+        "torque": {"ua": {}, "res": {}, "poly": {}},
+    }
+    dag._reduce_one_frame = MagicMock()
+
+    progress = MagicMock()
+    progress.add_task.return_value = 123
+
+    dag._run_frame_stage(shared, progress=progress)
+
+    progress.add_task.assert_called_once()
+    _, kwargs = progress.add_task.call_args
+    assert kwargs["total"] == 9
+
+    assert progress.advance.call_count == 9
+
+
+def test_run_frame_stage_progress_total_frames_falls_back_to_none_on_error():
+
+    dag = LevelDAG()
+
+    class BadTrajectory:
+        def __len__(self):
+            raise RuntimeError("boom")
+
+        def __getitem__(self, item):
+            return []
+
+    u = type("U", (), {})()
+    u.trajectory = BadTrajectory()
+
+    shared = {
+        "reduced_universe": u,
+        "start": 0,
+        "end": 10,
+        "step": 1,
+    }
+
+    dag._frame_dag = MagicMock()
+    dag._reduce_one_frame = MagicMock()
+
+    progress = MagicMock()
+    progress.add_task.return_value = 99
+
+    dag._run_frame_stage(shared, progress=progress)
+
+    _, kwargs = progress.add_task.call_args
+    assert kwargs["total"] is None

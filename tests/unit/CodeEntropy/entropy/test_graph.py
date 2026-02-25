@@ -46,3 +46,34 @@ def test_add_node_duplicate_name_raises():
     g._add_node(NodeSpec("x", object()))
     with pytest.raises(ValueError):
         g._add_node(NodeSpec("x", object()))
+
+
+def test_execute_forwards_progress_to_nodes_that_accept_it(shared_data):
+    g = EntropyGraph()
+
+    node_a = MagicMock()
+    node_a.run.return_value = {"a": 1}
+
+    g._add_node(NodeSpec("a", node_a))
+
+    progress = MagicMock()
+    out = g.execute(shared_data, progress=progress)
+
+    node_a.run.assert_called_once_with(shared_data, progress=progress)
+    assert out == {"a": 1}
+
+
+def test_execute_falls_back_when_node_run_does_not_accept_progress(shared_data):
+    g = EntropyGraph()
+
+    class NoProgressNode:
+        def run(self, shared_data):
+            return {"x": 1}
+
+    node = NoProgressNode()
+    g._add_node(NodeSpec("x", node))
+
+    progress = MagicMock()
+    out = g.execute(shared_data, progress=progress)
+
+    assert out == {"x": 1}

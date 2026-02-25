@@ -45,79 +45,114 @@ class ConformationStateBuilder:
         end: int,
         step: int,
         bin_width: float,
+        progress: object | None = None,
     ):
-        """Build conformational state labels for UA and residue levels.
+        """Build conformational state labels from trajectory dihedrals.
+
+        This method constructs discrete conformational state descriptors used in
+        configurational entropy calculations. It supports united-atom (UA) and
+        residue-level state generation depending on which hierarchy levels are
+        enabled per molecule.
+
+        Progress reporting is optional and UI-agnostic: if a progress sink is
+        provided, the method will create a single task and advance it once per
+        molecule group.
 
         Args:
-            data_container: MDAnalysis universe containing the system.
-            levels: Mapping of molecule_id -> list of enabled levels.
+            data_container: MDAnalysis Universe (or compatible container) used to
+                extract fragments and compute dihedral time series.
+            levels: Mapping of molecule_id -> iterable of enabled level names
+                (e.g., ["united_atom", "residue"]).
             groups: Mapping of group_id -> list of molecule_ids.
-            start: Start frame index (currently not applied in legacy sampling).
-            end: End frame index (currently not applied in legacy sampling).
-            step: Step size (currently not applied in legacy sampling).
-            bin_width: Histogram bin width (degrees).
+            start: Inclusive start frame index.
+            end: Exclusive end frame index.
+            step: Frame stride.
+            bin_width: Histogram bin width in degrees used when identifying peak
+                dihedral populations.
+            progress: Optional progress sink (e.g., from ResultsReporter.progress()).
+                Must expose add_task(), update(), and advance().
 
         Returns:
             Tuple of:
-                states_ua: Dict[(group_id, res_id)] -> list of state labels.
-                states_res: List indexed by group_id -> list of state labels.
+                states_ua: Dict mapping (group_id, local_residue_id) -> list of state
+                    labels (strings) across the analyzed trajectory.
+                states_res: List-like structure indexed by group_id (or equivalent)
+                    containing residue-level state labels (strings) across the
+                    analyzed trajectory.
+
+        Notes:
+            - This function advances progress once per group_id.
+            - Frame slicing arguments (start/end/step) are forwarded to downstream
+            helpers as implemented in this module.
         """
         number_groups = len(groups)
         states_ua: Dict[UAKey, List[str]] = {}
         states_res: List[List[str]] = [None] * number_groups
 
-        total_items = self._count_total_items(levels=levels, groups=groups)
-
-        with self._progress_bar(total_items) as progress:
+        task = None
+        if progress is not None:
+            total = max(1, len(groups))
             task = progress.add_task(
-                "[green]Building Conformational States...",
-                total=total_items,
-                title="Starting...",
+                "[green]Conformational states",
+                total=total,
+                title="Initializing",
             )
 
-            for group_id in groups.keys():
-                molecules = groups[group_id]
-                if not molecules:
+        if not groups:
+            if task is not None:
+                progress.update(task, title="No groups")
+                progress.advance(task)
+            return states_ua, states_res
+
+        for group_id in groups.keys():
+            molecules = groups[group_id]
+            if not molecules:
+                if task is not None:
+                    progress.update(task, title=f"Group {group_id} (empty)")
                     progress.advance(task)
-                    continue
+                continue
 
-                mol = self._universe_operations.extract_fragment(
-                    data_container, molecules[0]
-                )
+            if task is not None:
+                progress.update(task, title=f"Group {group_id}")
 
-                dihedrals_ua, dihedrals_res = self._collect_dihedrals_for_group(
-                    mol=mol,
-                    level_list=levels[molecules[0]],
-                )
+            mol = self._universe_operations.extract_fragment(
+                data_container, molecules[0]
+            )
 
-                peaks_ua, peaks_res = self._collect_peaks_for_group(
-                    data_container=data_container,
-                    molecules=molecules,
-                    dihedrals_ua=dihedrals_ua,
-                    dihedrals_res=dihedrals_res,
-                    bin_width=bin_width,
-                    start=start,
-                    end=end,
-                    step=step,
-                    level_list=levels[molecules[0]],
-                )
+            dihedrals_ua, dihedrals_res = self._collect_dihedrals_for_group(
+                mol=mol,
+                level_list=levels[molecules[0]],
+            )
 
-                self._assign_states_for_group(
-                    data_container=data_container,
-                    group_id=group_id,
-                    molecules=molecules,
-                    dihedrals_ua=dihedrals_ua,
-                    peaks_ua=peaks_ua,
-                    dihedrals_res=dihedrals_res,
-                    peaks_res=peaks_res,
-                    start=start,
-                    end=end,
-                    step=step,
-                    level_list=levels[molecules[0]],
-                    states_ua=states_ua,
-                    states_res=states_res,
-                )
+            peaks_ua, peaks_res = self._collect_peaks_for_group(
+                data_container=data_container,
+                molecules=molecules,
+                dihedrals_ua=dihedrals_ua,
+                dihedrals_res=dihedrals_res,
+                bin_width=bin_width,
+                start=start,
+                end=end,
+                step=step,
+                level_list=levels[molecules[0]],
+            )
 
+            self._assign_states_for_group(
+                data_container=data_container,
+                group_id=group_id,
+                molecules=molecules,
+                dihedrals_ua=dihedrals_ua,
+                peaks_ua=peaks_ua,
+                dihedrals_res=dihedrals_res,
+                peaks_res=peaks_res,
+                start=start,
+                end=end,
+                step=step,
+                level_list=levels[molecules[0]],
+                states_ua=states_ua,
+                states_res=states_res,
+            )
+
+            if task is not None:
                 progress.advance(task)
 
         return states_ua, states_res

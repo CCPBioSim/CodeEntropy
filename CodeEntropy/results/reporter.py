@@ -19,17 +19,48 @@ import platform
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from CodeEntropy.core.logging import LoggingConfig
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
+
+
+class _RichProgressSink:
+    """Thin wrapper around rich.Progress.
+
+    Keeps Rich usage inside the reporting layer so compute/orchestration code
+    can emit progress without importing Rich.
+    """
+
+    def __init__(self, progress: Progress):
+        self._progress = progress
+
+    def add_task(self, description: str, total: int, **fields):
+        fields.setdefault("title", "")
+        return self._progress.add_task(description, total=total, **fields)
+
+    def advance(self, task_id, step: int = 1) -> None:
+        self._progress.advance(task_id, step)
+
+    def update(self, task_id, **fields) -> None:
+        if "title" in fields and fields["title"] is None:
+            fields["title"] = ""
+        self._progress.update(task_id, **fields)
 
 
 class ResultsReporter:
@@ -368,3 +399,23 @@ class ResultsReporter:
             return sha or None
         except Exception:
             return None
+
+    @contextmanager
+    def progress(self, *, transient: bool = True):
+        """Create a workflow progress context.
+
+        Usage:
+            with reporter.progress() as p:
+                ...
+        """
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.fields[title]}", justify="right"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
+            TimeElapsedColumn(),
+            console=self.console,
+            transient=transient,
+        )
+        with progress:
+            yield _RichProgressSink(progress)

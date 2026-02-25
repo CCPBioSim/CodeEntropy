@@ -8,7 +8,7 @@ import pandas as pd
 from rich.console import Console
 
 import CodeEntropy.results.reporter as reporter_mod
-from CodeEntropy.results.reporter import ResultsReporter
+from CodeEntropy.results.reporter import ResultsReporter, _RichProgressSink
 
 
 class FakeTable:
@@ -485,3 +485,65 @@ def test_try_get_git_sha_returns_none_on_exception(monkeypatch):
 
     monkeypatch.setattr(reporter_mod.Path, "resolve", boom)
     assert ResultsReporter._try_get_git_sha() is None
+
+
+def test_progress_context_yields_progress_sink():
+    rr = ResultsReporter()
+    with rr.progress(transient=True) as p:
+        assert hasattr(p, "add_task")
+        assert hasattr(p, "update")
+        assert hasattr(p, "advance")
+
+
+def test_progress_sink_update_normalizes_none_title(monkeypatch):
+    rr = ResultsReporter()
+
+    with rr.progress(transient=True) as sink:
+        inner = sink._progress
+        spy = MagicMock()
+        monkeypatch.setattr(inner, "update", spy)
+
+        sink.update(1, title=None)
+
+        spy.assert_called_once()
+        _args, kwargs = spy.call_args
+        assert kwargs["title"] == ""
+
+
+def test_rich_progress_sink_add_task_sets_default_title():
+    inner = MagicMock()
+    inner.add_task.return_value = 7
+
+    sink = _RichProgressSink(inner)
+    task_id = sink.add_task("Stage", total=3)
+
+    assert task_id == 7
+
+    inner.add_task.assert_called_once()
+    args, kwargs = inner.add_task.call_args
+
+    assert args[0] == "Stage"
+    assert kwargs["total"] == 3
+    assert kwargs["title"] == ""
+
+
+def test_rich_progress_sink_update_normalizes_title_none():
+    inner = MagicMock()
+    sink = _RichProgressSink(inner)
+
+    sink.update(99, title=None)
+
+    inner.update.assert_called_once_with(99, title="")
+
+
+def test_gid_sort_key_handles_non_numeric_group_id():
+    assert ResultsReporter._gid_sort_key("abc") == (1, "abc")
+
+
+def test_rich_progress_sink_advance_forwards_to_inner_progress():
+    inner = MagicMock()
+    sink = _RichProgressSink(inner)
+
+    sink.advance(123, step=5)
+
+    inner.advance.assert_called_once_with(123, 5)
