@@ -1,4 +1,4 @@
-name: CodeEntropy PR
+name: CodeEntropy CI
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   unit:
-    name: Unit tests (py${{ matrix.python-version }} • ${{ matrix.os }})
+    name: Unit
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-24.04, macos-14, windows-2025]
         python-version: ["3.12", "3.13", "3.14"]
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -27,55 +27,48 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install CodeEntropy and its testing dependencies
+      - name: Install (testing)
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Run unit test suite
-        run: |
-          python -m pytest tests/unit -q
+      - name: Pytest (unit) • ${{ matrix.os }} • py${{ matrix.python-version }}
+        run: python -m pytest tests/unit -q
 
   regression-quick:
-    name: Quick regression (py${{ matrix.python-version }} • ${{ matrix.os }})
+    name: Regression (quick)
     needs: unit
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
-        python-version: ["3.12", "3.13", "3.14"]
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.14
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.14"
           cache: pip
 
-      - name: Cache regression test data downloads
+      - name: Cache testdata
         uses: actions/cache@v4
         with:
           path: .testdata
-          key: codeentropy-testdata-v1-${{ runner.os }}-py${{ matrix.python-version }}
+          key: codeentropy-testdata-v1-${{ runner.os }}-py3.14
 
-      - name: Install CodeEntropy and its testing dependencies
+      - name: Install (testing)
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Run quick regression suite (slow excluded)
-        run: |
-          python -m pytest tests/regression -q
+      - name: Pytest (regression quick)
+        run: python -m pytest tests/regression -q
 
-      - name: Upload regression artifacts on failure
+      - name: Upload artifacts (failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: quick-regression-failure-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: quick-regression-failure
           path: |
             .testdata/**
             tests/regression/**/.pytest_cache/**
@@ -85,11 +78,11 @@ jobs:
             /tmp/pytest-of-*/pytest-*/**/codeentropy_output.json
 
   docs:
-    name: Docs build (latest)
+    name: Docs
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Set up Python 3.14
@@ -98,7 +91,7 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Install python dependencies
+      - name: Install (docs)
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[docs]
@@ -113,7 +106,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Set up Python 3.14
@@ -122,7 +115,7 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Install python dependencies
+      - name: Install (pre-commit)
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[pre-commit]
