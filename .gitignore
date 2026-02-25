@@ -125,3 +125,5 @@ job*
 *.err
 *.com
 *.txt
+
+.testdata/
