@@ -1,4 +1,4 @@
-name: CodeEntropy Daily Checks
+name: CodeEntropy Daily
 
 on:
   schedule:
@@ -11,16 +11,16 @@ concurrency:
 
 jobs:
   unit:
-    name: Daily unit tests
+    name: Unit (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        os: [ubuntu-24.04, macos-15, windows-2025]
         python-version: ["3.12", "3.13", "3.14"]
-    timeout-minutes: 30
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -29,10 +29,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install CodeEntropy and its testing dependencies
+      - name: Install (testing)
         run: |
-          pip install --upgrade pip
-          pip install -e .[testing]
+          python -m pip install --upgrade pip
+          python -m pip install -e .[testing]
 
-      - name: Run unit test suite
-        run: pytest tests/unit -q
+      - name: Pytest (unit) • ${{ matrix.os }} • py${{ matrix.python-version }}
+        run: python -m pytest tests/unit -q

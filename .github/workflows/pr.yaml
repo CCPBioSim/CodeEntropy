@@ -32,7 +32,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Pytest (unit) • ${{ matrix.os }} • py${{ matrix.python-version }}
+      - name: Pytest (unit) • ${{ matrix.os }}, ${{ matrix.python-version }}
         run: python -m pytest tests/unit -q
 
   regression-quick:
