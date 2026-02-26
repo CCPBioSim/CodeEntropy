@@ -1,0 +1,35 @@
+"""Command-line entry point for CodeEntropy.
+
+This module provides the CLI entry point used to run the multiscale cell
+correlation entropy workflow.
+
+The entry point is intentionally small and only responsible for:
+  1) Creating a job folder.
+  2) Constructing a CodeEntropyRunner.
+  3) Executing the entropy workflow.
+  4) Handling fatal errors with a non-zero exit code.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from CodeEntropy.config.runtime import CodeEntropyRunner
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> None:
+    """Run the entropy workflow.
+
+    Raises:
+        SystemExit: Exits with status code 1 on any unhandled exception.
+    """
+    folder = CodeEntropyRunner.create_job_folder()
+
+    try:
+        run_manager = CodeEntropyRunner(folder=folder)
+        run_manager.run_entropy_workflow()
+    except Exception:
+        logger.exception("Fatal error during entropy calculation")
+        raise SystemExit(1) from None

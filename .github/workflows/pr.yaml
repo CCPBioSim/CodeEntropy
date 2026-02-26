@@ -1,0 +1,166 @@
+name: CodeEntropy CI
+
+on:
+  pull_request:
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install testing dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[testing]
+
+      - name: Pytest (unit) • ${{ matrix.os }}, ${{ matrix.python-version }}
+        run: python -m pytest tests/unit -q
+
+  regression-quick:
+    name: Regression (quick)
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Cache testdata
+        uses: actions/cache@v4
+        with:
+          path: .testdata
+          key: codeentropy-testdata-v1-${{ runner.os }}-py3.14
+
+      - name: Install (testing)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[testing]
+
+      - name: Pytest (regression quick)
+        run: python -m pytest tests/regression -q
+
+      - name: Upload artifacts (failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quick-regression-failure
+          path: |
+            .testdata/**
+            tests/regression/**/.pytest_cache/**
+            /tmp/pytest-of-*/pytest-*/**/config.yaml
+            /tmp/pytest-of-*/pytest-*/**/codeentropy_stdout.txt
+            /tmp/pytest-of-*/pytest-*/**/codeentropy_stderr.txt
+            /tmp/pytest-of-*/pytest-*/**/codeentropy_output.json
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install (docs)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[docs]
+
+      - name: Build docs
+        run: |
+          cd docs
+          make
+
+  pre-commit:
+    name: Pre-commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install (pre-commit)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[pre-commit]
+
+      - name: Run pre-commit
+        shell: bash
+        run: |
+          pre-commit install
+          pre-commit run --all-files || {
+            git status --short
+            git diff
+            exit 1
+          }
+
+  coverage:
+    name: Coverage
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install (testing)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[testing]
+
+      - name: Run unit test suite with coverage
+        run: |
+          pytest tests/unit \
+            --cov CodeEntropy \
+            --cov-report term-missing \
+            --cov-report xml \
+            -q
+
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage.xml
+          fail-on-error: false

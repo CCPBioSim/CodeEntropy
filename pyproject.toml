@@ -45,6 +45,8 @@ dependencies = [
     "python-json-logger>=4.0,<5.0",
     "rich>=14.2,<15.0",
     "art>=6.5,<7.0",
+    "networkx>=3.6,<3.7",
+    "matplotlib>=3.10,<3.11",
     "waterEntropy>=2,<2.1",
     "requests>=2.32,<3.0",
 ]
@@ -62,10 +64,7 @@ testing = [
 ]
 pre-commit = [
     "pre-commit>=4.5,<5.0",
-    "black>=26.1,<27.0",
-    "flake8>=7.3,<8.0",
-    "flake8-pyproject>=1.2,<2.0",
-    "isort>=7.0,<8.0",
+    "ruff>=0.15,<0.16",
     "pylint>=4.0,<5.0"
 ]
 docs = [
@@ -80,14 +79,15 @@ docs = [
 ]
 
 [project.scripts]
-CodeEntropy = "CodeEntropy.main:main"
+CodeEntropy = "CodeEntropy.cli:main"
 
-[tool.isort]
-profile = "black"
+[tool.ruff]
+line-length = 88
+target-version = "py311"
 
-[tool.flake8]
-max-line-length = 88
-extend-select = "B950"
-extend-ignore = [
-    "E203", # whitespace before `:`
-]
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

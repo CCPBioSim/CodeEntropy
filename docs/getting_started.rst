@@ -179,7 +179,7 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - ``molecules``
      - ``str``
    * - ``--kcal_force_units``
-     - Set input units as kcal/mol 
+     - Set input units as kcal/mol
      - ``bool``
      - ``False``
    * - ``--combined_forcetorque``
@@ -228,7 +228,7 @@ Create or edit ``config.yaml`` in your working directory:
     start: 0
     end: -1
     step: 1
-  
+
 Run CodeEntropy from that directory:
 
 .. code-block:: bash

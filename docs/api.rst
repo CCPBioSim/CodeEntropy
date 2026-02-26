@@ -57,7 +57,7 @@ Vibrational Entropy
    CodeEntropy.entropy.VibrationalEntropy
    CodeEntropy.entropy.VibrationalEntropy.frequency_calculation
    CodeEntropy.entropy.VibrationalEntropy.vibrational_entropy_calculation
-   
+
 
 Conformational Entropy
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -67,4 +67,3 @@ Conformational Entropy
    CodeEntropy.entropy.ConformationalEntropy
    CodeEntropy.entropy.ConformationalEntropy.assign_conformation
    CodeEntropy.entropy.ConformationalEntropy.conformational_entropy_calculation
-
