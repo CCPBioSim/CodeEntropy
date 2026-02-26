@@ -1,10 +1,10 @@
 """Conformational entropy utilities.
 
 This module provides:
-  * Assigning discrete conformational states for a single dihedral time series.
-  * Computing conformational entropy from a sequence of state labels.
 
-The public surface area is intentionally small to keep responsibilities clear.
+- Assignment of discrete conformational states for a single dihedral time series.
+- Computation of conformational entropy from a sequence of state labels.
+
 """
 
 from __future__ import annotations
@@ -127,15 +127,17 @@ class ConformationalEntropy:
         """Compute conformational entropy for a sequence of state labels.
 
         Entropy is computed as:
+
             S = -R * sum_i p_i * ln(p_i)
-        where p_i is the observed probability of state i in `states`.
+
+        where p_i is the observed probability of state i in ``states``.
 
         Args:
             states: Sequence/array of discrete state labels. Empty/None yields 0.0.
             number_frames: Frame count metadata.
 
         Returns:
-            Conformational entropy in J/mol/K.
+            float: Conformational entropy in J/mol/K.
         """
         _ = number_frames
 

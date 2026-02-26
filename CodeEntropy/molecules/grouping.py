@@ -31,9 +31,9 @@ class GroupingConfig:
 
     Attributes:
         strategy: Grouping strategy name. Supported values are:
-            - "each": each molecule gets its own group.
-            - "molecules": group molecules by chemical signature
-              (atom count + atom names in order).
+        - "each": each molecule gets its own group.
+        - "molecules": group molecules by chemical signature
+        (atom count + atom names in order).
     """
 
     strategy: str

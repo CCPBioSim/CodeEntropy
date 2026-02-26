@@ -1,14 +1,16 @@
 """Hierarchy level selection and bead construction.
 
-This module defines `HierarchyBuilder`, which is responsible for:
-  1) Determining which hierarchy levels apply to each molecule.
-  2) Constructing "beads" (AtomGroups) for a given molecule at a given level.
+This module defines ``HierarchyBuilder``, which is responsible for:
+
+- Determining which hierarchy levels apply to each molecule.
+- Constructing "beads" (AtomGroups) for a given molecule at a given level.
 
 Notes:
-- The "residue" bead construction must use residues attached to the provided
-  AtomGroup/container. Using `resindex` selection strings is unsafe because
-  `resindex` is global to the Universe and can produce empty/incorrect beads
-  when operating on per-molecule containers beyond the first molecule.
+    The "residue" bead construction must use residues attached to the provided
+    AtomGroup/container. Using ``resindex`` selection strings is unsafe because
+    ``resindex`` is global to the Universe and can produce empty or incorrect
+    beads when operating on per-molecule containers beyond the first molecule.
+
 """
 
 from __future__ import annotations

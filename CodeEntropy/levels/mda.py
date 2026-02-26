@@ -136,15 +136,18 @@ class UniverseOperations:
         """Create a universe by merging coordinates and forces from different files.
 
         This method loads:
-        - coordinates + dimensions from the coordinate trajectory (tprfile + trrfile)
-        - forces from the force trajectory (tprfile + forcefile)
 
-        If the force trajectory does not expose forces in MDAnalysis (e.g. the file
+        - Coordinates and dimensions from the coordinate trajectory
+          (``tprfile`` + ``trrfile``).
+        - Forces from the force trajectory (``tprfile`` + ``forcefile``).
+
+        If the force trajectory does not expose forces in MDAnalysis (e.g., the file
         does not contain forces, or the reader does not provide them), then:
-        - if `fallback_to_positions_if_no_forces` is True, positions from the force
-          trajectory are used as the "forces" array (backwards-compatible behaviour
-          with earlier implementations).
-        - otherwise, the underlying `NoDataError` is raised.
+
+        - If ``fallback_to_positions_if_no_forces`` is True, positions from the
+          force trajectory are used as the "forces" array (backwards-compatible
+          behaviour with earlier implementations).
+        - Otherwise, the underlying ``NoDataError`` is raised.
 
         Args:
             tprfile: Topology input file.
@@ -155,14 +158,15 @@ class UniverseOperations:
                 recognised by MDAnalysis.
             kcal: If True, scale the force array by 4.184 to convert from kcal to kJ.
             force_format: Optional file format for the force trajectory. If not
-                provided, uses `fileformat`.
+                provided, uses ``fileformat``.
             fallback_to_positions_if_no_forces: If True, and the force trajectory has
                 no accessible forces, use positions from the force trajectory as a
                 fallback (legacy behaviour).
 
         Returns:
-            A new Universe containing coordinates, forces and dimensions loaded into
-            memory.
+            MDAnalysis.Universe: A new Universe containing coordinates, forces and
+            dimensions loaded into memory.
+
         """
         logger.debug("Loading coordinate Universe with %s", trrfile)
         u = mda.Universe(tprfile, trrfile, format=fileformat)

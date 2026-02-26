@@ -95,13 +95,15 @@ class ResultsReporter:
     """Collect, format, and output entropy calculation results.
 
     This reporter accumulates:
-      - Molecule-level results (group_id, level, entropy_type, value)
-      - Residue-level results (group_id, resname, level, entropy_type, frame_count,
+
+    - Molecule-level results (group_id, level, entropy_type, value)
+    - Residue-level results (group_id, resname, level, entropy_type, frame_count,
       value)
-      - Group metadata labels (label, residue_count, atom_count)
+    - Group metadata labels (label, residue_count, atom_count)
 
     It can render tables using Rich and export grouped results to JSON with basic
     provenance metadata.
+
     """
 
     def __init__(self, console: Optional[Console] = None) -> None:

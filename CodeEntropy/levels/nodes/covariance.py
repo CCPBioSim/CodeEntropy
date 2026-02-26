@@ -37,13 +37,15 @@ class FrameCovarianceNode:
 
     This node computes per-frame second-moment matrices (outer products) for
     force and torque generalized vectors at hierarchy levels:
-      - united_atom
-      - residue
-      - polymer
+
+    - united_atom
+    - residue
+    - polymer
 
     Within a single frame, outputs are incrementally averaged across molecules
     that belong to the same group. Frame-to-frame accumulation is handled
     elsewhere (by a higher-level reducer).
+
     """
 
     def __init__(self) -> None:

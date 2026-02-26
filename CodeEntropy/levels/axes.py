@@ -24,18 +24,20 @@ class AxesCalculator:
     rotation, and handling bead-based representations of molecular systems.
 
     Provides utility methods to:
-      - extract averaged positions,
-      - convert coordinates to spherical systems (future/legacy scope),
-      - compute axes used to rotate forces around,
-      - compute custom moments of inertia,
-      - manipulate vectors under periodic boundary conditions (PBC),
-      - construct custom moment-of-inertia tensors and principal axes.
+
+    - Extract averaged positions.
+    - Convert coordinates to spherical systems (future/legacy scope).
+    - Compute axes used to rotate forces around.
+    - Compute custom moments of inertia.
+    - Manipulate vectors under periodic boundary conditions (PBC).
+    - Construct custom moment-of-inertia tensors and principal axes.
 
     Notes:
-        This class deliberately does **not**:
-          - compute weighted forces/torques (that belongs in ForceTorqueCalculator),
-          - build covariances,
-          - compute entropies.
+        This class deliberately does not:
+
+        - Compute weighted forces/torques (that belongs in ForceTorqueCalculator).
+        - Build covariances.
+        - Compute entropies.
     """
 
     def __init__(self) -> None:
@@ -363,7 +365,7 @@ class AxesCalculator:
         Returns:
             Tuple[np.ndarray, np.ndarray]:
                 - principal_axes: (3, 3) axes.
-                - moment_of_inertia: (3,) moments sorted descending by |value|.
+                - moment_of_inertia: (3,) moments sorted descending by absolute value.
         """
         moment_of_inertia_tensor = molecule.moment_of_inertia(unwrap=True)
         make_whole(molecule.atoms)
@@ -388,13 +390,13 @@ class AxesCalculator:
 
         - axis1: use the normalised vector ab as axis1. If there is more than one
           bonded heavy atom (HA), average over all the normalised vectors
-          calculated from b_list and use this as axis1). b_list contains all the
+          calculated from b_list and use this as axis1. b_list contains all the
           bonded heavy atom coordinates.
 
         - axis2: use the cross product of normalised vector ac and axis1 as axis2.
           If there are more than two bonded heavy atoms, then use normalised vector
-          b[0]c to cross product with axis1, this gives the axis perpendicular
-          (represented by |_ symbol below) to axis1.
+          b[0]c to cross product with axis1. This gives the axis perpendicular
+          to axis1.
 
         - axis3: the cross product of axis1 and axis2, which is perpendicular to
           axis1 and axis2.
@@ -405,12 +407,12 @@ class AxesCalculator:
             c: Coordinates of a second heavy atom or a hydrogen atom.
             dimensions: Simulation box dimensions (3,).
 
-        ::
+        .. code-block:: text
 
             a          1 = norm_ab
-           / \         2 = |_ norm_ab and norm_ac (use bc if more than 2 HAs)
-          /   \        3 = |_ 1 and 2
-        b       c
+           / \         2 = perpendicular to norm_ab and norm_ac (or bc if >2 HAs)
+          /   \        3 = perpendicular to 1 and 2
+         b     c
 
         Returns:
             np.ndarray: (3, 3) array of the axes used to rotate forces.
@@ -458,8 +460,10 @@ class AxesCalculator:
         heavy atom position in a UA).
 
         Original behaviour preserved:
+
         - Uses PBC-aware translated coordinates.
-        - Sums contributions from each atom: |axis x r|^2 * mass.
+        - Sums contributions from each atom using the squared norm of (axis × r)
+          multiplied by mass.
         - Removes the lowest MOI degree of freedom if the UA only has a single
           bonded H (i.e. UA has 2 atoms total).
 
@@ -581,6 +585,7 @@ class AxesCalculator:
         built-in MDAnalysis principal_axes() function.
 
         Original behaviour preserved:
+
         - Eigenvalues are sorted by descending absolute magnitude.
         - Eigenvectors are transposed so axes are returned as rows.
         - Z axis is flipped to enforce the same handedness convention as the

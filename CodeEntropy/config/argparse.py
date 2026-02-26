@@ -4,13 +4,16 @@ This module provides:
 
 1) A declarative argument specification (`ARG_SPECS`) used to build an
    ``argparse.ArgumentParser``.
+
 2) A `ConfigResolver` that:
+
    - loads YAML configuration (if present),
    - merges YAML values with CLI values (CLI wins),
    - adjusts logging verbosity,
    - validates a subset of runtime inputs against the trajectory.
 
 Notes:
+
 - Boolean arguments are parsed via `str2bool` to support YAML/CLI interop and
   common string forms like "true"/"false".
 """

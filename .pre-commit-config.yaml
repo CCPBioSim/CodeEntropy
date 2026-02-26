@@ -17,3 +17,20 @@ repos:
       - id: check-ast
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: https://github.com/rstcheck/rstcheck
+    rev: v6.2.0
+    hooks:
+      - id: rstcheck
+        name: rstcheck (docstrings only)
+        files: \.py$
+        args: ["--report-level", "warning"]
+
+  - repo: local
+    hooks:
+      - id: sphinx-docs
+        name: sphinx-build (pre-push, warnings as errors)
+        entry: bash -lc 'make -C docs clean && make -C docs html SPHINXOPTS="-W --keep-going"'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
