@@ -129,3 +129,38 @@ jobs:
             git diff
             exit 1
           }
+
+  coverage:
+    name: Coverage (ubuntu, latest python)
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install (testing)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[testing]
+
+      - name: Run unit test suite with coverage
+        run: |
+          pytest tests/unit \
+            --cov CodeEntropy \
+            --cov-report term-missing \
+            --cov-report xml \
+            -q
+
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage.xml
+          fail-on-error: false
