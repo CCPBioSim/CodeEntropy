@@ -1,4 +1,4 @@
-name: CodeEntropy CI
+name: CodeEntropy Pull Request CI
 
 on:
   pull_request:
