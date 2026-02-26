@@ -1,4 +1,4 @@
-name: CodeEntropy Weekly Regression Tests
+name: Weekly Regression Tests
 
 on:
   schedule:

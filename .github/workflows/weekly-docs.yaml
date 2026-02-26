@@ -1,4 +1,4 @@
-name: CodeEntropy Weekly Docs Build
+name: Weekly Docs Build
 
 on:
   schedule:
