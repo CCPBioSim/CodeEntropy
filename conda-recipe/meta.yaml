@@ -1,4 +1,4 @@
-{% set name = "CodeEntropy" %}
+{% set name = "codeentropy" %}
 {% set version = "0.0.0" %}
 
 package:
