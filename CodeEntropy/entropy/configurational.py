@@ -221,7 +221,7 @@ class ConformationalEntropy:
             left = popul[idx - 1] if idx > 0 else popul[number_bins - 1]
             right = popul[idx + 1] if idx < number_bins - 1 else popul[0]
 
-            if popul[idx] >= left and popul[idx] >= right:
+            if popul[idx] >= left and popul[idx] > right:
                 peaks.append(float(bin_centers[idx]))
 
         return np.asarray(peaks, dtype=float)

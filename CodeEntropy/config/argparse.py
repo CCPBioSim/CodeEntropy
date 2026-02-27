@@ -142,6 +142,12 @@ ARG_SPECS: Dict[str, ArgSpec] = {
         default=True,
         help="Use bonded axes to rotate forces for UA level vibrational entropies",
     ),
+    "search_type": ArgSpec(
+        type=str,
+        default="RAD",
+        help="Type of neighbor search to use."
+        "Default RAD; grid search is also available",
+    ),
 }
 
 

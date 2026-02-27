@@ -21,6 +21,7 @@ import networkx as nx
 
 from CodeEntropy.entropy.nodes.aggregate import AggregateEntropyNode
 from CodeEntropy.entropy.nodes.configurational import ConfigurationalEntropyNode
+from CodeEntropy.entropy.nodes.orientational import OrientationalEntropyNode
 from CodeEntropy.entropy.nodes.vibrational import VibrationalEntropyNode
 
 logger = logging.getLogger(__name__)
@@ -68,10 +69,15 @@ class EntropyGraph:
         specs = (
             NodeSpec("vibrational_entropy", VibrationalEntropyNode()),
             NodeSpec("configurational_entropy", ConfigurationalEntropyNode()),
+            NodeSpec("orientational_entropy", OrientationalEntropyNode()),
             NodeSpec(
                 "aggregate_entropy",
                 AggregateEntropyNode(),
-                deps=("vibrational_entropy", "configurational_entropy"),
+                deps=(
+                    "vibrational_entropy",
+                    "configurational_entropy",
+                    "orientational_entropy",
+                ),
             ),
         )
 

@@ -362,13 +362,13 @@ class ConformationStateBuilder:
             if bin_index == number_bins - 1:
                 if (
                     popul[bin_index] >= popul[bin_index - 1]
-                    and popul[bin_index] >= popul[0]
+                    and popul[bin_index] > popul[0]
                 ):
                     peaks.append(bin_value[bin_index])
             else:
                 if (
                     popul[bin_index] >= popul[bin_index - 1]
-                    and popul[bin_index] >= popul[bin_index + 1]
+                    and popul[bin_index] > popul[bin_index + 1]
                 ):
                     peaks.append(bin_value[bin_index])
 

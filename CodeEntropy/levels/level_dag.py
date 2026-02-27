@@ -28,6 +28,7 @@ from CodeEntropy.levels.nodes.beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
+from CodeEntropy.levels.nodes.find_neighbors import ComputeNeighborsNode
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,9 @@ class LevelDAG:
             "compute_conformational_states",
             ComputeConformationalStatesNode(self._universe_operations),
             deps=["detect_levels"],
+        )
+        self._add_static(
+            "find_neighbors", ComputeNeighborsNode(), deps=["detect_levels"]
         )
 
         self._frame_dag.build()

@@ -1,11 +1,7 @@
 """Orientational entropy calculations.
 
 This module defines `OrientationalEntropy`, which computes orientational entropy
-from a neighbor-count mapping.
-
-The current implementation supports non-water neighbors. Water-specific behavior
-can be implemented later behind an interface so the core calculation remains
-stable and testable.
+from a neighbour count and symmetry information.
 """
 
 from __future__ import annotations
@@ -13,7 +9,6 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
-from typing import Any, Mapping
 
 import numpy as np
 
@@ -48,111 +43,77 @@ class OrientationalEntropy:
 
     def __init__(
         self,
-        run_manager: Any,
-        args: Any,
-        universe: Any,
-        reporter: Any,
-        group_molecules: Any,
         gas_constant: float = _GAS_CONST_J_PER_MOL_K,
     ) -> None:
         """Initialize the orientational entropy calculator.
 
         Args:
-            run_manager: Run manager (currently unused by this class).
-            args: User arguments (currently unused by this class).
-            universe: MDAnalysis Universe (currently unused by this class).
-            reporter: Data logger (currently unused by this class).
-            group_molecules: Grouping helper (currently unused by this class).
             gas_constant: Gas constant in J/(mol*K).
         """
-        self._run_manager = run_manager
-        self._args = args
-        self._universe = universe
-        self._reporter = reporter
-        self._group_molecules = group_molecules
         self._gas_constant = float(gas_constant)
 
-    def calculate(self, neighbours: Mapping[str, int]) -> OrientationalEntropyResult:
-        """Calculate orientational entropy from neighbor counts.
+    def calculate_orientational(
+        self,
+        neighbour_count: float,
+        symmetry_number: int,
+        linear: bool,
+    ) -> OrientationalEntropyResult:
+        """Calculate orientational entropy from neighbour counts.
 
-        For each neighbor species (except water), the number of orientations is
-        estimated as:
-
-            Ω = sqrt(Nc^3 * π)
+        The number of orientations is estimated as:
+            Ω = sqrt(N_av^3 * π)/symmetry_number for non-linear molecules
+            Ω = N_av / symmetry_number for linear molecules
 
         and the entropy contribution is:
 
             S = R * ln(Ω)
 
-        where Nc is the neighbor count and R is the gas constant.
+        where N_av is the average number of neighbours and R is the gas constant.
 
         Args:
-            neighbours: Mapping of neighbor species name to count.
+            neighbours: average number of neighbours
+            symmetry_number: symmetry number of molecule of interest
+            linear: True if molecule of interest is linear
 
         Returns:
             OrientationalEntropyResult containing the total entropy in J/mol/K.
-        """
-        total = 0.0
-        for species, count in neighbours.items():
-            if self._is_water(species):
-                logger.debug(
-                    "Skipping water species %s in orientational entropy.", species
-                )
-                continue
-
-            contribution = self._entropy_contribution(count)
-            logger.debug(
-                "Orientational entropy contribution for %s: %s", species, contribution
-            )
-            total += contribution
-
-        logger.debug("Final orientational entropy total: %s", total)
-        return OrientationalEntropyResult(total=float(total))
-
-    @staticmethod
-    def _is_water(species: str) -> bool:
-        """Return True if the species should be treated as water.
-
-        Args:
-            species: Species identifier.
-
-        Returns:
-            True if the species is considered water.
-        """
-        return species in {"H2O", "WAT", "HOH"}
-
-    def _entropy_contribution(self, neighbour_count: int) -> float:
-        """Compute the entropy contribution for a single neighbor count.
-
-        Args:
-            neighbour_count: Number of neighbors (Nc).
-
-        Returns:
-            Entropy contribution in J/mol/K.
 
         Raises:
-            ValueError: If neighbour_count is negative.
+            ValueError if number of neighbours is negative.
         """
         if neighbour_count < 0:
             raise ValueError(f"neighbour_count must be >= 0, got {neighbour_count}")
 
-        if neighbour_count == 0:
-            return 0.0
+        omega = self._omega(neighbour_count, symmetry_number, linear)
 
-        omega = self._omega(neighbour_count)
-        if omega <= 0.0:
-            return 0.0
+        total = self._gas_constant * math.log(omega)
+        logger.debug("Orientational entropy total: %s", total)
 
-        return self._gas_constant * math.log(omega)
+        return OrientationalEntropyResult(total=float(total))
 
     @staticmethod
-    def _omega(neighbour_count: int) -> float:
+    def _omega(neighbour_count: int, symmetry: int, linear: bool) -> float:
         """Compute the number of orientations Ω.
 
         Args:
-            neighbour_count: Number of neighbors (Nc).
+            neighbour_count: average number of neighbours.
+            symmetry_number: The symmetry number of the molecule.
+            linear: Is the molecule linear (True or False).
 
         Returns:
             Ω (unitless).
         """
-        return float(np.sqrt((neighbour_count**3) * math.pi))
+        # symmetry number 0 = spherically symmetric = no orientational entropy
+        if symmetry == 0:
+            omega = 1
+        else:
+            if linear:
+                omega = neighbour_count / symmetry
+            else:
+                omega = np.sqrt((neighbour_count**3) * math.pi) / symmetry
+
+        # avoid negative orientational entropy
+        if omega < 1:
+            omega = 1
+
+        return omega

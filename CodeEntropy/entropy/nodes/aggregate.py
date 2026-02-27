@@ -25,6 +25,7 @@ class AggregateEntropyNode:
 
     vibrational_key: str = "vibrational_entropy"
     configurational_key: str = "configurational_entropy"
+    orientational_key: str = "orientational_entropy"
     output_key: str = "entropy_results"
 
     def run(
@@ -68,6 +69,9 @@ class AggregateEntropyNode:
             ),
             "configurational_entropy": self._get_optional(
                 shared_data, self.configurational_key
+            ),
+            "orientational_entropy": self._get_optional(
+                shared_data, self.orientational_key
             ),
         }
 
