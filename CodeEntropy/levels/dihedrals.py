@@ -47,7 +47,7 @@ class ConformationStateBuilder:
         residue-level state generation depending on which hierarchy levels are
         enabled per molecule.
 
-        Progress reporting is optional and UI-agnostic: if a progress sink is
+        Progress reporting is optional and UI-agnostic. If a progress sink is
         provided, the method will create a single task and advance it once per
         molecule group.
 
@@ -66,17 +66,17 @@ class ConformationStateBuilder:
                 Must expose add_task(), update(), and advance().
 
         Returns:
-            Tuple of:
-                states_ua: Dict mapping (group_id, local_residue_id) -> list of state
-                    labels (strings) across the analyzed trajectory.
-                states_res: List-like structure indexed by group_id (or equivalent)
-                    containing residue-level state labels (strings) across the
-                    analyzed trajectory.
+            tuple: (states_ua, states_res)
+
+            - states_ua: Dict mapping (group_id, local_residue_id) -> list of state
+              labels (strings) across the analyzed trajectory.
+            - states_res: Structure indexed by group_id (or equivalent) containing
+              residue-level state labels (strings) across the analyzed trajectory.
 
         Notes:
             - This function advances progress once per group_id.
             - Frame slicing arguments (start/end/step) are forwarded to downstream
-            helpers as implemented in this module.
+              helpers as implemented in this module.
         """
         number_groups = len(groups)
         states_ua: Dict[UAKey, List[str]] = {}

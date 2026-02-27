@@ -8,4 +8,4 @@ entropy estimates, supporting a wide range of applications in molecular simulati
 and statistical mechanics.
 """
 
-__version__ = "1.0.7"
+__version__ = "2.0.0"

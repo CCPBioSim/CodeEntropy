@@ -15,7 +15,7 @@ This code is a complete and generally applicable set of tools for computing entr
    :caption: Contents:
 
    getting_started
-   api
+   api/modules
    science
    faq
    developer_guide
