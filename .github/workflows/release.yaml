@@ -180,13 +180,18 @@ jobs:
 
       - name: Build package
         shell: bash -l {0}
+        env:
+          PIP_NO_INDEX: "0"
         run: |
+          PKG_PATH=$(conda build conda-recipe --output)
+          echo "PKG_PATH=$PKG_PATH" >> $GITHUB_ENV
           conda build conda-recipe
+          test -f "$PKG_PATH"
+          echo "Built: $PKG_PATH"
 
       - name: Upload to Anaconda
         shell: bash -l {0}
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          PKG_PATH=$(conda build conda-recipe --output)
           anaconda -t "$ANACONDA_API_TOKEN" upload "$PKG_PATH" --user CCPBioSim --force
