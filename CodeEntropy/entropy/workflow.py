@@ -2,13 +2,13 @@
 
 This module defines `EntropyWorkflow`, which coordinates the end-to-end entropy
 workflow:
-  * Determine trajectory bounds and frame count.
-  * Build a reduced universe based on atom selection.
-  * Identify molecule groups and hierarchy levels.
-  * Optionally compute water entropy and adjust selection.
-  * Execute the level DAG (matrix/state preparation).
-  * Execute the entropy graph (entropy calculations and aggregation).
-  * Finalize and persist results.
+- Determine trajectory bounds and frame count.
+- Build a reduced universe based on atom selection.
+- Identify molecule groups and hierarchy levels.
+- Optionally compute water entropy and adjust selection.
+- Execute the level DAG (matrix/state preparation).
+- Execute the entropy graph (entropy calculations and aggregation).
+- Finalize and persist results.
 
 The manager intentionally delegates calculations to dedicated components.
 """

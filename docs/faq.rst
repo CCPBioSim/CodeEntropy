@@ -11,7 +11,7 @@ This is especially true at the residue level.
 For example in a lysozyme system, the residue level contains the largest force and torque covariance matrices because at this level we have the largest number of beads (which is equal to the number of residues in a protein) compared to the molecule level (3 beads) and united-atom level (~10 beads per amino acid).
 
 What do I do if there is an error from MDAnalysis not recognising the file type?
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 Use the file_format option.
 The MDAnalysis documentation has a list of acceptable formats: https://userguide.mdanalysis.org/1.1.1/formats/index.html#id1.

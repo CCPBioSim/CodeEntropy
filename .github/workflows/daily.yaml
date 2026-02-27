@@ -1,4 +1,4 @@
-name: CodeEntropy Daily
+name: Daily Unit Tests
 
 on:
   schedule:

@@ -1,4 +1,4 @@
-name: release
+name: Release CodeEntropy
 
 on:
   workflow_dispatch:
