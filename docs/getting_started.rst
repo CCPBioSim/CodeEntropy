@@ -51,7 +51,7 @@ Install CodeEntropy:
 
 .. code-block:: bash
 
-   conda install -c conda-forge -c CCPBioSim CodeEntropy
+   conda install -c conda-forge -c CCPBioSim codeentropy
 
 
 Input Files
