@@ -160,7 +160,8 @@ jobs:
 
       - name: Set version in conda recipe
         run: |
-          sed -i -E "s/^{% set version = \".*\" %}$/{% set version = \"${{ github.event.inputs.version }}\" %}/" conda-recipe/meta.yaml
+          sed -i "s/^{% set version = \".*\" %}$/{% set version = \"${{ github.event.inputs.version }}\" %}/" conda-recipe/meta.yaml
+          grep '{% set version' conda-recipe/meta.yaml
 
       - name: Setup Conda
         uses: conda-incubator/setup-miniconda@v3
