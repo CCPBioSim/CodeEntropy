@@ -1,0 +1,47 @@
+{% set name = "CodeEntropy" %}
+{% set version = "0.0.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  script: python -m pip install . -vv --no-deps
+  entry_points:
+    - CodeEntropy=CodeEntropy.cli:main
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+    - flit-core >=3.4,<4
+  run:
+    - python >=3.11
+    - numpy >=2.3,<3.0
+    - mdanalysis >=2.10,<3.0
+    - pandas >=3.0,<3.1
+    - psutil >=7.1,<8.0
+    - pyyaml >=6.0,<7.0
+    - python-json-logger >=4.0,<5.0
+    - rich >=14.2,<15.0
+    - art >=6.5,<7.0
+    - networkx >=3.6,<3.7
+    - matplotlib >=3.10,<3.11
+    - waterentropy >=2,<2.1
+    - requests >=2.32,<3.0
+
+test:
+  imports:
+    - CodeEntropy
+  commands:
+    - CodeEntropy --help
+
+about:
+  home: https://ccpbiosim.github.io/CodeEntropy/
+  license: MIT
+  license_file: LICENSE
+  summary: "Entropy analysis tools for macromolecular systems and MD simulation"
