@@ -163,19 +163,20 @@ jobs:
           sed -i "s/^{% set version = \".*\" %}$/{% set version = \"${{ github.event.inputs.version }}\" %}/" conda-recipe/meta.yaml
           grep '{% set version' conda-recipe/meta.yaml
 
-      - name: Setup Conda
+      - name: Setup Conda (conda-forge only)
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Miniforge3
           python-version: "3.12"
-          auto-activate-base: false
+          auto-activate: false
+          conda-remove-defaults: true
+          channels: conda-forge
+          channel-priority: strict
 
       - name: Install build tools
         shell: bash -l {0}
         run: |
           conda install -y conda-build anaconda-client
-          conda config --add channels conda-forge
-          conda config --set channel_priority strict
           conda config --set anaconda_upload no
 
       - name: Build package
@@ -184,7 +185,7 @@ jobs:
           PIP_NO_INDEX: "0"
         run: |
           PKG_PATH=$(conda build conda-recipe --output)
-          echo "PKG_PATH=$PKG_PATH" >> $GITHUB_ENV
+          echo "PKG_PATH=$PKG_PATH" >> "$GITHUB_ENV"
           conda build conda-recipe
           test -f "$PKG_PATH"
           echo "Built: $PKG_PATH"
