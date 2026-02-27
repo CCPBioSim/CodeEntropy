@@ -23,11 +23,35 @@ Requirements
 Installation
 ------------
 
-To install the released version:
+CodeEntropy can be installed using either pip or Conda.
+
+Install with pip
+^^^^^^^^^^^^^^^^
+
+To install the released version from PyPI:
 
 .. code-block:: bash
 
    pip install CodeEntropy
+
+
+Install with Conda
+^^^^^^^^^^^^^^^^^^
+
+CodeEntropy is also available via the CCPBioSim Anaconda channel.
+
+Create a dedicated environment:
+
+.. code-block:: bash
+
+   conda create -n codeentropy python=3.14
+   conda activate codeentropy
+
+Install CodeEntropy:
+
+.. code-block:: bash
+
+   conda install -c conda-forge -c CCPBioSim CodeEntropy
 
 
 Input Files

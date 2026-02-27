@@ -9,11 +9,18 @@ the continuous integration workflows.
 Getting Started for Developers
 ------------------------------
 
-Create a virtual environment::
+Create a development environment using either venv or Conda.
+
+Using venv::
 
     python -m venv codeentropy-dev
     source codeentropy-dev/bin/activate  # Linux/macOS
     codeentropy-dev\Scripts\activate     # Windows
+
+Using Conda::
+
+    conda create -n codeentropy-dev python=3.14
+    conda activate codeentropy-dev
 
 Clone the repository::
 
