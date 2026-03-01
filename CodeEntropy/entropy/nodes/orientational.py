@@ -64,15 +64,16 @@ class OrientationalEntropyNode:
             symmetry = symmetry_number[group_id]
             line = linear[group_id]
 
-            results[group_id] = oe.calculate_orientational(
+            result_value = oe.calculate_orientational(
                 neighbor,
                 symmetry,
                 line,
             )
+            results[group_id] = result_value
 
             if reporter is not None:
                 reporter.add_results_data(
-                    group_id, highest_level, "Orientational", results
+                    group_id, highest_level, "Orientational", result_value
                 )
 
         shared_data["orientational_entropy"] = results

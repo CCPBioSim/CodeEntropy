@@ -89,7 +89,7 @@ class OrientationalEntropy:
         total = self._gas_constant * math.log(omega)
         logger.debug("Orientational entropy total: %s", total)
 
-        return OrientationalEntropyResult(total=float(total))
+        return total
 
     @staticmethod
     def _omega(neighbour_count: int, symmetry: int, linear: bool) -> float:

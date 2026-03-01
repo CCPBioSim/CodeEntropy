@@ -11,11 +11,13 @@ def test_build_creates_expected_nodes_and_edges():
     assert set(g._nodes.keys()) == {
         "vibrational_entropy",
         "configurational_entropy",
+        "orientational_entropy",
         "aggregate_entropy",
     }
 
     assert g._graph.has_edge("vibrational_entropy", "aggregate_entropy")
     assert g._graph.has_edge("configurational_entropy", "aggregate_entropy")
+    assert g._graph.has_edge("orientational_entropy", "aggregate_entropy")
 
 
 def test_execute_runs_nodes_in_topological_order_and_merges_dict_outputs(shared_data):
