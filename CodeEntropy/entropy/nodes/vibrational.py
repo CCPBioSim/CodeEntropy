@@ -74,6 +74,7 @@ class VibrationalEntropyNode:
         groups = shared_data["groups"]
         levels = shared_data["levels"]
         fragments = shared_data["reduced_universe"].atoms.fragments
+        flexible = shared_data["flexible_dihedrals"]
 
         gid2i = self._get_group_id_to_index(shared_data)
 
@@ -108,6 +109,7 @@ class VibrationalEntropyNode:
                         residues=rep_mol.residues,
                         force_ua=force_cov["ua"],
                         torque_ua=torque_cov["ua"],
+                        flexible=flexible["ua"],
                         ua_frame_counts=ua_frame_counts,
                         reporter=reporter,
                         n_frames_default=shared_data.get("n_frames", 0),
@@ -137,11 +139,17 @@ class VibrationalEntropyNode:
                     fmat = self._get_indexed_matrix(force_cov.get(cov_key, []), gi)
                     tmat = self._get_indexed_matrix(torque_cov.get(cov_key, []), gi)
 
+                    if level == "residue":
+                        flexible = flexible["res"][group_id]
+                    else:
+                        flexible = 0  # No polymer level flexible dihedrals
+
                     pair = self._compute_force_torque_entropy(
                         ve=ve,
                         temp=temp,
                         fmat=fmat,
                         tmat=tmat,
+                        flexible=flexible,
                         highest=highest,
                     )
                     self._store_results(results, group_id, level, pair)
@@ -216,6 +224,7 @@ class VibrationalEntropyNode:
         residues: Any,
         force_ua: Mapping[CovKey, Any],
         torque_ua: Mapping[CovKey, Any],
+        flexible: Any,
         ua_frame_counts: Mapping[CovKey, int],
         reporter: Optional[Any],
         n_frames_default: int,
@@ -234,6 +243,7 @@ class VibrationalEntropyNode:
             residues: Residue container/sequence for the representative molecule.
             force_ua: Mapping from (group_id, residue_id) to force covariance matrix.
             torque_ua: Mapping from (group_id, residue_id) to torque covariance matrix.
+            flexible: Data about number of flexible dihedrals
             ua_frame_counts: Mapping from (group_id, residue_id) to frame counts.
             reporter: Optional reporter object supporting add_residue_data calls.
             n_frames_default: Fallback frame count if per-residue count missing.
@@ -249,12 +259,14 @@ class VibrationalEntropyNode:
             key = (group_id, res_id)
             fmat = force_ua.get(key)
             tmat = torque_ua.get(key)
+            flexible = flexible[key]
 
             pair = self._compute_force_torque_entropy(
                 ve=ve,
                 temp=temp,
                 fmat=fmat,
                 tmat=tmat,
+                flexible=flexible,
                 highest=highest,
             )
 
@@ -289,6 +301,7 @@ class VibrationalEntropyNode:
         temp: float,
         fmat: Any,
         tmat: Any,
+        flexible: int,
         highest: bool,
     ) -> EntropyPair:
         """Compute vibrational entropy from separate force and torque covariances.
@@ -321,10 +334,10 @@ class VibrationalEntropyNode:
             return EntropyPair(trans=0.0, rot=0.0)
 
         s_trans = ve.vibrational_entropy_calculation(
-            f, "force", temp, highest_level=highest
+            f, "force", temp, highest_level=highest, flexible=flexible
         )
         s_rot = ve.vibrational_entropy_calculation(
-            t, "torque", temp, highest_level=highest
+            t, "torque", temp, highest_level=highest, flexible=flexible
         )
         return EntropyPair(trans=float(s_trans), rot=float(s_rot))
 
@@ -334,6 +347,7 @@ class VibrationalEntropyNode:
         ve: VibrationalEntropy,
         temp: float,
         ftmat: Any,
+        flexible: int,
     ) -> EntropyPair:
         """Compute vibrational entropy from a combined force-torque covariance matrix.
 
@@ -359,10 +373,10 @@ class VibrationalEntropyNode:
             return EntropyPair(trans=0.0, rot=0.0)
 
         s_trans = ve.vibrational_entropy_calculation(
-            ft, "forcetorqueTRANS", temp, highest_level=True
+            ft, "forcetorqueTRANS", temp, highest_level=True, flexible=flexible
         )
         s_rot = ve.vibrational_entropy_calculation(
-            ft, "forcetorqueROT", temp, highest_level=True
+            ft, "forcetorqueROT", temp, highest_level=True, flexible=flexible
         )
         return EntropyPair(trans=float(s_trans), rot=float(s_rot))
 
