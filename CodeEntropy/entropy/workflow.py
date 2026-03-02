@@ -93,9 +93,15 @@ class EntropyWorkflow:
     def execute(self) -> None:
         """Run the full entropy workflow and emit results.
 
-        This method orchestrates the complete pipeline, populates shared data,
-        and triggers the DAG/graph executions. Final results are logged and saved
-        via `ResultsReporter`.
+        This orchestrates the complete entropy pipeline:
+            1. Build trajectory slice.
+            2. Apply atom selection to create a reduced universe.
+            3. Detect hierarchy levels.
+            4. Group molecules.
+            5. Split groups into water and non-water.
+            6. Optionally compute water entropy (only if solute exists).
+            7. Run level DAG and entropy graph.
+            8. Finalize and persist results.
         """
         traj = self._build_trajectory_slice()
         console.print(
@@ -109,9 +115,11 @@ class EntropyWorkflow:
             reduced_universe, self._args.grouping
         )
 
-        nonwater_groups, water_groups = self._split_water_groups(groups)
+        nonwater_groups, water_groups = self._split_water_groups(
+            reduced_universe, groups
+        )
 
-        if self._args.water_entropy and water_groups:
+        if self._args.water_entropy and water_groups and nonwater_groups:
             self._compute_water_entropy(traj, water_groups)
         else:
             nonwater_groups.update(water_groups)
@@ -254,17 +262,32 @@ class EntropyWorkflow:
         return levels
 
     def _split_water_groups(
-        self, groups: Mapping[int, Any]
+        self,
+        universe: Any,
+        groups: Mapping[int, Any],
     ) -> Tuple[Dict[int, Any], Dict[int, Any]]:
         """Partition molecule groups into water and non-water groups.
 
+        This method identifies which molecule groups correspond to water
+        molecules based on residue membership.
+
         Args:
-            groups: Mapping of group id -> molecule ids.
+            universe (Any):
+                The MDAnalysis Universe used to build the molecule groups
+                (typically the reduced_universe).
+            groups (Mapping[int, Any]):
+                Mapping of group_id -> list of molecule fragment indices.
 
         Returns:
-            Tuple of (nonwater_groups, water_groups).
+            Tuple[Dict[int, Any], Dict[int, Any]]:
+                A tuple containing:
+
+                - nonwater_groups:
+                    Mapping of group_id -> molecule ids that are NOT water.
+                - water_groups:
+                    Mapping of group_id -> molecule ids that contain water.
         """
-        water_atoms = self._universe.select_atoms("water")
+        water_atoms = universe.select_atoms("water")
         water_resids = {res.resid for res in water_atoms.residues}
 
         water_groups = {
@@ -272,7 +295,7 @@ class EntropyWorkflow:
             for gid, mol_ids in groups.items()
             if any(
                 res.resid in water_resids
-                for mol in [self._universe.atoms.fragments[i] for i in mol_ids]
+                for mol in [universe.atoms.fragments[i] for i in mol_ids]
                 for res in mol.residues
             )
         }
@@ -293,10 +316,10 @@ class EntropyWorkflow:
         if not water_groups or not self._args.water_entropy:
             return
 
-        water_entropy = WaterEntropy(self._args)
+        water_entropy = WaterEntropy(self._args, self._reporter)
 
         for group_id in water_groups.keys():
-            water_entropy._calculate_water_entropy(
+            water_entropy.calculate_and_log(
                 universe=self._universe,
                 start=traj.start,
                 end=traj.end,
