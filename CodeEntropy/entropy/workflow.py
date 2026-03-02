@@ -293,10 +293,10 @@ class EntropyWorkflow:
         if not water_groups or not self._args.water_entropy:
             return
 
-        water_entropy = WaterEntropy(self._args)
+        water_entropy = WaterEntropy(self._args, self._reporter)
 
         for group_id in water_groups.keys():
-            water_entropy._calculate_water_entropy(
+            water_entropy.calculate_and_log(
                 universe=self._universe,
                 start=traj.start,
                 end=traj.end,
