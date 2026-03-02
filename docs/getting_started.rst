@@ -204,16 +204,20 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - ``str``
    * - ``--kcal_force_units``
      - Set input units as kcal/mol
-     - ``bool``
      - ``False``
+     - ``bool``
    * - ``--combined_forcetorque``
      - Use the combined force-torque covariance matrix for the highest level to match the 2019 paper
-     - ``bool``
      - ``True``
+     - ``bool``
    * - ``--customised_axes``
      - Use custom bonded axes to get COM, MOI and PA that match the 2019 paper
-     - ``bool``
      - ``True``
+     - ``bool``
+   * - ``--search_type``
+     - Method for finding neighbouring molecules
+     - ``RAD``
+     - ``str``
 
 Averaging
 ---------
@@ -223,6 +227,15 @@ controls how averaging is done.
 
 * ``molecules`` (default): molecules are grouped by atom names and counts.
 * ``each``: each molecule is treated as its own group (no averaging).
+
+Counting Neighbours
+-------------------
+
+The code counts the number of neighbours for the orientational entropy.
+There are currently two options, chosen by the ``search_type`` argument.
+
+* ``RAD`` (default): Uses the relative angular distance method.
+* ``grid``: Uses the MDAnalysis NeighborSearch method.
 
 
 Examples

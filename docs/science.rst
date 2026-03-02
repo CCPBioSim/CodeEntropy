@@ -4,7 +4,7 @@ Multiscale Cell Correlation Theory
 This section is to describe the scientific theory behind the method used in CodeEntropy.
 
 The multiscale cell correlation (MCC) method [1-3] has been developed in the group of Richard Henchman to calculate entropy from molecular dynamics (MD) simulations.
-It has been applied to liquids [1,3,4], proteins [2,5,6], solutions [6-9], and complexes [6,7].
+It has been applied to liquids [1,3,4], proteins [2,5,6], solutions [6,8-10], and complexes [6,8].
 The purpose of this project is to develop and release well written code that enables users from any group to calculate the entropy from their simulations using the MCC.
 The latest code can be found at github.com/ccpbiosim/codeentropy.
 
@@ -32,13 +32,15 @@ Model. 60 (2020), pp. 5540–5551.
 [6] Jas Kalayan et al. “Total Free Energy Analysis of Fully Hydrated Proteins”.
 In: Proteins 91 (2023), pp. 74–90.
 
+[7] Jonathan Higham and Richard H. Henchman. "Locally adaptive method to define coordination shell". In: J. Chem. Phys. 145 (2016), pp. 084108
+
 Additional application examples
 -------------------------------
-[7] Hafiz Saqib Ali et al."Energy-entropy method using Multiscale Cell Correlation to calculate binding free energies in the SAMPL8 Host-Guest Challenge". In: Journal of Computer Aided Molecular Design 35 (2021), 911-921.
+[8] Hafiz Saqib Ali et al."Energy-entropy method using Multiscale Cell Correlation to calculate binding free energies in the SAMPL8 Host-Guest Challenge". In: Journal of Computer Aided Molecular Design 35 (2021), 911-921.
 
-[8] Fabio Falcioni et al. "Energy-entropy prediction of octanol-water logP of SAMPL7 N-acylsulfonamide bioisosters". In Journal of Computer Aided Molecular Design 35 (2021) 831-840.
+[9] Fabio Falcioni et al. "Energy-entropy prediction of octanol-water logP of SAMPL7 N-acylsulfonamide bioisosters". In Journal of Computer Aided Molecular Design 35 (2021) 831-840.
 
-[9] Hafiz Saqib Ali et al. "Energy-entropy Multiscale Cell Correlation method to predict toluene–water log P in the SAMPL9 challenge". In Physical Chemistry Chemical Physics 25 (2023), 27524-27531.
+[10] Hafiz Saqib Ali et al. "Energy-entropy Multiscale Cell Correlation method to predict toluene–water log P in the SAMPL9 challenge". In Physical Chemistry Chemical Physics 25 (2023), 27524-27531.
 
 Hierarchy
 ---------
@@ -98,6 +100,31 @@ Orientational Entropy
 ---------------------
 Orientational entropy is the term that comes from the molecule's environment (or the intermolecular configuration).
 The different environments are the different states for the molecule, and the statistics can be used to calculate the entropy.
-The simplest part is counting the number of neighbours, but symmetry should be accounted for in determining the number of orientations.
 
-For water, the hydrogen bonds are very important and the number of hydrogen bond donors and acceptors in the shell around the water molecule affects the number of unique orientations.
+The number of orientations :math:`\Omega_{\mathrm{orient}}` relates to the number of neighbors.
+We are using the relative angular distance (RAD) method for identifying neighbours [7].
+This method considers a molecule j as part of the coordination shell of the central molecule i, if for all other molecules k:
+
+.. math::
+   \frac{1}{r_{ij}^2} > \frac{1}{r_{ik}^2} \mathrm{cos} \theta_{jik}
+
+where, :math:`r_{ij}` is the distance between i and j and :math:`\theta_{jik}` is the angle between j, i, and k (with i at the vertex).
+The MDAnalysis NeighborSearch method can be used as an alternative to RAD, but the grid based search relies on an arbitrary cutoff.
+
+The number of orientations also depends on the symmetry number of the molecule and if it is linear.
+Linear molecules have 2 rotational degrees of freedom and non-linear molecules have 3 rotational degrees of freedom.
+CodeEntropy is using the united atom beads to determine if a molecule is treated as the linear case (for example, carbon dioxide and methanol are both considered linear).
+
+.. math::
+   \Omega_{\mathrm{orient}} = max \left\{ 1, N^{3/2} \pi^{1/2} / \sigma \right\}
+
+.. math::
+   \Omega_{\mathrm{orient,linear}} = max \left\{ 1, N / \sigma \right\}
+
+where N is the number of neighbours the molecule has averaged over the number of frames and :math:`\sigma` is the symmetry number of the molecule.
+The max of 1 or the number of neighbours expression prevents the resulting orientational entropy value being less than zero.
+
+.. math::
+   S_{\mathrm{orient}} = R \ln{ \Omega_{\mathrm{orient}} }
+
+where R is the gas constant.
