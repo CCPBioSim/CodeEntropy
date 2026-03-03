@@ -111,6 +111,7 @@ def _compare_grouped(
         "methane",
         "methanol",
         pytest.param("octonol", marks=pytest.mark.slow),
+        "water",
     ],
 )
 def test_regression_matches_baseline(
