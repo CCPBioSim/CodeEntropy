@@ -109,7 +109,7 @@ class VibrationalEntropyNode:
                         residues=rep_mol.residues,
                         force_ua=force_cov["ua"],
                         torque_ua=torque_cov["ua"],
-                        flexible=flexible["ua"],
+                        flexible_ua=flexible["ua"],
                         ua_frame_counts=ua_frame_counts,
                         reporter=reporter,
                         n_frames_default=shared_data.get("n_frames", 0),
@@ -224,7 +224,7 @@ class VibrationalEntropyNode:
         residues: Any,
         force_ua: Mapping[CovKey, Any],
         torque_ua: Mapping[CovKey, Any],
-        flexible: Any,
+        flexible_ua: Any,
         ua_frame_counts: Mapping[CovKey, int],
         reporter: Optional[Any],
         n_frames_default: int,
@@ -259,7 +259,7 @@ class VibrationalEntropyNode:
             key = (group_id, res_id)
             fmat = force_ua.get(key)
             tmat = torque_ua.get(key)
-            flexible = flexible[key]
+            flexible = flexible_ua.get(key)
 
             pair = self._compute_force_torque_entropy(
                 ve=ve,

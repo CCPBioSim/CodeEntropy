@@ -123,9 +123,12 @@ class VibrationalEntropy:
             Array of entropy components (J/mol/K) for each valid mode.
         """
         lambdas = self._matrix_eigenvalues(matrix)
+        logger.debug("lambdas: %s", lambdas)
         lambdas = self._convert_lambda_units(lambdas)
+        logger.debug("lambdas converted units: %s", lambdas)
         if matrix_type == "force" and flexible > 0:
             lambdas = self._flexible_dihedral(lambdas, flexible)
+            logger.debug("lambdas flexible halved: %s", lambdas)
 
         freqs = self._frequencies_from_lambdas(lambdas, temp)
         if freqs.size == 0:

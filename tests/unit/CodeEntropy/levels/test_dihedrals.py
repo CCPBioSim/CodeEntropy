@@ -209,7 +209,7 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
     with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
-        states = dt._assign_states(
+        states, num_flexible = dt._assign_states(
             data_container=MagicMock(),
             molecules=[0, 1],
             dihedrals=["D0"],
@@ -227,8 +227,10 @@ def test_assign_states_for_group_sets_empty_lists_and_delegates_for_nonempty():
 
     states_ua = {}
     states_res = [None, None]
+    flexible_ua = {}
+    flexible_res = [None, None]
 
-    with patch.object(dt, "_assign_states", return_value=["x"]) as assign_spy:
+    with patch.object(dt, "_assign_states", return_value=[["x"], 0]) as assign_spy:
         dt._assign_states_for_group(
             data_container=MagicMock(),
             group_id=1,
@@ -243,6 +245,8 @@ def test_assign_states_for_group_sets_empty_lists_and_delegates_for_nonempty():
             level_list=["united_atom", "residue"],
             states_ua=states_ua,
             states_res=states_res,
+            flexible_ua=flexible_ua,
+            flexible_res=flexible_res,
         )
 
     assert states_ua[(1, 0)] == []
@@ -264,7 +268,7 @@ def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatc
     monkeypatch.setattr(dt, "_collect_peaks_for_group", lambda **kw: ([], []))
     monkeypatch.setattr(dt, "_assign_states_for_group", lambda **kw: None)
 
-    states_ua, states_res = dt.build_conformational_states(
+    states_ua, states_res, flex_ua, flex_res = dt.build_conformational_states(
         data_container=MagicMock(),
         levels=levels,
         groups=groups,
@@ -337,7 +341,7 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
             return SimpleNamespace(results=SimpleNamespace(angles=[]))
 
     with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
-        out = dt._assign_states(
+        out_state, out_flex = dt._assign_states(
             data_container=MagicMock(),
             molecules=[0],
             dihedrals=[],
@@ -347,7 +351,7 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
             step=1,
         )
 
-    assert out == []
+    assert out_state == []
 
 
 def test_identify_peaks_multiple_molecules_real_histogram():
@@ -420,8 +424,10 @@ def test_assign_states_for_group_residue_nonempty_calls_assign_states():
 
     states_ua = {}
     states_res = [None, None]
+    flexible_ua = {}
+    flexible_res = [None, None]
 
-    with patch.object(dt, "_assign_states", return_value=["A"]) as spy:
+    with patch.object(dt, "_assign_states", return_value=[["A"], 0]) as spy:
         dt._assign_states_for_group(
             data_container=MagicMock(),
             group_id=1,
@@ -436,6 +442,8 @@ def test_assign_states_for_group_residue_nonempty_calls_assign_states():
             level_list=["residue"],
             states_ua=states_ua,
             states_res=states_res,
+            flexible_ua=flexible_ua,
+            flexible_res=flexible_res,
         )
 
     assert states_res[1] == ["A"]
@@ -463,7 +471,7 @@ def test_assign_states_first_empty_then_extend():
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
     with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
-        states = dt._assign_states(
+        states, num_flex = dt._assign_states(
             data_container=MagicMock(),
             molecules=[0, 1],
             dihedrals=["D0"],
@@ -523,7 +531,7 @@ def test_assign_states_wraps_negative_angles():
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
     with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
-        states = dt._assign_states(
+        states, num_flex = dt._assign_states(
             data_container=MagicMock(),
             molecules=[0],
             dihedrals=["D0"],
@@ -571,7 +579,7 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
     groups = {0: []}
     levels = {}
 
-    states_ua, states_res = dt.build_conformational_states(
+    states_ua, states_res, flex_ua, flex_res = dt.build_conformational_states(
         data_container=MagicMock(),
         levels=levels,
         groups=groups,

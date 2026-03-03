@@ -47,7 +47,7 @@ def test_entropy_components_returns_empty_when_all_invalid(run_manager):
     ve = VibrationalEntropy(run_manager=run_manager)
 
     ve._matrix_eigenvalues = lambda m: np.array([-1.0, 0.0, 0.0])
-    comps = ve._entropy_components(np.eye(3), temp=298.0)
+    comps = ve._entropy_components(np.eye(3), temp=298.0, matrix_type="", flexible=0)
 
     assert comps.size == 0
 
@@ -154,7 +154,7 @@ def test_vibrational_entropy_calculation_end_to_end_returns_float(
     )
 
     out = ve.vibrational_entropy_calculation(
-        np.eye(3), matrix_type="torque", temp=298.0, highest_level=False
+        np.eye(3), matrix_type="torque", temp=298.0, highest_level=False, flexible=0
     )
 
     assert isinstance(out, float)

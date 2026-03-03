@@ -22,6 +22,7 @@ def shared_data_base():
         "reduced_universe": reduced_universe,
         "force_covariances": {"ua": {}, "res": [], "poly": []},
         "torque_covariances": {"ua": {}, "res": [], "poly": []},
+        "flexible_dihedrals": {"ua": 0, "res": [0]},
         "n_frames": 5,
         "reporter": MagicMock(),
     }
@@ -42,6 +43,7 @@ def shared_groups():
         "reduced_universe": ru,
         "force_covariances": {"ua": {}, "res": [], "poly": []},
         "torque_covariances": {"ua": {}, "res": [], "poly": []},
+        "flexible_dihedrals": {"ua": [], "res": []},
         "n_frames": 5,
         "reporter": MagicMock(),
     }
@@ -131,6 +133,7 @@ def test_run_raises_on_unknown_level(shared_data, monkeypatch):
 
     shared_data["force_covariances"] = {"ua": {}, "res": [], "poly": []}
     shared_data["torque_covariances"] = {"ua": {}, "res": [], "poly": []}
+    shared_data["flexible_dihedrals"] = {"ua": [], "res": []}
 
     with pytest.raises(ValueError):
         node.run(shared_data)
@@ -143,6 +146,7 @@ def test_run_united_atom_branch_stores_results(shared_data, monkeypatch):
     shared_data["groups"] = {0: [0]}
     shared_data["force_covariances"] = {"ua": {}, "res": [], "poly": []}
     shared_data["torque_covariances"] = {"ua": {}, "res": [], "poly": []}
+    shared_data["flexible_dihedrals"] = {"ua": [], "res": []}
 
     fake_pair = MagicMock(trans=1.0, rot=2.0)
     monkeypatch.setattr(
@@ -164,6 +168,7 @@ def test_unknown_level_raises(shared_data):
     shared_data["groups"] = {0: [0]}
     shared_data["force_covariances"] = {"ua": {}, "res": [], "poly": []}
     shared_data["torque_covariances"] = {"ua": {}, "res": [], "poly": []}
+    shared_data["flexible_dihedrals"] = {"ua": [], "res": []}
 
     with pytest.raises(ValueError):
         node.run(shared_data)
@@ -177,6 +182,7 @@ def test_polymer_branch_executes(shared_data, monkeypatch):
 
     shared_data["force_covariances"] = {"ua": {}, "res": [], "poly": [MagicMock()]}
     shared_data["torque_covariances"] = {"ua": {}, "res": [], "poly": [MagicMock()]}
+    shared_data["flexible_dihedrals"] = {"ua": [], "res": []}
 
     shared_data["reduced_universe"].atoms.fragments = [MagicMock(residues=[])]
 
@@ -205,6 +211,7 @@ def test_run_skips_empty_mol_ids_group():
         "reduced_universe": MagicMock(atoms=MagicMock(fragments=[])),
         "force_covariances": {"ua": {}, "res": [], "poly": []},
         "torque_covariances": {"ua": {}, "res": [], "poly": []},
+        "flexible_dihedrals": {"ua": [], "res": []},
         "n_frames": 5,
         "reporter": None,
     }
@@ -235,6 +242,7 @@ def test_compute_united_atom_entropy_logs_residue_data_when_reporter_present():
         residues=residues,
         force_ua={},
         torque_ua={},
+        flexible_ua={(7, 0): 0, (7, 1): 0},
         ua_frame_counts={(7, 0): 3, (7, 1): 4},
         reporter=reporter,
         n_frames_default=10,
@@ -255,6 +263,7 @@ def test_compute_force_torque_entropy_success_calls_vibrational_engine():
         temp=298.0,
         fmat=np.eye(3),
         tmat=np.eye(3),
+        flexible=0,
         highest=False,
     )
 
@@ -267,7 +276,7 @@ def test_compute_ft_entropy_success_calls_vibrational_engine_for_trans_and_rot()
     ve = MagicMock()
     ve.vibrational_entropy_calculation.side_effect = [1.5, 2.5]
 
-    out = node._compute_ft_entropy(ve=ve, temp=298.0, ftmat=np.eye(6))
+    out = node._compute_ft_entropy(ve=ve, temp=298.0, ftmat=np.eye(6), flexible=0)
 
     assert out == EntropyPair(trans=1.5, rot=2.5)
     assert ve.vibrational_entropy_calculation.call_count == 2
@@ -312,7 +321,7 @@ def test_compute_force_torque_entropy_returns_zero_when_missing_matrix(shared_gr
     node = VibrationalEntropyNode()
     ve = MagicMock()
     pair = node._compute_force_torque_entropy(
-        ve=ve, temp=298.0, fmat=None, tmat=np.eye(3), highest=True
+        ve=ve, temp=298.0, fmat=None, tmat=np.eye(3), flexible=0, highest=True
     )
     assert pair == EntropyPair(trans=0.0, rot=0.0)
 
@@ -326,7 +335,7 @@ def test_compute_force_torque_entropy_returns_zero_when_filter_removes_all(monke
     )
 
     pair = node._compute_force_torque_entropy(
-        ve=ve, temp=298.0, fmat=np.eye(3), tmat=np.eye(3), highest=True
+        ve=ve, temp=298.0, fmat=np.eye(3), tmat=np.eye(3), flexible=0, highest=True
     )
     assert pair == EntropyPair(trans=0.0, rot=0.0)
 
@@ -334,9 +343,9 @@ def test_compute_force_torque_entropy_returns_zero_when_filter_removes_all(monke
 def test_compute_ft_entropy_returns_zero_when_none():
     node = VibrationalEntropyNode()
     ve = MagicMock()
-    assert node._compute_ft_entropy(ve=ve, temp=298.0, ftmat=None) == EntropyPair(
-        trans=0.0, rot=0.0
-    )
+    assert node._compute_ft_entropy(
+        ve=ve, temp=298.0, ftmat=None, flexible=0
+    ) == EntropyPair(trans=0.0, rot=0.0)
 
 
 def test_log_molecule_level_results_ft_labels_branch():
@@ -376,7 +385,7 @@ def test_compute_ft_entropy_returns_zeros_when_filtered_ft_matrix_is_empty(monke
         lambda _arr, atol: np.empty((0, 0), dtype=float),
     )
 
-    out = node._compute_ft_entropy(ve=ve, temp=298.0, ftmat=np.eye(6))
+    out = node._compute_ft_entropy(ve=ve, temp=298.0, ftmat=np.eye(6), flexible=0)
 
     assert out == EntropyPair(trans=0.0, rot=0.0)
     ve.vibrational_entropy_calculation.assert_not_called()

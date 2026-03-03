@@ -82,7 +82,7 @@ class ConformationStateBuilder:
         states_ua: Dict[UAKey, List[str]] = {}
         states_res: List[List[str]] = [None] * number_groups
         flexible_ua: Dict[UAKey, int] = {}
-        flexible_res: List[int] = [None] * number_groups
+        flexible_res: List[int] = [0] * number_groups
 
         task = None
         if progress is not None:
