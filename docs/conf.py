@@ -75,8 +75,8 @@ pygments_style = "default"
 # -- Options for HTML output -------------------------------------------------
 html_theme = "furo"
 html_theme_options = {
-    "light_logo": "logos/biosim-codeentropy_logo_light.png",
-    "dark_logo": "logos/biosim-codeentropy_logo_dark.png",
+    "dark_logo": "logos/biosim-codeentropy_logo_light.png",
+    "light_logo": "logos/biosim-codeentropy_logo_dark.png",
 }
 
 html_static_path = ["_static"]
