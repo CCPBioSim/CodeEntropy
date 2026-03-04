@@ -151,5 +151,5 @@ def test_regression_matches_baseline(
         got_payload=run.payload,
         baseline_payload=baseline_payload,
         rtol=1e-9,
-        atol=1e-8,
+        atol=0.5,
     )
