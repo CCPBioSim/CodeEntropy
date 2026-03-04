@@ -11,7 +11,7 @@ def test_export_console_writes_recorded_output(config):
     out_path = os.path.join(config.log_dir, "out.txt")
     assert os.path.exists(out_path)
 
-    with open(out_path, "r", encoding="utf-8") as f:
+    with open(out_path, encoding="utf-8") as f:
         assert f.read() == "HELLO"
 
     config.console.export_text.assert_called_once()

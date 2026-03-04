@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -55,7 +54,7 @@ class LoggingConfig:
         handlers: Mapping of handler name to handler instance.
     """
 
-    _console: Optional[Console] = None
+    _console: Console | None = None
 
     @classmethod
     def get_console(cls) -> Console:
@@ -80,7 +79,7 @@ class LoggingConfig:
 
         self.level = level
         self.console = self.get_console()
-        self.handlers: Dict[str, logging.Handler] = {}
+        self.handlers: dict[str, logging.Handler] = {}
 
         self._setup_handlers()
 

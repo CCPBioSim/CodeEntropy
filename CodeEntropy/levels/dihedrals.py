@@ -6,14 +6,13 @@ conformational entropy.
 """
 
 import logging
-from typing import Dict, List, Tuple
 
 import numpy as np
 from MDAnalysis.analysis.dihedrals import Dihedral
 
 logger = logging.getLogger(__name__)
 
-UAKey = Tuple[int, int]
+UAKey = tuple[int, int]
 
 
 class ConformationStateBuilder:
@@ -79,8 +78,8 @@ class ConformationStateBuilder:
               helpers as implemented in this module.
         """
         number_groups = len(groups)
-        states_ua: Dict[UAKey, List[str]] = {}
-        states_res: List[List[str]] = [None] * number_groups
+        states_ua: dict[UAKey, list[str]] = {}
+        states_res: list[list[str]] = [None] * number_groups
 
         task = None
         if progress is not None:
@@ -163,8 +162,8 @@ class ConformationStateBuilder:
                 dihedrals_res: List of residue-level dihedral AtomGroups.
         """
         num_residues = len(mol.residues)
-        dihedrals_ua: List[List] = [[] for _ in range(num_residues)]
-        dihedrals_res: List = []
+        dihedrals_ua: list[list] = [[] for _ in range(num_residues)]
+        dihedrals_res: list = []
 
         for level in level_list:
             if level == "united_atom":
@@ -230,7 +229,7 @@ class ConformationStateBuilder:
                     )
                     atom_groups.append(atom1 + atom2 + atom3 + atom4)
 
-        logger.debug("Level: %s, Dihedrals: %s", level, atom_groups)
+        logger.debug(f"Level: {level}, Dihedrals: {atom_groups}")
         return atom_groups
 
     def _collect_peaks_for_group(
@@ -345,13 +344,25 @@ class ConformationStateBuilder:
             peaks = self._find_histogram_peaks(popul=popul, bin_value=bin_value)
             peak_values.append(peaks)
 
-            logger.debug("Dihedral: %s, Peak Values: %s", dihedral_index, peak_values)
+            logger.debug(f"Dihedral: {dihedral_index}, Peak Values: {peak_values}")
 
         return peak_values
 
     @staticmethod
     def _find_histogram_peaks(popul, bin_value):
-        """Return convex turning-point peaks from a histogram."""
+        """Return convex turning-point peaks from a histogram.
+
+        The selection of the population of the right adjacent bin takes into
+        account that the dihedral angles are circular.
+
+        Args:
+           popul: the array of counts for each bin
+           bin_value: the array of dihedral angle value at the center of each
+              bin.
+
+        Returns:
+           peaks: list of values associated with peaks.
+        """
         number_bins = len(popul)
         peaks = []
 
@@ -359,18 +370,11 @@ class ConformationStateBuilder:
             if popul[bin_index] == 0:
                 continue
 
-            if bin_index == number_bins - 1:
-                if (
-                    popul[bin_index] >= popul[bin_index - 1]
-                    and popul[bin_index] > popul[0]
-                ):
-                    peaks.append(bin_value[bin_index])
-            else:
-                if (
-                    popul[bin_index] >= popul[bin_index - 1]
-                    and popul[bin_index] > popul[bin_index + 1]
-                ):
-                    peaks.append(bin_value[bin_index])
+            left = popul[bin_index - 1]
+            right = popul[0] if bin_index == number_bins - 1 else popul[bin_index + 1]
+
+            if popul[bin_index] >= left and popul[bin_index] > right:
+                peaks.append(bin_value[bin_index])
 
         return peaks
 
@@ -488,5 +492,5 @@ class ConformationStateBuilder:
             else:
                 states.extend(mol_states)
 
-        logger.debug("States: %s", states)
+        logger.debug(f"States: {states}")
         return states

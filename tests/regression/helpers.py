@@ -7,7 +7,7 @@ import tarfile
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
@@ -30,7 +30,7 @@ class RunResult:
     workdir: Path
     job_dir: Path
     output_json: Path
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     stdout: str
     stderr: str
 
@@ -217,7 +217,7 @@ def _pick_output_json(job_dir: Path) -> Path:
     return jsons[0]
 
 
-def _resolve_path(value: Any, *, base_dir: Path) -> Optional[str]:
+def _resolve_path(value: Any, *, base_dir: Path) -> str | None:
     """Resolve a path-like config value to an absolute path string.
 
     Paths beginning with '.testdata/' are resolved relative to the repository root.
@@ -271,8 +271,8 @@ def _resolve_path_list(value: Any, *, base_dir: Path) -> list[str]:
 
 
 def _abspathify_config_paths(
-    config: Dict[str, Any], *, base_dir: Path
-) -> Dict[str, Any]:
+    config: dict[str, Any], *, base_dir: Path
+) -> dict[str, Any]:
     """Convert configured input paths into absolute paths.
 
     Args:
@@ -285,7 +285,7 @@ def _abspathify_config_paths(
     path_keys = {"force_file"}
     list_path_keys = {"top_traj_file"}
 
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for run_name, run_cfg in config.items():
         if not isinstance(run_cfg, dict):
             out[run_name] = run_cfg
@@ -303,7 +303,7 @@ def _abspathify_config_paths(
     return out
 
 
-def _assert_inputs_exist(cooked: Dict[str, Any]) -> None:
+def _assert_inputs_exist(cooked: dict[str, Any]) -> None:
     """Assert that required input files referenced in cooked config exist."""
     run1 = cooked.get("run1")
     if not isinstance(run1, dict):
@@ -369,8 +369,7 @@ def run_codeentropy_with_config(*, workdir: Path, config_src: Path) -> RunResult
     proc = subprocess.run(
         ["python", "-m", "CodeEntropy"],
         cwd=str(workdir),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
         env={**os.environ},
     )

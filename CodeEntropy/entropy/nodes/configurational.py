@@ -3,16 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
 )
 
 import numpy as np
@@ -23,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 GroupId = int
 ResidueId = int
-StateKey = Tuple[GroupId, ResidueId]
-StateSequence = Union[Sequence[Any], np.ndarray]
+StateKey = tuple[GroupId, ResidueId]
+StateSequence = Sequence[Any] | np.ndarray
 
 
 class ConfigurationalEntropyNode:
@@ -36,7 +29,7 @@ class ConfigurationalEntropyNode:
     Results are written back into ``shared_data["configurational_entropy"]``.
     """
 
-    def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> Dict[str, Any]:
+    def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> dict[str, Any]:
         """Execute configurational entropy calculation.
 
         Args:
@@ -58,7 +51,7 @@ class ConfigurationalEntropyNode:
         ce = self._build_entropy_engine()
 
         fragments = universe.atoms.fragments
-        results: Dict[int, Dict[str, float]] = {}
+        results: dict[int, dict[str, float]] = {}
 
         for group_id, mol_ids in groups.items():
             results[group_id] = {"ua": 0.0, "res": 0.0, "poly": 0.0}
@@ -104,9 +97,9 @@ class ConfigurationalEntropyNode:
 
     def _get_state_containers(
         self, shared_data: Mapping[str, Any]
-    ) -> Tuple[
-        Dict[StateKey, StateSequence],
-        Union[Dict[GroupId, StateSequence], Sequence[Optional[StateSequence]]],
+    ) -> tuple[
+        dict[StateKey, StateSequence],
+        dict[GroupId, StateSequence] | Sequence[StateSequence | None],
     ]:
         """Retrieve conformational state containers.
 
@@ -144,7 +137,7 @@ class ConfigurationalEntropyNode:
         residues: Iterable[Any],
         states_ua: Mapping[StateKey, StateSequence],
         n_frames: int,
-        reporter: Optional[Any],
+        reporter: Any | None,
     ) -> float:
         """Compute united atom entropy for a group.
 
@@ -186,7 +179,7 @@ class ConfigurationalEntropyNode:
         *,
         ce: ConformationalEntropy,
         group_id: int,
-        states_res: Union[Dict[int, StateSequence], Sequence[Optional[StateSequence]]],
+        states_res: dict[int, StateSequence] | Sequence[StateSequence | None],
         n_frames: int,
     ) -> float:
         """Compute residue-level entropy for a group."""
@@ -196,7 +189,7 @@ class ConfigurationalEntropyNode:
     def _entropy_or_zero(
         self,
         ce: ConformationalEntropy,
-        states: Optional[StateSequence],
+        states: StateSequence | None,
         n_frames: int,
     ) -> float:
         """Return entropy value or zero if no state data exists."""
@@ -206,9 +199,9 @@ class ConfigurationalEntropyNode:
 
     @staticmethod
     def _get_group_states(
-        states_res: Union[Dict[int, StateSequence], Sequence[Optional[StateSequence]]],
+        states_res: dict[int, StateSequence] | Sequence[StateSequence | None],
         group_id: int,
-    ) -> Optional[StateSequence]:
+    ) -> StateSequence | None:
         """Fetch group states from container."""
         if isinstance(states_res, dict):
             return states_res.get(group_id)
@@ -217,7 +210,7 @@ class ConfigurationalEntropyNode:
         return None
 
     @staticmethod
-    def _has_state_data(states: Optional[StateSequence]) -> bool:
+    def _has_state_data(states: StateSequence | None) -> bool:
         """Check if state container has usable data."""
         if states is None:
             return False

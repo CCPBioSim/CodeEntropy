@@ -8,8 +8,9 @@ per-frame second-moment matrices used downstream in entropy calculations.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -39,8 +40,8 @@ class TorqueInputs:
     center: Vector3
     force_partitioning: float
     moment_of_inertia: Vector3
-    axes_manager: Optional[Any] = None
-    box: Optional[np.ndarray] = None
+    axes_manager: Any | None = None
+    box: np.ndarray | None = None
 
 
 class ForceTorqueCalculator:
@@ -90,8 +91,8 @@ class ForceTorqueCalculator:
         center: Vector3,
         force_partitioning: float,
         moment_of_inertia: Vector3,
-        axes_manager: Optional[Any],
-        box: Optional[np.ndarray],
+        axes_manager: Any | None,
+        box: np.ndarray | None,
     ) -> Vector3:
         """Compute a moment-weighted generalized torque.
 
@@ -124,7 +125,7 @@ class ForceTorqueCalculator:
         self,
         force_vecs: Sequence[Vector3],
         torque_vecs: Sequence[Vector3],
-    ) -> Tuple[Matrix, Matrix]:
+    ) -> tuple[Matrix, Matrix]:
         """Compute per-frame second-moment matrices for force/torque vectors.
 
         Note:
@@ -240,7 +241,7 @@ class ForceTorqueCalculator:
         self,
         force_vectors: Sequence[Vector3],
         torque_vectors: Sequence[Vector3],
-    ) -> Tuple[Matrix, Matrix]:
+    ) -> tuple[Matrix, Matrix]:
         """Build outer-product second-moment matrices for a single frame.
 
         Args:
@@ -260,8 +261,8 @@ class ForceTorqueCalculator:
         *,
         center: Vector3,
         positions: np.ndarray,
-        axes_manager: Optional[Any],
-        box: Optional[np.ndarray],
+        axes_manager: Any | None,
+        box: np.ndarray | None,
     ) -> np.ndarray:
         """Compute displacement vectors from center to positions.
 

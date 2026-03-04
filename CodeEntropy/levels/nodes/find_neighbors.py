@@ -8,12 +8,12 @@ in `shared_data` for later use by configurational entropy calculations.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from CodeEntropy.levels.neighbors import Neighbors
 
-SharedData = Dict[str, Any]
-ConformationalStates = Dict[str, Any]
+SharedData = dict[str, Any]
+ConformationalStates = dict[str, Any]
 
 
 @dataclass(frozen=True)

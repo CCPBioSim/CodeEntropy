@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import MutableMapping, Sequence
 from typing import (
     Any,
-    Dict,
-    MutableMapping,
-    Sequence,
-    Tuple,
-    Union,
 )
 
 import numpy as np
@@ -20,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 GroupId = int
 ResidueId = int
-StateKey = Tuple[GroupId, ResidueId]
-StateSequence = Union[Sequence[Any], np.ndarray]
+StateKey = tuple[GroupId, ResidueId]
+StateSequence = Sequence[Any] | np.ndarray
 
 
 class OrientationalEntropyNode:
@@ -33,7 +29,7 @@ class OrientationalEntropyNode:
     Results are written back into ``shared_data["orientational_entropy"]``.
     """
 
-    def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> Dict[str, Any]:
+    def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> dict[str, Any]:
         """Execute orientational entropy calculation.
 
         Args:
@@ -54,7 +50,7 @@ class OrientationalEntropyNode:
 
         oe = self._build_entropy_engine()
 
-        results: Dict[int, float] = {}
+        results: dict[int, float] = {}
 
         for group_id, mol_ids in groups.items():
             rep_mol_id = mol_ids[0]
@@ -64,7 +60,7 @@ class OrientationalEntropyNode:
             symmetry = symmetry_number[group_id]
             line = linear[group_id]
 
-            result_value = oe.calculate_orientational(
+            result_value = oe.calculate(
                 neighbor,
                 symmetry,
                 line,

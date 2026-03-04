@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import networkx as nx
 
@@ -30,10 +30,10 @@ class FrameContext:
         data: Additional frame-local scratch space for nodes, if needed.
     """
 
-    shared: Dict[str, Any]
+    shared: dict[str, Any]
     frame_index: int
     frame_covariance: Any = None
-    data: Dict[str, Any] = None
+    data: dict[str, Any] = None
 
 
 class FrameGraph:
@@ -46,7 +46,7 @@ class FrameGraph:
       - "frame_covariance"
     """
 
-    def __init__(self, universe_operations: Optional[Any] = None) -> None:
+    def __init__(self, universe_operations: Any | None = None) -> None:
         """Initialise a FrameGraph.
 
         Args:
@@ -55,9 +55,9 @@ class FrameGraph:
         """
         self._universe_operations = universe_operations
         self._graph = nx.DiGraph()
-        self._nodes: Dict[str, Any] = {}
+        self._nodes: dict[str, Any] = {}
 
-    def build(self) -> "FrameGraph":
+    def build(self) -> FrameGraph:
         """Build the default frame DAG topology.
 
         Returns:
@@ -66,7 +66,7 @@ class FrameGraph:
         self._add("frame_covariance", FrameCovarianceNode())
         return self
 
-    def execute_frame(self, shared_data: Dict[str, Any], frame_index: int) -> Any:
+    def execute_frame(self, shared_data: dict[str, Any], frame_index: int) -> Any:
         """Execute the frame DAG for a single trajectory frame.
 
         Args:
@@ -79,12 +79,12 @@ class FrameGraph:
         ctx = self._make_frame_ctx(shared_data=shared_data, frame_index=frame_index)
 
         for node_name in nx.topological_sort(self._graph):
-            logger.debug("[FrameGraph] running %s @ frame=%s", node_name, frame_index)
+            logger.debug(f"[FrameGraph] running {node_name} @ frame={frame_index}")
             self._nodes[node_name].run(ctx)
 
         return ctx["frame_covariance"]
 
-    def _add(self, name: str, node: Any, deps: Optional[list[str]] = None) -> None:
+    def _add(self, name: str, node: Any, deps: list[str] | None = None) -> None:
         """Register a node and its dependencies in the DAG."""
         self._nodes[name] = node
         self._graph.add_node(name)
@@ -93,8 +93,8 @@ class FrameGraph:
 
     @staticmethod
     def _make_frame_ctx(
-        shared_data: Dict[str, Any], frame_index: int
-    ) -> Dict[str, Any]:
+        shared_data: dict[str, Any], frame_index: int
+    ) -> dict[str, Any]:
         """Create a frame context dictionary for node execution.
 
         Notes:

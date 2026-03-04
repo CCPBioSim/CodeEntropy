@@ -52,7 +52,7 @@ class OrientationalEntropy:
         """
         self._gas_constant = float(gas_constant)
 
-    def calculate_orientational(
+    def calculate(
         self,
         neighbour_count: float,
         symmetry_number: int,
@@ -87,11 +87,10 @@ class OrientationalEntropy:
         omega = self._omega(neighbour_count, symmetry_number, linear)
 
         total = self._gas_constant * math.log(omega)
-        logger.debug("Orientational entropy total: %s", total)
+        logger.debug(f"Orientational entropy total: {total}")
 
         return total
 
-    @staticmethod
     def _omega(neighbour_count: int, symmetry: int, linear: bool) -> float:
         """Compute the number of orientations Ω.
 

@@ -7,11 +7,10 @@ These are used downstream to compute the orientational entropy.
 
 import logging
 
-import MDAnalysis as mda
 import numpy as np
 from rdkit import Chem
 
-from CodeEntropy.levels import search
+from CodeEntropy.levels.search import Search
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +23,8 @@ class Neighbors:
 
     def __init__(self):
         """
-        Initializes the LevelManager with placeholders for level-related data,
-        including translational and rotational axes, number of beads, and a
-        general-purpose data container.
+        Initializes the Neighbors class with placeholders for data,
+        including the system trajectory, groups, and levels.
         """
 
         self._universe = None
@@ -36,6 +34,10 @@ class Neighbors:
     def get_neighbors(self, universe, levels, groups, search_type):
         """
         Find the neighbors relative to the central molecule.
+
+        The search defaults to using RAD, but an MDAnalysis method based
+        on grid searches is also available.
+        The average number of neighbours is calculated.
 
         Args:
             universe: MDAnalysis universe object for the system
@@ -52,7 +54,6 @@ class Neighbors:
         average_number_neighbors = {}
 
         number_frames = len(universe.trajectory)
-        search_object = mda.lib.NeighborSearch.AtomNeighborSearch(universe.atoms)
 
         for group_id in groups.keys():
             molecules = groups[group_id]
@@ -66,12 +67,12 @@ class Neighbors:
 
                     if search_type == "RAD":
                         # Use the relative angular distance method to find neighbors
-                        neighbors = search.get_RAD_neighbors(universe, mol_id)
+                        neighbors = Search.get_RAD_neighbors(universe, mol_id)
 
                     elif search_type == "grid":
                         # Use MDAnalysis neighbor search.
-                        neighbors = search.get_grid_neighbors(
-                            universe, search_object, mol_id, highest_level
+                        neighbors = Search.get_grid_neighbors(
+                            universe, mol_id, highest_level
                         )
                     else:
                         # Raise error for unavailale search_type
@@ -89,8 +90,7 @@ class Neighbors:
                 len(molecules) * number_frames
             )
             logger.debug(
-                f"group {group_id}:"
-                f"number neighbors {average_number_neighbors[group_id]}"
+                "group: {group_id}number neighbors {average_number_neighbors[group_id]}"
             )
 
         return average_number_neighbors
@@ -98,6 +98,10 @@ class Neighbors:
     def get_symmetry(self, universe, groups):
         """
         Calculate symmetry number for the molecule.
+
+        This function converts the MDAnalysis instance of a molecule into
+        an RDKit object and then calculates the symmetry number and
+        determines if the molecule is linear.
 
         Args:
             universe: MDAnalysis object
@@ -113,26 +117,35 @@ class Neighbors:
         for group_id in groups.keys():
             molecules = groups[group_id]
 
-            # Get rdkit object
             rdkit_mol, number_heavy, number_hydrogen = self._get_rdkit_mol(
                 universe, molecules[0]
             )
 
-            # Get symmetry number
             symmetry_number[group_id] = self._get_symmetry(
                 rdkit_mol, number_heavy, number_hydrogen
             )
 
-            # Is the molecule linear?
             linear[group_id] = self._get_linear(rdkit_mol, number_heavy)
 
-        logger.debug(f"group: {group_id}, symmetry: {symmetry_number} linear: {linear}")
+        logger.debug(
+            f"group: {group_id}, symmetry: {symmetry_number}, linear: {linear}"
+        )
 
         return symmetry_number, linear
 
     def _get_rdkit_mol(self, universe, mol_id):
         """
         Convert molecule to rdkit object.
+
+        MDAnalysis convert_to(RDKIT) needs elements.
+        We are removing dummy atoms and converting to rkdit format.
+        If there are dummy atoms you need inferrer=None otherwise you
+        get errors from it getting the valence wrong.
+        If possible it is better to use the inferrer to get the bonds
+        and hybridization correct.
+        The convert_to argument force=True forces it to continue even when
+        it cannot find hydrogens, this is needed to avoid errors for molecules
+        like carbon dioxide which do not have hydrogens.
 
         Args:
             universe: MDAnalysis object
@@ -144,18 +157,11 @@ class Neighbors:
             number_hydrogen
         """
 
-        # MDAnalysis convert_to(RDKIT) needs elements
         if not hasattr(universe.atoms, "elements"):
             universe.guess_TopologyAttrs(to_guess=["elements"])
 
-        # pick molecule
         molecule = universe.atoms.fragments[mol_id]
 
-        # Remove dummy atoms and convert to rkdit format.
-        # If there are dummy atoms you need inferrer=None otherwise you
-        # get errors from it getting the valence wrong.
-        # If possible it is better to use the inferrer to get the bonds
-        # and hybridization correct.
         dummy = molecule.select_atoms("prop mass < 0.1")
         if len(dummy) > 0:
             frag = molecule.select_atoms("prop mass > 0.1")
@@ -173,6 +179,15 @@ class Neighbors:
         """
         Calculate symmetry number for the molecule.
 
+        For larger molecules, removing the hydrogens reduces the over counting
+        of symmetry states. When there is only one heavy atom the hydrogens
+        are important to the symmetry. If there is a single heavy atom with
+        no hydrogens then the molecule is spherically symmetric.
+
+        Using the RDKit GetSubstructMatches function often works well as
+        a guess for the symmetry number, but it occasionally returns a
+        symmetry number 2x the expected value (for example, cyclohexane).
+
         Args:
             rdkit_mol: rdkit object for molecule of interest
             number_heavy (int): number of heavy atoms
@@ -182,23 +197,18 @@ class Neighbors:
             symmetry_number (int): symmetry number of molecule
         """
 
-        # Find symmetry
         if number_heavy > 1:
-            # if multiple heavy atoms remove hydrogens to prevent finding
-            # too many permutations of atoms
             rdkit_heavy = Chem.RemoveHs(rdkit_mol)
             matches = rdkit_mol.GetSubstructMatches(
                 rdkit_heavy, uniquify=False, useChirality=True
             )
             symmetry_number = len(matches)
         elif number_hydrogen > 0:
-            # if only one heavy atom use the hydrogens
             matches = rdkit_mol.GetSubstructMatches(
                 rdkit_mol, uniquify=False, useChirality=True
             )
             symmetry_number = len(matches)
         else:
-            # one heavy atom and no hydrogens = spherical symmetry
             symmetry_number = 0
 
         return symmetry_number
@@ -207,6 +217,10 @@ class Neighbors:
         """
         Determine if the molecule is linear.
 
+        We are not considering the hydrogens, just the united atom beads.
+        So, molecules like methanol are treated as linear since they have only
+        two united atoms.
+
         Args:
             rkdit_mol: rdkit object for molecule of interest
             number_heavy (int): number of heavy atoms
@@ -214,7 +228,6 @@ class Neighbors:
         Returns:
             linear (bool): True if molecule linear
         """
-        # Don't consider hydrogens
         rdkit_heavy = Chem.RemoveHs(rdkit_mol)
 
         linear = False

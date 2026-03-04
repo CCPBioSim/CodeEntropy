@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 import networkx as nx
 
@@ -27,7 +27,7 @@ from CodeEntropy.entropy.nodes.vibrational import VibrationalEntropyNode
 logger = logging.getLogger(__name__)
 
 
-SharedData = Dict[str, Any]
+SharedData = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -58,9 +58,9 @@ class EntropyGraph:
     def __init__(self) -> None:
         """Initialize an empty entropy graph."""
         self._graph: nx.DiGraph = nx.DiGraph()
-        self._nodes: Dict[str, Any] = {}
+        self._nodes: dict[str, Any] = {}
 
-    def build(self) -> "EntropyGraph":
+    def build(self) -> EntropyGraph:
         """Populate the graph with the standard entropy workflow.
 
         Returns:
@@ -88,7 +88,7 @@ class EntropyGraph:
 
     def execute(
         self, shared_data: SharedData, *, progress: object | None = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute the entropy graph in topological order.
 
         Nodes are executed in dependency order (topological sort). Each node reads
@@ -111,7 +111,7 @@ class EntropyGraph:
         Raises:
             KeyError: If a node name is missing from the internal node registry.
         """
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
 
         for node_name in nx.topological_sort(self._graph):
             node = self._nodes[node_name]

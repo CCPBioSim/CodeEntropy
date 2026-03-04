@@ -33,6 +33,7 @@ requirements:
     - matplotlib >=3.10,<3.11
     - waterentropy >=2,<2.1
     - requests >=2.32,<3.0
+    - rdkit>=2025.9.5
 
 test:
   imports:

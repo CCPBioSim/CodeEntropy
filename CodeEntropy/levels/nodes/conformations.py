@@ -9,12 +9,12 @@ calculations.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from CodeEntropy.levels.dihedrals import ConformationStateBuilder
 
-SharedData = Dict[str, Any]
-ConformationalStates = Dict[str, Any]
+SharedData = dict[str, Any]
+ConformationalStates = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ class ComputeConformationalStatesNode:
 
     def run(
         self, shared_data: SharedData, *, progress: object | None = None
-    ) -> Dict[str, ConformationalStates]:
+    ) -> dict[str, ConformationalStates]:
         """Compute conformational states and store them in shared_data.
 
         Args:

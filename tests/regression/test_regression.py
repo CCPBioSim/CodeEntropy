@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pytest
@@ -10,7 +10,7 @@ import pytest
 from tests.regression.helpers import run_codeentropy_with_config
 
 
-def _group_index(payload: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Return the groups mapping from a regression payload.
 
     Args:
@@ -30,8 +30,8 @@ def _group_index(payload: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
 def _compare_grouped(
     *,
-    got_payload: Dict[str, Any],
-    baseline_payload: Dict[str, Any],
+    got_payload: dict[str, Any],
+    baseline_payload: dict[str, Any],
     rtol: float,
     atol: float,
 ) -> None:

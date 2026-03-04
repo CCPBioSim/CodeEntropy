@@ -6,12 +6,12 @@ hierarchical levels (united_atom, residue, polymer) apply to each molecule.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from CodeEntropy.levels.hierarchy import HierarchyBuilder
 
-SharedData = Dict[str, Any]
-Levels = List[List[str]]
+SharedData = dict[str, Any]
+Levels = list[list[str]]
 
 
 class DetectLevelsNode:
@@ -26,7 +26,7 @@ class DetectLevelsNode:
         """Initialize the node with a HierarchyBuilder helper."""
         self._hierarchy = HierarchyBuilder()
 
-    def run(self, shared_data: SharedData) -> Dict[str, Any]:
+    def run(self, shared_data: SharedData) -> dict[str, Any]:
         """Detect levels and store results in shared_data.
 
         Args:
@@ -53,7 +53,7 @@ class DetectLevelsNode:
             "number_molecules": number_molecules,
         }
 
-    def _detect_levels(self, universe: Any) -> Tuple[int, Levels]:
+    def _detect_levels(self, universe: Any) -> tuple[int, Levels]:
         """Delegate level detection to HierarchyBuilder.
 
         Args:
