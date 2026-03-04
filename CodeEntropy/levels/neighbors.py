@@ -1,6 +1,6 @@
 """Neighbours info for orientational entropy.
 
-This module finds the average number of neighbours, symmetry numbers, and
+This module finds the average number of neighbors, symmetry numbers, and
 and linearity for each group.
 These are used downstream to compute the orientational entropy.
 """
@@ -30,6 +30,7 @@ class Neighbors:
         self._universe = None
         self._groups = None
         self._levels = None
+        self._search = Search()
 
     def get_neighbors(self, universe, levels, groups, search_type):
         """
@@ -37,7 +38,7 @@ class Neighbors:
 
         The search defaults to using RAD, but an MDAnalysis method based
         on grid searches is also available.
-        The average number of neighbours is calculated.
+        The average number of neighbors is calculated.
 
         Args:
             universe: MDAnalysis universe object for the system
@@ -67,12 +68,16 @@ class Neighbors:
 
                     if search_type == "RAD":
                         # Use the relative angular distance method to find neighbors
-                        neighbors = Search.get_RAD_neighbors(universe, mol_id)
+                        neighbors = self._search.get_RAD_neighbors(
+                            universe=universe, mol_id=mol_id
+                        )
 
                     elif search_type == "grid":
                         # Use MDAnalysis neighbor search.
-                        neighbors = Search.get_grid_neighbors(
-                            universe, mol_id, highest_level
+                        neighbors = self._search.get_grid_neighbors(
+                            universe=universe,
+                            mol_id=mol_id,
+                            highest_level=highest_level,
                         )
                     else:
                         # Raise error for unavailale search_type

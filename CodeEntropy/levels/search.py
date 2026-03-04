@@ -1,6 +1,6 @@
-"""These functions find neighbours.
+"""These functions find neighbors.
 
-There are different functions for different types of neighbour searching.
+There are different functions for different types of neighbor searching.
 Currently RAD is the default with grid as an alternative.
 """
 
@@ -10,7 +10,7 @@ import numpy as np
 
 class Search:
     """
-    Class for functions to find neighbours.
+    Class for functions to find neighbors.
     """
 
     def __init__(self):
@@ -20,6 +20,7 @@ class Search:
         """
 
         self._universe = None
+        self._mol_id = None
 
     def get_RAD_neighbors(self, universe, mol_id):
         """
@@ -51,12 +52,12 @@ class Search:
 
         # Get indices of neighbors
         neighbor_indices = self._get_RAD_indices(
-            central_position, sorted_dist, universe
+            central_position, sorted_dist, universe, number_molecules
         )
 
         return neighbor_indices
 
-    def _get_RAD_indices(self, i_coords, sorted_distances, system):
+    def _get_RAD_indices(self, i_coords, sorted_distances, system, number_molecules):
         # pylint: disable=too-many-locals
         r"""
         For a given set of atom coordinates, find its RAD shell from the distance
@@ -64,16 +65,16 @@ class Search:
 
         This function calculates coordination shells using RAD the relative
         angular distance, as defined first in DOI:10.1063/1.4961439
-        where molecules are defined as neighbours if
+        where molecules are defined as neighbors if
         they fulfil the following condition:
 
         .. math::
             \Bigg(\frac{1}{r_{ij}}\Bigg)^2 >
             \Bigg(\frac{1}{r_{ik}}\Bigg)^2 \cos \theta_{jik}
 
-        For a given particle :math:`i`, neighbour :math:`j` is in its coordination
+        For a given particle :math:`i`, neighbor :math:`j` is in its coordination
         shell if :math:`k` is not blocking particle :math:`j`. In this implementation
-        of RAD, we enforce symmetry, whereby neighbouring particles must be in each
+        of RAD, we enforce symmetry, whereby neighboring particles must be in each
         others coordination shells.
 
         Args:
@@ -84,17 +85,18 @@ class Search:
         Returns:
             shell: list of indices of particles in the RAD shell of neighbors.
         """
-        # 1. truncate neighbour list to closest 30 united atoms
+        # 1. truncate neighbor list to closest 30 united atoms and iterate
+        # through neighbors from closest to furthest/
         shell = []
         count = -1
-        # 2. iterate through neighbours from closest to furthest
-        for y in range(30):
+        limit = min(number_molecules - 1, 30)
+        for y in range(limit):
             count += 1
             j_idx = sorted_distances[y][0]
             j_coords = system.atoms.fragments[j_idx].center_of_mass()
             r_ij = sorted_distances[y][1]
             blocked = False
-            # 3. iterate through neighbours other than atom j and check if they block
+            # 3. iterate through neighbors other than atom j and check if they block
             # it from molecule i
             for z in range(count):  # only closer units can block
                 k_idx = sorted_distances[z][0]

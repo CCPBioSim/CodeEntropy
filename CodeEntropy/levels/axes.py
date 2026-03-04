@@ -67,7 +67,7 @@ class AxesCalculator:
         The translational and rotational axes at the residue level.
 
         - Identify the residue (either provided or selected by `resindex index`).
-        - Determine whether the residue is bonded to neighbouring residues
+        - Determine whether the residue is bonded to neighboring residues
           (previous/next in sequence) using MDAnalysis bonded selections.
         - If there are *no* bonds to other residues:
             * Use a custom principal axes, from a moment-of-inertia (MOI) tensor

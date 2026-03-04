@@ -1,7 +1,7 @@
 """Orientational entropy calculations.
 
 This module defines `OrientationalEntropy`, which computes orientational entropy
-from a neighbour count and symmetry information.
+from a neighbor count and symmetry information.
 """
 
 from __future__ import annotations
@@ -54,11 +54,11 @@ class OrientationalEntropy:
 
     def calculate(
         self,
-        neighbour_count: float,
+        neighbor_count: float,
         symmetry_number: int,
         linear: bool,
     ) -> OrientationalEntropyResult:
-        """Calculate orientational entropy from neighbour counts.
+        """Calculate orientational entropy from neighbor counts.
 
         The number of orientations is estimated as:
             Ω = sqrt(N_av^3 * π)/symmetry_number for non-linear molecules
@@ -68,10 +68,10 @@ class OrientationalEntropy:
 
             S = R * ln(Ω)
 
-        where N_av is the average number of neighbours and R is the gas constant.
+        where N_av is the average number of neighbors and R is the gas constant.
 
         Args:
-            neighbours: average number of neighbours
+            neighbors: average number of neighbors
             symmetry_number: symmetry number of molecule of interest
             linear: True if molecule of interest is linear
 
@@ -79,23 +79,23 @@ class OrientationalEntropy:
             OrientationalEntropyResult containing the total entropy in J/mol/K.
 
         Raises:
-            ValueError if number of neighbours is negative.
+            ValueError if number of neighbors is negative.
         """
-        if neighbour_count < 0:
-            raise ValueError(f"neighbour_count must be >= 0, got {neighbour_count}")
+        if neighbor_count < 0:
+            raise ValueError(f"neighbor_count must be >= 0, got {neighbor_count}")
 
-        omega = self._omega(neighbour_count, symmetry_number, linear)
+        omega = self._omega(neighbor_count, symmetry_number, linear)
 
         total = self._gas_constant * math.log(omega)
         logger.debug(f"Orientational entropy total: {total}")
 
         return total
 
-    def _omega(neighbour_count: int, symmetry: int, linear: bool) -> float:
+    def _omega(self, neighbor_count: int, symmetry: int, linear: bool) -> float:
         """Compute the number of orientations Ω.
 
         Args:
-            neighbour_count: average number of neighbours.
+            neighbor_count: average number of neighbors.
             symmetry_number: The symmetry number of the molecule.
             linear: Is the molecule linear (True or False).
 
@@ -107,12 +107,11 @@ class OrientationalEntropy:
             omega = 1
         else:
             if linear:
-                omega = neighbour_count / symmetry
+                omega = neighbor_count / symmetry
             else:
-                omega = np.sqrt((neighbour_count**3) * math.pi) / symmetry
+                omega = np.sqrt((neighbor_count**3) * math.pi) / symmetry
 
         # avoid negative orientational entropy
-        if omega < 1:
-            omega = 1
+        omega = max(omega, 1)
 
         return omega

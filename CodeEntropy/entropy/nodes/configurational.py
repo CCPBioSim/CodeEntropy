@@ -156,7 +156,7 @@ class ConfigurationalEntropyNode:
 
         for res_id, res in enumerate(residues):
             states = states_ua.get((group_id, res_id))
-            val = self._entropy_or_zero(ce, states, n_frames)
+            val = self._entropy_or_zero(ce, states)
             total += val
 
             if reporter is not None:
@@ -184,18 +184,17 @@ class ConfigurationalEntropyNode:
     ) -> float:
         """Compute residue-level entropy for a group."""
         group_states = self._get_group_states(states_res, group_id)
-        return self._entropy_or_zero(ce, group_states, n_frames)
+        return self._entropy_or_zero(ce, group_states)
 
     def _entropy_or_zero(
         self,
         ce: ConformationalEntropy,
         states: StateSequence | None,
-        n_frames: int,
     ) -> float:
         """Return entropy value or zero if no state data exists."""
         if not self._has_state_data(states):
             return 0.0
-        return float(ce.conformational_entropy_calculation(states, n_frames))
+        return float(ce.conformational_entropy_calculation(states))
 
     @staticmethod
     def _get_group_states(
