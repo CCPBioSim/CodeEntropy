@@ -102,15 +102,15 @@ def test_execute_water_entropy_branch_calls_water_entropy_solver():
         patch("CodeEntropy.entropy.workflow.EntropyGraph") as GraphCls,
     ):
         water_instance = WaterCls.return_value
-        water_instance._calculate_water_entropy = MagicMock()
+        water_instance.calculate_and_log = MagicMock()
 
         LevelDAGCls.return_value.build.return_value.execute.return_value = None
         GraphCls.return_value.build.return_value.execute.return_value = {}
 
         wf.execute()
 
-    water_instance._calculate_water_entropy.assert_called_once()
-    _, kwargs = water_instance._calculate_water_entropy.call_args
+    water_instance.calculate_and_log.assert_called_once()
+    _, kwargs = water_instance.calculate_and_log.call_args
     assert kwargs["universe"] is universe
     assert kwargs["start"] == 0
     assert kwargs["end"] == 5
@@ -190,7 +190,7 @@ def test_split_water_groups_returns_empty_when_none():
         universe_operations=MagicMock(),
     )
 
-    groups, water = wf._split_water_groups({0: [1, 2]})
+    groups, water = wf._split_water_groups(wf._universe, {0: [1, 2]})
 
     assert water == {}
 
@@ -253,11 +253,17 @@ def test_compute_water_entropy_updates_selection_string_and_calls_internal_metho
 
     with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
         inst = WaterCls.return_value
-        inst._calculate_water_entropy = MagicMock()
+        inst.calculate_and_log = MagicMock()
 
         wf._compute_water_entropy(traj, water_groups)
 
-    inst._calculate_water_entropy.assert_called_once()
+    inst.calculate_and_log.assert_called_once_with(
+        universe=wf._universe,
+        start=traj.start,
+        end=traj.end,
+        step=traj.step,
+        group_id=9,
+    )
     assert wf._args.selection_string == "not water"
 
 
@@ -345,7 +351,7 @@ def test_split_water_groups_partitions_correctly():
     )
 
     groups = {0: [0], 1: [1]}
-    nonwater, water = wf._split_water_groups(groups)
+    nonwater, water = wf._split_water_groups(universe, groups)
 
     assert 0 in water
     assert 1 in nonwater
@@ -366,13 +372,19 @@ def test_compute_water_entropy_instantiates_waterentropy_and_updates_selection_s
 
     with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
         inst = WaterCls.return_value
-        inst._calculate_water_entropy = MagicMock()
+        inst.calculate_and_log = MagicMock()
 
         wf._compute_water_entropy(traj, water_groups)
 
-    WaterCls.assert_called_once_with(args)
-    inst._calculate_water_entropy.assert_called_once()
-    assert wf._args.selection_string == "not water"
+    WaterCls.assert_called_once_with(args, reporter)
+    inst.calculate_and_log.assert_called_once_with(
+        universe=universe,
+        start=traj.start,
+        end=traj.end,
+        step=traj.step,
+        group_id=9,
+    )
+    assert args.selection_string == "not water"
 
 
 def test_detect_levels_calls_hierarchy_builder():

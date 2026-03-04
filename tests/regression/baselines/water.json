@@ -1,0 +1,40 @@
+{
+  "args": {
+    "top_traj_file": [
+      "../../test_data/Liquids_simulation_data/GAFF/water/molecules.top",
+      "../../test_data/Liquids_simulation_data/GAFF/water/trajectory.crd"
+    ],
+    "force_file": "../../test_data/Liquids_simulation_data/GAFF/water/forces.frc",
+    "file_format": "MDCRD",
+    "kcal_force_units": false,
+    "selection_string": "all",
+    "start": 0,
+    "end": 1,
+    "step": 1,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/home/tdo96567/BioSim/temp/water/job008/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "molecules",
+    "combined_forcetorque": true,
+    "customised_axes": true
+  },
+  "provenance": {
+    "python": "3.14.0",
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.0.0",
+    "git_sha": "cba3d8ea4118e00b25ee5a58d7ba951e4894b5c0"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 79.20298312418278,
+        "united_atom:Rovibrational": 50.90260688502127,
+        "united_atom:Conformational": 0.0
+      },
+      "total": 130.10559000920404
+    }
+  }
+}
