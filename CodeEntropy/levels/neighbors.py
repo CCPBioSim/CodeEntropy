@@ -126,7 +126,7 @@ class Neighbors:
                 universe, molecules[0]
             )
 
-            symmetry_number[group_id] = self._get_symmetry(
+            symmetry_number[group_id] = self._get_symmetry_number(
                 rdkit_mol, number_heavy, number_hydrogen
             )
 
@@ -180,7 +180,7 @@ class Neighbors:
 
         return rdkit_mol, number_heavy, number_hydrogen
 
-    def _get_symmetry(self, rdkit_mol, number_heavy, number_hydrogen):
+    def _get_symmetry_number(self, rdkit_mol, number_heavy, number_hydrogen):
         """
         Calculate symmetry number for the molecule.
 

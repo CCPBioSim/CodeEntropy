@@ -53,6 +53,9 @@ class OrientationalEntropyNode:
         results: dict[int, float] = {}
 
         for group_id, mol_ids in groups.items():
+            results[group_id] = 0
+            if not mol_ids:
+                continue
             rep_mol_id = mol_ids[0]
             highest_level = levels[rep_mol_id][-1]
 

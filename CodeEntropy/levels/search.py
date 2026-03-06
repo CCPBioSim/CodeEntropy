@@ -173,17 +173,16 @@ class Search:
             dimensions: the dimensions of the simulation box
 
         Returns:
-            distance: the distance between the two points
+            distance: float, the distance between the two points
         """
+        # Difference in positions
+        delta = np.abs(j_position - i_position)
 
-        x = []
-        total = 0
-        for coord in range(3):
-            x.append(j_position[coord] - i_position[coord])
-            if x[coord] > 0.5 * dimensions[coord]:
-                x[coord] = x[coord] - dimensions[coord]
-            total += x[coord] ** 2
-        distance = np.sqrt(total)
+        # Account for periodic boundary conditions
+        delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
+
+        # Get distance value
+        distance = np.sqrt((delta**2).sum(axis=-1))
 
         return distance
 

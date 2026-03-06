@@ -1,4 +1,4 @@
-{% set name = "CodeEntropy" %}
+{% set name = "codeentropy" %}
 {% set version = "0.0.0" %}
 
 package:
@@ -10,7 +10,9 @@ source:
 
 build:
   noarch: python
-  script: python -m pip install . -vv --no-deps
+  script: |
+    python -m pip install . -vv --no-deps
+    PIP_NO_INDEX=0 python -m pip install -vv --index-url https://pypi.org/simple waterEntropy
   entry_points:
     - CodeEntropy=CodeEntropy.cli:main
 
@@ -20,20 +22,22 @@ requirements:
     - pip
     - flit-core >=3.4,<4
   run:
-    - python >=3.11
+    - python >=3.12
     - numpy >=2.3,<3.0
     - mdanalysis >=2.10,<3.0
     - pandas >=3.0,<3.1
     - psutil >=7.1,<8.0
     - pyyaml >=6.0,<7.0
-    - python-json-logger >=4.0,<5.0
+    - python-json-logger >=2.0,<3.0
     - rich >=14.2,<15.0
-    - art >=6.5,<7.0
+    - python-art >=6.5,<7.0
     - networkx >=3.6,<3.7
     - matplotlib >=3.10,<3.11
-    - waterentropy >=2,<2.1
     - requests >=2.32,<3.0
     - rdkit>=2025.9.5
+    - dask >=2026.1.2,<2026.2.0
+    - distributed >=2026.1.2,<2026.2.0
+    - dask-jobqueue >=0.9,<0.10
 
 test:
   imports:
