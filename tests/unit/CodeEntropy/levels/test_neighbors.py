@@ -188,18 +188,14 @@ def test_get_linear_true():
     class _FakeRDKit_Chem:
         """Class to mock rdkit functionality."""
 
+        @staticmethod
         def RemoveHs(mol):
-            rdkit_heavy = MagicMock()
             return rdkit_heavy
 
         class HybridizationType:
-            def SP():
-                return "SP"
+            SP = "SP"
 
-    def _get_atoms():
-        return [a1, a2, a3]
-
-    rdkit_heavy.GetAtoms = MagicMock(side_effect=_get_atoms)
+    rdkit_heavy.GetAtoms = MagicMock(return_value=[a1, a2, a3])
 
     a1.GetHybridization = MagicMock(return_value="SP3")
     a2.GetHybridization = MagicMock(return_value="SP")
@@ -208,7 +204,7 @@ def test_get_linear_true():
     with patch("CodeEntropy.levels.neighbors.Chem", _FakeRDKit_Chem):
         result = neighbors._get_linear(rdkit_mol, number_heavy)
 
-    assert result
+    assert result is True
 
 
 def test_get_linear_false():
@@ -223,13 +219,12 @@ def test_get_linear_false():
     class _FakeRDKit_Chem:
         """Class to mock rdkit functionality."""
 
+        @staticmethod
         def RemoveHs(mol):
-            rdkit_heavy = MagicMock()
             return rdkit_heavy
 
         class HybridizationType:
-            def SP():
-                return "SP"
+            SP = "SP"
 
     rdkit_heavy.GetAtoms = MagicMock(return_value=[a1, a2, a3])
     a1.GetHybridization = MagicMock(return_value="SP3")
@@ -239,4 +234,4 @@ def test_get_linear_false():
     with patch("CodeEntropy.levels.neighbors.Chem", _FakeRDKit_Chem):
         result = neighbors._get_linear(rdkit_mol, number_heavy)
 
-    assert not result
+    assert result is False
