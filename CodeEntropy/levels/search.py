@@ -186,7 +186,7 @@ class Search:
 
         return distance
 
-    def get_grid_neighbors(self, universe, search_object, mol_id, highest_level):
+    def get_grid_neighbors(self, universe, mol_id, highest_level):
         """
         Use MDAnalysis neighbor search to find neighbors.
 

@@ -132,9 +132,9 @@ class Neighbors:
 
             linear[group_id] = self._get_linear(rdkit_mol, number_heavy)
 
-        logger.debug(
-            f"group: {group_id}, symmetry: {symmetry_number}, linear: {linear}"
-        )
+            logger.debug(
+                f"group: {group_id}, symmetry: {symmetry_number}, linear: {linear}"
+            )
 
         return symmetry_number, linear
 
