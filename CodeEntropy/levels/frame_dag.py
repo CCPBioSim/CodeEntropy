@@ -33,7 +33,7 @@ class FrameContext:
     shared: dict[str, Any]
     frame_index: int
     frame_covariance: Any = None
-    data: dict[str, Any] = None
+    data: dict[str, Any] | None = None
 
 
 class FrameGraph:
