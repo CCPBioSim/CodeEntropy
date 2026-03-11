@@ -266,21 +266,25 @@ class ForceTorqueCalculator:
     ) -> np.ndarray:
         """Compute displacement vectors from center to positions.
 
-        This method delegates displacement computation to axes_manager.get_vector,
+        This method delegates displacement computation to ``axes_manager.get_vector``,
         which is expected to handle periodic boundary conditions if applicable.
 
         Args:
             center: Reference center position of shape (3,).
             positions: Array of positions of shape (N, 3).
-            axes_manager: Object providing get_vector(center, positions, box).
-            box: Periodic box passed through to axes_manager.get_vector.
+            axes_manager: Object providing ``get_vector(center, positions, box)``.
+            box: Periodic box passed through to ``axes_manager.get_vector``.
 
         Returns:
             Displacement vectors of shape (N, 3).
 
         Raises:
-            AttributeError: If axes_manager does not provide get_vector.
+            ValueError: If ``axes_manager`` is not provided.
+            AttributeError: If ``axes_manager`` does not provide ``get_vector``.
         """
+        if axes_manager is None:
+            raise ValueError("axes_manager must be provided for torque computation.")
+
         return axes_manager.get_vector(center, positions, box)
 
     @staticmethod
