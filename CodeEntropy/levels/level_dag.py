@@ -20,6 +20,7 @@ import logging
 from typing import Any
 
 import networkx as nx
+from rich.progress import TaskID
 
 from CodeEntropy.levels.axes import AxesCalculator
 from CodeEntropy.levels.frame_dag import FrameGraph
@@ -29,6 +30,7 @@ from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNo
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
 from CodeEntropy.levels.nodes.find_neighbors import ComputeNeighborsNode
+from CodeEntropy.results.reporter import _RichProgressSink
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ class LevelDAG:
         return self
 
     def execute(
-        self, shared_data: dict[str, Any], *, progress: object | None = None
+        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
     ) -> dict[str, Any]:
         """Execute the full hierarchy workflow and mutate shared_data.
 
@@ -113,7 +115,7 @@ class LevelDAG:
         return shared_data
 
     def _run_static_stage(
-        self, shared_data: dict[str, Any], *, progress: object | None = None
+        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
     ) -> None:
         """Run all static nodes in dependency order.
 
@@ -151,7 +153,7 @@ class LevelDAG:
             self._static_graph.add_edge(dep, name)
 
     def _run_frame_stage(
-        self, shared_data: dict[str, Any], *, progress: object | None = None
+        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
     ) -> None:
         """Execute the per-frame DAG stage and reduce frame outputs.
 
@@ -180,8 +182,8 @@ class LevelDAG:
         u = shared_data["reduced_universe"]
         start, end, step = shared_data["start"], shared_data["end"], shared_data["step"]
 
-        task = None
-        total_frames = None
+        task: TaskID | None = None
+        total_frames: int | None = None
 
         if progress is not None:
             try:
@@ -209,13 +211,13 @@ class LevelDAG:
             )
 
         for ts in u.trajectory[start:end:step]:
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.update(task, title=f"Frame {ts.frame}")
 
             frame_out = self._frame_dag.execute_frame(shared_data, ts.frame)
             self._reduce_one_frame(shared_data, frame_out)
 
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.advance(task)
 
     @staticmethod
