@@ -1,5 +1,4 @@
-"""
-Utilities for logging entropy results and exporting data.
+"""Utilities for logging entropy results and exporting data.
 
 This module provides the ResultsReporter class, which is responsible for:
 
@@ -19,6 +18,7 @@ import platform
 import re
 import subprocess
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,7 @@ from rich.progress import (
     BarColumn,
     Progress,
     SpinnerColumn,
+    TaskID,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -47,7 +48,7 @@ class _RichProgressSink:
     can emit progress without importing Rich.
     """
 
-    def __init__(self, progress: Progress):
+    def __init__(self, progress: Progress) -> None:
         """Initialise a progress sink that delegates to a rich.Progress instance.
 
         Args:
@@ -55,7 +56,7 @@ class _RichProgressSink:
         """
         self._progress = progress
 
-    def add_task(self, description: str, total: int, **fields):
+    def add_task(self, description: str, total: int, **fields: Any) -> TaskID:
         """Add a progress task to the underlying rich.Progress instance.
 
         Args:
@@ -69,7 +70,7 @@ class _RichProgressSink:
         fields.setdefault("title", "")
         return self._progress.add_task(description, total=total, **fields)
 
-    def advance(self, task_id, step: int = 1) -> None:
+    def advance(self, task_id: TaskID, step: int = 1) -> None:
         """Advance a progress task by a number of steps.
 
         Args:
@@ -78,7 +79,7 @@ class _RichProgressSink:
         """
         self._progress.advance(task_id, step)
 
-    def update(self, task_id, **fields) -> None:
+    def update(self, task_id: TaskID, **fields: Any) -> None:
         """Update fields for an existing progress task.
 
         Args:
@@ -103,7 +104,6 @@ class ResultsReporter:
 
     It can render tables using Rich and export grouped results to JSON with basic
     provenance metadata.
-
     """
 
     def __init__(self, console: Console | None = None) -> None:
@@ -331,8 +331,8 @@ class ResultsReporter:
 
     def save_dataframes_as_json(
         self,
-        molecule_df,
-        residue_df,
+        molecule_df: Any,
+        residue_df: Any,
         output_file: str,
         *,
         args: Any | None = None,
@@ -360,14 +360,14 @@ class ResultsReporter:
             include_raw_tables=include_raw_tables,
         )
 
-        with open(output_file, "w") as out:
+        with open(output_file, "w", encoding="utf-8") as out:
             json.dump(payload, out, indent=2)
 
     def _build_grouped_payload(
         self,
         *,
-        molecule_df,
-        residue_df,
+        molecule_df: Any,
+        residue_df: Any,
         args: Any | None,
         include_raw_tables: bool,
     ) -> dict[str, Any]:
@@ -524,7 +524,7 @@ class ResultsReporter:
             return None
 
     @contextmanager
-    def progress(self, *, transient: bool = True):
+    def progress(self, *, transient: bool = True) -> Iterator[_RichProgressSink]:
         """Create a workflow progress context.
 
         Usage:

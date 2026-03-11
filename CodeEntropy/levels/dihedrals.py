@@ -5,10 +5,16 @@ state labels. The resulting state labels are used downstream to compute
 conformational entropy.
 """
 
+from __future__ import annotations
+
 import logging
+from typing import Any
 
 import numpy as np
 from MDAnalysis.analysis.dihedrals import Dihedral
+from rich.progress import TaskID
+
+from CodeEntropy.results.reporter import _RichProgressSink
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +24,7 @@ UAKey = tuple[int, int]
 class ConformationStateBuilder:
     """Build conformational state labels from dihedral angles."""
 
-    def __init__(self, universe_operations=None):
+    def __init__(self, universe_operations: Any) -> None:
         """Initializes the analysis helper.
 
         Args:
@@ -30,15 +36,15 @@ class ConformationStateBuilder:
 
     def build_conformational_states(
         self,
-        data_container,
-        levels,
-        groups,
+        data_container: Any,
+        levels: dict[Any, list[str]],
+        groups: dict[int, list[Any]],
         start: int,
         end: int,
         step: int,
         bin_width: float,
-        progress: object | None = None,
-    ):
+        progress: _RichProgressSink | None = None,
+    ) -> tuple[dict[UAKey, list[str]], list[list[str]]]:
         """Build conformational state labels from trajectory dihedrals.
 
         This method constructs discrete conformational state descriptors used in
@@ -61,8 +67,9 @@ class ConformationStateBuilder:
             step: Frame stride.
             bin_width: Histogram bin width in degrees used when identifying peak
                 dihedral populations.
-            progress: Optional progress sink (e.g., from ResultsReporter.progress()).
-                Must expose add_task(), update(), and advance().
+            progress: Optional progress sink (e.g., from
+                ResultsReporter.progress()). Must expose add_task(), update(),
+                and advance().
 
         Returns:
             tuple: (states_ua, states_res)
@@ -79,9 +86,9 @@ class ConformationStateBuilder:
         """
         number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
-        states_res: list[list[str]] = [None] * number_groups
+        states_res: list[list[str]] = [[] for _ in range(number_groups)]
 
-        task = None
+        task: TaskID | None = None
         if progress is not None:
             total = max(1, len(groups))
             task = progress.add_task(
@@ -91,7 +98,7 @@ class ConformationStateBuilder:
             )
 
         if not groups:
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.update(task, title="No groups")
                 progress.advance(task)
             return states_ua, states_res
@@ -99,12 +106,12 @@ class ConformationStateBuilder:
         for group_id in groups.keys():
             molecules = groups[group_id]
             if not molecules:
-                if task is not None:
+                if progress is not None and task is not None:
                     progress.update(task, title=f"Group {group_id} (empty)")
                     progress.advance(task)
                 continue
 
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.update(task, title=f"Group {group_id}")
 
             mol = self._universe_operations.extract_fragment(
@@ -144,12 +151,14 @@ class ConformationStateBuilder:
                 states_res=states_res,
             )
 
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.advance(task)
 
         return states_ua, states_res
 
-    def _collect_dihedrals_for_group(self, mol, level_list):
+    def _collect_dihedrals_for_group(
+        self, mol: Any, level_list: list[str]
+    ) -> tuple[list[list[Any]], list[Any]]:
         """Collect UA and residue dihedral AtomGroups for a group.
 
         Args:
@@ -162,8 +171,8 @@ class ConformationStateBuilder:
                 dihedrals_res: List of residue-level dihedral AtomGroups.
         """
         num_residues = len(mol.residues)
-        dihedrals_ua: list[list] = [[] for _ in range(num_residues)]
-        dihedrals_res: list = []
+        dihedrals_ua: list[list[Any]] = [[] for _ in range(num_residues)]
+        dihedrals_res: list[Any] = []
 
         for level in level_list:
             if level == "united_atom":
@@ -176,7 +185,7 @@ class ConformationStateBuilder:
 
         return dihedrals_ua, dihedrals_res
 
-    def _select_heavy_residue(self, mol, res_id: int):
+    def _select_heavy_residue(self, mol: Any, res_id: int) -> Any:
         """Select heavy atoms in a residue by residue index.
 
         Args:
@@ -194,7 +203,7 @@ class ConformationStateBuilder:
         )
         return self._universe_operations.select_atoms(res_container, "prop mass > 1.1")
 
-    def _get_dihedrals(self, data_container, level: str):
+    def _get_dihedrals(self, data_container: Any, level: str) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
 
         Args:
@@ -204,7 +213,7 @@ class ConformationStateBuilder:
         Returns:
             List of AtomGroups (each representing a dihedral definition).
         """
-        atom_groups = []
+        atom_groups: list[Any] = []
 
         if level == "united_atom":
             dihedrals = data_container.dihedrals
@@ -234,16 +243,16 @@ class ConformationStateBuilder:
 
     def _collect_peaks_for_group(
         self,
-        data_container,
-        molecules,
-        dihedrals_ua,
-        dihedrals_res,
-        bin_width,
-        start,
-        end,
-        step,
-        level_list,
-    ):
+        data_container: Any,
+        molecules: list[Any],
+        dihedrals_ua: list[list[Any]],
+        dihedrals_res: list[Any],
+        bin_width: float,
+        start: int,
+        end: int,
+        step: int,
+        level_list: list[str],
+    ) -> tuple[list[list[Any]], list[Any]]:
         """Compute histogram peaks for UA and residue dihedral sets.
 
         Returns:
@@ -252,8 +261,8 @@ class ConformationStateBuilder:
                 (each item is list-of-peaks per dihedral)
                 peaks_res: list-of-peaks per dihedral for residue level (or [])
         """
-        peaks_ua = [{} for _ in range(len(dihedrals_ua))]
-        peaks_res = {}
+        peaks_ua: list[list[Any]] = [[] for _ in range(len(dihedrals_ua))]
+        peaks_res: list[Any] = []
 
         for level in level_list:
             if level == "united_atom":
@@ -289,14 +298,14 @@ class ConformationStateBuilder:
 
     def _identify_peaks(
         self,
-        data_container,
-        molecules,
-        dihedrals,
-        bin_width,
-        start,
-        end,
-        step,
-    ):
+        data_container: Any,
+        molecules: list[Any],
+        dihedrals: list[Any],
+        bin_width: float,
+        start: int,
+        end: int,
+        step: int,
+    ) -> list[list[float]]:
         """Identify histogram peaks ("convex turning points") for each dihedral.
 
         Important:
@@ -316,10 +325,10 @@ class ConformationStateBuilder:
         Returns:
             List of peaks per dihedral (peak_values[dihedral_index] -> list of peaks).
         """
-        peak_values = [] * len(dihedrals)
+        peak_values: list[list[float]] = []
 
         for dihedral_index in range(len(dihedrals)):
-            phi = []
+            phi: list[float] = []
 
             for molecule in molecules:
                 mol = self._universe_operations.extract_fragment(
@@ -333,7 +342,7 @@ class ConformationStateBuilder:
                     value = dihedral_results.results.angles[timestep][dihedral_index]
                     if value < 0:
                         value += 360
-                    phi.append(value)
+                    phi.append(float(value))
 
             number_bins = int(360 / bin_width)
             popul, bin_edges = np.histogram(a=phi, bins=number_bins, range=(0, 360))
@@ -349,7 +358,9 @@ class ConformationStateBuilder:
         return peak_values
 
     @staticmethod
-    def _find_histogram_peaks(popul, bin_value):
+    def _find_histogram_peaks(
+        popul: np.ndarray[Any, Any], bin_value: list[float]
+    ) -> list[float]:
         """Return convex turning-point peaks from a histogram.
 
         The selection of the population of the right adjacent bin takes into
@@ -364,7 +375,7 @@ class ConformationStateBuilder:
            peaks: list of values associated with peaks.
         """
         number_bins = len(popul)
-        peaks = []
+        peaks: list[float] = []
 
         for bin_index in range(number_bins):
             if popul[bin_index] == 0:
@@ -380,20 +391,20 @@ class ConformationStateBuilder:
 
     def _assign_states_for_group(
         self,
-        data_container,
-        group_id,
-        molecules,
-        dihedrals_ua,
-        peaks_ua,
-        dihedrals_res,
-        peaks_res,
-        start,
-        end,
-        step,
-        level_list,
-        states_ua,
-        states_res,
-    ):
+        data_container: Any,
+        group_id: int,
+        molecules: list[Any],
+        dihedrals_ua: list[list[Any]],
+        peaks_ua: list[list[Any]],
+        dihedrals_res: list[Any],
+        peaks_res: list[Any],
+        start: int,
+        end: int,
+        step: int,
+        level_list: list[str],
+        states_ua: dict[UAKey, list[str]],
+        states_res: list[list[str]],
+    ) -> None:
         """Assign UA and residue states for a group into output containers."""
         for level in level_list:
             if level == "united_atom":
@@ -428,14 +439,14 @@ class ConformationStateBuilder:
 
     def _assign_states(
         self,
-        data_container,
-        molecules,
-        dihedrals,
-        peaks,
-        start,
-        end,
-        step,
-    ):
+        data_container: Any,
+        molecules: list[Any],
+        dihedrals: list[Any],
+        peaks: list[list[Any]],
+        start: int,
+        end: int,
+        step: int,
+    ) -> list[str]:
         """Assign discrete state labels for the provided dihedrals.
 
         Important:
@@ -455,17 +466,17 @@ class ConformationStateBuilder:
         Returns:
             List of state labels (strings).
         """
-        states = None
+        states: list[str] = []
 
         for molecule in molecules:
-            conformations = []
+            conformations: list[list[Any]] = []
             mol = self._universe_operations.extract_fragment(data_container, molecule)
             number_frames = len(mol.trajectory)
 
             dihedral_results = Dihedral(dihedrals).run()
 
             for dihedral_index in range(len(dihedrals)):
-                conformation = []
+                conformation: list[Any] = []
                 for timestep in range(number_frames):
                     value = dihedral_results.results.angles[timestep][dihedral_index]
                     if value < 0:
@@ -487,10 +498,7 @@ class ConformationStateBuilder:
                 if state
             ]
 
-            if states is None:
-                states = mol_states
-            else:
-                states.extend(mol_states)
+            states.extend(mol_states)
 
         logger.debug(f"States: {states}")
         return states
