@@ -196,8 +196,12 @@ def test_get_linear_true():
             def SP():
                 return "SP"
 
-    rdkit_heavy.GetAtoms = MagicMock(return_value=[a1, a2, a3])
-    a1.GetHybridization = MagicMock(return_value="SP2")
+    def _get_atoms():
+        return [a1, a2, a3]
+
+    rdkit_heavy.GetAtoms = MagicMock(side_effect=_get_atoms)
+
+    a1.GetHybridization = MagicMock(return_value="SP3")
     a2.GetHybridization = MagicMock(return_value="SP")
     a3.GetHybridization = MagicMock(return_value="SP3")
 

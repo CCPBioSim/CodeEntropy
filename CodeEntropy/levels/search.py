@@ -44,7 +44,7 @@ class Search:
             if molecule_index_j != mol_id:
                 j_position = universe.atoms.fragments[molecule_index_j].center_of_mass()
                 distances[molecule_index_j] = self.get_distance(
-                    j_position, central_position, universe.dimensions
+                    j_position, central_position, universe.dimensions[:3]
                 )
 
         # Sort distances smallest to largest
