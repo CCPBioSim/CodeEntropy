@@ -99,43 +99,109 @@ class AxesCalculator:
                 If the residue selection is empty.
         """
         # TODO refine selection so that it will work for branched polymers
+        # match indexing to MDAnalysis indexing
         index_prev = index - 1
         index_next = index + 1
-
         if residue is None:
             residue = data_container.select_atoms(f"resindex {index}")
+            # residue of interest
         if len(residue) == 0:
             raise ValueError(f"Empty residue selection for resindex={index}")
-
-        center = residue.atoms.center_of_mass(unwrap=True)
-        atom_set = data_container.select_atoms(
-            f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}"
+        atom_set = data_container.atoms.select_atoms(
+            f"(resindex {index_prev} or "
+            f"resindex {index_next}) and "
+            f"bonded resindex {index}"
         )
+        uas = residue.select_atoms("mass 2 to 999")
+        ua_masses = self.get_UA_masses(residue)
 
         if len(atom_set) == 0:
             # No bonds to other residues.
             # Use a custom principal axes, from a MOI tensor that uses positions of
             # heavy atoms only, but including masses of heavy atom + bonded H.
-            uas = residue.select_atoms("mass 2 to 999")
-            ua_masses = self.get_UA_masses(residue)
             moi_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
+                center_of_mass=np.array(residue.center_of_mass()),
                 positions=uas.positions,
                 masses=ua_masses,
                 dimensions=data_container.dimensions[:3],
             )
             rot_axes, moment_of_inertia = self.get_custom_principal_axes(moi_tensor)
             trans_axes = rot_axes  # per original convention
+            center = np.array(residue.center_of_mass())
         else:
-            # If bonded to other residues, use default axes and MOI.
+            # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue)
-            center = residue.center_of_mass(unwrap=True)
+            backbone = residue.select_atoms("backbone")
+            if len(backbone) == 0:
+                # not a protein
+                center = np.array(residue.center_of_mass())
+            else:
+                # protein backbone identified
+                center = np.array(backbone.center_of_mass())
 
+            if len(atom_set) == 1:
+                # only one neighbour
+                if index == 0:
+                    # first residue
+                    next_resid = data_container.select_atoms(f"resindex {index_next}")
+                    next_backbone = next_resid.select_atoms("backbone")
+                    if len(next_backbone) == 0:
+                        anchor = np.array(next_resid.center_of_mass())
+                    else:
+                        anchor = np.array(next_backbone.center_of_mass())
+                    # anchor = atom_set[0].position
+                else:
+                    # last residue
+                    prev_resid = data_container.select_atoms(f"resindex {index_prev}")
+                    prev_backbone = prev_resid.select_atoms("backbone")
+                    if len(prev_backbone) == 0:
+                        anchor = np.array(prev_resid.center_of_mass())
+                    else:
+                        anchor = np.array(prev_backbone.center_of_mass())
+                    # anchor = atom_set[0].position
+                rot_axes = self.get_custom_axes(
+                    a=center,
+                    b_list=anchor,
+                    c=np.zeros(3),
+                    dimensions=data_container.dimensions[:3],
+                )
+            else:
+                # two neighbours
+                prev_resid = data_container.select_atoms(f"resindex {index_prev}")
+                next_resid = data_container.select_atoms(f"resindex {index_next}")
+                prev_backbone = prev_resid.select_atoms("backbone")
+                next_backbone = next_resid.select_atoms("backbone")
+                anchors = []
+                # check separately in case we have a protein with a PTM
+                # or similar case
+                if len(prev_backbone) == 0:
+                    anchors.append(np.array(prev_resid.center_of_mass()))
+                else:
+                    anchors.append(np.array(prev_backbone.center_of_mass()))
+                if len(next_backbone) == 0:
+                    anchors.append(np.array(next_resid.center_of_mass()))
+                else:
+                    anchors.append(np.array(next_backbone.center_of_mass()))
+                # anchors = atom_set.positions
+                rot_axes = self.get_custom_axes(
+                    a=center,
+                    b_list=anchors,
+                    c=anchors[1],
+                    dimensions=data_container.dimensions[:3],
+                )
+            # analogous to the UA case where a heavy atom is bound to >=2 heavy atoms
+
+            moment_of_inertia = self.get_custom_residue_moment_of_inertia(
+                center_of_mass=center,
+                positions=uas.positions,
+                masses=ua_masses,
+                custom_rot_axes=rot_axes,
+                dimensions=data_container.dimensions[:3],
+            )
         return trans_axes, rot_axes, center, moment_of_inertia
 
-    def get_UA_axes(self, data_container, index: int):
+    def get_UA_axes(self, data_container, index: int, res_position):
         """Compute united-atom-level translational and rotational axes.
 
         The translational and rotational axes at the united-atom level.
@@ -176,20 +242,110 @@ class AxesCalculator:
         index = int(index)  # bead index
 
         # use the same customPI trans axes as the residue level
-        heavy_atoms = data_container.select_atoms("prop mass > 1.1")
-        if len(heavy_atoms) > 1:
-            UA_masses = self.get_UA_masses(data_container.atoms)
+        if len(data_container.residues) == 1:
+            # only the one residue => use principal axes
+            residue = data_container
             center = data_container.atoms.center_of_mass(unwrap=True)
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center, heavy_atoms.positions, UA_masses, data_container.dimensions[:3]
-            )
-            trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
-                moment_of_inertia_tensor
-            )
+            trans_axes = data_container.atoms.principal_axes
         else:
-            # use standard PA for UA not bonded to anything else
-            make_whole(data_container.atoms)
-            trans_axes = data_container.atoms.principal_axes()
+            # residue of interest has at least one neighbour
+            if res_position == -1:
+                residue = data_container.residues[0]
+                index_next = residue.resid + 1
+                # atom_set = data_container.atoms.select_atoms(
+                # f"resindex {index_next-1} and "
+                # f"bonded resindex {residue.resid-1}"
+                # )
+                # the .resid attribute gives 1-indexing
+                # substract 1 to match indexing later
+                next_resid = data_container.select_atoms(f"resindex {index_next - 1}")
+                next_backbone = next_resid.atoms.select_atoms("backbone")
+                if len(next_backbone) == 0:
+                    anchor = np.array(next_resid.center_of_mass())
+                else:
+                    anchor = np.array(next_backbone.center_of_mass())
+                # anchor = atom_set[0].position
+                backbone = residue.atoms.select_atoms("backbone")
+                if len(backbone) == 0:
+                    # not a protein
+                    center = np.array(residue.atoms.center_of_mass())
+                else:
+                    # protein backbone identified
+                    center = np.array(backbone.center_of_mass())
+                trans_axes = self.get_custom_axes(
+                    a=center,
+                    b_list=anchor,
+                    c=np.zeros(3),
+                    dimensions=data_container.dimensions[:3],
+                )
+
+            elif res_position == 0:
+                # between 2 residues
+                residue = data_container.residues[1]
+                index_prev = residue.resid - 1
+                index_next = residue.resid + 1
+                prev_resid = data_container.select_atoms(f"resindex {index_prev - 1}")
+                next_resid = data_container.select_atoms(f"resindex {index_next - 1}")
+                prev_backbone = prev_resid.atoms.select_atoms("backbone")
+                next_backbone = next_resid.atoms.select_atoms("backbone")
+                # atom_set = data_container.atoms.select_atoms(
+                # f"(resindex {index_prev-1} or "
+                # f"resindex {index_next-1}) and "
+                # f"bonded resindex {residue.resid-1}"
+                # )
+                anchors = []
+                if len(prev_backbone) == 0:
+                    anchors.append(np.array(prev_resid.center_of_mass()))
+                else:
+                    anchors.append(np.array(prev_backbone.center_of_mass()))
+                if len(next_backbone) == 0:
+                    anchors.append(np.array(next_resid.center_of_mass()))
+                else:
+                    anchors.append(np.array(next_backbone.center_of_mass()))
+                # anchors = atom_set.positions
+                backbone = residue.atoms.select_atoms("backbone")
+                if len(backbone) == 0:
+                    # not a protein
+                    center = np.array(residue.atoms.center_of_mass())
+                else:
+                    # protein backbone identified
+                    center = np.array(backbone.center_of_mass())
+                trans_axes = self.get_custom_axes(
+                    a=center,
+                    b_list=anchors,
+                    c=anchors[1],
+                    dimensions=data_container.dimensions[:3],
+                )
+
+            else:
+                # last resid
+                residue = data_container.residues[1]
+                index_prev = residue.resid - 1
+                prev_resid = data_container.select_atoms(f"resindex {index_prev - 1}")
+                prev_backbone = prev_resid.atoms.select_atoms("backbone")
+                if len(prev_backbone) == 0:
+                    anchor = np.array(prev_resid.center_of_mass())
+                else:
+                    anchor = np.array(prev_backbone.center_of_mass())
+                # atom_set = data_container.atoms.select_atoms(
+                # f"resindex {index_prev-1} and "
+                # f"bonded resindex {residue.resid-1}"
+                # )
+                # anchor = atom_set[0].position
+                backbone = residue.atoms.select_atoms("backbone")
+                if len(backbone) == 0:
+                    # not a protein
+                    center = np.array(residue.atoms.center_of_mass())
+                else:
+                    center = np.array(backbone.center_of_mass())
+                trans_axes = self.get_custom_axes(
+                    a=center,
+                    b_list=anchor,
+                    c=np.zeros(3),
+                    dimensions=data_container.dimensions[:3],
+                )
+
+        heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
 
         # look for heavy atoms in residue of interest
         heavy_atom_indices = []
@@ -198,9 +354,9 @@ class AxesCalculator:
         # we find the nth heavy atom
         # where n is the bead index
         heavy_atom_index = heavy_atom_indices[index]
-        heavy_atom = data_container.select_atoms(f"index {heavy_atom_index}")
+        heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
 
-        center = heavy_atom.positions[0]
+        rot_center = heavy_atom.positions[0]
         rot_axes, moment_of_inertia = self.get_bonded_axes(
             system=data_container,
             atom=heavy_atom[0],
@@ -214,7 +370,7 @@ class AxesCalculator:
         logger.debug("Center: %s", center)
         logger.debug("Moment of Inertia: %s", moment_of_inertia)
 
-        return trans_axes, rot_axes, center, moment_of_inertia
+        return trans_axes, rot_axes, rot_center, moment_of_inertia
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
         r"""Compute UA rotational axes from bonded topology around a heavy atom.
@@ -445,6 +601,41 @@ class AxesCalculator:
 
         scaled_custom_axes = unscaled_custom_axes / mod[:, np.newaxis]
         return scaled_custom_axes
+
+    def get_custom_residue_moment_of_inertia(
+        self,
+        center_of_mass: np.ndarray,
+        positions: np.ndarray,
+        masses: np.ndarray,
+        custom_rot_axes: np.ndarray,
+        dimensions: np.ndarray,
+    ):
+        """
+        Compute moment of inertia around custom axes for a bead
+        formed of multiple UAs.
+
+        Args:
+            center_of_mass: (3, ) COM for bead
+            positions: (N,3) positions of the UAs in the bead
+            masses: (N,) masses of the UAs in the bead
+            custom_rot_axes: (3,3) array of residue rotation axes
+            dimensions: (3,) simulation_box_dimensions
+
+        Returns:
+            np.ndarray: (3,) moment of inertia array.
+
+        """
+
+        translated_coords = self.get_vector(center_of_mass, positions, dimensions)
+        custom_moment_of_inertia = np.zeros(3, dtype=float)
+
+        for coord, mass in zip(translated_coords, masses, strict=True):
+            axis_component = np.sum(
+                np.cross(custom_rot_axes, coord) ** 2 * mass, axis=1
+            )
+            custom_moment_of_inertia += axis_component
+
+        return custom_moment_of_inertia
 
     def get_custom_moment_of_inertia(
         self,

@@ -200,7 +200,25 @@ class FrameCovarianceNode:
         Returns:
             None. Mutates out_force/out_torque and molcount in-place.
         """
+
         for local_res_i, res in enumerate(mol.residues):
+            # build residue group here
+            if local_res_i == 0:
+                # first residue
+                res_position = -1
+                res_next = mol.residues[1]
+                residue_group = res + res_next
+            elif local_res_i == len(mol.residues) - 1:
+                # last residue
+                res_position = 1
+                res_prev = mol.residues[-2]
+                residue_group = res + res_prev
+            else:
+                res_position = 0
+                res_prev = mol.residues[local_res_i - 1]
+                res_next = mol.residues[local_res_i + 1]
+                residue_group = res_prev + res + res_next
+
             bead_key = (mol_id, "united_atom", local_res_i)
             bead_idx_list = beads.get(bead_key, [])
             if not bead_idx_list:
@@ -211,13 +229,14 @@ class FrameCovarianceNode:
                 continue
 
             force_vecs, torque_vecs = self._build_ua_vectors(
-                residue_atoms=res.atoms,
+                residue_group=residue_group.atoms,
                 bead_groups=bead_groups,
                 axes_manager=axes_manager,
                 box=box,
                 force_partitioning=force_partitioning,
                 customised_axes=customised_axes,
                 is_highest=is_highest,
+                res_position=res_position,
             )
 
             F, T = self._ft.compute_frame_covariance(force_vecs, torque_vecs)
@@ -413,23 +432,26 @@ class FrameCovarianceNode:
         self,
         *,
         bead_groups: List[Any],
-        residue_atoms: Any,
+        residue_group: Any,
         axes_manager: Any,
         box: Optional[np.ndarray],
         force_partitioning: float,
         customised_axes: bool,
         is_highest: bool,
+        res_position: int,
     ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """Build force/torque vectors for UA-level beads of one residue.
 
         Args:
             bead_groups: List of UA bead AtomGroups for the residue.
-            residue_atoms: AtomGroup for the residue atoms (used for axes when vanilla).
+            residue_group: AtomGroup for the residue group atoms.
             axes_manager: Axes manager used to determine axes/centers/MOI.
             box: Optional box vector used for PBC-aware displacements.
             force_partitioning: Force scaling factor applied at highest level.
             customised_axes: Whether to use customised axes methods when available.
             is_highest: Whether UA level is the highest level for the molecule.
+            res_position: Where the residue is in the residue group
+
 
         Returns:
             A tuple (force_vecs, torque_vecs), each a list of (3,) vectors ordered
@@ -437,17 +459,21 @@ class FrameCovarianceNode:
         """
         force_vecs: List[np.ndarray] = []
         torque_vecs: List[np.ndarray] = []
-
         for ua_i, bead in enumerate(bead_groups):
             if customised_axes:
                 trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
-                    residue_atoms, ua_i
+                    residue_group, ua_i, res_position
                 )
             else:
-                make_whole(residue_atoms)
+                make_whole(residue_group)
                 make_whole(bead)
-
-                trans_axes = residue_atoms.principal_axes()
+                if res_position == -1:
+                    # first residue in group
+                    residue = residue_group.residues[0]
+                else:
+                    # middle or last residue => second in group
+                    residue = residue_group.residues[1]
+                trans_axes = residue.atoms.principal_axes()
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
