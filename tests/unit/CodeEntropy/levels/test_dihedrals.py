@@ -220,6 +220,7 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
         )
 
     assert states == ["0", "1", "0", "1"]
+    assert num_flexible == 1
 
 
 def test_assign_states_for_group_sets_empty_lists_and_delegates_for_nonempty():
@@ -252,6 +253,8 @@ def test_assign_states_for_group_sets_empty_lists_and_delegates_for_nonempty():
     assert states_ua[(1, 0)] == []
     assert states_ua[(1, 1)] == ["x"]
     assert states_res[1] == []
+    assert flexible_ua == {(1, 0): 0, (1, 1): 0}
+    assert flexible_res == [None, 0]
     assert assign_spy.call_count == 1
 
 
@@ -280,6 +283,8 @@ def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatc
 
     assert states_ua == {}
     assert len(states_res) == 2
+    assert flex_ua == {}
+    assert flex_res == [0, 0]
 
 
 def test_identify_peaks_handles_multiple_dihedrals_and_calls_histogram_each_time():
@@ -352,6 +357,7 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
         )
 
     assert out_state == []
+    assert out_flex == 0
 
 
 def test_identify_peaks_multiple_molecules_real_histogram():
@@ -447,6 +453,7 @@ def test_assign_states_for_group_residue_nonempty_calls_assign_states():
         )
 
     assert states_res[1] == ["A"]
+    assert flexible_res[1] == 0
     spy.assert_called_once()
 
 
@@ -482,6 +489,7 @@ def test_assign_states_first_empty_then_extend():
         )
 
     assert states == ["0"]
+    assert num_flex == 0
 
 
 def test_collect_peaks_for_group_calls_identify_peaks_for_ua_and_residue():
@@ -542,6 +550,7 @@ def test_assign_states_wraps_negative_angles():
         )
 
     assert states == ["1", "0"]
+    assert num_flex == 1
 
 
 def test_build_conformational_states_with_progress_handles_no_groups():
@@ -592,6 +601,8 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
 
     assert states_ua == {}
     assert len(states_res) == 1
+    assert flex_ua == {}
+    assert flex_res == [0]
     progress.update.assert_called_with(5, title="Group 0 (empty)")
     progress.advance.assert_called_with(5)
 

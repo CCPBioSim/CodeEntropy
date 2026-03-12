@@ -159,3 +159,12 @@ def test_vibrational_entropy_calculation_end_to_end_returns_float(
 
     assert isinstance(out, float)
     assert out >= 0.0
+
+
+def test_flexible_dihedral(run_manager):
+    ve = VibrationalEntropy(run_manager=run_manager)
+    lambdas = [2.0, 3.0, 4.0]
+    flexible = 2
+    lambdas = ve._flexible_dihedral(lambdas, flexible)
+
+    assert lambdas == [1.0, 0.75, 2.0]
