@@ -103,15 +103,15 @@ def _compare_grouped(
 @pytest.mark.parametrize(
     "system",
     [
+        "dna",
         pytest.param("benzaldehyde", marks=pytest.mark.slow),
         pytest.param("benzene", marks=pytest.mark.slow),
         pytest.param("cyclohexane", marks=pytest.mark.slow),
-        "dna",
         pytest.param("ethyl-acetate", marks=pytest.mark.slow),
-        "methane",
-        "methanol",
+        pytest.param("methane", marks=pytest.mark.slow),
+        pytest.param("methanol", marks=pytest.mark.slow),
         pytest.param("octonol", marks=pytest.mark.slow),
-        "water",
+        pytest.param("water", marks=pytest.mark.slow),
     ],
 )
 def test_regression_matches_baseline(
