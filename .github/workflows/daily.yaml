@@ -35,4 +35,4 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Pytest (unit) • ${{ matrix.os }} • py${{ matrix.python-version }}
-        run: python -m pytest tests/unit -q
+        run: python -m pytest tests/unit

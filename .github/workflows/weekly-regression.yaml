@@ -36,7 +36,7 @@ jobs:
           pip install -e .[testing]
 
       - name: Run regression test suite
-        run: pytest tests/regression -q --run-slow
+        run: pytest tests/regression --run-slow
 
       - name: Upload regression artifacts on failure
         if: failure()
