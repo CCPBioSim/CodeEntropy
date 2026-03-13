@@ -357,3 +357,133 @@ def test_get_symmetry_propagates_error_from_get_rdkit_mol():
 
     neighbors._get_symmetry_number.assert_not_called()
     neighbors._get_linear.assert_not_called()
+
+
+def test_get_rdkit_mol_guesses_elements_when_missing():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+
+    del universe.atoms.elements
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.side_effect = [dummy]
+    dummy.__len__.return_value = 0
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 3
+    rdkit_mol.GetNumAtoms.return_value = 8
+    molecule.convert_to.return_value = rdkit_mol
+
+    result = neighbors._get_rdkit_mol(universe, 0)
+
+    universe.guess_TopologyAttrs.assert_called_once_with(to_guess=["elements"])
+    molecule.convert_to.assert_called_once_with("RDKIT", force=True)
+    assert result == (rdkit_mol, 3, 5)
+
+
+def test_get_rdkit_mol_does_not_guess_elements_when_present():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+
+    universe.atoms.elements = ["C", "H"]
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.side_effect = [dummy]
+    dummy.__len__.return_value = 0
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 2
+    rdkit_mol.GetNumAtoms.return_value = 6
+    molecule.convert_to.return_value = rdkit_mol
+
+    result = neighbors._get_rdkit_mol(universe, 0)
+
+    universe.guess_TopologyAttrs.assert_not_called()
+    molecule.convert_to.assert_called_once_with("RDKIT", force=True)
+    assert result == (rdkit_mol, 2, 4)
+
+
+def test_get_rdkit_mol_uses_full_molecule_when_no_dummy_atoms():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+
+    universe.atoms.elements = ["C"]
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.side_effect = [dummy]
+    dummy.__len__.return_value = 0
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 4
+    rdkit_mol.GetNumAtoms.return_value = 10
+    molecule.convert_to.return_value = rdkit_mol
+
+    result = neighbors._get_rdkit_mol(universe, 0)
+
+    molecule.select_atoms.assert_called_once_with("prop mass < 0.1")
+    molecule.convert_to.assert_called_once_with("RDKIT", force=True)
+    assert result == (rdkit_mol, 4, 6)
+
+
+def test_get_rdkit_mol_removes_dummy_atoms_and_uses_inferrer_none():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+    frag = MagicMock()
+
+    universe.atoms.elements = ["C"]
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.side_effect = [dummy, frag]
+    dummy.__len__.return_value = 2
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 5
+    rdkit_mol.GetNumAtoms.return_value = 12
+    frag.convert_to.return_value = rdkit_mol
+
+    result = neighbors._get_rdkit_mol(universe, 0)
+
+    assert molecule.select_atoms.call_args_list == [
+        (("prop mass < 0.1",),),
+        (("prop mass > 0.1",),),
+    ]
+    frag.convert_to.assert_called_once_with("RDKIT", force=True, inferrer=None)
+    molecule.convert_to.assert_not_called()
+    assert result == (rdkit_mol, 5, 7)
+
+
+def test_get_rdkit_mol_returns_correct_heavy_and_hydrogen_counts():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+
+    universe.atoms.elements = ["O", "H", "H"]
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.side_effect = [dummy]
+    dummy.__len__.return_value = 0
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 1
+    rdkit_mol.GetNumAtoms.return_value = 3
+    molecule.convert_to.return_value = rdkit_mol
+
+    rdkit_out, number_heavy, number_hydrogen = neighbors._get_rdkit_mol(universe, 0)
+
+    assert rdkit_out is rdkit_mol
+    assert number_heavy == 1
+    assert number_hydrogen == 2
