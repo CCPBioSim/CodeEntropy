@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import pickle
-from typing import Any, Dict, Optional
+from typing import Any
 
 import MDAnalysis as mda
 import requests
@@ -112,7 +112,7 @@ class CodeEntropyRunner:
 
         return new_folder_path
 
-    def load_citation_data(self) -> Optional[Dict[str, Any]]:
+    def load_citation_data(self) -> dict[str, Any] | None:
         """Load CITATION.cff from GitHub.
 
         If the request fails (offline, blocked, etc.), returns None.
@@ -335,7 +335,7 @@ class CodeEntropyRunner:
         kcal_units = args.kcal_force_units
 
         if forcefile is None:
-            logger.debug("Loading Universe with %s and %s", tprfile, trrfile)
+            logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
             return mda.Universe(tprfile, trrfile, format=fileformat)
 
         return universe_operations.merge_forces(

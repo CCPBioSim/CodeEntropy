@@ -3,7 +3,7 @@
 run1:
   top_traj_file: ["1AKI_prod.tpr", "1AKI_prod.trr"]
   force_file:
-  file_formate:
+  file_format:
   selection_string: 'all'
   start: 0
   end: 500
@@ -14,3 +14,6 @@ run1:
   force_partitioning: 0.5
   water_entropy: False
   grouping: 'molecules'
+  customised_axes: True
+  combinded_forcetorque: False
+  search_type: 'RAD'

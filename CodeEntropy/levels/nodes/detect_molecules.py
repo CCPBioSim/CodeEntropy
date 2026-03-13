@@ -8,13 +8,13 @@ grouping strategy.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from CodeEntropy.molecules.grouping import MoleculeGrouper
 
 logger = logging.getLogger(__name__)
 
-SharedData = Dict[str, Any]
+SharedData = dict[str, Any]
 
 
 class DetectMoleculesNode:
@@ -30,7 +30,7 @@ class DetectMoleculesNode:
         """Initialize the node with a molecule grouping helper."""
         self._grouping = MoleculeGrouper()
 
-    def run(self, shared_data: SharedData) -> Dict[str, Any]:
+    def run(self, shared_data: SharedData) -> dict[str, Any]:
         """Detect molecules and create grouping definitions.
 
         Args:
