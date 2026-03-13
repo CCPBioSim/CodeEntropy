@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -158,3 +159,119 @@ def test_distance_boundary_conditions():
     distance4 = search.get_distance(c, e, dimensions)
 
     assert distance4 == pytest.approx(1.7320508075688772)
+
+
+def test_get_RAD_indices_breaks_when_angle_is_nan():
+    search = Search()
+
+    i_coords = np.array([0.0, 0.0, 0.0])
+    sorted_distances = [(1, 1.0), (2, 2.0)]
+    number_molecules = 3
+
+    frag_1 = MagicMock()
+    frag_2 = MagicMock()
+    frag_1.center_of_mass.return_value = np.array([1.0, 0.0, 0.0])
+    frag_2.center_of_mass.return_value = np.array([2.0, 0.0, 0.0])
+
+    system = MagicMock()
+    system.atoms.fragments = [MagicMock(), frag_1, frag_2]
+    system.dimensions = np.array([10.0, 10.0, 10.0, 90.0, 90.0, 90.0])
+
+    search.get_angle = MagicMock(side_effect=[np.nan])
+
+    result = search._get_RAD_indices(
+        i_coords=i_coords,
+        sorted_distances=sorted_distances,
+        system=system,
+        number_molecules=number_molecules,
+    )
+
+    assert result == [1, 2]
+    search.get_angle.assert_called_once()
+
+
+def test_get_grid_neighbors_uses_residue_search_for_non_united_atom():
+    search = Search()
+
+    universe = MagicMock()
+    fragment = MagicMock()
+    fragment.indices = [4, 5, 6]
+    fragment.residues = MagicMock()
+
+    universe.atoms.fragments = [fragment]
+
+    molecule_atom_group = MagicMock()
+    universe.select_atoms.return_value = molecule_atom_group
+
+    search_result = MagicMock()
+    final_neighbors = MagicMock()
+    final_neighbors.fragindices = np.array([7, 8, 9])
+
+    search_result.__sub__.return_value = final_neighbors
+
+    search_object = MagicMock()
+
+    with patch(
+        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch"
+    ) as mock_ans:
+        mock_ans.return_value = search_object
+        mock_ans.search.return_value = search_result
+
+        result = search.get_grid_neighbors(
+            universe=universe,
+            mol_id=0,
+            highest_level="residue",
+        )
+
+    universe.select_atoms.assert_called_once_with("index 4:6")
+    mock_ans.assert_called_once_with(universe.atoms)
+    mock_ans.search.assert_called_once_with(
+        search_object,
+        molecule_atom_group,
+        radius=3.5,
+        level="R",
+    )
+    search_result.__sub__.assert_called_once_with(fragment.residues)
+    assert (result == np.array([7, 8, 9])).all()
+
+
+def test_get_grid_neighbors_uses_atom_search_for_united_atom():
+    search = Search()
+
+    universe = MagicMock()
+    fragment = MagicMock()
+    fragment.indices = [10, 11]
+    universe.atoms.fragments = [fragment]
+
+    molecule_atom_group = MagicMock()
+    universe.select_atoms.return_value = molecule_atom_group
+
+    search_result = MagicMock()
+    final_neighbors = MagicMock()
+    final_neighbors.fragindices = np.array([2, 3])
+
+    search_result.__sub__.return_value = final_neighbors
+
+    search_object = MagicMock()
+
+    with patch(
+        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch"
+    ) as mock_ans:
+        mock_ans.return_value = search_object
+        mock_ans.search.return_value = search_result
+
+        result = search.get_grid_neighbors(
+            universe=universe,
+            mol_id=0,
+            highest_level="united_atom",
+        )
+
+    universe.select_atoms.assert_called_once_with("index 10:11")
+    mock_ans.search.assert_called_once_with(
+        search_object,
+        molecule_atom_group,
+        radius=3.0,
+        level="A",
+    )
+    search_result.__sub__.assert_called_once_with(molecule_atom_group)
+    assert (result == np.array([2, 3])).all()
