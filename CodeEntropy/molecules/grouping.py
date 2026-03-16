@@ -14,15 +14,15 @@ Available strategies:
 """
 
 import logging
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Mapping, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
 GroupId = int
 MoleculeId = int
-MoleculeGroups = Dict[GroupId, List[MoleculeId]]
-Signature = Tuple[int, Tuple[str, ...]]
+MoleculeGroups = dict[GroupId, list[MoleculeId]]
+Signature = tuple[int, tuple[str, ...]]
 
 
 @dataclass(frozen=True)
@@ -128,7 +128,7 @@ class MoleculeGrouper:
         """
         fragments = self._fragments(universe)
 
-        signature_to_rep: Dict[Signature, MoleculeId] = {}
+        signature_to_rep: dict[Signature, MoleculeId] = {}
         groups: MoleculeGroups = {}
 
         for mol_id, fragment in enumerate(fragments):
@@ -174,7 +174,7 @@ class MoleculeGrouper:
 
     def _representative_id(
         self,
-        signature_to_rep: Dict[Signature, MoleculeId],
+        signature_to_rep: dict[Signature, MoleculeId],
         signature: Signature,
         candidate_id: MoleculeId,
     ) -> MoleculeId:
@@ -200,5 +200,5 @@ class MoleculeGrouper:
         Args:
             groups: Group mapping to summarize.
         """
-        logger.debug("Number of molecule groups: %d", len(groups))
-        logger.debug("Molecule groups: %s", groups)
+        logger.debug(f"Number of molecule groups: {len(groups)}")
+        logger.debug(f"Molecule groups: {groups}")

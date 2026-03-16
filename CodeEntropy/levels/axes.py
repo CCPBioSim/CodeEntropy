@@ -8,7 +8,7 @@ moments of inertia at different hierarchy levels (residue / united-atom).
 from __future__ import annotations
 
 import logging
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 from MDAnalysis.lib.mdamath import make_whole
@@ -67,7 +67,7 @@ class AxesCalculator:
         The translational and rotational axes at the residue level.
 
         - Identify the residue (either provided or selected by `resindex index`).
-        - Determine whether the residue is bonded to neighbouring residues
+        - Determine whether the residue is bonded to neighboring residues
           (previous/next in sequence) using MDAnalysis bonded selections.
         - If there are *no* bonds to other residues:
             * Use a custom principal axes, from a moment-of-inertia (MOI) tensor
@@ -209,10 +209,10 @@ class AxesCalculator:
         if rot_axes is None or moment_of_inertia is None:
             raise ValueError("Unable to compute bonded axes for UA bead.")
 
-        logger.debug("Translational Axes: %s", trans_axes)
-        logger.debug("Rotational Axes: %s", rot_axes)
-        logger.debug("Center: %s", center)
-        logger.debug("Moment of Inertia: %s", moment_of_inertia)
+        logger.debug(f"Translational Axes: {trans_axes}")
+        logger.debug(f"Rotational Axes: {rot_axes}")
+        logger.debug(f"Center: {center}")
+        logger.debug(f"Moment of Inertia: {moment_of_inertia}")
 
         return trans_axes, rot_axes, center, moment_of_inertia
 
@@ -576,7 +576,7 @@ class AxesCalculator:
 
     def get_custom_principal_axes(
         self, moment_of_inertia_tensor: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Compute principal axes and moments from a custom MOI tensor.
 
         Principal axes and centre of axes from the ordered eigenvalues and

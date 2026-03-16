@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal, Tuple
+from typing import Any, Literal
 
 import numpy as np
 from numpy import linalg as la
@@ -239,7 +239,7 @@ class VibrationalEntropy:
         return components * self._gas_const
 
     @staticmethod
-    def _split_halves(components: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _split_halves(components: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Split a component array into two equal halves.
 
         Args:

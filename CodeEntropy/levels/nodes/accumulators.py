@@ -16,8 +16,9 @@ rest of the pipeline.
 from __future__ import annotations
 
 import logging
+from collections.abc import MutableMapping
 from dataclasses import dataclass
-from typing import Any, Dict, List, MutableMapping
+from typing import Any
 
 import numpy as np
 
@@ -30,19 +31,19 @@ SharedData = MutableMapping[str, Any]
 class GroupIndex:
     """Bidirectional mapping between group ids and contiguous indices."""
 
-    group_id_to_index: Dict[int, int]
-    index_to_group_id: List[int]
+    group_id_to_index: dict[int, int]
+    index_to_group_id: list[int]
 
 
 @dataclass(frozen=True)
 class CovarianceAccumulators:
     """Container for covariance mean accumulators and frame counters."""
 
-    force_covariances: Dict[str, Any]
-    torque_covariances: Dict[str, Any]
-    frame_counts: Dict[str, Any]
-    forcetorque_covariances: Dict[str, Any]
-    forcetorque_counts: Dict[str, Any]
+    force_covariances: dict[str, Any]
+    torque_covariances: dict[str, Any]
+    frame_counts: dict[str, Any]
+    forcetorque_covariances: dict[str, Any]
+    forcetorque_counts: dict[str, Any]
 
 
 class InitCovarianceAccumulatorsNode:
@@ -68,7 +69,7 @@ class InitCovarianceAccumulatorsNode:
         - force_torque_counts -> forcetorque_counts
     """
 
-    def run(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, shared_data: dict[str, Any]) -> dict[str, Any]:
         """Initialize and attach all accumulator structures into shared_data.
 
         Args:
@@ -93,7 +94,7 @@ class InitCovarianceAccumulatorsNode:
         return self._build_return_payload(shared_data)
 
     @staticmethod
-    def _build_group_index(groups: Dict[int, Any]) -> GroupIndex:
+    def _build_group_index(groups: dict[int, Any]) -> GroupIndex:
         """Build group id <-> index mappings.
 
         Args:
@@ -171,7 +172,7 @@ class InitCovarianceAccumulatorsNode:
         shared_data["force_torque_counts"] = shared_data["forcetorque_counts"]
 
     @staticmethod
-    def _build_return_payload(shared_data: SharedData) -> Dict[str, Any]:
+    def _build_return_payload(shared_data: SharedData) -> dict[str, Any]:
         """Build the return payload containing initialized keys.
 
         Args:

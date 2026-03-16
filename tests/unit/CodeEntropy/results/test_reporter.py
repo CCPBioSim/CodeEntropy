@@ -329,8 +329,7 @@ def test_try_get_git_sha_executes_subprocess_kwargs_block(monkeypatch, tmp_path)
 
     assert ResultsReporter._try_get_git_sha() == "sha"
     _args, kwargs = mock_run.call_args
-    assert "stdout" in kwargs
-    assert "stderr" in kwargs
+    assert "capture_output" in kwargs
     assert kwargs.get("text") is True
 
 

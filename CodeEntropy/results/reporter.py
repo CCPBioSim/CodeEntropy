@@ -1,5 +1,4 @@
-"""
-Utilities for logging entropy results and exporting data.
+"""Utilities for logging entropy results and exporting data.
 
 This module provides the ResultsReporter class, which is responsible for:
 
@@ -19,9 +18,10 @@ import platform
 import re
 import subprocess
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from rich.console import Console
@@ -29,6 +29,7 @@ from rich.progress import (
     BarColumn,
     Progress,
     SpinnerColumn,
+    TaskID,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -47,7 +48,7 @@ class _RichProgressSink:
     can emit progress without importing Rich.
     """
 
-    def __init__(self, progress: Progress):
+    def __init__(self, progress: Progress) -> None:
         """Initialise a progress sink that delegates to a rich.Progress instance.
 
         Args:
@@ -55,7 +56,7 @@ class _RichProgressSink:
         """
         self._progress = progress
 
-    def add_task(self, description: str, total: int, **fields):
+    def add_task(self, description: str, total: int, **fields: Any) -> TaskID:
         """Add a progress task to the underlying rich.Progress instance.
 
         Args:
@@ -69,7 +70,7 @@ class _RichProgressSink:
         fields.setdefault("title", "")
         return self._progress.add_task(description, total=total, **fields)
 
-    def advance(self, task_id, step: int = 1) -> None:
+    def advance(self, task_id: TaskID, step: int = 1) -> None:
         """Advance a progress task by a number of steps.
 
         Args:
@@ -78,7 +79,7 @@ class _RichProgressSink:
         """
         self._progress.advance(task_id, step)
 
-    def update(self, task_id, **fields) -> None:
+    def update(self, task_id: TaskID, **fields: Any) -> None:
         """Update fields for an existing progress task.
 
         Args:
@@ -103,10 +104,9 @@ class ResultsReporter:
 
     It can render tables using Rich and export grouped results to JSON with basic
     provenance metadata.
-
     """
 
-    def __init__(self, console: Optional[Console] = None) -> None:
+    def __init__(self, console: Console | None = None) -> None:
         """Initialise a ResultsReporter.
 
         Args:
@@ -114,9 +114,9 @@ class ResultsReporter:
                 Console instance is created.
         """
         self.console: Console = console or Console()
-        self.molecule_data: List[Tuple[Any, Any, Any, Any]] = []
-        self.residue_data: List[List[Any]] = []
-        self.group_labels: Dict[Any, Dict[str, Any]] = {}
+        self.molecule_data: list[tuple[Any, Any, Any, Any]] = []
+        self.residue_data: list[list[Any]] = []
+        self.group_labels: dict[Any, dict[str, Any]] = {}
 
     @staticmethod
     def clean_residue_name(resname: Any) -> str:
@@ -131,7 +131,7 @@ class ResultsReporter:
         return re.sub(r"[-–—]", "", str(resname))
 
     @staticmethod
-    def _gid_sort_key(x: Any) -> Tuple[int, Any]:
+    def _gid_sort_key(x: Any) -> tuple[int, Any]:
         """Stable sort key for group IDs.
 
         Group IDs may be numeric strings, ints, or other objects.
@@ -153,7 +153,7 @@ class ResultsReporter:
             return (1, sx)
 
     @staticmethod
-    def _safe_float(value: Any) -> Optional[float]:
+    def _safe_float(value: Any) -> float | None:
         """Convert value to float if possible; otherwise return None.
 
         Args:
@@ -213,8 +213,8 @@ class ResultsReporter:
         self,
         group_id: Any,
         label: str,
-        residue_count: Optional[int] = None,
-        atom_count: Optional[int] = None,
+        residue_count: int | None = None,
+        atom_count: int | None = None,
     ) -> None:
         """Store metadata label for a group.
 
@@ -244,7 +244,7 @@ class ResultsReporter:
         if not self.molecule_data:
             return
 
-        grouped: Dict[Any, List[Tuple[Any, Any, Any, Any]]] = {}
+        grouped: dict[Any, list[tuple[Any, Any, Any, Any]]] = {}
         for row in self.molecule_data:
             gid = row[0]
             grouped.setdefault(gid, []).append(row)
@@ -259,8 +259,8 @@ class ResultsReporter:
             table.add_column("Result (J/mol/K)", justify="center", style="yellow")
 
             rows = grouped[gid]
-            non_total: List[Tuple[str, str, Any]] = []
-            totals: List[Tuple[str, str, Any]] = []
+            non_total: list[tuple[str, str, Any]] = []
+            totals: list[tuple[str, str, Any]] = []
 
             for _gid, level, typ, val in rows:
                 level_s = str(level)
@@ -286,7 +286,7 @@ class ResultsReporter:
         if not self.residue_data:
             return
 
-        grouped: Dict[Any, List[List[Any]]] = {}
+        grouped: dict[Any, list[list[Any]]] = {}
         for row in self.residue_data:
             gid = row[0]
             grouped.setdefault(gid, []).append(row)
@@ -331,11 +331,11 @@ class ResultsReporter:
 
     def save_dataframes_as_json(
         self,
-        molecule_df,
-        residue_df,
+        molecule_df: Any,
+        residue_df: Any,
         output_file: str,
         *,
-        args: Optional[Any] = None,
+        args: Any | None = None,
         include_raw_tables: bool = False,
     ) -> None:
         """Save results to a grouped JSON structure.
@@ -360,17 +360,17 @@ class ResultsReporter:
             include_raw_tables=include_raw_tables,
         )
 
-        with open(output_file, "w") as out:
+        with open(output_file, "w", encoding="utf-8") as out:
             json.dump(payload, out, indent=2)
 
     def _build_grouped_payload(
         self,
         *,
-        molecule_df,
-        residue_df,
-        args: Optional[Any],
+        molecule_df: Any,
+        residue_df: Any,
+        args: Any | None,
         include_raw_tables: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build a grouped JSON-serializable payload from result dataframes.
 
         Args:
@@ -385,7 +385,7 @@ class ResultsReporter:
         mol_rows = molecule_df.to_dict(orient="records")
         res_rows = residue_df.to_dict(orient="records")
 
-        groups: Dict[str, Dict[str, Any]] = {}
+        groups: dict[str, dict[str, Any]] = {}
 
         for row in mol_rows:
             gid = str(row.get("Group ID"))
@@ -413,7 +413,7 @@ class ResultsReporter:
                 comps = g["components"].values()
                 g["total"] = float(sum(comps)) if comps else 0.0
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "args": self._serialize_args(args),
             "provenance": self._provenance(),
             "groups": groups,
@@ -426,7 +426,7 @@ class ResultsReporter:
         return payload
 
     @staticmethod
-    def _serialize_args(args: Optional[Any]) -> Dict[str, Any]:
+    def _serialize_args(args: Any | None) -> dict[str, Any]:
         """Turn argparse Namespace / dict / object into a JSON-serializable dict.
 
         Args:
@@ -449,7 +449,7 @@ class ResultsReporter:
                 except Exception:
                     return {}
 
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k, v in base.items():
             if isinstance(v, np.ndarray):
                 out[k] = v.tolist()
@@ -460,14 +460,14 @@ class ResultsReporter:
         return out
 
     @staticmethod
-    def _provenance() -> Dict[str, Any]:
+    def _provenance() -> dict[str, Any]:
         """Build a provenance dictionary for exported results.
 
         Returns:
             Dictionary with python version, platform string, CodeEntropy package
             version (if available), and git sha (if available).
         """
-        prov: Dict[str, Any] = {
+        prov: dict[str, Any] = {
             "python": sys.version.split()[0],
             "platform": platform.platform(),
         }
@@ -483,7 +483,7 @@ class ResultsReporter:
         return prov
 
     @staticmethod
-    def _try_get_git_sha() -> Optional[str]:
+    def _try_get_git_sha() -> str | None:
         """Try to determine the current git commit SHA.
 
         The SHA is obtained from:
@@ -513,8 +513,7 @@ class ResultsReporter:
             proc = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 cwd=str(repo_guess),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
             )
             if proc.returncode != 0:
@@ -525,7 +524,7 @@ class ResultsReporter:
             return None
 
     @contextmanager
-    def progress(self, *, transient: bool = True):
+    def progress(self, *, transient: bool = True) -> Iterator[_RichProgressSink]:
         """Create a workflow progress context.
 
         Usage:

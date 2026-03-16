@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, MutableMapping, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 GroupId = int
 ResidueId = int
-CovKey = Tuple[GroupId, ResidueId]
+CovKey = tuple[GroupId, ResidueId]
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,7 @@ class VibrationalEntropyNode:
         self._mat_ops = MatrixUtils()
         self._zero_atol = 1e-8
 
-    def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> Dict[str, Any]:
+    def run(self, shared_data: MutableMapping[str, Any], **_: Any) -> dict[str, Any]:
         """Run vibrational entropy calculations and update the shared data mapping.
 
         Args:
@@ -87,7 +88,7 @@ class VibrationalEntropyNode:
         ua_frame_counts = self._get_ua_frame_counts(shared_data)
         reporter = shared_data.get("reporter")
 
-        results: Dict[int, Dict[str, Dict[str, float]]] = {}
+        results: dict[int, dict[str, dict[str, float]]] = {}
 
         for group_id, mol_ids in groups.items():
             results[group_id] = {}
@@ -124,11 +125,18 @@ class VibrationalEntropyNode:
                 if level in ("residue", "polymer"):
                     gi = gid2i[group_id]
 
+                    if level == "residue":
+                        flexible_res = flexible["res"][group_id]
+                    else:
+                        flexible_res = 0  # No polymer level flexible dihedrals
+
                     if combined and highest and ft_cov is not None:
                         ft_key = "res" if level == "residue" else "poly"
                         ftmat = self._get_indexed_matrix(ft_cov.get(ft_key, []), gi)
 
-                        pair = self._compute_ft_entropy(ve=ve, temp=temp, ftmat=ftmat)
+                        pair = self._compute_ft_entropy(
+                            ve=ve, temp=temp, ftmat=ftmat, flexible=flexible_res
+                        )
                         self._store_results(results, group_id, level, pair)
                         self._log_molecule_level_results(
                             reporter, group_id, level, pair, use_ft_labels=True
@@ -139,17 +147,12 @@ class VibrationalEntropyNode:
                     fmat = self._get_indexed_matrix(force_cov.get(cov_key, []), gi)
                     tmat = self._get_indexed_matrix(torque_cov.get(cov_key, []), gi)
 
-                    if level == "residue":
-                        flexible = flexible["res"][group_id]
-                    else:
-                        flexible = 0  # No polymer level flexible dihedrals
-
                     pair = self._compute_force_torque_entropy(
                         ve=ve,
                         temp=temp,
                         fmat=fmat,
                         tmat=tmat,
-                        flexible=flexible,
+                        flexible=flexible_res,
                         highest=highest,
                     )
                     self._store_results(results, group_id, level, pair)
@@ -178,7 +181,7 @@ class VibrationalEntropyNode:
             run_manager=shared_data["run_manager"],
         )
 
-    def _get_group_id_to_index(self, shared_data: Mapping[str, Any]) -> Dict[int, int]:
+    def _get_group_id_to_index(self, shared_data: Mapping[str, Any]) -> dict[int, int]:
         """Return a mapping from group_id to contiguous index used by covariance lists.
 
         If a precomputed mapping is provided under "group_id_to_index", it is used.
@@ -197,7 +200,7 @@ class VibrationalEntropyNode:
         groups = shared_data["groups"]
         return {gid: i for i, gid in enumerate(groups.keys())}
 
-    def _get_ua_frame_counts(self, shared_data: Mapping[str, Any]) -> Dict[CovKey, int]:
+    def _get_ua_frame_counts(self, shared_data: Mapping[str, Any]) -> dict[CovKey, int]:
         """Extract per-(group,residue) frame counts for united-atom covariances.
 
         Args:
@@ -226,7 +229,7 @@ class VibrationalEntropyNode:
         torque_ua: Mapping[CovKey, Any],
         flexible_ua: Any,
         ua_frame_counts: Mapping[CovKey, int],
-        reporter: Optional[Any],
+        reporter: Any | None,
         n_frames_default: int,
         highest: bool,
     ) -> EntropyPair:
@@ -382,7 +385,7 @@ class VibrationalEntropyNode:
 
     @staticmethod
     def _store_results(
-        results: Dict[int, Dict[str, Dict[str, float]]],
+        results: dict[int, dict[str, dict[str, float]]],
         group_id: int,
         level: str,
         pair: EntropyPair,
@@ -399,7 +402,7 @@ class VibrationalEntropyNode:
 
     @staticmethod
     def _log_molecule_level_results(
-        reporter: Optional[Any],
+        reporter: Any | None,
         group_id: int,
         level: str,
         pair: EntropyPair,

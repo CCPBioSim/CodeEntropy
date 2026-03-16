@@ -17,9 +17,10 @@ workflow:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import networkx as nx
+from rich.progress import TaskID
 
 from CodeEntropy.levels.axes import AxesCalculator
 from CodeEntropy.levels.frame_dag import FrameGraph
@@ -28,6 +29,8 @@ from CodeEntropy.levels.nodes.beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
+from CodeEntropy.levels.nodes.find_neighbors import ComputeNeighborsNode
+from CodeEntropy.results.reporter import _RichProgressSink
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,7 @@ class LevelDAG:
     molecules within a group when frame nodes average within-frame first).
     """
 
-    def __init__(self, universe_operations: Optional[Any] = None) -> None:
+    def __init__(self, universe_operations: Any | None = None) -> None:
         """Initialise a LevelDAG.
 
         Args:
@@ -54,11 +57,11 @@ class LevelDAG:
         self._universe_operations = universe_operations
 
         self._static_graph = nx.DiGraph()
-        self._static_nodes: Dict[str, Any] = {}
+        self._static_nodes: dict[str, Any] = {}
 
         self._frame_dag = FrameGraph(universe_operations=universe_operations)
 
-    def build(self) -> "LevelDAG":
+    def build(self) -> LevelDAG:
         """Build the static and frame DAG topology.
 
         This registers all static nodes and their dependencies, and builds the
@@ -81,13 +84,16 @@ class LevelDAG:
             ComputeConformationalStatesNode(self._universe_operations),
             deps=["detect_levels"],
         )
+        self._add_static(
+            "find_neighbors", ComputeNeighborsNode(), deps=["detect_levels"]
+        )
 
         self._frame_dag.build()
         return self
 
     def execute(
-        self, shared_data: Dict[str, Any], *, progress: object | None = None
-    ) -> Dict[str, Any]:
+        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
+    ) -> dict[str, Any]:
         """Execute the full hierarchy workflow and mutate shared_data.
 
         This method ensures required shared components exist, runs the static stage
@@ -109,7 +115,7 @@ class LevelDAG:
         return shared_data
 
     def _run_static_stage(
-        self, shared_data: Dict[str, Any], *, progress: object | None = None
+        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
     ) -> None:
         """Run all static nodes in dependency order.
 
@@ -130,9 +136,7 @@ class LevelDAG:
                     pass
             node.run(shared_data)
 
-    def _add_static(
-        self, name: str, node: Any, deps: Optional[list[str]] = None
-    ) -> None:
+    def _add_static(self, name: str, node: Any, deps: list[str] | None = None) -> None:
         """Register a static node and its dependencies in the static DAG.
 
         Args:
@@ -149,7 +153,7 @@ class LevelDAG:
             self._static_graph.add_edge(dep, name)
 
     def _run_frame_stage(
-        self, shared_data: Dict[str, Any], *, progress: object | None = None
+        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
     ) -> None:
         """Execute the per-frame DAG stage and reduce frame outputs.
 
@@ -178,8 +182,8 @@ class LevelDAG:
         u = shared_data["reduced_universe"]
         start, end, step = shared_data["start"], shared_data["end"], shared_data["step"]
 
-        task = None
-        total_frames = None
+        task: TaskID | None = None
+        total_frames: int | None = None
 
         if progress is not None:
             try:
@@ -207,13 +211,13 @@ class LevelDAG:
             )
 
         for ts in u.trajectory[start:end:step]:
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.update(task, title=f"Frame {ts.frame}")
 
             frame_out = self._frame_dag.execute_frame(shared_data, ts.frame)
             self._reduce_one_frame(shared_data, frame_out)
 
-            if task is not None:
+            if progress is not None and task is not None:
                 progress.advance(task)
 
     @staticmethod
@@ -233,7 +237,7 @@ class LevelDAG:
         return old + (new - old) / float(n)
 
     def _reduce_one_frame(
-        self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
+        self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
         """Reduce one frame's covariance outputs into shared running means.
 
@@ -245,7 +249,7 @@ class LevelDAG:
         self._reduce_forcetorque(shared_data, frame_out)
 
     def _reduce_force_and_torque(
-        self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
+        self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
         """Reduce force/torque covariance outputs into shared accumulators.
 
@@ -305,7 +309,7 @@ class LevelDAG:
             t_cov["poly"][gi] = self._incremental_mean(t_cov["poly"][gi], T, n)
 
     def _reduce_forcetorque(
-        self, shared_data: Dict[str, Any], frame_out: Dict[str, Any]
+        self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
         """Reduce combined force-torque covariance outputs into shared accumulators.
 

@@ -33,7 +33,7 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Pytest (unit) • ${{ matrix.os }}, ${{ matrix.python-version }}
-        run: python -m pytest tests/unit -q
+        run: python -m pytest tests/unit
 
   regression-quick:
     name: Regression (quick)
@@ -62,7 +62,7 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Pytest (regression quick)
-        run: python -m pytest tests/regression -q
+        run: python -m pytest tests/regression
 
       - name: Upload artifacts (failure)
         if: failure()

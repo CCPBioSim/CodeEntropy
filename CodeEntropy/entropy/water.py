@@ -7,8 +7,9 @@ outputs into the project `ResultsReporter` format.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import waterEntropy.recipes.interfacial_solvent as GetSolvent
@@ -34,7 +35,7 @@ class WaterEntropyInput:
     end: int
     step: int
     temperature: float
-    group_id: Optional[int] = None
+    group_id: int | None = None
 
 
 class WaterEntropy:
@@ -52,7 +53,7 @@ class WaterEntropy:
         self,
         args: Any,
         reporter: Any,
-        solver: Callable[..., Tuple[dict, Any, Any, Any, Any]] = (
+        solver: Callable[..., tuple[dict, Any, Any, Any, Any]] = (
             GetSolvent.get_interfacial_water_orient_entropy
         ),
     ) -> None:
@@ -76,7 +77,7 @@ class WaterEntropy:
         start: int,
         end: int,
         step: int,
-        group_id: Optional[int] = None,
+        group_id: int | None = None,
     ) -> None:
         """Compute water entropy and write results to the data logger.
 
@@ -133,7 +134,7 @@ class WaterEntropy:
         )
 
     def _log_orientational_entropy(
-        self, Sorient_dict: Mapping[Any, Mapping[str, Any]], group_id: Optional[int]
+        self, Sorient_dict: Mapping[Any, Mapping[str, Any]], group_id: int | None
     ) -> None:
         """Log orientational entropy entries.
 
@@ -150,7 +151,7 @@ class WaterEntropy:
                     )
 
     def _log_translational_entropy(
-        self, vibrations: Any, covariances: Any, group_id: Optional[int]
+        self, vibrations: Any, covariances: Any, group_id: int | None
     ) -> None:
         """Log translational vibrational entropy entries.
 
@@ -175,7 +176,7 @@ class WaterEntropy:
             )
 
     def _log_rotational_entropy(
-        self, vibrations: Any, covariances: Any, group_id: Optional[int]
+        self, vibrations: Any, covariances: Any, group_id: int | None
     ) -> None:
         """Log rotational vibrational entropy entries.
 
@@ -203,7 +204,7 @@ class WaterEntropy:
         self,
         universe: Any,
         Sorient_dict: Mapping[Any, Mapping[str, Any]],
-        group_id: Optional[int],
+        group_id: int | None,
     ) -> None:
         """Log a group label summarizing the water entries.
 
