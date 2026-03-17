@@ -48,7 +48,7 @@ class MatrixUtils:
             )
 
         submatrix = np.outer(v_i, v_j)
-        logger.debug("Submatrix: %s", submatrix)
+        logger.debug(f"Submatrix: {submatrix}")
         return submatrix
 
     def filter_zero_rows_columns(
@@ -86,12 +86,11 @@ class MatrixUtils:
         final_shape = mat.shape
         if init_shape != final_shape:
             logger.debug(
-                "Matrix shape changed %s -> %s after removing zero rows/cols.",
-                init_shape,
-                final_shape,
+                f"Matrix shape changed {init_shape}"
+                f"-> {final_shape} after removing zero rows/cols."
             )
 
-        logger.debug("Filtered matrix: %s", mat)
+        logger.debug(f"Filtered matrix: {mat}")
         return mat
 
     @staticmethod

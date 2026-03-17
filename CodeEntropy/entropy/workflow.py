@@ -18,8 +18,9 @@ from __future__ import annotations
 import logging
 import math
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -32,7 +33,7 @@ from CodeEntropy.levels.level_dag import LevelDAG
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
 
-SharedData = Dict[str, Any]
+SharedData = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -207,7 +208,7 @@ class EntropyWorkflow:
         n_frames = self._get_number_frames(start, end, step)
         return TrajectorySlice(start=start, end=end, step=step, n_frames=n_frames)
 
-    def _get_trajectory_bounds(self) -> Tuple[int, int, int]:
+    def _get_trajectory_bounds(self) -> tuple[int, int, int]:
         """Return start, end, and step frame indices from args.
 
         Returns:
@@ -265,7 +266,7 @@ class EntropyWorkflow:
         self,
         universe: Any,
         groups: Mapping[int, Any],
-    ) -> Tuple[Dict[int, Any], Dict[int, Any]]:
+    ) -> tuple[dict[int, Any], dict[int, Any]]:
         """Partition molecule groups into water and non-water groups.
 
         This method identifies which molecule groups correspond to water
@@ -333,8 +334,8 @@ class EntropyWorkflow:
             else "not water"
         )
 
-        logger.debug("WaterEntropy: molecule_data=%s", self._reporter.molecule_data)
-        logger.debug("WaterEntropy: residue_data=%s", self._reporter.residue_data)
+        logger.debug(f"WaterEntropy: molecule_data= {self._reporter.molecule_data}")
+        logger.debug(f"WaterEntropy: residue_data= {self._reporter.residue_data}")
 
     def _finalize_molecule_results(self) -> None:
         """Aggregate group totals and persist results to JSON.

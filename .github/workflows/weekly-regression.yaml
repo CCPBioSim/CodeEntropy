@@ -13,7 +13,6 @@ jobs:
   regression:
     name: Regression tests (including slow)
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
     steps:
       - name: Checkout repo
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -36,7 +35,7 @@ jobs:
           pip install -e .[testing]
 
       - name: Run regression test suite
-        run: pytest tests/regression -q --run-slow
+        run: pytest tests/regression --run-slow
 
       - name: Upload regression artifacts on failure
         if: failure()

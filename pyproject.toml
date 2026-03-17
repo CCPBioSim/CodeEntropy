@@ -49,6 +49,7 @@ dependencies = [
     "matplotlib>=3.10,<3.11",
     "waterEntropy>=2,<2.1",
     "requests>=2.32,<3.0",
+    "rdkit>=2025.9.5",
 ]
 
 [project.urls]
@@ -87,7 +88,7 @@ line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B"]
+select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.format]
 quote-style = "double"

@@ -25,7 +25,7 @@ import glob
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Set
+from typing import Any
 
 import yaml
 
@@ -48,11 +48,11 @@ class ArgSpec:
     help: str
     default: Any = None
     type: Any = None
-    action: Optional[str] = None
-    nargs: Optional[str] = None
+    action: str | None = None
+    nargs: str | None = None
 
 
-ARG_SPECS: Dict[str, ArgSpec] = {
+ARG_SPECS: dict[str, ArgSpec] = {
     "top_traj_file": ArgSpec(
         type=str,
         nargs="+",
@@ -145,6 +145,12 @@ ARG_SPECS: Dict[str, ArgSpec] = {
         default=True,
         help="Use bonded axes to rotate forces for UA level vibrational entropies",
     ),
+    "search_type": ArgSpec(
+        type=str,
+        default="RAD",
+        help="Type of neighbor search to use."
+        "Default RAD; grid search is also available",
+    ),
 }
 
 
@@ -159,7 +165,7 @@ class ConfigResolver:
       - validating trajectory-related numeric parameters
     """
 
-    def __init__(self, arg_specs: Optional[Dict[str, ArgSpec]] = None) -> None:
+    def __init__(self, arg_specs: dict[str, ArgSpec] | None = None) -> None:
         """Initialize the manager.
 
         Args:
@@ -168,7 +174,7 @@ class ConfigResolver:
         """
         self._arg_specs = dict(arg_specs or ARG_SPECS)
 
-    def load_config(self, directory_path: str) -> Dict[str, Any]:
+    def load_config(self, directory_path: str) -> dict[str, Any]:
         """Load the first YAML config file found in a directory.
 
         The current behavior matches your existing workflow:
@@ -188,7 +194,7 @@ class ConfigResolver:
 
         config_path = yaml_files[0]
         try:
-            with open(config_path, "r", encoding="utf-8") as file:
+            with open(config_path, encoding="utf-8") as file:
                 config = yaml.safe_load(file) or {"run1": {}}
             logger.info("Loaded configuration from: %s", config_path)
             return config
@@ -253,7 +259,7 @@ class ConfigResolver:
                 )
                 continue
 
-            kwargs: Dict[str, Any] = {}
+            kwargs: dict[str, Any] = {}
             if spec.type is not None:
                 kwargs["type"] = spec.type
             if spec.default is not None:
@@ -266,7 +272,7 @@ class ConfigResolver:
         return parser
 
     def resolve(
-        self, args: argparse.Namespace, run_config: Optional[Dict[str, Any]]
+        self, args: argparse.Namespace, run_config: dict[str, Any] | None
     ) -> argparse.Namespace:
         """Merge CLI arguments with YAML configuration and adjust logging level.
 
@@ -306,8 +312,8 @@ class ConfigResolver:
 
     @staticmethod
     def _detect_cli_overrides(
-        args_dict: Dict[str, Any], default_dict: Dict[str, Any]
-    ) -> Set[str]:
+        args_dict: dict[str, Any], default_dict: dict[str, Any]
+    ) -> set[str]:
         """Detect which args were explicitly overridden in the CLI.
 
         Args:
@@ -322,8 +328,8 @@ class ConfigResolver:
     def _apply_yaml_defaults(
         self,
         args: argparse.Namespace,
-        run_config: Dict[str, Any],
-        cli_provided: Set[str],
+        run_config: dict[str, Any],
+        cli_provided: set[str],
     ) -> None:
         """Apply YAML values onto args for keys not provided by CLI.
 
@@ -336,7 +342,7 @@ class ConfigResolver:
             if yaml_value is None or key in cli_provided:
                 continue
             if key in self._arg_specs:
-                logger.debug("Using YAML value for %s: %s", key, yaml_value)
+                logger.debug(f"Using YAML value for {key}: {yaml_value}")
                 setattr(args, key, yaml_value)
 
     def _ensure_defaults(self, args: argparse.Namespace) -> None:

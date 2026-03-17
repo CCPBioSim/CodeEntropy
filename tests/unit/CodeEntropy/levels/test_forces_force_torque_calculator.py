@@ -236,3 +236,32 @@ def test_compute_weighted_torque_skips_nonpositive_moi_components():
     weighted = calc._compute_weighted_torque(bead=bead, inputs=inputs)
 
     assert np.allclose(weighted, np.array([1.0, 0.0, 0.0]))
+
+
+def test_displacements_requires_axes_manager():
+    with pytest.raises(ValueError, match="axes_manager must be provided"):
+        ForceTorqueCalculator._displacements_relative_to_center(
+            center=np.zeros(3),
+            positions=np.zeros((1, 3)),
+            axes_manager=None,
+            box=None,
+        )
+
+
+def test_displacements_calls_axes_manager_get_vector():
+    axes_manager = MagicMock()
+    expected = np.array([[1.0, 2.0, 3.0]])
+    axes_manager.get_vector.return_value = expected
+
+    center = np.zeros(3)
+    positions = np.array([[1.0, 2.0, 3.0]])
+
+    result = ForceTorqueCalculator._displacements_relative_to_center(
+        center=center,
+        positions=positions,
+        axes_manager=axes_manager,
+        box=None,
+    )
+
+    axes_manager.get_vector.assert_called_once_with(center, positions, None)
+    assert np.array_equal(result, expected)

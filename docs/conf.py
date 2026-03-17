@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
 #
@@ -60,7 +59,7 @@ napoleon_use_rtype = True
 napoleon_use_ivar = True
 
 # (Optional) If some modules have optional heavy deps, you can mock them here:
-# autodoc_mock_imports = ["MDAnalysis"]
+autodoc_mock_imports = ["MDAnalysis", "rdkit"]
 
 templates_path = ["_templates"]
 

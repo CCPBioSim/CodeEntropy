@@ -19,7 +19,7 @@ Not responsible for:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from MDAnalysis.lib.mdamath import make_whole
@@ -28,7 +28,7 @@ from CodeEntropy.levels.forces import ForceTorqueCalculator
 
 logger = logging.getLogger(__name__)
 
-FrameCtx = Dict[str, Any]
+FrameCtx = dict[str, Any]
 Matrix = np.ndarray
 
 
@@ -52,7 +52,7 @@ class FrameCovarianceNode:
         """Initialise the frame covariance node."""
         self._ft = ForceTorqueCalculator()
 
-    def run(self, ctx: FrameCtx) -> Dict[str, Any]:
+    def run(self, ctx: FrameCtx) -> dict[str, Any]:
         """Compute and store per-frame force/torque (and optional FT) matrices.
 
         Args:
@@ -83,15 +83,15 @@ class FrameCovarianceNode:
         box = self._try_get_box(u)
         fragments = u.atoms.fragments
 
-        out_force: Dict[str, Dict[Any, Matrix]] = {"ua": {}, "res": {}, "poly": {}}
-        out_torque: Dict[str, Dict[Any, Matrix]] = {"ua": {}, "res": {}, "poly": {}}
-        out_ft: Optional[Dict[str, Dict[Any, Matrix]]] = (
+        out_force: dict[str, dict[Any, Matrix]] = {"ua": {}, "res": {}, "poly": {}}
+        out_torque: dict[str, dict[Any, Matrix]] = {"ua": {}, "res": {}, "poly": {}}
+        out_ft: dict[str, dict[Any, Matrix]] | None = (
             {"ua": {}, "res": {}, "poly": {}} if combined else None
         )
 
-        ua_molcount: Dict[Tuple[int, int], int] = {}
-        res_molcount: Dict[int, int] = {}
-        poly_molcount: Dict[int, int] = {}
+        ua_molcount: dict[tuple[int, int], int] = {}
+        res_molcount: dict[int, int] = {}
+        poly_molcount: dict[int, int] = {}
 
         for group_id, mol_ids in groups.items():
             for mol_id in mol_ids:
@@ -152,7 +152,7 @@ class FrameCovarianceNode:
                         combined=combined,
                     )
 
-        frame_cov: Dict[str, Any] = {"force": out_force, "torque": out_torque}
+        frame_cov: dict[str, Any] = {"force": out_force, "torque": out_torque}
         if combined and out_ft is not None:
             frame_cov["forcetorque"] = out_ft
 
@@ -166,15 +166,15 @@ class FrameCovarianceNode:
         mol: Any,
         mol_id: int,
         group_id: int,
-        beads: Dict[Any, List[Any]],
+        beads: dict[Any, list[Any]],
         axes_manager: Any,
-        box: Optional[np.ndarray],
+        box: np.ndarray | None,
         force_partitioning: float,
         customised_axes: bool,
         is_highest: bool,
-        out_force: Dict[str, Dict[Any, Matrix]],
-        out_torque: Dict[str, Dict[Any, Matrix]],
-        molcount: Dict[Tuple[int, int], int],
+        out_force: dict[str, dict[Any, Matrix]],
+        out_torque: dict[str, dict[Any, Matrix]],
+        molcount: dict[tuple[int, int], int],
     ) -> None:
         """Compute UA-level force/torque second moments for one molecule.
 
@@ -254,16 +254,16 @@ class FrameCovarianceNode:
         mol: Any,
         mol_id: int,
         group_id: int,
-        beads: Dict[Any, List[Any]],
+        beads: dict[Any, list[Any]],
         axes_manager: Any,
-        box: Optional[np.ndarray],
+        box: np.ndarray | None,
         customised_axes: bool,
         force_partitioning: float,
         is_highest: bool,
-        out_force: Dict[str, Dict[Any, Matrix]],
-        out_torque: Dict[str, Dict[Any, Matrix]],
-        out_ft: Optional[Dict[str, Dict[Any, Matrix]]],
-        molcount: Dict[int, int],
+        out_force: dict[str, dict[Any, Matrix]],
+        out_torque: dict[str, dict[Any, Matrix]],
+        out_ft: dict[str, dict[Any, Matrix]] | None,
+        molcount: dict[int, int],
         combined: bool,
     ) -> None:
         """Compute residue-level force/torque (and optional FT) moments for one
@@ -336,15 +336,15 @@ class FrameCovarianceNode:
         mol: Any,
         mol_id: int,
         group_id: int,
-        beads: Dict[Any, List[Any]],
+        beads: dict[Any, list[Any]],
         axes_manager: Any,
-        box: Optional[np.ndarray],
+        box: np.ndarray | None,
         force_partitioning: float,
         is_highest: bool,
-        out_force: Dict[str, Dict[Any, Matrix]],
-        out_torque: Dict[str, Dict[Any, Matrix]],
-        out_ft: Optional[Dict[str, Dict[Any, Matrix]]],
-        molcount: Dict[int, int],
+        out_force: dict[str, dict[Any, Matrix]],
+        out_torque: dict[str, dict[Any, Matrix]],
+        out_ft: dict[str, dict[Any, Matrix]] | None,
+        molcount: dict[int, int],
         combined: bool,
     ) -> None:
         """Compute polymer-level force/torque (and optional FT) moments for one
@@ -431,15 +431,15 @@ class FrameCovarianceNode:
     def _build_ua_vectors(
         self,
         *,
-        bead_groups: List[Any],
+        bead_groups: list[Any],
         residue_group: Any,
         axes_manager: Any,
-        box: Optional[np.ndarray],
+        box: np.ndarray | None,
         force_partitioning: float,
         customised_axes: bool,
         is_highest: bool,
         res_position: int,
-    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """Build force/torque vectors for UA-level beads of one residue.
 
         Args:
@@ -457,8 +457,9 @@ class FrameCovarianceNode:
             A tuple (force_vecs, torque_vecs), each a list of (3,) vectors ordered
             by UA bead index within the residue.
         """
-        force_vecs: List[np.ndarray] = []
-        torque_vecs: List[np.ndarray] = []
+        force_vecs: list[np.ndarray] = []
+        torque_vecs: list[np.ndarray] = []
+
         for ua_i, bead in enumerate(bead_groups):
             if customised_axes:
                 trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
@@ -503,13 +504,13 @@ class FrameCovarianceNode:
         self,
         *,
         mol: Any,
-        bead_groups: List[Any],
+        bead_groups: list[Any],
         axes_manager: Any,
-        box: Optional[np.ndarray],
+        box: np.ndarray | None,
         customised_axes: bool,
         force_partitioning: float,
         is_highest: bool,
-    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """Build force/torque vectors for residue-level beads of one molecule.
 
         Args:
@@ -525,8 +526,8 @@ class FrameCovarianceNode:
             A tuple (force_vecs, torque_vecs), each a list of (3,) vectors ordered
             by residue index within the molecule.
         """
-        force_vecs: List[np.ndarray] = []
-        torque_vecs: List[np.ndarray] = []
+        force_vecs: list[np.ndarray] = []
+        torque_vecs: list[np.ndarray] = []
 
         for local_res_i, bead in enumerate(bead_groups):
             trans_axes, rot_axes, center, moi = self._get_residue_axes(
@@ -567,7 +568,7 @@ class FrameCovarianceNode:
         local_res_i: int,
         axes_manager: Any,
         customised_axes: bool,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Get translation/rotation axes, center and MOI for a residue bead.
 
         Args:
@@ -607,7 +608,7 @@ class FrameCovarianceNode:
         mol: Any,
         bead: Any,
         axes_manager: Any,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Get translation/rotation axes, center and MOI for a polymer bead.
 
         Args:
@@ -634,7 +635,7 @@ class FrameCovarianceNode:
         )
 
     @staticmethod
-    def _get_shared(ctx: FrameCtx) -> Dict[str, Any]:
+    def _get_shared(ctx: FrameCtx) -> dict[str, Any]:
         """Fetch shared context from a frame context dict.
 
         Args:
@@ -651,7 +652,7 @@ class FrameCovarianceNode:
         return ctx["shared"]
 
     @staticmethod
-    def _try_get_box(u: Any) -> Optional[np.ndarray]:
+    def _try_get_box(u: Any) -> np.ndarray | None:
         """Extract a (3,) box vector from an MDAnalysis universe when available.
 
         Args:
@@ -667,7 +668,7 @@ class FrameCovarianceNode:
             return None
 
     @staticmethod
-    def _inc_mean(old: Optional[np.ndarray], new: np.ndarray, n: int) -> np.ndarray:
+    def _inc_mean(old: np.ndarray | None, new: np.ndarray, n: int) -> np.ndarray:
         """Compute an incremental mean (streaming average).
 
         Args:
@@ -684,7 +685,7 @@ class FrameCovarianceNode:
 
     @staticmethod
     def _build_ft_block(
-        force_vecs: List[np.ndarray], torque_vecs: List[np.ndarray]
+        force_vecs: list[np.ndarray], torque_vecs: list[np.ndarray]
     ) -> np.ndarray:
         """Build a combined force-torque block matrix for a frame.
 
@@ -709,7 +710,7 @@ class FrameCovarianceNode:
         if n == 0:
             raise ValueError("No bead vectors available to build an FT matrix.")
 
-        bead_vecs: List[np.ndarray] = []
+        bead_vecs: list[np.ndarray] = []
         for Fi, Ti in zip(force_vecs, torque_vecs, strict=True):
             Fi = np.asarray(Fi, dtype=float).reshape(-1)
             Ti = np.asarray(Ti, dtype=float).reshape(-1)
@@ -717,7 +718,7 @@ class FrameCovarianceNode:
                 raise ValueError("Each force/torque vector must be length 3.")
             bead_vecs.append(np.concatenate([Fi, Ti], axis=0))
 
-        blocks: List[List[np.ndarray]] = [[None] * n for _ in range(n)]
+        blocks: list[list[np.ndarray]] = [[None] * n for _ in range(n)]
         for i in range(n):
             for j in range(i, n):
                 sub = np.outer(bead_vecs[i], bead_vecs[j])

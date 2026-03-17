@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from collections.abc import MutableMapping
 from dataclasses import dataclass
-from typing import Any, DefaultDict, Dict, List, MutableMapping, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -21,8 +22,8 @@ from CodeEntropy.levels.hierarchy import HierarchyBuilder
 
 logger = logging.getLogger(__name__)
 
-BeadKey = Tuple[int, str] | Tuple[int, str, int]
-BeadsMap = Dict[BeadKey, List[np.ndarray]]
+BeadKey = tuple[int, str] | tuple[int, str, int]
+BeadsMap = dict[BeadKey, list[np.ndarray]]
 
 
 @dataclass(frozen=True)
@@ -62,7 +63,7 @@ class BuildBeadsNode:
         """
         self._hier = hierarchy or HierarchyBuilder()
 
-    def run(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, shared_data: dict[str, Any]) -> dict[str, Any]:
         """Build bead definitions for all molecules and levels.
 
         Args:
@@ -77,7 +78,7 @@ class BuildBeadsNode:
             KeyError: If required keys are missing from `shared_data`.
         """
         u = shared_data["reduced_universe"]
-        levels: List[List[str]] = shared_data["levels"]
+        levels: list[list[str]] = shared_data["levels"]
 
         beads: BeadsMap = {}
         fragments = u.atoms.fragments
@@ -98,7 +99,7 @@ class BuildBeadsNode:
         return {"beads": beads}
 
     def _add_united_atom_beads(
-        self, beads: MutableMapping[BeadKey, List[np.ndarray]], mol_id: int, mol
+        self, beads: MutableMapping[BeadKey, list[np.ndarray]], mol_id: int, mol
     ) -> None:
         """Compute and store united-atom beads grouped into residue buckets.
 
@@ -109,7 +110,7 @@ class BuildBeadsNode:
         """
         ua_beads = self._hier.get_beads(mol, "united_atom")
 
-        buckets: DefaultDict[int, List[np.ndarray]] = defaultdict(list)
+        buckets: defaultdict[int, list[np.ndarray]] = defaultdict(list)
         for bead_i, bead in enumerate(ua_beads):
             atom_indices = self._validate_bead_indices(
                 bead, mol_id=mol_id, level="united_atom", bead_i=bead_i
@@ -124,7 +125,7 @@ class BuildBeadsNode:
             beads[(mol_id, "united_atom", local_res_id)] = buckets.get(local_res_id, [])
 
     def _add_residue_beads(
-        self, beads: MutableMapping[BeadKey, List[np.ndarray]], mol_id: int, mol
+        self, beads: MutableMapping[BeadKey, list[np.ndarray]], mol_id: int, mol
     ) -> None:
         """Compute and store residue beads.
 
@@ -134,7 +135,7 @@ class BuildBeadsNode:
             mol: MDAnalysis AtomGroup representing the molecule.
         """
         res_beads = self._hier.get_beads(mol, "residue")
-        kept: List[np.ndarray] = []
+        kept: list[np.ndarray] = []
 
         for bead_i, bead in enumerate(res_beads):
             atom_indices = self._validate_bead_indices(
@@ -154,7 +155,7 @@ class BuildBeadsNode:
             )
 
     def _add_polymer_beads(
-        self, beads: MutableMapping[BeadKey, List[np.ndarray]], mol_id: int, mol
+        self, beads: MutableMapping[BeadKey, list[np.ndarray]], mol_id: int, mol
     ) -> None:
         """Compute and store polymer beads.
 
@@ -164,7 +165,7 @@ class BuildBeadsNode:
             mol: MDAnalysis AtomGroup representing the molecule.
         """
         poly_beads = self._hier.get_beads(mol, "polymer")
-        kept: List[np.ndarray] = []
+        kept: list[np.ndarray] = []
 
         for bead_i, bead in enumerate(poly_beads):
             atom_indices = self._validate_bead_indices(

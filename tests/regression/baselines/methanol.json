@@ -1,10 +1,10 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/tdo96567/BioSim/CodeEntropy/tests/data/methanol/molecules.top",
-      "/home/tdo96567/BioSim/CodeEntropy/tests/data/methanol/trajectory.crd"
+      "/home/ogo12949/CodeEntropy/.testdata/methanol/molecules.top",
+      "/home/ogo12949/CodeEntropy/.testdata/methanol/trajectory.crd"
     ],
-    "force_file": "/home/tdo96567/BioSim/CodeEntropy/tests/data/methanol/forces.frc",
+    "force_file": "/home/ogo12949/CodeEntropy/.testdata/methanol/forces.frc",
     "file_format": "MDCRD",
     "kcal_force_units": false,
     "selection_string": "all",
@@ -14,18 +14,19 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-tdo96567/pytest-60/test_regression_matches_baseli6/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-5/test_regression_matches_baseli2/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
     "combined_forcetorque": true,
-    "customised_axes": true
+    "customised_axes": true,
+    "search_type": "RAD"
   },
   "provenance": {
-    "python": "3.14.0",
-    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
-    "codeentropy_version": "1.0.7",
-    "git_sha": "226b37f7b206adba1b60253c41c7a0d467e75a58"
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1011-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.0.0",
+    "git_sha": "44bd758498dfdd07eb391ee86e6ff2d86ea2bcb8"
   },
   "groups": {
     "0": {
@@ -35,9 +36,10 @@
         "residue:FTmat-Transvibrational": 93.59616431728384,
         "residue:FTmat-Rovibrational": 59.61417719536213,
         "united_atom:Conformational": 0.0,
-        "residue:Conformational": 0.0
+        "residue:Conformational": 0.0,
+        "residue:Orientational": 16.370329454731248
       },
-      "total": 238.9590441528269
+      "total": 255.32937360755813
     }
   }
 }

@@ -2,53 +2,33 @@ import pytest
 
 from CodeEntropy.entropy.orientational import OrientationalEntropy
 
-
-def test_orientational_skips_water_species():
-    oe = OrientationalEntropy(None, None, None, None, None)
-    res = oe.calculate({"WAT": 10, "LIG": 2})
-    assert res.total > 0
+_GAS_CONST: float = 8.3144598484848
 
 
 def test_orientational_negative_count_raises():
-    oe = OrientationalEntropy(None, None, None, None, None)
+    oe = OrientationalEntropy(_GAS_CONST)
     with pytest.raises(ValueError):
-        oe.calculate({"LIG": -1})
+        oe.calculate(-1, 1, False)
 
 
 def test_orientational_zero_count_contributes_zero():
-    oe = OrientationalEntropy(None, None, None, None, None)
-    res = oe.calculate({"LIG": 0})
-    assert res.total == 0.0
+    oe = OrientationalEntropy(_GAS_CONST)
+    assert oe.calculate(0, 1, False) == 0.0
 
 
-def test_orientational_skips_water_resname_all_uppercase():
-    oe = OrientationalEntropy(None, None, None, None, None)
-    res = oe.calculate({"WAT": 10})
-    assert res.total == 0.0
+def test_omega_linear():
+    oe = OrientationalEntropy(_GAS_CONST)
+    omega = oe._omega(6, 2, True)
+    assert omega == 3.0
 
 
-def test_orientational_entropy_skips_water_species():
-    oe = OrientationalEntropy(None, None, None, None, None)
-    res = oe.calculate({"WAT": 10, "Na+": 2})
-    assert res.total > 0.0
+def test_omega_nonlinear():
+    oe = OrientationalEntropy(_GAS_CONST)
+    omega = oe._omega(6, 2, False)
+    assert omega == pytest.approx(13.02482)
 
 
-def test_orientational_calculate_only_water_returns_zero():
-    oe = OrientationalEntropy(None, None, None, None, None)
-    res = oe.calculate({"WAT": 5})
-    assert res.total == 0.0
-
-
-def test_calculate_skips_water_species_branch():
-    oe = OrientationalEntropy(None, None, None, None, None)
-    out = oe.calculate({"WAT": 10, "Na+": 2})
-
-    assert out.total > 0.0
-
-
-def test_entropy_contribution_returns_zero_when_omega_nonpositive(monkeypatch):
-    oe = OrientationalEntropy(None, None, None, None, None)
-
-    monkeypatch.setattr(OrientationalEntropy, "_omega", staticmethod(lambda n: 0.0))
-
-    assert oe._entropy_contribution(5) == 0.0
+def test_omega_no_symmetry():
+    oe = OrientationalEntropy(_GAS_CONST)
+    omega = oe._omega(6, 0, False)
+    assert omega == 1.0

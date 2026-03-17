@@ -9,7 +9,6 @@ coordinates from one trajectory with forces sourced from a second trajectory.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import MDAnalysis as mda
 from MDAnalysis.analysis.base import AnalysisFromFunction
@@ -35,8 +34,8 @@ class UniverseOperations:
     def select_frames(
         self,
         u: mda.Universe,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
+        start: int | None = None,
+        end: int | None = None,
         step: int = 1,
     ) -> mda.Universe:
         """Create a reduced universe by dropping frames according to user selection.
@@ -75,7 +74,7 @@ class UniverseOperations:
             dimensions=dimensions,
         )
 
-        logger.debug("MDAnalysis.Universe - reduced universe (frame-selected): %s", u2)
+        logger.debug(f"MDAnalysis.Universe - reduced universe (frame-selected): {u2}")
         return u2
 
     def select_atoms(self, u: mda.Universe, select_string: str = "all") -> mda.Universe:
@@ -103,7 +102,7 @@ class UniverseOperations:
             dimensions=dimensions,
         )
 
-        logger.debug("MDAnalysis.Universe - reduced universe (atom-selected): %s", u2)
+        logger.debug(f"MDAnalysis.Universe - reduced universe (atom-selected): {u2}")
         return u2
 
     def extract_fragment(
@@ -127,10 +126,10 @@ class UniverseOperations:
         tprfile: str,
         trrfile,
         forcefile: str,
-        fileformat: Optional[str] = None,
+        fileformat: str | None = None,
         kcal: bool = False,
         *,
-        force_format: Optional[str] = None,
+        force_format: str | None = None,
         fallback_to_positions_if_no_forces: bool = True,
     ) -> mda.Universe:
         """Create a universe by merging coordinates and forces from different files.
@@ -168,11 +167,11 @@ class UniverseOperations:
             dimensions loaded into memory.
 
         """
-        logger.debug("Loading coordinate Universe with %s", trrfile)
+        logger.debug(f"Loading coordinate Universe with {trrfile}")
         u = mda.Universe(tprfile, trrfile, format=fileformat)
 
         ff = force_format if force_format is not None else fileformat
-        logger.debug("Loading force Universe with %s", forcefile)
+        logger.debug(f"Loading force Universe with {forcefile}")
         u_force = mda.Universe(tprfile, forcefile, format=ff)
 
         select_atom = u.select_atoms("all")

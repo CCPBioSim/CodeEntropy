@@ -16,7 +16,6 @@ Notes:
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class HierarchyBuilder:
     provides structural information (levels and beads).
     """
 
-    def select_levels(self, data_container) -> Tuple[int, List[List[str]]]:
+    def select_levels(self, data_container) -> tuple[int, list[list[str]]]:
         """Select applicable hierarchy levels for each molecule in the container.
 
         A molecule is always assigned the `united_atom` level.
@@ -53,10 +52,10 @@ class HierarchyBuilder:
                 (strings) for that molecule in increasing coarseness.
         """
         number_molecules = len(data_container.atoms.fragments)
-        logger.debug("The number of molecules is %d.", number_molecules)
+        logger.debug(f"The number of molecules is {number_molecules}.")
 
         fragments = data_container.atoms.fragments
-        levels: List[List[str]] = [[] for _ in range(number_molecules)]
+        levels: list[list[str]] = [[] for _ in range(number_molecules)]
 
         for mol_id in range(number_molecules):
             levels[mol_id].append("united_atom")
@@ -69,10 +68,10 @@ class HierarchyBuilder:
                 if number_residues > 1:
                     levels[mol_id].append("polymer")
 
-        logger.debug("Selected levels: %s", levels)
+        logger.debug(f"Selected levels: {levels}")
         return number_molecules, levels
 
-    def get_beads(self, data_container, level: str) -> List:
+    def get_beads(self, data_container, level: str) -> list:
         """Build beads for a given container at a given hierarchy level.
 
         Args:
@@ -97,7 +96,7 @@ class HierarchyBuilder:
 
         raise ValueError(f"Unknown level: {level}")
 
-    def _build_residue_beads(self, data_container) -> List:
+    def _build_residue_beads(self, data_container) -> list:
         """Build one bead per residue using the container's residues.
 
         Args:
@@ -110,7 +109,7 @@ class HierarchyBuilder:
         logger.debug("Residue beads sizes: %s", [len(b) for b in beads])
         return beads
 
-    def _build_united_atom_beads(self, data_container) -> List:
+    def _build_united_atom_beads(self, data_container) -> list:
         """Build united-atom beads from heavy atoms and their bonded hydrogens.
 
         For each heavy atom, a bead is defined as:

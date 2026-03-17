@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, MutableMapping, Optional
+from typing import Any
 
-EntropyResults = Dict[str, Any]
+EntropyResults = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,11 +26,12 @@ class AggregateEntropyNode:
 
     vibrational_key: str = "vibrational_entropy"
     configurational_key: str = "configurational_entropy"
+    orientational_key: str = "orientational_entropy"
     output_key: str = "entropy_results"
 
     def run(
         self, shared_data: MutableMapping[str, Any], **_: Any
-    ) -> Dict[str, EntropyResults]:
+    ) -> dict[str, EntropyResults]:
         """Run the aggregation step.
 
         Args:
@@ -69,10 +71,13 @@ class AggregateEntropyNode:
             "configurational_entropy": self._get_optional(
                 shared_data, self.configurational_key
             ),
+            "orientational_entropy": self._get_optional(
+                shared_data, self.orientational_key
+            ),
         }
 
     @staticmethod
-    def _get_optional(shared_data: Mapping[str, Any], key: str) -> Optional[Any]:
+    def _get_optional(shared_data: Mapping[str, Any], key: str) -> Any | None:
         """Fetch an optional value from shared data.
 
         Args:
