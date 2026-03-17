@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-5/test_regression_matches_baseli0/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-1/test_regression_matches_baseli0/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -24,9 +24,9 @@
   },
   "provenance": {
     "python": "3.13.5",
-    "platform": "Linux-6.17.0-1011-oem-x86_64-with-glibc2.39",
+    "platform": "Linux-6.17.0-1012-oem-x86_64-with-glibc2.39",
     "codeentropy_version": "2.0.0",
-    "git_sha": "44bd758498dfdd07eb391ee86e6ff2d86ea2bcb8"
+    "git_sha": "3143bcbea9717e13135f61c00e6a0efa7814f82f"
   },
   "groups": {
     "0": {
