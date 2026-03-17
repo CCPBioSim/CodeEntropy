@@ -205,7 +205,7 @@ def test_get_grid_neighbors_uses_residue_search_for_non_united_atom():
 
     search_result = MagicMock()
     final_neighbors = MagicMock()
-    final_neighbors.fragindices = np.array([7, 8, 9])
+    final_neighbors.atoms.fragindices = np.array([7, 8, 9])
 
     search_result.__sub__.return_value = final_neighbors
 
