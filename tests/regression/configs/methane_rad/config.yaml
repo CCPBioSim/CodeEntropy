@@ -7,9 +7,8 @@ run1:
     - ".testdata/methane/trajectory.crd"
   selection_string: "all"
   start: 0
-  end: 1
   step: 1
+  end: 1
   file_format: "MDCRD"
-  temperature: 112.0
-  kcal_force_units: True
-  search_type: "grid"
+# kcal_force_units: True
+  search_type: "RAD"

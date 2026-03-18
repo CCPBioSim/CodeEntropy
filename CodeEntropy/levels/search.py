@@ -236,5 +236,6 @@ class Search:
             # Make sure that the neighbors list does not include
             # residues from the central molecule
             neighbors = search - fragment.residues
+            neighbors = neighbors.atoms
 
         return neighbors.fragindices

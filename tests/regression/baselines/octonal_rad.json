@@ -6,7 +6,7 @@
     ],
     "force_file": "/home/ogo12949/CodeEntropy/.testdata/octonol/forces.frc",
     "file_format": "MDCRD",
-    "kcal_force_units": true,
+    "kcal_force_units": false,
     "selection_string": "all",
     "start": 0,
     "end": 1,
@@ -14,32 +14,32 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-5/test_regression_matches_baseli7/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-1/test_regression_matches_baseli7/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
     "combined_forcetorque": true,
     "customised_axes": true,
-    "search_type": "grid"
+    "search_type": "RAD"
   },
   "provenance": {
     "python": "3.13.5",
     "platform": "Linux-6.17.0-1012-oem-x86_64-with-glibc2.39",
     "codeentropy_version": "2.0.0",
-    "git_sha": "697cc5da0af766f2f69b0fa31254f2ce7b2b1141"
+    "git_sha": "3143bcbea9717e13135f61c00e6a0efa7814f82f"
   },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 50.77228933028987,
-        "united_atom:Rovibrational": 84.2608785308744,
-        "residue:FTmat-Transvibrational": 66.13571365167344,
-        "residue:FTmat-Rovibrational": 57.090651827515686,
+        "united_atom:Transvibrational": 254.7961136639108,
+        "united_atom:Rovibrational": 345.86413400118744,
+        "residue:FTmat-Transvibrational": 101.79847675768119,
+        "residue:FTmat-Rovibrational": 92.71423842383722,
         "united_atom:Conformational": 20.4159084259166,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 74.85579414765692
+        "residue:Orientational": 28.13775462144063
       },
-      "total": 353.5312359139269
+      "total": 843.726625893974
     }
   }
 }

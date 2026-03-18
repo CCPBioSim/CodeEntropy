@@ -9,7 +9,7 @@ def test_compute_conformational_states_node_runs_and_writes_shared_data():
     node = ComputeConformationalStatesNode(universe_operations=uops)
 
     node._dihedral_analysis.build_conformational_states = MagicMock(
-        return_value=({"ua_key": ["0", "1"]}, [["00", "01"]])
+        return_value=({"ua_key": ["0", "1"]}, [["00", "01"]], {"ua_key": [0]}, [0])
     )
 
     shared = {

@@ -44,7 +44,7 @@ class ConformationStateBuilder:
         step: int,
         bin_width: float,
         progress: _RichProgressSink | None = None,
-    ) -> tuple[dict[UAKey, list[str]], list[list[str]]]:
+    ) -> tuple[dict[UAKey, list[str]], list[list[str]], dict[UAKey, int], list[int]]:
         """Build conformational state labels from trajectory dihedrals.
 
         This method constructs discrete conformational state descriptors used in
@@ -72,7 +72,7 @@ class ConformationStateBuilder:
                 and advance().
 
         Returns:
-            tuple: (states_ua, states_res)
+            tuple: (states_ua, states_res, flexible_ua, flexible_res)
 
             - states_ua: Dict mapping (group_id, local_residue_id) -> list of state
               labels (strings) across the analyzed trajectory.
@@ -87,6 +87,8 @@ class ConformationStateBuilder:
         number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
         states_res: list[list[str]] = [[] for _ in range(number_groups)]
+        flexible_ua: dict[UAKey, int] = {}
+        flexible_res: list[int] = [0] * number_groups
 
         task: TaskID | None = None
         if progress is not None:
@@ -149,12 +151,14 @@ class ConformationStateBuilder:
                 level_list=levels[molecules[0]],
                 states_ua=states_ua,
                 states_res=states_res,
+                flexible_ua=flexible_ua,
+                flexible_res=flexible_res,
             )
 
             if progress is not None and task is not None:
                 progress.advance(task)
 
-        return states_ua, states_res
+        return states_ua, states_res, flexible_ua, flexible_res
 
     def _collect_dihedrals_for_group(
         self, mol: Any, level_list: list[str]
@@ -268,6 +272,7 @@ class ConformationStateBuilder:
             if level == "united_atom":
                 for res_id in range(len(dihedrals_ua)):
                     if len(dihedrals_ua[res_id]) == 0:
+                        # No dihedrals means no peaks
                         peaks_ua[res_id] = []
                     else:
                         peaks_ua[res_id] = self._identify_peaks(
@@ -282,6 +287,7 @@ class ConformationStateBuilder:
 
             elif level == "residue":
                 if len(dihedrals_res) == 0:
+                    # No dihedrals means no peaks
                     peaks_res = []
                 else:
                     peaks_res = self._identify_peaks(
@@ -353,7 +359,9 @@ class ConformationStateBuilder:
             peaks = self._find_histogram_peaks(popul=popul, bin_value=bin_value)
             peak_values.append(peaks)
 
-            logger.debug(f"Dihedral: {dihedral_index}, Peak Values: {peak_values}")
+            logger.debug(
+                f"Dihedral: {dihedral_index}Peak Values: {peak_values[dihedral_index]}"
+            )
 
         return peak_values
 
@@ -404,6 +412,8 @@ class ConformationStateBuilder:
         level_list: list[str],
         states_ua: dict[UAKey, list[str]],
         states_res: list[list[str]],
+        flexible_ua: dict[UAKey, list[int]],
+        flexible_res: list[int],
     ) -> None:
         """Assign UA and residue states for a group into output containers."""
         for level in level_list:
@@ -412,8 +422,9 @@ class ConformationStateBuilder:
                     key = (group_id, res_id)
                     if len(dihedrals_ua[res_id]) == 0:
                         states_ua[key] = []
+                        flexible_ua[key] = 0
                     else:
-                        states_ua[key] = self._assign_states(
+                        states_ua[key], flexible_ua[key] = self._assign_states(
                             data_container=data_container,
                             molecules=molecules,
                             dihedrals=dihedrals_ua[res_id],
@@ -426,8 +437,9 @@ class ConformationStateBuilder:
             elif level == "residue":
                 if len(dihedrals_res) == 0:
                     states_res[group_id] = []
+                    flexible_res[group_id] = 0
                 else:
-                    states_res[group_id] = self._assign_states(
+                    states_res[group_id], flexible_res[group_id] = self._assign_states(
                         data_container=data_container,
                         molecules=molecules,
                         dihedrals=dihedrals_res,
@@ -467,6 +479,7 @@ class ConformationStateBuilder:
             List of state labels (strings).
         """
         states: list[str] = []
+        num_flexible = 0
 
         for molecule in molecules:
             conformations: list[list[Any]] = []
@@ -477,16 +490,29 @@ class ConformationStateBuilder:
 
             for dihedral_index in range(len(dihedrals)):
                 conformation: list[Any] = []
+
+                # Check for flexible dihedrals
+                if len(peaks[dihedral_index]) > 1 and molecule == 0:
+                    num_flexible += 1
+
+                # Get conformations
                 for timestep in range(number_frames):
                     value = dihedral_results.results.angles[timestep][dihedral_index]
+                    # We want postive values in range 0 to 360 to make
+                    # the peak assignment.
+                    # works using the fact that dihedrals have circular symmetry
+                    # (i.e. -15 degrees = +345 degrees)
                     if value < 0:
                         value += 360
 
+                    # Find the peak closest to the dihedral value
                     distances = [abs(value - peak) for peak in peaks[dihedral_index]]
                     conformation.append(np.argmin(distances))
 
                 conformations.append(conformation)
 
+            # Concatenate all the dihedrals in the molecule into the state
+            # for the frame.
             mol_states = [
                 state
                 for state in (
@@ -501,4 +527,6 @@ class ConformationStateBuilder:
             states.extend(mol_states)
 
         logger.debug(f"States: {states}")
-        return states
+        logger.debug(f"Number of flexible dihedrals: {num_flexible}")
+
+        return states, num_flexible
