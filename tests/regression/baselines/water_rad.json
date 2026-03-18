@@ -6,7 +6,7 @@
     ],
     "force_file": "/home/ogo12949/CodeEntropy/.testdata/water/forces.frc",
     "file_format": "MDCRD",
-    "kcal_force_units": true,
+    "kcal_force_units": false,
     "selection_string": "all",
     "start": 0,
     "end": 1,
@@ -14,29 +14,29 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-5/test_regression_matches_baseli8/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-2/test_regression_matches_baseli0/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
     "combined_forcetorque": true,
     "customised_axes": true,
-    "search_type": "grid"
+    "search_type": "RAD"
   },
   "provenance": {
     "python": "3.13.5",
     "platform": "Linux-6.17.0-1012-oem-x86_64-with-glibc2.39",
     "codeentropy_version": "2.0.0",
-    "git_sha": "697cc5da0af766f2f69b0fa31254f2ce7b2b1141"
+    "git_sha": "3143bcbea9717e13135f61c00e6a0efa7814f82f"
   },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 43.725393337304425,
-        "united_atom:Rovibrational": 17.28911070147887,
+        "united_atom:Transvibrational": 79.20298312418278,
+        "united_atom:Rovibrational": 50.90260688502127,
         "united_atom:Conformational": 0.0,
-        "united_atom:Orientational": 32.00715225476484
+        "united_atom:Orientational": 22.599402683404527
       },
-      "total": 93.02165629354813
+      "total": 152.70499269260856
     }
   }
 }
