@@ -67,7 +67,7 @@ class AxesCalculator:
         The translational and rotational axes at the residue level.
 
         - Identify the residue (either provided or selected by `resindex index`).
-        - Determine whether the residue is bonded to neighboring residues
+        - Determine whether the residue is bonded to neighbouring residues
           (previous/next in sequence) using MDAnalysis bonded selections.
         - If there are *no* bonds to other residues:
             * Use a custom principal axes, from a moment-of-inertia (MOI) tensor
@@ -107,15 +107,16 @@ class AxesCalculator:
             # residue of interest
         if len(residue) == 0:
             raise ValueError(f"Empty residue selection for resindex={index}")
-        atom_set = data_container.atoms.select_atoms(
+        anchors = data_container.select_atoms(
             f"(resindex {index_prev} or "
             f"resindex {index_next}) and "
             f"bonded resindex {index}"
         )
+
         uas = residue.select_atoms("mass 2 to 999")
         ua_masses = self.get_UA_masses(residue)
 
-        if len(atom_set) == 0:
+        if len(anchors) == 0:
             # No bonds to other residues.
             # Use a custom principal axes, from a MOI tensor that uses positions of
             # heavy atoms only, but including masses of heavy atom + bonded H.
@@ -129,65 +130,33 @@ class AxesCalculator:
             trans_axes = rot_axes  # per original convention
             center = np.array(residue.center_of_mass())
         else:
+            print("-----RESIDUE LEVEL-----")
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            backbone = residue.select_atoms("backbone")
-            if len(backbone) == 0:
-                # not a protein
-                center = np.array(residue.center_of_mass())
-            else:
-                # protein backbone identified
-                center = np.array(backbone.center_of_mass())
-
-            if len(atom_set) == 1:
+            backbone = self.get_backbone(data_container, index)
+            # get edge atoms of the residue
+            # for terminal residues, this will include the C/N terminus
+            # bond-derived rotation axes
+            print(f"The backbone: {backbone}")
+            center = np.zeros(3)
+            for atom in backbone:
+                center += atom.position
+            center /= len(backbone)
+            if len(anchors) == 1:
                 # only one neighbour
-                if index == 0:
-                    # first residue
-                    next_resid = data_container.select_atoms(f"resindex {index_next}")
-                    next_backbone = next_resid.select_atoms("backbone")
-                    if len(next_backbone) == 0:
-                        anchor = np.array(next_resid.center_of_mass())
-                    else:
-                        anchor = np.array(next_backbone.center_of_mass())
-                    # anchor = atom_set[0].position
-                else:
-                    # last residue
-                    prev_resid = data_container.select_atoms(f"resindex {index_prev}")
-                    prev_backbone = prev_resid.select_atoms("backbone")
-                    if len(prev_backbone) == 0:
-                        anchor = np.array(prev_resid.center_of_mass())
-                    else:
-                        anchor = np.array(prev_backbone.center_of_mass())
-                    # anchor = atom_set[0].position
                 rot_axes = self.get_custom_axes(
                     a=center,
-                    b_list=anchor,
+                    b_list=anchors[0].position,
                     c=np.zeros(3),
                     dimensions=data_container.dimensions[:3],
                 )
             else:
                 # two neighbours
-                prev_resid = data_container.select_atoms(f"resindex {index_prev}")
-                next_resid = data_container.select_atoms(f"resindex {index_next}")
-                prev_backbone = prev_resid.select_atoms("backbone")
-                next_backbone = next_resid.select_atoms("backbone")
-                anchors = []
-                # check separately in case we have a protein with a PTM
-                # or similar case
-                if len(prev_backbone) == 0:
-                    anchors.append(np.array(prev_resid.center_of_mass()))
-                else:
-                    anchors.append(np.array(prev_backbone.center_of_mass()))
-                if len(next_backbone) == 0:
-                    anchors.append(np.array(next_resid.center_of_mass()))
-                else:
-                    anchors.append(np.array(next_backbone.center_of_mass()))
-                # anchors = atom_set.positions
                 rot_axes = self.get_custom_axes(
                     a=center,
-                    b_list=anchors,
-                    c=anchors[1],
+                    b_list=anchors.positions,
+                    c=anchors[1].position,
                     dimensions=data_container.dimensions[:3],
                 )
             # analogous to the UA case where a heavy atom is bound to >=2 heavy atoms
@@ -224,7 +193,8 @@ class AxesCalculator:
                 Molecule and trajectory data.
             index (int):
                 Bead index (ordinal among heavy atoms).
-
+            res_position: where the residue of interest is
+                in data_container
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
                 - trans_axes: Translational axes (3, 3).
@@ -245,36 +215,28 @@ class AxesCalculator:
         if len(data_container.residues) == 1:
             # only the one residue => use principal axes
             residue = data_container
-            center = data_container.atoms.center_of_mass(unwrap=True)
+            trans_center = data_container.atoms.center_of_mass(unwrap=True)
             trans_axes = data_container.atoms.principal_axes
         else:
+            print("-----UA LEVEL-----")
             # residue of interest has at least one neighbour
             if res_position == -1:
                 residue = data_container.residues[0]
                 index_next = residue.resid + 1
-                # atom_set = data_container.atoms.select_atoms(
-                # f"resindex {index_next-1} and "
-                # f"bonded resindex {residue.resid-1}"
-                # )
+                anchor = data_container.atoms.select_atoms(
+                    f"resindex {index_next - 1} and bonded resindex {residue.resid - 1}"
+                )
                 # the .resid attribute gives 1-indexing
                 # substract 1 to match indexing later
-                next_resid = data_container.select_atoms(f"resindex {index_next - 1}")
-                next_backbone = next_resid.atoms.select_atoms("backbone")
-                if len(next_backbone) == 0:
-                    anchor = np.array(next_resid.center_of_mass())
-                else:
-                    anchor = np.array(next_backbone.center_of_mass())
-                # anchor = atom_set[0].position
-                backbone = residue.atoms.select_atoms("backbone")
-                if len(backbone) == 0:
-                    # not a protein
-                    center = np.array(residue.atoms.center_of_mass())
-                else:
-                    # protein backbone identified
-                    center = np.array(backbone.center_of_mass())
+                backbone = self.get_backbone(data_container, 0)
+                print(f"The backbone: {backbone}")
+                trans_center = np.zeros(3)
+                for atom in backbone:
+                    trans_center += atom.position
+                trans_center /= len(backbone)
                 trans_axes = self.get_custom_axes(
-                    a=center,
-                    b_list=anchor,
+                    a=trans_center,
+                    b_list=anchor[0].position,
                     c=np.zeros(3),
                     dimensions=data_container.dimensions[:3],
                 )
@@ -284,63 +246,39 @@ class AxesCalculator:
                 residue = data_container.residues[1]
                 index_prev = residue.resid - 1
                 index_next = residue.resid + 1
-                prev_resid = data_container.select_atoms(f"resindex {index_prev - 1}")
-                next_resid = data_container.select_atoms(f"resindex {index_next - 1}")
-                prev_backbone = prev_resid.atoms.select_atoms("backbone")
-                next_backbone = next_resid.atoms.select_atoms("backbone")
-                # atom_set = data_container.atoms.select_atoms(
-                # f"(resindex {index_prev-1} or "
-                # f"resindex {index_next-1}) and "
-                # f"bonded resindex {residue.resid-1}"
-                # )
-                anchors = []
-                if len(prev_backbone) == 0:
-                    anchors.append(np.array(prev_resid.center_of_mass()))
-                else:
-                    anchors.append(np.array(prev_backbone.center_of_mass()))
-                if len(next_backbone) == 0:
-                    anchors.append(np.array(next_resid.center_of_mass()))
-                else:
-                    anchors.append(np.array(next_backbone.center_of_mass()))
-                # anchors = atom_set.positions
-                backbone = residue.atoms.select_atoms("backbone")
-                if len(backbone) == 0:
-                    # not a protein
-                    center = np.array(residue.atoms.center_of_mass())
-                else:
-                    # protein backbone identified
-                    center = np.array(backbone.center_of_mass())
+                anchors = data_container.atoms.select_atoms(
+                    f"(resindex {index_prev - 1} or "
+                    f"resindex {index_next - 1}) and "
+                    f"bonded resindex {residue.resid - 1}"
+                )
+                backbone = self.get_backbone(data_container, 1)
+                print(f"The backbone: {backbone}")
+                trans_center = np.zeros(3)
+                for atom in backbone:
+                    trans_center += atom.position
+                trans_center /= len(backbone)
                 trans_axes = self.get_custom_axes(
-                    a=center,
-                    b_list=anchors,
-                    c=anchors[1],
+                    a=trans_center,
+                    b_list=anchors.positions,
+                    c=anchors[1].position,
                     dimensions=data_container.dimensions[:3],
                 )
-
             else:
                 # last resid
                 residue = data_container.residues[1]
                 index_prev = residue.resid - 1
-                prev_resid = data_container.select_atoms(f"resindex {index_prev - 1}")
-                prev_backbone = prev_resid.atoms.select_atoms("backbone")
-                if len(prev_backbone) == 0:
-                    anchor = np.array(prev_resid.center_of_mass())
-                else:
-                    anchor = np.array(prev_backbone.center_of_mass())
-                # atom_set = data_container.atoms.select_atoms(
-                # f"resindex {index_prev-1} and "
-                # f"bonded resindex {residue.resid-1}"
-                # )
-                # anchor = atom_set[0].position
-                backbone = residue.atoms.select_atoms("backbone")
-                if len(backbone) == 0:
-                    # not a protein
-                    center = np.array(residue.atoms.center_of_mass())
-                else:
-                    center = np.array(backbone.center_of_mass())
+                anchor = data_container.atoms.select_atoms(
+                    f"resindex {index_prev - 1} and bonded resindex {residue.resid - 1}"
+                )
+                backbone = self.get_backbone(data_container, 1)
+                print(f"The backbone: {backbone}")
+                trans_center = np.zeros(3)
+                for atom in backbone:
+                    trans_center += atom.position
+                trans_center /= len(backbone)
                 trans_axes = self.get_custom_axes(
-                    a=center,
-                    b_list=anchor,
+                    a=trans_center,
+                    b_list=anchor[0].position,
                     c=np.zeros(3),
                     dimensions=data_container.dimensions[:3],
                 )
@@ -365,10 +303,11 @@ class AxesCalculator:
         if rot_axes is None or moment_of_inertia is None:
             raise ValueError("Unable to compute bonded axes for UA bead.")
 
-        logger.debug(f"Translational Axes: {trans_axes}")
-        logger.debug(f"Rotational Axes: {rot_axes}")
-        logger.debug(f"Center: {center}")
-        logger.debug(f"Moment of Inertia: {moment_of_inertia}")
+        logger.debug("Translational Axes: %s", trans_axes)
+        logger.debug("Rotational Axes: %s", rot_axes)
+        logger.debug("Translational center: %s", trans_center)
+        logger.debug("Rotational center: %s", rot_center)
+        logger.debug("Moment of Inertia: %s", moment_of_inertia)
 
         return trans_axes, rot_axes, rot_center, moment_of_inertia
 
@@ -827,3 +766,125 @@ class AxesCalculator:
                     ua_mass += float(h.mass)
                 ua_masses.append(ua_mass)
         return ua_masses
+
+    def get_backbone(self, data_container, index):
+        """
+        For a given residue, return AtomGroup corresponding to
+        its backbone.
+        This looks for heavy atoms between edge atoms of a residue.
+        Note: For a protein, this gives only the NCC atoms.
+        Meanwhile, the MDAnalysis "backbone" keyword includes
+        the O.
+        Args:
+            data_container (MDAnalysis.Universe or AtomGroup):
+                Molecule and trajectory data.
+            index: index of the residue of interest in
+            the data_container
+
+        Returns:
+            backbone: Array containing
+                the backbone atoms.
+
+        """
+        # identify atoms with bind to neighbour residues
+        residue = data_container.residues[index]
+        print(f"Our residue of interest: {residue}")
+        print(f"Index of the residue: {residue.resid}")
+        edge_atom_set = data_container.atoms.select_atoms(
+            f" resindex {residue.resid - 1} and "
+            f"(bonded resindex {residue.resid - 2} or "
+            f"resindex {residue.resid})"
+        )
+        print(f"The edge atoms are: {edge_atom_set}")
+        heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
+        if len(edge_atom_set) == 1:
+            # terminal residue
+            if index == 0:
+                # first residue
+                # assume first backbone atom will be first
+                backbone = self.get_chain(residue, residue.atoms[0], edge_atom_set[0])
+                # add terminal atom to edge atom set
+            else:
+                # last residue
+                index = len(heavy_atoms) - 1
+                last = None
+                while index > 0 and last is None:
+                    # find a terminal atom
+                    # look for last atom with only one bond to another heavy atom
+                    heavy_atom = heavy_atoms[index]
+                    bonded_atoms = residue.atoms.select_atoms(
+                        f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                    )
+                    if len(bonded_atoms) == 1:
+                        last = heavy_atom
+                    else:
+                        index -= 1
+                backbone = self.get_chain(residue, edge_atom_set[0], last)
+        else:
+            # will identify 2 edge atoms from linear neighbours
+            # disulfide bonds will be accounted for in the future
+            # not terminal residue
+            backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
+
+        return backbone
+
+    def get_chain(self, residue, first, last):
+        """
+        For a given MDAnalysis AtomGroup and two given heavy atoms
+        within that AtomGroup, return the
+        shortest path between the two atoms.
+        Args:
+            residue: MDAnalysis AtomGroup representing
+                the residue/monomer of interest.
+            first: First heavy atom in the chain
+            last: Last heavy atom in the chain
+
+            Returns:
+                chain: array containing
+                the chain heavy atoms.
+        """
+        chain = []
+        # at the beggining we've only visited the first atom
+        visited_dict = {first: True}
+        # keep the previous atom to trace back the path
+        prev = {}
+        # queue of next heavy atoms to visit
+        next_to_visit = [first]
+        # all others heavy atoms in the residue, we have not yet visited
+        remaining_heavy_atoms = residue.atoms.select_atoms(
+            f"(mass 2 to 999) and not index {first.index}"
+        )
+        for atom in remaining_heavy_atoms:
+            visited_dict[atom] = False
+        current = first
+        while not visited_dict[last]:
+            # we haven't found a path to the last residue
+            next_to_visit.pop(0)
+            # we're visiting the current atom => we remove it from the queue
+            bonded_atoms = residue.atoms.select_atoms(
+                f"(mass 2 to 999) and bonded index {current.index}"
+            )
+            if last in bonded_atoms:
+                # we found a path to the last atom
+                visited_dict[last] = True
+                chain.append(last)
+                prev[last] = current
+            else:
+                for bonded_atom in bonded_atoms:
+                    # look for unvisited bonded atoms to the current atom we're visiting
+                    if not visited_dict[bonded_atom]:
+                        # we're going to want to visit the atoms
+                        next_to_visit.append(bonded_atom)
+                        prev[bonded_atom] = current
+                # we visit the next atom in the queue
+                current = next_to_visit[0]
+                visited_dict[current] = True
+
+        # we track the previous atom back to the first atom now
+        current = last
+        while chain[-1] != first:
+            # we haven't yet returned to the first atom
+            current = prev[current]
+            chain.append(current)
+        chain = np.flip(chain)
+        return chain
