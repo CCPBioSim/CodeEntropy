@@ -4,6 +4,15 @@ import pytest
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
+    """
+    Register custom command-line options for pytest.
+
+    Adds options to control regression test execution, baseline updates,
+    and debugging output.
+
+    Args:
+        parser (pytest.Parser): Pytest CLI parser.
+    """
     parser.addoption(
         "--run-slow",
         action="store_true",
@@ -25,6 +34,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    """
+    Register custom pytest markers.
+
+    Args:
+        config (pytest.Config): Pytest configuration object.
+    """
     config.addinivalue_line("markers", "regression: end-to-end regression tests")
     config.addinivalue_line("markers", "slow: long-running tests (20-30+ minutes)")
 
@@ -33,9 +48,14 @@ def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
     """
-    Regression tests are collected and runnable by default.
+    Modify collected test items to skip slow tests unless explicitly enabled.
 
-    Only @pytest.mark.slow tests are skipped unless you pass --run-slow.
+    Only tests marked with `@pytest.mark.slow` are skipped when the
+    `--run-slow` flag is not provided.
+
+    Args:
+        config (pytest.Config): Pytest configuration object.
+        items (list[pytest.Item]): Collected test items.
     """
     if config.getoption("--run-slow"):
         return
