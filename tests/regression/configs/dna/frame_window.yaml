@@ -1,14 +1,10 @@
 ---
 
 run1:
-  force_file: ".testdata/benzaldehyde/forces.frc"
   top_traj_file:
-    - ".testdata/benzaldehyde/molecules.top"
-    - ".testdata/benzaldehyde/trajectory.crd"
+    - ".testdata/dna/md_A4_dna.tpr"
+    - ".testdata/dna/md_A4_dna_xf.trr"
   selection_string: "all"
   start: 0
   end: 5
   step: 2
-  file_format: "MDCRD"
-  kcal_force_units: True
-  search_type: "grid"
