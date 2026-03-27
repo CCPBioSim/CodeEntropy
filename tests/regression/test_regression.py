@@ -8,20 +8,11 @@ import numpy as np
 import pytest
 
 from tests.regression.helpers import run_codeentropy_with_config
+from tests.regression.cases import discover_cases
 
 
 def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Return the groups mapping from a regression payload.
-
-    Args:
-        payload: Parsed JSON payload.
-
-    Returns:
-        Mapping of group id to group data.
-
-    Raises:
-        TypeError: If payload["groups"] is not a dict.
-    """
+    """Return the groups mapping from a regression payload."""
     groups = payload.get("groups", {})
     if not isinstance(groups, dict):
         raise TypeError("payload['groups'] must be a dict")
@@ -35,17 +26,7 @@ def _compare_grouped(
     rtol: float,
     atol: float,
 ) -> None:
-    """Compare grouped regression outputs against baseline values.
-
-    Args:
-        got_payload: Newly produced payload.
-        baseline_payload: Baseline payload.
-        rtol: Relative tolerance.
-        atol: Absolute tolerance.
-
-    Raises:
-        AssertionError: If any required group/component differs from baseline.
-    """
+    """Compare grouped regression outputs against baseline values."""
     got_groups = _group_index(got_payload)
     base_groups = _group_index(baseline_payload)
 
@@ -100,50 +81,35 @@ def _compare_grouped(
 
 
 @pytest.mark.regression
-@pytest.mark.parametrize(
-    "system",
-    [
-        "dna",
-        pytest.param("benzaldehyde", marks=pytest.mark.slow),
-        pytest.param("benzene", marks=pytest.mark.slow),
-        pytest.param("cyclohexane", marks=pytest.mark.slow),
-        pytest.param("ethyl-acetate", marks=pytest.mark.slow),
-        pytest.param("methane", marks=pytest.mark.slow),
-        pytest.param("methanol", marks=pytest.mark.slow),
-        pytest.param("octonol", marks=pytest.mark.slow),
-        pytest.param("water", marks=pytest.mark.slow),
-    ],
-)
+@pytest.mark.parametrize("case", discover_cases())
 def test_regression_matches_baseline(
-    tmp_path: Path, system: str, request: pytest.FixtureRequest
+    tmp_path: Path, case, request: pytest.FixtureRequest
 ) -> None:
-    """Run a regression test for one system and compare to its baseline.
-
-    Args:
-        tmp_path: Pytest-provided temporary directory.
-        system: System name parameter.
-        request: Pytest request fixture for reading CLI options.
-    """
-    repo_root = Path(__file__).resolve().parents[2]
-    config_path = (
-        repo_root / "tests" / "regression" / "configs" / system / "config.yaml"
-    )
-    baseline_path = repo_root / "tests" / "regression" / "baselines" / f"{system}.json"
+    """Run a regression test for one system and compare to its baseline."""
+    system = case.system
+    config_path = case.config_path
+    baseline_path = case.baseline_path
 
     assert config_path.exists(), f"Missing config: {config_path}"
     assert baseline_path.exists(), f"Missing baseline: {baseline_path}"
 
     baseline_payload = json.loads(baseline_path.read_text())
-    run = run_codeentropy_with_config(workdir=tmp_path, config_src=config_path)
+
+    run = run_codeentropy_with_config(
+        workdir=tmp_path,
+        config_src=config_path,
+    )
 
     if request.config.getoption("--codeentropy-debug"):
         print("\n[CodeEntropy regression debug]")
+        print("system:", system)
         print("workdir:", run.workdir)
         print("job_dir:", run.job_dir)
         print("output_json:", run.output_json)
         print("payload copy saved:", run.workdir / "codeentropy_output.json")
 
     if request.config.getoption("--update-baselines"):
+        baseline_path.parent.mkdir(parents=True, exist_ok=True)
         baseline_path.write_text(json.dumps(run.payload, indent=2))
         pytest.skip(f"Baseline updated for {system}: {baseline_path}")
 
