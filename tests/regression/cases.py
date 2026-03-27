@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+
 import pytest
 
 
@@ -16,6 +17,7 @@ class RegressionCase:
         config_path (Path): Path to the YAML configuration file defining the scenario.
         baseline_path (Path): Path to the expected baseline JSON output.
     """
+
     system: str
     config_path: Path
     baseline_path: Path

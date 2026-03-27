@@ -7,8 +7,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from tests.regression.helpers import run_codeentropy_with_config
 from tests.regression.cases import discover_cases
+from tests.regression.helpers import run_codeentropy_with_config
 
 
 def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -66,7 +66,9 @@ def _compare_grouped(
         base_components = base_g.get("components", {})
         got_components = got_g.get("components", {})
 
-        if not isinstance(base_components, dict) or not isinstance(got_components, dict):
+        if not isinstance(base_components, dict) or not isinstance(
+            got_components, dict
+        ):
             mismatches.append(f"group {gid}: components must be dicts")
             continue
 
@@ -96,7 +98,8 @@ def _compare_grouped(
                 )
             except AssertionError:
                 mismatches.append(
-                    f"group {gid} total: expected={base_g['total']} got={got_g.get('total')}"
+                    f"group {gid} total: expected={base_g['total']} "
+                    f"got={got_g.get('total')}"
                 )
 
     assert not mismatches, "Mismatches:\n" + "\n".join("  " + m for m in mismatches)
@@ -119,10 +122,10 @@ def test_regression_matches_baseline(
     Args:
         tmp_path (Path): Temporary directory provided by pytest.
         case (RegressionCase): Parameterized regression case.
-        request (pytest.FixtureRequest): Pytest request object for accessing CLI options.
+        request (pytest.FixtureRequest): Pytest request object for accessing CLI options
 
     Raises:
-        AssertionError: If the output does not match the baseline or baseline is missing.
+        AssertionError: If the output does not match the baseline or baseline is missing
     """
     system = case.system
     config_path = case.config_path
