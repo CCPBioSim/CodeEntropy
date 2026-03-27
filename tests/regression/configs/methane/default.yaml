@@ -10,6 +10,5 @@ run1:
   end: 1
   step: 1
   file_format: "MDCRD"
-  temperature: 112.0
   kcal_force_units: True
   search_type: "grid"

@@ -3,12 +3,12 @@
 run1:
   force_file: ".testdata/benzene/forces.frc"
   top_traj_file:
-    - ".testdata/benzene/molecules.top"
+    - ".testdata/benzaldbenzeneehyde/molecules.top"
     - ".testdata/benzene/trajectory.crd"
-  selection_string: 'all'
+  selection_string: "all"
   start: 0
   end: 1
   step: 1
-  file_format: 'MDCRD'
+  file_format: "MDCRD"
 # kcal_force_units: True
   search_type: "RAD"

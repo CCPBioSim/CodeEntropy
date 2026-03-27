@@ -5,10 +5,10 @@ run1:
   top_traj_file:
     - ".testdata/methanol/molecules.top"
     - ".testdata/methanol/trajectory.crd"
-  selection_string: "all"
+  selection_string: "protein"
   start: 0
   end: 1
   step: 1
   file_format: "MDCRD"
-# kcal_force_units: True
-  search_type: "RAD"
+  kcal_force_units: True
+  search_type: "grid"

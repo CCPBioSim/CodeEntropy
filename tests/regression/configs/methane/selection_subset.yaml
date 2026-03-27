@@ -5,11 +5,11 @@ run1:
   top_traj_file:
     - ".testdata/methane/molecules.top"
     - ".testdata/methane/trajectory.crd"
-  selection_string: "all"
+  selection_string: "protein"
   start: 0
-  step: 1
   end: 1
+  step: 1
   file_format: "MDCRD"
   temperature: 112.0
-# kcal_force_units: True
-  search_type: "RAD"
+  kcal_force_units: True
+  search_type: "grid"

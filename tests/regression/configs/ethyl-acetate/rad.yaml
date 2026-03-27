@@ -5,10 +5,10 @@ run1:
   top_traj_file:
     - ".testdata/ethyl-acetate/molecules.top"
     - ".testdata/ethyl-acetate/trajectory.crd"
-  selection_string: 'all'
+  selection_string: "all"
   start: 0
   end: 1
   step: 1
-  file_format: 'MDCRD'
+  file_format: "MDCRD"
 # kcal_force_units: True
   search_type: "RAD"

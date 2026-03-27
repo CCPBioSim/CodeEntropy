@@ -12,3 +12,4 @@ run1:
   file_format: "MDCRD"
   kcal_force_units: True
   search_type: "grid"
+  customised_axes: false
