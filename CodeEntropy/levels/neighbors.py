@@ -8,8 +8,10 @@ These are used downstream to compute the orientational entropy.
 import logging
 
 import numpy as np
+from MDAnalysis.analysis.hydrogenbonds.hbond_analysis import HydrogenBondAnalysis as HBA
 from rdkit import Chem
 
+from CodeEntropy.levels.hbond_bias import HBondBias
 from CodeEntropy.levels.search import Search
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,7 @@ class Neighbors:
         self._groups = None
         self._levels = None
         self._search = Search()
+        self._bias = HBondBias()
 
     def get_neighbors(self, universe, levels, groups, search_type):
         """
@@ -101,6 +104,34 @@ class Neighbors:
 
         return average_number_neighbors
 
+    def get_bias(self, universe, groups):
+        """
+        Calculate orientational bias factors.
+
+        Args:
+            universe: MDAnalysis object
+            groups: list of molecules sorted into groups
+
+        Returns:
+            bias_factor: hydrogen bonding factor for each group
+            n_factor: scaling factor for number of neighbors
+        """
+        bias_factor = {}
+        n_factor = {}
+
+        # Get H-bonds from MDAnalysis for whole universe
+        hbonds = HBA(universe=universe)
+        hbonds.run()
+        donors = hbonds.results.hbonds[:, 1].astype(int)
+        acceptors = hbonds.results.hbonds[:, 3].astype(int)
+
+        for group_id in groups.keys():
+            bias_factor[group_id], n_factor[group_id] = self._bias.get_hbond_bias(
+                universe, groups, group_id, donors, acceptors
+            )
+
+        return bias_factor, n_factor
+
     def get_symmetry(self, universe, groups):
         """
         Calculate symmetry number for the molecule.
@@ -111,7 +142,7 @@ class Neighbors:
 
         Args:
             universe: MDAnalysis object
-            mol_id: index of the molecule of interest
+            groups: indices of the molecules for each group
 
         Returns:
             symmetry_number: dict, symmetry number of each group
