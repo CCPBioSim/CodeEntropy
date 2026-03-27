@@ -11,6 +11,8 @@ def test_config_node_run_writes_results(shared_data):
     shared_data["neighbors"] = {0: 0}
     shared_data["symmetry_number"] = {0: 0}
     shared_data["linear"] = {0: False}
+    shared_data["hbond_bias"] = {0: 1}
+    shared_data["n_factors"] = {0: 1}
 
     out = node.run(shared_data)
 
@@ -31,6 +33,8 @@ def test_run_skips_empty_mol_ids_group():
         "symmetry_number": {0: 0},
         "linear": {0: False},
         "reporter": None,
+        "hbond_bias": {0: 0},
+        "n_factors": {0: 0},
     }
 
     out = node.run(shared_data)

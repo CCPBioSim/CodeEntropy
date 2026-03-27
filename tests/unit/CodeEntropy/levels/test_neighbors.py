@@ -89,6 +89,28 @@ def test_average_number_neighbors_RAD_multiple():
     assert result == {0: np.float64(3.0)}
 
 
+def test_get_bias():
+    neighbors = Neighbors()
+    universe = MagicMock()
+    groups = {0: [0, 1]}
+
+    hbonds = MagicMock()
+    hbonds.results.hbonds = MagicMock(side_effect=[0, 1, 2, 3, 4, 5])
+
+    neighbors._bias.get_hbond_bias = MagicMock(side_effect=[[1, 1]])
+
+    class _FakeMDA_HBA(universe):
+        """Class to mock MDAnalysis functionality."""
+
+        def run():
+            return hbonds.results.hbonds
+
+    with patch("CodeEntropy.levels.neighbors.HBA", _FakeMDA_HBA):
+        result = neighbors.get_bias(universe, groups)
+
+    assert result == ({0: 1}, {0: 1})
+
+
 def test_get_symmetry_number_res():
     neighbors = Neighbors()
     rdkit_mol = MagicMock()

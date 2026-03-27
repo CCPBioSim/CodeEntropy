@@ -11,6 +11,8 @@ def test_compute_find_neighbors_node_runs_and_writes_shared_data():
 
     node._neighbor_analysis.get_symmetry = MagicMock(return_value=({0: 2}, {0: False}))
 
+    node._neighbor_analysis.get_bias = MagicMock(return_value=({0: 1}, {0: 1}))
+
     shared = {
         "reduced_universe": MagicMock(),
         "levels": {0: ["united_atom"]},
@@ -29,5 +31,8 @@ def test_compute_find_neighbors_node_runs_and_writes_shared_data():
     assert shared["neighbors"] == {0: 7.8}
     assert shared["symmetry_number"] == {0: 2}
     assert shared["linear"] == {0: False}
+    assert shared["hbond_bias"] == {0: 1}
+    assert shared["n_factors"] == {0: 1}
     node._neighbor_analysis.get_neighbors.assert_called_once()
     node._neighbor_analysis.get_symmetry.assert_called_once()
+    node._neighbor_analysis.get_bias.assert_called_once()
