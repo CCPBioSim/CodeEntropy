@@ -15,8 +15,10 @@ def repo_root() -> Path:
 
 
 def discover_cases():
-    configs_root = repo_root() / "tests/regression/configs"
-    baselines_root = repo_root() / "tests/regression/baselines"
+    base_dir = Path(__file__).resolve().parent
+
+    configs_root = base_dir / "configs"
+    baselines_root = base_dir / "baselines"
 
     cases = []
 
@@ -25,18 +27,19 @@ def discover_cases():
             continue
 
         system = system_dir.name
-        config_path = system_dir / "config.yaml"
-        baseline_path = baselines_root / system / "config.json"
 
-        if not config_path.exists():
-            continue
+        for config_path in sorted(system_dir.glob("*.yaml")):
+            case_name = config_path.stem
 
-        cases.append(
-            pytest.param(
-                RegressionCase(system, config_path, baseline_path),
-                id=system,
-                marks=pytest.mark.slow if system != "dna" else (),
+            baseline_path = baselines_root / system / f"{case_name}.json"
+
+            # DO NOT skip if baseline is missing
+            cases.append(
+                pytest.param(
+                    RegressionCase(system, config_path, baseline_path),
+                    id=f"{system}-{case_name}",
+                    marks=pytest.mark.slow if system != "dna" else (),
+                )
             )
-        )
 
     return cases

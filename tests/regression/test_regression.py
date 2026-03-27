@@ -12,7 +12,6 @@ from tests.regression.cases import discover_cases
 
 
 def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Return the groups mapping from a regression payload."""
     groups = payload.get("groups", {})
     if not isinstance(groups, dict):
         raise TypeError("payload['groups'] must be a dict")
@@ -26,7 +25,6 @@ def _compare_grouped(
     rtol: float,
     atol: float,
 ) -> None:
-    """Compare grouped regression outputs against baseline values."""
     got_groups = _group_index(got_payload)
     base_groups = _group_index(baseline_payload)
 
@@ -41,9 +39,7 @@ def _compare_grouped(
         base_components = base_g.get("components", {})
         got_components = got_g.get("components", {})
 
-        if not isinstance(base_components, dict) or not isinstance(
-            got_components, dict
-        ):
+        if not isinstance(base_components, dict) or not isinstance(got_components, dict):
             mismatches.append(f"group {gid}: components must be dicts")
             continue
 
@@ -73,8 +69,7 @@ def _compare_grouped(
                 )
             except AssertionError:
                 mismatches.append(
-                    f"group {gid} total: expected={base_g['total']} "
-                    f"got={got_g.get('total')}"
+                    f"group {gid} total: expected={base_g['total']} got={got_g.get('total')}"
                 )
 
     assert not mismatches, "Mismatches:\n" + "\n".join("  " + m for m in mismatches)
@@ -85,15 +80,18 @@ def _compare_grouped(
 def test_regression_matches_baseline(
     tmp_path: Path, case, request: pytest.FixtureRequest
 ) -> None:
-    """Run a regression test for one system and compare to its baseline."""
     system = case.system
     config_path = case.config_path
     baseline_path = case.baseline_path
 
-    assert config_path.exists(), f"Missing config: {config_path}"
-    assert baseline_path.exists(), f"Missing baseline: {baseline_path}"
+    update_mode = request.config.getoption("--update-baselines")
 
-    baseline_payload = json.loads(baseline_path.read_text())
+    if not baseline_path.exists():
+        if not update_mode:
+            raise AssertionError(f"Missing baseline: {baseline_path}")
+        baseline_payload = {}
+    else:
+        baseline_payload = json.loads(baseline_path.read_text())
 
     run = run_codeentropy_with_config(
         workdir=tmp_path,
@@ -101,17 +99,15 @@ def test_regression_matches_baseline(
     )
 
     if request.config.getoption("--codeentropy-debug"):
-        print("\n[CodeEntropy regression debug]")
+        print("\n[DEBUG]")
         print("system:", system)
-        print("workdir:", run.workdir)
-        print("job_dir:", run.job_dir)
-        print("output_json:", run.output_json)
-        print("payload copy saved:", run.workdir / "codeentropy_output.json")
+        print("config:", config_path)
+        print("baseline:", baseline_path)
 
     if request.config.getoption("--update-baselines"):
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
         baseline_path.write_text(json.dumps(run.payload, indent=2))
-        pytest.skip(f"Baseline updated for {system}: {baseline_path}")
+        pytest.skip(f"Updated baseline for {system}")
 
     _compare_grouped(
         got_payload=run.payload,
