@@ -26,7 +26,7 @@ def discover_cases():
 
         system = system_dir.name
         config_path = system_dir / "config.yaml"
-        baseline_path = baselines_root / f"{system}.json"
+        baseline_path = baselines_root / system / "config.json"
 
         if not config_path.exists():
             continue
