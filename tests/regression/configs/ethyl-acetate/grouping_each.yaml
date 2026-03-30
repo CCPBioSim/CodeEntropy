@@ -1,0 +1,15 @@
+---
+
+run1:
+  force_file: ".testdata/ethyl-acetate/forces.frc"
+  top_traj_file:
+    - ".testdata/ethyl-acetate/molecules.top"
+    - ".testdata/ethyl-acetate/trajectory.crd"
+  selection_string: "all"
+  start: 0
+  end: 1
+  step: 1
+  file_format: "MDCRD"
+  kcal_force_units: True
+  search_type: "grid"
+  grouping: "each"
