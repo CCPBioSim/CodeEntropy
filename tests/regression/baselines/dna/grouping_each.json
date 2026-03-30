@@ -14,10 +14,10 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-1/test_regression_matches_baseli2/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-1/test_regression_matches_baseli4/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
-    "grouping": "molecules",
+    "grouping": "each",
     "combined_forcetorque": true,
     "customised_axes": true,
     "search_type": "RAD"

@@ -14,11 +14,11 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-1/test_regression_matches_baseli2/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-1/test_regression_matches_baseli1/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
-    "combined_forcetorque": true,
+    "combined_forcetorque": false,
     "customised_axes": true,
     "search_type": "RAD"
   },
@@ -35,13 +35,13 @@
         "united_atom:Rovibrational": 0.002160679012128457,
         "residue:Transvibrational": 0.0,
         "residue:Rovibrational": 3.376800684085249,
-        "polymer:FTmat-Transvibrational": 12.341104347192612,
-        "polymer:FTmat-Rovibrational": 0.0,
+        "polymer:Transvibrational": 21.18266215491188,
+        "polymer:Rovibrational": 12.837576042626923,
         "united_atom:Conformational": 7.0411434528236345,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 27.52011449974134
+      "total": 49.19924835008753
     },
     "1": {
       "components": {
@@ -49,13 +49,13 @@
         "united_atom:Rovibrational": 0.01846427765949586,
         "residue:Transvibrational": 0.0,
         "residue:Rovibrational": 2.3863201082544565,
-        "polymer:FTmat-Transvibrational": 11.11037253388596,
-        "polymer:FTmat-Rovibrational": 0.0,
+        "polymer:Transvibrational": 16.607667396609116,
+        "polymer:Rovibrational": 12.304363914795593,
         "united_atom:Conformational": 6.410455987098191,
         "residue:Conformational": 0.46183561256411515,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 25.14635385608993
+      "total": 42.94801263360868
     }
   }
 }
