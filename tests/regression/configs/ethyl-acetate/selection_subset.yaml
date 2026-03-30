@@ -5,7 +5,7 @@ run1:
   top_traj_file:
     - ".testdata/ethyl-acetate/molecules.top"
     - ".testdata/ethyl-acetate/trajectory.crd"
-  selection_string: "protein"
+  selection_string: "resname EA and resid 1:10"
   start: 0
   end: 1
   step: 1
