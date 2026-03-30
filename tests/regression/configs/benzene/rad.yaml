@@ -3,7 +3,7 @@
 run1:
   force_file: ".testdata/benzene/forces.frc"
   top_traj_file:
-    - ".testdata/benzaldbenzeneehyde/molecules.top"
+    - ".testdata/benzene/molecules.top"
     - ".testdata/benzene/trajectory.crd"
   selection_string: "all"
   start: 0
