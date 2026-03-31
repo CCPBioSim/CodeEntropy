@@ -812,10 +812,10 @@ class AxesCalculator:
                     f" resindex {residue.resid - 2} and "
                     f"bonded resindex {residue.resid - 1}"
                 )
-                print(f"Terminal atom of last resid: {prev_terminal_atom}")
                 last_name = prev_terminal_atom.names[0]
                 print(f"Name of last residue in chain: {last_name}")
                 last = residue.atoms.select_atoms(f"name {last_name}")
+                print(f"The last atom of the residue is: {last}")
                 # while index > 0 and last is None:
                 # find the last atom of
                 # same
