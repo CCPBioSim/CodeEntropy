@@ -7,14 +7,14 @@
     "force_file": null,
     "file_format": null,
     "kcal_force_units": false,
-    "selection_string": "all",
+    "selection_string": "resid 1:10",
     "start": 0,
     "end": 5,
     "step": 2,
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-1/test_regression_matches_baseli0/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-44/test_regression_matches_baseli0/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -26,7 +26,7 @@
     "python": "3.14.3",
     "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
     "codeentropy_version": "2.1.0",
-    "git_sha": "2cafee04802f1722cf11b29cae202b298274f93f"
+    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
   },
   "groups": {
     "0": {

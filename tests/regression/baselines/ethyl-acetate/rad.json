@@ -1,0 +1,45 @@
+{
+  "args": {
+    "top_traj_file": [
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/ethyl-acetate/molecules.top",
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/ethyl-acetate/trajectory.crd"
+    ],
+    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/ethyl-acetate/forces.frc",
+    "file_format": "MDCRD",
+    "kcal_force_units": true,
+    "selection_string": "all",
+    "start": 0,
+    "end": 1,
+    "step": 1,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-47/test_regression_matches_baseli5/job001/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "molecules",
+    "combined_forcetorque": true,
+    "customised_axes": true,
+    "search_type": "RAD"
+  },
+  "provenance": {
+    "python": "3.14.3",
+    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.0",
+    "git_sha": "4d39e9aeeed72fc3993f4a4eb6485da40524ebc5"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 20.24374894231227,
+        "united_atom:Rovibrational": 49.35007067210558,
+        "residue:FTmat-Transvibrational": 67.91350627765567,
+        "residue:FTmat-Rovibrational": 60.042233035077246,
+        "united_atom:Conformational": 8.140778318198597,
+        "residue:Conformational": 0.0,
+        "residue:Orientational": 30.894081870911737
+      },
+      "total": 236.5844191162611
+    }
+  }
+}

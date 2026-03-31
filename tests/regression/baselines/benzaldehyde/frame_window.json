@@ -1,0 +1,45 @@
+{
+  "args": {
+    "top_traj_file": [
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/molecules.top",
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/trajectory.crd"
+    ],
+    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/forces.frc",
+    "file_format": "MDCRD",
+    "kcal_force_units": true,
+    "selection_string": "resid 1:10",
+    "start": 0,
+    "end": 5,
+    "step": 2,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-53/test_regression_matches_baseli3/job001/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "molecules",
+    "combined_forcetorque": true,
+    "customised_axes": true,
+    "search_type": "grid"
+  },
+  "provenance": {
+    "python": "3.14.3",
+    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.0",
+    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 40.30267601961045,
+        "united_atom:Rovibrational": 38.21906858443615,
+        "residue:FTmat-Transvibrational": 73.41098578352612,
+        "residue:FTmat-Rovibrational": 57.881504393660364,
+        "united_atom:Conformational": 0.0,
+        "residue:Conformational": 0.0,
+        "residue:Orientational": 7.791711490122748
+      },
+      "total": 217.60594627135583
+    }
+  }
+}
