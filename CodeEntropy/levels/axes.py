@@ -827,7 +827,7 @@ class AxesCalculator:
                 #        last = heavy_atom
                 #    else:
                 #        index -= 1
-                backbone = self.get_chain(residue, edge_atom_set[0], last)
+                backbone = self.get_chain(residue, edge_atom_set[0], last[0])
         else:
             # will identify 2 edge atoms from linear neighbours
             # disulfide bonds will be accounted for in the future
