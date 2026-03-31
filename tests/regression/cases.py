@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -33,21 +34,41 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def discover_cases():
+def discover_cases() -> list[Any]:
     """
     Discover all regression test cases from the configs directory.
 
-    Iterates over each system directory under `tests/regression/configs`,
-    and collects all YAML configuration files. Each configuration file is
-    paired with a corresponding baseline JSON file.
+    This function scans the regression configuration directory structure and
+    constructs a list of parametrized pytest cases. Each case corresponds to
+    a single YAML configuration file and its associated baseline JSON file.
+
+    Directory structure is expected to follow:
+
+        tests/regression/configs/<system>/<config>.yaml
+        tests/regression/baselines/<system>/<config>.json
+
+    For each configuration file:
+        - A `RegressionCase` instance is created.
+        - A pytest parameter is generated with a unique ID.
+        - Slow tests are automatically marked using `pytest.mark.slow`
+          based on configuration naming conventions.
+
+    Slow Test Heuristic:
+        Configurations considered "slow" are those representing full-system
+        or full-selection runs. These are explicitly identified by name
+        (e.g. "default", "rad") and are marked with `pytest.mark.slow`.
+        All other configurations (typically subset-based runs such as
+        selection subsets) are treated as fast tests.
 
     Returns:
-        list[pytest.Param]: A list of parametrized pytest cases, each wrapping
-        a RegressionCase instance.
+        list[Any]: A list of parametrized pytest cases, each wrapping a
+        RegressionCase instance and optionally marked as slow.
 
     Notes:
-        - Cases are automatically marked as slow unless the system is "dna".
         - Baseline files are not required to exist at discovery time.
+        - Missing baselines will cause failures during test execution unless
+          `--update-baselines` is used.
+        - Test IDs are generated in the form: "{system}-{config_name}".
     """
     base_dir = Path(__file__).resolve().parent
 
@@ -55,6 +76,8 @@ def discover_cases():
     baselines_root = base_dir / "baselines"
 
     cases = []
+
+    SLOW_CONFIGS = {"default", "rad"}
 
     for system_dir in sorted(configs_root.iterdir()):
         if not system_dir.is_dir():
@@ -67,12 +90,13 @@ def discover_cases():
 
             baseline_path = baselines_root / system / f"{case_name}.json"
 
-            # DO NOT skip if baseline is missing
+            is_slow = case_name in SLOW_CONFIGS
+
             cases.append(
                 pytest.param(
                     RegressionCase(system, config_path, baseline_path),
                     id=f"{system}-{case_name}",
-                    marks=pytest.mark.slow if system != "dna" else (),
+                    marks=pytest.mark.slow if is_slow else (),
                 )
             )
 
