@@ -58,25 +58,37 @@ class HBondBias:
         if max_donors == 0 and max_acceptors == 0:
             # No hydrogen bonding possiblity
             bias_hbond = 1
-            n_factor = 1
 
-            logger.debug(f"No hydrogen bond bias: {bias_hbond}, {n_factor}")
+            logger.debug(f"No hydrogen bond bias: {bias_hbond}")
 
-            return bias_hbond, n_factor
+            return bias_hbond
 
         # Get probablities
-        normalising_factor = 1 / (max_donors + max_acceptors)
         n_donor, n_acceptor = self.get_hbond_info(universe, mols, donors, acceptors)
-        p_donor = n_donor / (max_donors * number_frames * len(mols))
-        p_acceptor = n_acceptor / (max_acceptors * number_frames * len(mols))
+        if n_donor == 0 and n_acceptor == 0:
+            # No hydrogen bonding
+            bias_hbond = 1
+
+            logger.debug(f"No hydrogen bonds: {bias_hbond}")
+
+            return bias_hbond
+
+        if max_donors == 0:
+            p_donor = 1
+        else:
+            p_donor = n_donor / (max_donors * number_frames * len(mols))
+
+        if max_acceptors == 0:
+            p_acceptor = 1
+        else:
+            p_acceptor = n_acceptor / (max_acceptors * number_frames * len(mols))
 
         p_da = p_donor + p_acceptor
         bias_hbond = (p_donor / p_da) * (p_acceptor / p_da)
-        n_factor = bias_hbond / normalising_factor
 
-        logger.debug(f"Hydrogen bond bias: {bias_hbond}, {n_factor}")
+        logger.debug(f"Hydrogen bond bias: {bias_hbond}")
 
-        return bias_hbond, n_factor
+        return bias_hbond
 
     def get_possible_donors(self, mol) -> tuple[int, int]:
         """

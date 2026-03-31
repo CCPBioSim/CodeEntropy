@@ -90,7 +90,7 @@ class ComputeNeighborsNode:
         )
 
         # Get biases
-        hbond_bias, n_factors = self._neighbor_analysis.get_bias(
+        hbond_bias = self._neighbor_analysis.get_bias(
             universe=u,
             groups=groups,
         )
@@ -100,6 +100,5 @@ class ComputeNeighborsNode:
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear
         shared_data["hbond_bias"] = hbond_bias
-        shared_data["n_factors"] = n_factors
 
         return shared_data
