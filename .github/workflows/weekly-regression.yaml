@@ -10,9 +10,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  regression:
-    name: Regression tests (including slow)
+  discover:
+    name: Discover regression systems
     runs-on: ubuntu-24.04
+    outputs:
+      systems: ${{ steps.set.outputs.systems }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Generate system matrix
+        id: set
+        run: |
+          systems=$(ls tests/regression/configs | jq -R -s -c 'split("\n")[:-1]')
+          echo "systems=$systems" >> $GITHUB_OUTPUT
+
+  regression:
+    name: Regression (${{ matrix.system }})
+    needs: discover
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        system: ${{ fromJson(needs.discover.outputs.systems) }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -29,19 +52,20 @@ jobs:
           path: .testdata
           key: codeentropy-testdata-${{ runner.os }}-py314
 
-      - name: Install CodeEntropy and its testing dependencies
+      - name: Install CodeEntropy and dependencies
         run: |
           pip install --upgrade pip
           pip install -e .[testing]
 
-      - name: Run regression test suite
-        run: pytest tests/regression --run-slow
+      - name: Run regression tests for system
+        run: |
+          pytest tests/regression -k "${{ matrix.system }}" --run-slow -vv
 
       - name: Upload regression artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: regression-failure-artifacts
+          name: regression-${{ matrix.system }}-artifacts
           path: |
             .testdata/**
             tests/regression/**/.pytest_cache/**
