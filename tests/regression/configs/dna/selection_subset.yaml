@@ -4,7 +4,7 @@ run1:
   top_traj_file:
     - ".testdata/dna/md_A4_dna.tpr"
     - ".testdata/dna/md_A4_dna_xf.trr"
-  selection_string: "resname DA"
+  selection_string: "resid 1:10"
   start: 0
   end: 1
   step: 1
