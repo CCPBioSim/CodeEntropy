@@ -788,14 +788,11 @@ class AxesCalculator:
         """
         # identify atoms with bind to neighbour residues
         residue = data_container.residues[index]
-        print(f"Our residue of interest: {residue}")
-        print(f"Index of the residue: {residue.resid}")
         edge_atom_set = data_container.atoms.select_atoms(
             f" resindex {residue.resid - 1} and "
             f"(bonded resindex {residue.resid - 2} or "
             f"resindex {residue.resid})"
         )
-        print(f"The edge atoms are: {edge_atom_set}")
         heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
         if len(edge_atom_set) == 1:
             # terminal residue
@@ -808,17 +805,27 @@ class AxesCalculator:
                 # last residue
                 index = len(heavy_atoms) - 1
                 last = None
-                while index > 0 and last is None:
-                    # find a terminal atom
-                    # look for last atom with only one bond to another heavy atom
-                    heavy_atom = heavy_atoms[index]
-                    bonded_atoms = residue.atoms.select_atoms(
-                        f"(mass 2 to 999) and bonded index {heavy_atom.index}"
-                    )
-                    if len(bonded_atoms) == 1:
-                        last = heavy_atom
-                    else:
-                        index -= 1
+                # look for last heavy atom
+                # same type as terminal atom
+                # from previous residue
+                prev_terminal_atom = data_container.atoms.select_atoms(
+                    f" resindex {residue.resid - 2} and "
+                    f"bonded resindex {residue.resid - 1}"
+                )
+                last_name = prev_terminal_atom.name
+                print("Name of last residue in chain")
+                last = residue.atoms.select_atoms(f"name {last_name}")
+                # while index > 0 and last is None:
+                # find the last atom of
+                # same
+                #    heavy_atom = heavy_atoms[index]
+                #    bonded_atoms = residue.atoms.select_atoms(
+                #        f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                #    )
+                #    if len(bonded_atoms) == 1:
+                #        last = heavy_atom
+                #    else:
+                #        index -= 1
                 backbone = self.get_chain(residue, edge_atom_set[0], last)
         else:
             # will identify 2 edge atoms from linear neighbours
@@ -887,4 +894,5 @@ class AxesCalculator:
             current = prev[current]
             chain.append(current)
         chain = np.flip(chain)
+        print(f"The chain is: {chain}")
         return chain
