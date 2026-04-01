@@ -130,7 +130,6 @@ class AxesCalculator:
             trans_axes = rot_axes  # per original convention
             center = np.array(residue.center_of_mass())
         else:
-            print("-----RESIDUE LEVEL-----")
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
@@ -138,11 +137,11 @@ class AxesCalculator:
             # get edge atoms of the residue
             # for terminal residues, this will include the C/N terminus
             # bond-derived rotation axes
-            print(f"The backbone: {backbone}")
-            center = np.zeros(3)
-            for atom in backbone:
-                center += atom.position
-            center /= len(backbone)
+            # center = np.zeros(3)
+            # for atom in backbone:
+            #    center += atom.position
+            # center /= len(backbone)
+            center = np.array(backbone.center_of_mass())
             if len(anchors) == 1:
                 # only one neighbour
                 rot_axes = self.get_custom_axes(
@@ -218,7 +217,6 @@ class AxesCalculator:
             trans_center = data_container.atoms.center_of_mass(unwrap=True)
             trans_axes = data_container.atoms.principal_axes
         else:
-            print("-----UA LEVEL-----")
             # residue of interest has at least one neighbour
             if res_position == -1:
                 residue = data_container.residues[0]
@@ -229,11 +227,11 @@ class AxesCalculator:
                 # the .resid attribute gives 1-indexing
                 # substract 1 to match indexing later
                 backbone = self.get_backbone(data_container, 0)
-                print(f"The backbone: {backbone}")
-                trans_center = np.zeros(3)
-                for atom in backbone:
-                    trans_center += atom.position
-                trans_center /= len(backbone)
+                # trans_center = np.zeros(3)
+                # for atom in backbone:
+                #    trans_center += atom.position
+                # trans_center /= len(backbone)
+                trans_center = np.array(backbone.center_of_mass())
                 trans_axes = self.get_custom_axes(
                     a=trans_center,
                     b_list=anchor[0].position,
@@ -252,11 +250,11 @@ class AxesCalculator:
                     f"bonded resindex {residue.resid - 1}"
                 )
                 backbone = self.get_backbone(data_container, 1)
-                print(f"The backbone: {backbone}")
-                trans_center = np.zeros(3)
-                for atom in backbone:
-                    trans_center += atom.position
-                trans_center /= len(backbone)
+                # trans_center = np.zeros(3)
+                # for atom in backbone:
+                #    trans_center += atom.position
+                # trans_center /= len(backbone)
+                trans_center = np.array(backbone.center_of_mass())
                 trans_axes = self.get_custom_axes(
                     a=trans_center,
                     b_list=anchors.positions,
@@ -271,11 +269,12 @@ class AxesCalculator:
                     f"resindex {index_prev - 1} and bonded resindex {residue.resid - 1}"
                 )
                 backbone = self.get_backbone(data_container, 1)
-                print(f"The backbone: {backbone}")
-                trans_center = np.zeros(3)
-                for atom in backbone:
-                    trans_center += atom.position
-                trans_center /= len(backbone)
+                # trans_center = np.zeros(3)
+                # for atom in backbone:
+                #    trans_center += atom.position
+
+                # trans_center /= len(backbone)
+                trans_center = np.array(backbone.center_of_mass())
                 trans_axes = self.get_custom_axes(
                     a=trans_center,
                     b_list=anchor[0].position,
@@ -782,7 +781,7 @@ class AxesCalculator:
             the data_container
 
         Returns:
-            backbone: Array containing
+            backbone: MDAnalysis AtomGroup containing
                 the backbone atoms.
 
         """
@@ -806,28 +805,25 @@ class AxesCalculator:
                 index = len(heavy_atoms) - 1
                 last = None
                 # look for last heavy atom
-                # same type as terminal atom
-                # from previous residue
-                prev_terminal_atom = data_container.atoms.select_atoms(
-                    f" resindex {residue.resid - 2} and "
-                    f"bonded resindex {residue.resid - 1}"
-                )
-                last_name = prev_terminal_atom.names[0]
-                print(f"Name of last residue in chain: {last_name}")
-                last = residue.atoms.select_atoms(f"name {last_name}")
-                print(f"The last atom of the residue is: {last}")
-                # while index > 0 and last is None:
-                # find the last atom of
-                # same
-                #    heavy_atom = heavy_atoms[index]
-                #    bonded_atoms = residue.atoms.select_atoms(
-                #        f"(mass 2 to 999) and bonded index {heavy_atom.index}"
-                #    )
-                #    if len(bonded_atoms) == 1:
-                #        last = heavy_atom
-                #    else:
-                #        index -= 1
-                backbone = self.get_chain(residue, edge_atom_set[0], last[0])
+                # with only one bound to another
+                # prev_terminal_atom = data_container.atoms.select_atoms(
+                #    f" resindex {residue.resid - 2} and "
+                #    f"bonded resindex {residue.resid - 1}"
+                # )
+                # last_name = prev_terminal_atom.names[0]
+                # print(f"Name of last residue in chain: {last_name}")
+                # last = residue.atoms.select_atoms(f"name {last_name}")
+                # print(f"The last atom of the residue is: {last}")
+                while index > 0 and last is None:
+                    heavy_atom = heavy_atoms[index]
+                    bonded_atoms = residue.atoms.select_atoms(
+                        f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                    )
+                    if len(bonded_atoms) == 1:
+                        last = heavy_atom
+                    else:
+                        index -= 1
+                backbone = self.get_chain(residue, edge_atom_set[0], last)
         else:
             # will identify 2 edge atoms from linear neighbours
             # disulfide bonds will be accounted for in the future
@@ -848,10 +844,11 @@ class AxesCalculator:
             last: Last heavy atom in the chain
 
             Returns:
-                chain: array containing
+                chain: MDAnalysis AtomGroup containing
                 the chain heavy atoms.
         """
         chain = []
+        chain_indices = []
         # at the beggining we've only visited the first atom
         visited_dict = {first: True}
         # keep the previous atom to trace back the path
@@ -890,10 +887,21 @@ class AxesCalculator:
 
         # we track the previous atom back to the first atom now
         current = last
+        chain = [last]
+        # subtract index of first atom in resid
+        # most likely will coincide with first
+        # but this will work even if it doesn't
+        # accout for in-residue index
+        chain_indices = [last.index - residue.atoms.indices[0]]
+        # start from last atom in chain
         while chain[-1] != first:
             # we haven't yet returned to the first atom
             current = prev[current]
             chain.append(current)
-        chain = np.flip(chain)
+            chain_indices.append(current.index - residue.atoms.indices[0])
+        chain_indices = np.flip(chain_indices)
+        # accout for in-residue index
+        chain_AtomGroup = residue.atoms[chain_indices]
+        chain = chain_AtomGroup.atoms.select_atoms("all")
         print(f"The chain is: {chain}")
         return chain
