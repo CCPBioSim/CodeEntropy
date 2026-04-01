@@ -17,6 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
         python-version: ["3.12", "3.13", "3.14"]
+
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -36,16 +37,17 @@ jobs:
         run: python -m pytest tests/unit
 
   regression-quick:
-    name: Regression (quick)
+    name: Regression (fast)
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Set up Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.14"
           cache: pip
@@ -54,20 +56,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .testdata
-          key: codeentropy-testdata-v1-${{ runner.os }}-py3.14
+          key: codeentropy-testdata-${{ runner.os }}-py314
 
-      - name: Install (testing)
+      - name: Install testing dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Pytest (regression quick)
+      - name: Run fast regression tests (parallel)
         run: |
           python -m pytest tests/regression \
             -m "not slow" \
             -n auto \
+            --dist=loadscope \
             -vv \
-            --durations=0
+            --durations=20
 
       - name: Upload artifacts (failure)
         if: failure()
@@ -76,11 +79,7 @@ jobs:
           name: quick-regression-failure
           path: |
             .testdata/**
-            tests/regression/**/.pytest_cache/**
-            /tmp/pytest-of-*/pytest-*/**/config.yaml
-            /tmp/pytest-of-*/pytest-*/**/codeentropy_stdout.txt
-            /tmp/pytest-of-*/pytest-*/**/codeentropy_stderr.txt
-            /tmp/pytest-of-*/pytest-*/**/codeentropy_output.json
+            /tmp/pytest-of-*/pytest-*/**
 
   docs:
     name: Docs
@@ -98,7 +97,7 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Install
+      - name: Install docs dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[docs]
@@ -119,6 +118,7 @@ jobs:
     name: Pre-commit
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -129,13 +129,12 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Install (pre-commit)
+      - name: Install pre-commit dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[pre-commit]
 
       - name: Run pre-commit
-        shell: bash
         run: |
           pre-commit install
           pre-commit run --all-files || {
@@ -149,8 +148,9 @@ jobs:
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Set up Python 3.14
@@ -159,12 +159,12 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Install (testing)
+      - name: Install testing dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Run unit test suite with coverage
+      - name: Run coverage
         run: |
           pytest tests/unit \
             --cov CodeEntropy \
@@ -172,7 +172,7 @@ jobs:
             --cov-report xml \
             -q
 
-      - name: Upload to Coveralls
+      - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

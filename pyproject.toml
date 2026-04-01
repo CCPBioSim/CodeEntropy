@@ -61,7 +61,8 @@ Documentation = "https://codeentropy.readthedocs.io"
 testing = [
     "pytest>=9.0,<10.0",
     "pytest-cov>=7.0,<8.0",
-    "pytest-sugar>=1.1,<2.0"
+    "pytest-sugar>=1.1,<2.0",
+    "pytest-xdist"
 ]
 pre-commit = [
     "pre-commit>=4.5,<5.0",
@@ -82,6 +83,9 @@ docs = [
 
 [project.scripts]
 CodeEntropy = "CodeEntropy.cli:main"
+
+[tool.pytest.ini_options]
+addopts = "-n auto -m 'not slow' -vv"
 
 [tool.ruff]
 line-length = 88

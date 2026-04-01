@@ -2,7 +2,7 @@ name: Weekly Regression Tests
 
 on:
   schedule:
-    - cron: '0 8 * * 1'  # Weekly Monday checks
+    - cron: '0 8 * * 1'
   workflow_dispatch:
 
 concurrency:
@@ -13,12 +13,13 @@ jobs:
   discover:
     name: Discover regression systems
     runs-on: ubuntu-24.04
+
     outputs:
       systems: ${{ steps.set.outputs.systems }}
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Generate system matrix
         id: set
@@ -30,6 +31,7 @@ jobs:
     name: Regression (${{ matrix.system }})
     needs: discover
     runs-on: ubuntu-24.04
+    timeout-minutes: 360
 
     strategy:
       fail-fast: false
@@ -37,39 +39,39 @@ jobs:
         system: ${{ fromJson(needs.discover.outputs.systems) }}
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Set up Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.14"
           cache: pip
 
-      - name: Cache regression test data downloads
+      - name: Cache regression test data
         uses: actions/cache@v4
         with:
           path: .testdata
           key: codeentropy-testdata-${{ runner.os }}-py314
 
-      - name: Install CodeEntropy and dependencies
+      - name: Install testing dependencies
         run: |
           pip install --upgrade pip
           pip install -e .[testing]
 
-      - name: Run regression tests for system
+      - name: Run regression tests (slow)
         run: |
-          pytest tests/regression -k "${{ matrix.system }}" --run-slow -vv
+          pytest tests/regression \
+            -k "${{ matrix.system }}" \
+            --run-slow \
+            -vv \
+            --durations=20
 
-      - name: Upload regression artifacts on failure
+      - name: Upload regression artifacts (failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: regression-${{ matrix.system }}-artifacts
           path: |
             .testdata/**
-            tests/regression/**/.pytest_cache/**
-            /tmp/pytest-of-*/pytest-*/**/config.yaml
-            /tmp/pytest-of-*/pytest-*/**/codeentropy_stdout.txt
-            /tmp/pytest-of-*/pytest-*/**/codeentropy_stderr.txt
-            /tmp/pytest-of-*/pytest-*/**/codeentropy_output.json
+            /tmp/pytest-of-*/pytest-*/**
