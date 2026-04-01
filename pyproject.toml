@@ -85,16 +85,13 @@ docs = [
 CodeEntropy = "CodeEntropy.cli:main"
 
 [tool.pytest.ini_options]
-addopts = "-n auto -ra -vv --dist=loadscope"
+testpaths = ["tests"]
+
+addopts = "-n auto -vv -ra"
 
 markers = [
-    "regression: end-to-end regression tests against baselines",
-    "slow: long-running regression tests (20-30+ minutes)"
-]
-
-testpaths = [
-    "tests/unit",
-    "tests/regression"
+  "regression: end-to-end regression tests against baselines",
+  "slow: long-running regression tests (20-30+ minutes)",
 ]
 
 [tool.ruff]
