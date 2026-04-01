@@ -31,7 +31,7 @@ def test_get_RAD_neighbors(tmp_path: Path):
     system = "methane"
     repo_root = Path(__file__).resolve().parents[4]
     config_path = (
-        repo_root / "tests" / "regression" / "configs" / system / "config.yaml"
+        repo_root / "tests" / "regression" / "configs" / system / "default.yaml"
     )
 
     tmp_path.mkdir(parents=True, exist_ok=True)
@@ -82,7 +82,7 @@ def test_get_grid_neighbors(tmp_path: Path):
     system = "methane"
     repo_root = Path(__file__).resolve().parents[4]
     config_path = (
-        repo_root / "tests" / "regression" / "configs" / system / "config.yaml"
+        repo_root / "tests" / "regression" / "configs" / system / "default.yaml"
     )
 
     tmp_path.mkdir(parents=True, exist_ok=True)

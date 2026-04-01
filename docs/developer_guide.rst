@@ -54,7 +54,7 @@ Run regression tests excluding slow systems::
 
 Run slow regression tests::
 
-    pytest tests/regression -m slow
+    pytest tests/regression --run-slow
 
 Run tests with coverage::
 
