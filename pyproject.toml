@@ -50,6 +50,7 @@ dependencies = [
     "waterEntropy>=2,<2.3",
     "requests>=2.32,<3.0",
     "rdkit>=2025.9.5",
+    "numba>=0.65.0,<0.7",
 ]
 
 [project.urls]
