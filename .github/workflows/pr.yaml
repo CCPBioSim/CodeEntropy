@@ -62,7 +62,12 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Pytest (regression quick)
-        run: python -m pytest tests/regression
+        run: |
+          python -m pytest tests/regression \
+            -m "not slow" \
+            -n auto \
+            -vv \
+            --durations=0
 
       - name: Upload artifacts (failure)
         if: failure()
