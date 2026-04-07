@@ -52,7 +52,7 @@ class OrientationalEntropyNode:
 
         results: dict[int, float] = {}
 
-        for group_id, mol_ids in groups.items():
+        for group_id, mol_ids in sorted(groups.items()):
             results[group_id] = 0
             if not mol_ids:
                 continue
