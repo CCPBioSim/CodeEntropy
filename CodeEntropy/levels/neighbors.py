@@ -113,11 +113,9 @@ class Neighbors:
             groups: list of molecules sorted into groups
 
         Returns:
-            bias_factor: hydrogen bonding factor for each group
-            n_factor: scaling factor for number of neighbors
+            hbond_factor: hydrogen bonding factor for each group
         """
-        bias_factor = {}
-        n_factor = {}
+        hbond_factor = {}
 
         # Get H-bonds from MDAnalysis for whole universe
         hbonds = HBA(universe=universe)
@@ -126,11 +124,11 @@ class Neighbors:
         acceptors = hbonds.results.hbonds[:, 3].astype(int)
 
         for group_id in groups.keys():
-            bias_factor[group_id], n_factor[group_id] = self._bias.get_hbond_bias(
+            hbond_factor[group_id] = self._bias.get_hbond_bias(
                 universe, groups, group_id, donors, acceptors
             )
 
-        return bias_factor, n_factor
+        return hbond_factor
 
     def get_symmetry(self, universe, groups):
         """

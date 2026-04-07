@@ -40,9 +40,7 @@ class HBondBias:
             mol_id (int): the index for the central molecule.
 
         Returns:
-            hbond_bias (float): the hydrogen bond bias factor.
-            n_factor (float): factor for calculating effective number
-               of neighbors.
+            hbond_factor (float): the hydrogen bond factor.
         """
         mols = groups[group_id]
         number_frames = len(universe.trajectory)
@@ -54,24 +52,25 @@ class HBondBias:
 
         # Find potential donors and acceptors per molecule
         max_donors, max_acceptors = self.get_possible_donors(rep_mol)
+        normal_factor = 1 / (max_donors + max_acceptors)
 
         if max_donors == 0 and max_acceptors == 0:
             # No hydrogen bonding possiblity
-            bias_hbond = 1
+            hbond_factor = 1
 
-            logger.debug(f"No hydrogen bond bias: {bias_hbond}")
+            logger.debug(f"No hydrogen bond possible: {hbond_factor}")
 
-            return bias_hbond
+            return hbond_factor
 
         # Get probablities
         n_donor, n_acceptor = self.get_hbond_info(universe, mols, donors, acceptors)
         if n_donor == 0 and n_acceptor == 0:
             # No hydrogen bonding
-            bias_hbond = 1
+            hbond_factor = 1
 
-            logger.debug(f"No hydrogen bonds: {bias_hbond}")
+            logger.debug(f"No hydrogen bonds: {hbond_factor}")
 
-            return bias_hbond
+            return hbond_factor
 
         if max_donors == 0:
             p_donor = 1
@@ -83,12 +82,26 @@ class HBondBias:
         else:
             p_acceptor = n_acceptor / (max_acceptors * number_frames * len(mols))
 
-        p_da = p_donor + p_acceptor
-        bias_hbond = (p_donor / p_da) * (p_acceptor / p_da)
+        if p_donor == 1 or p_acceptor == 1:
+            hbond_factor = normal_factor
+        else:
+            hbond_factor = (1 - p_donor) * (1 - p_acceptor)
 
-        logger.debug(f"Hydrogen bond bias: {bias_hbond}")
+        # TODO temp print
+        print(normal_factor)
+        print(len(mols))
+        print(number_frames)
+        print(max_donors, n_donor, p_donor)
+        print(max_acceptors, n_acceptor, p_acceptor)
+        print(hbond_factor)
 
-        return bias_hbond
+        logger.debug(f"Hydrogen bond donations: {max_donors}, {n_donor}, {p_donor}")
+        logger.debug(
+            f"Hydrogen bond acceptors: {max_acceptors}, {n_acceptor}, {p_acceptor}"
+        )
+        logger.debug(f"Hydrogen bond factor: {hbond_factor}")
+
+        return min(hbond_factor, 1)
 
     def get_possible_donors(self, mol) -> tuple[int, int]:
         """
@@ -142,6 +155,10 @@ class HBondBias:
         number_acceptors = 0
         donor_counter = Counter(donors)
         acceptor_counter = Counter(acceptors)
+
+        # TODO temp print
+        print(len(donors))
+
         for index in indices:
             number_donors += donor_counter[index]
             number_acceptors += acceptor_counter[index]

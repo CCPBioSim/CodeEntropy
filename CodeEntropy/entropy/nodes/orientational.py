@@ -46,7 +46,7 @@ class OrientationalEntropyNode:
         neighbors = shared_data["neighbors"]
         symmetry_number = shared_data["symmetry_number"]
         linear = shared_data["linear"]
-        hbond_bias = shared_data["hbond_bias"]
+        hbond_factor = shared_data["hbond_factor"]
         reporter = shared_data.get("reporter")
 
         oe = self._build_entropy_engine()
@@ -63,7 +63,7 @@ class OrientationalEntropyNode:
             neighbor = neighbors[group_id]
             symmetry = symmetry_number[group_id]
             line = linear[group_id]
-            hbond = hbond_bias[group_id]
+            hbond = hbond_factor[group_id]
 
             result_value = oe.calculate(
                 neighbor,

@@ -38,15 +38,13 @@ class ComputeNeighborsNode:
         shared_data["neighbors"] = {}
         shared_data["symmetry_number"] = {}
         shared_data["linear"] = {}
-        shared_data["hbond_bias"] = {}
-        shared_data["n_factor"] = {}
+        shared_data["hbond_factor"] = {}
 
     Where:
         - neighbors is the average number of neighbors
         - symmetry_number is the symmetry number of the molecule, int
         - linear is a boolean; True for linear, False for non-linear
-        - hbond_bias is the orientational biasing factor
-        - n_factor is a scaling factor for effective number of neighbors
+        - hbond_factor is the orientational biasing factor
     """
 
     def __init__(self) -> None:
@@ -90,7 +88,7 @@ class ComputeNeighborsNode:
         )
 
         # Get biases
-        hbond_bias = self._neighbor_analysis.get_bias(
+        hbond_factor = self._neighbor_analysis.get_bias(
             universe=u,
             groups=groups,
         )
@@ -99,6 +97,6 @@ class ComputeNeighborsNode:
         shared_data["neighbors"] = number_neighbors
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear
-        shared_data["hbond_bias"] = hbond_bias
+        shared_data["hbond_factor"] = hbond_factor
 
         return shared_data
