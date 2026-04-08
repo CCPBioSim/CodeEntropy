@@ -319,7 +319,7 @@ class EntropyWorkflow:
 
         water_entropy = WaterEntropy(self._args, self._reporter)
 
-        for group_id in water_groups.keys():
+        for group_id in sorted(water_groups.keys()):
             water_entropy.calculate_and_log(
                 universe=self._universe,
                 start=traj.start,

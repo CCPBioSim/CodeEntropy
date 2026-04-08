@@ -105,7 +105,7 @@ class ConformationStateBuilder:
                 progress.advance(task)
             return states_ua, states_res
 
-        for group_id in groups.keys():
+        for group_id in sorted(groups.keys()):
             molecules = groups[group_id]
             if not molecules:
                 if progress is not None and task is not None:

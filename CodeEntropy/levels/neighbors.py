@@ -56,7 +56,7 @@ class Neighbors:
 
         number_frames = len(universe.trajectory)
 
-        for group_id in groups.keys():
+        for group_id in sorted(groups.keys()):
             molecules = groups[group_id]
             highest_level = levels[molecules[0]][-1]
 
@@ -120,7 +120,7 @@ class Neighbors:
         symmetry_number = {}
         linear = {}
 
-        for group_id in groups.keys():
+        for group_id in sorted(groups.keys()):
             molecules = groups[group_id]
 
             rdkit_mol, number_heavy, number_hydrogen = self._get_rdkit_mol(
