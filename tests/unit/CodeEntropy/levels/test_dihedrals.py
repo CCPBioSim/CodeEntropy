@@ -135,9 +135,6 @@ def test_collect_peaks_for_group_sets_empty_outputs_when_no_dihedrals():
             dihedrals_ua=dihedrals_ua,
             dihedrals_res=dihedrals_res,
             bin_width=30.0,
-            start=0,
-            end=10,
-            step=1,
             level_list=["united_atom", "residue"],
         )
 
@@ -172,9 +169,6 @@ def test_identify_peaks_wraps_negative_angles_and_calls_find_histogram_peaks():
             molecules=[0],
             dihedrals=[MagicMock()],
             bin_width=180.0,
-            start=0,
-            end=2,
-            step=1,
         )
 
     assert out == [[15.0]]
@@ -214,9 +208,6 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
             molecules=[0, 1],
             dihedrals=["D0"],
             peaks=peaks,
-            start=0,
-            end=2,
-            step=1,
         )
 
     assert states == ["0", "1", "0", "1"]
@@ -240,9 +231,6 @@ def test_assign_states_for_group_sets_empty_lists_and_delegates_for_nonempty():
             peaks_ua=[[], [["p"]]],
             dihedrals_res=[],
             peaks_res=[],
-            start=0,
-            end=2,
-            step=1,
             level_list=["united_atom", "residue"],
             states_ua=states_ua,
             states_res=states_res,
@@ -275,9 +263,6 @@ def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatc
         data_container=MagicMock(),
         levels=levels,
         groups=groups,
-        start=0,
-        end=1,
-        step=1,
         bin_width=30.0,
     )
 
@@ -321,9 +306,6 @@ def test_identify_peaks_handles_multiple_dihedrals_and_calls_histogram_each_time
             molecules=[0],
             dihedrals=["D0", "D1"],
             bin_width=180.0,
-            start=0,
-            end=2,
-            step=1,
         )
 
     assert len(out) == 2
@@ -351,9 +333,6 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
             molecules=[0],
             dihedrals=[],
             peaks=[],
-            start=0,
-            end=3,
-            step=1,
         )
 
     assert out_state == []
@@ -386,9 +365,6 @@ def test_identify_peaks_multiple_molecules_real_histogram():
             molecules=[0, 1],
             dihedrals=["D0"],
             bin_width=90.0,
-            start=0,
-            end=2,
-            step=1,
         )
 
     assert len(peaks) == 1
@@ -417,9 +393,6 @@ def test_identify_peaks_real_histogram_without_spy():
             molecules=[0],
             dihedrals=["D0"],
             bin_width=90.0,
-            start=0,
-            end=2,
-            step=1,
         )
 
     assert isinstance(peaks, list)
@@ -442,9 +415,6 @@ def test_assign_states_for_group_residue_nonempty_calls_assign_states():
             peaks_ua=[[]],
             dihedrals_res=["D"],
             peaks_res=[["p"]],
-            start=0,
-            end=1,
-            step=1,
             level_list=["residue"],
             states_ua=states_ua,
             states_res=states_res,
@@ -455,41 +425,6 @@ def test_assign_states_for_group_residue_nonempty_calls_assign_states():
     assert states_res[1] == ["A"]
     assert flexible_res[1] == 0
     spy.assert_called_once()
-
-
-def test_assign_states_first_empty_then_extend():
-    uops = MagicMock()
-    dt = ConformationStateBuilder(universe_operations=uops)
-
-    mol0 = MagicMock()
-    mol0.trajectory = []
-    mol1 = MagicMock()
-    mol1.trajectory = [0]
-
-    uops.extract_fragment.side_effect = [mol0, mol1]
-
-    angles = np.array([[10.0]], dtype=float)
-
-    class _FakeDihedral:
-        def __init__(self, _):
-            pass
-
-        def run(self):
-            return SimpleNamespace(results=SimpleNamespace(angles=angles))
-
-    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
-        states, num_flex = dt._assign_states(
-            data_container=MagicMock(),
-            molecules=[0, 1],
-            dihedrals=["D0"],
-            peaks=[[10.0]],
-            start=0,
-            end=1,
-            step=1,
-        )
-
-    assert states == ["0"]
-    assert num_flex == 0
 
 
 def test_collect_peaks_for_group_calls_identify_peaks_for_ua_and_residue():
@@ -509,9 +444,6 @@ def test_collect_peaks_for_group_calls_identify_peaks_for_ua_and_residue():
             dihedrals_ua=dihedrals_ua,
             dihedrals_res=dihedrals_res,
             bin_width=30.0,
-            start=0,
-            end=10,
-            step=1,
             level_list=["united_atom", "residue"],
         )
 
@@ -544,9 +476,6 @@ def test_assign_states_wraps_negative_angles():
             molecules=[0],
             dihedrals=["D0"],
             peaks=peaks,
-            start=0,
-            end=2,
-            step=1,
         )
 
     assert states == ["1", "0"]
@@ -564,9 +493,6 @@ def test_build_conformational_states_with_progress_handles_no_groups():
         data_container=MagicMock(),
         levels={},
         groups={},  # empty
-        start=0,
-        end=1,
-        step=1,
         bin_width=30.0,
         progress=progress,
     )
@@ -592,9 +518,6 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
         data_container=MagicMock(),
         levels=levels,
         groups=groups,
-        start=0,
-        end=1,
-        step=1,
         bin_width=30.0,
         progress=progress,
     )
@@ -627,9 +550,6 @@ def test_build_conformational_states_with_progress_updates_title_per_group(monke
         data_container=MagicMock(),
         levels=levels,
         groups=groups,
-        start=0,
-        end=1,
-        step=1,
         bin_width=30.0,
         progress=progress,
     )

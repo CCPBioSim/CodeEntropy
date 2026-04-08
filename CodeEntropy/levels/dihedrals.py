@@ -39,9 +39,6 @@ class ConformationStateBuilder:
         data_container: Any,
         levels: dict[Any, list[str]],
         groups: dict[int, list[Any]],
-        start: int,
-        end: int,
-        step: int,
         bin_width: float,
         progress: _RichProgressSink | None = None,
     ) -> tuple[dict[UAKey, list[str]], list[list[str]], dict[UAKey, int], list[int]]:
@@ -62,9 +59,6 @@ class ConformationStateBuilder:
             levels: Mapping of molecule_id -> iterable of enabled level names
                 (e.g., ["united_atom", "residue"]).
             groups: Mapping of group_id -> list of molecule_ids.
-            start: Inclusive start frame index.
-            end: Exclusive end frame index.
-            step: Frame stride.
             bin_width: Histogram bin width in degrees used when identifying peak
                 dihedral populations.
             progress: Optional progress sink (e.g., from
@@ -81,7 +75,6 @@ class ConformationStateBuilder:
 
         Notes:
             - This function advances progress once per group_id.
-            - Frame slicing arguments (start/end/step) are forwarded to downstream
               helpers as implemented in this module.
         """
         number_groups = len(groups)
@@ -131,9 +124,6 @@ class ConformationStateBuilder:
                 dihedrals_ua=dihedrals_ua,
                 dihedrals_res=dihedrals_res,
                 bin_width=bin_width,
-                start=start,
-                end=end,
-                step=step,
                 level_list=levels[molecules[0]],
             )
 
@@ -145,9 +135,6 @@ class ConformationStateBuilder:
                 peaks_ua=peaks_ua,
                 dihedrals_res=dihedrals_res,
                 peaks_res=peaks_res,
-                start=start,
-                end=end,
-                step=step,
                 level_list=levels[molecules[0]],
                 states_ua=states_ua,
                 states_res=states_res,
@@ -252,9 +239,6 @@ class ConformationStateBuilder:
         dihedrals_ua: list[list[Any]],
         dihedrals_res: list[Any],
         bin_width: float,
-        start: int,
-        end: int,
-        step: int,
         level_list: list[str],
     ) -> tuple[list[list[Any]], list[Any]]:
         """Compute histogram peaks for UA and residue dihedral sets.
@@ -280,9 +264,6 @@ class ConformationStateBuilder:
                             molecules=molecules,
                             dihedrals=dihedrals_ua[res_id],
                             bin_width=bin_width,
-                            start=start,
-                            end=end,
-                            step=step,
                         )
 
             elif level == "residue":
@@ -295,9 +276,6 @@ class ConformationStateBuilder:
                         molecules=molecules,
                         dihedrals=dihedrals_res,
                         bin_width=bin_width,
-                        start=start,
-                        end=end,
-                        step=step,
                     )
 
         return peaks_ua, peaks_res
@@ -308,9 +286,6 @@ class ConformationStateBuilder:
         molecules: list[Any],
         dihedrals: list[Any],
         bin_width: float,
-        start: int,
-        end: int,
-        step: int,
     ) -> list[list[float]]:
         """Identify histogram peaks ("convex turning points") for each dihedral.
 
@@ -324,9 +299,6 @@ class ConformationStateBuilder:
             molecules: Molecule ids in the group.
             dihedrals: Dihedral AtomGroups.
             bin_width: Histogram bin width (degrees).
-            start: Unused in legacy sampling.
-            end: Unused in legacy sampling.
-            step: Unused in legacy sampling.
 
         Returns:
             List of peaks per dihedral (peak_values[dihedral_index] -> list of peaks).
@@ -406,9 +378,6 @@ class ConformationStateBuilder:
         peaks_ua: list[list[Any]],
         dihedrals_res: list[Any],
         peaks_res: list[Any],
-        start: int,
-        end: int,
-        step: int,
         level_list: list[str],
         states_ua: dict[UAKey, list[str]],
         states_res: list[list[str]],
@@ -429,9 +398,6 @@ class ConformationStateBuilder:
                             molecules=molecules,
                             dihedrals=dihedrals_ua[res_id],
                             peaks=peaks_ua[res_id],
-                            start=start,
-                            end=end,
-                            step=step,
                         )
 
             elif level == "residue":
@@ -444,9 +410,6 @@ class ConformationStateBuilder:
                         molecules=molecules,
                         dihedrals=dihedrals_res,
                         peaks=peaks_res,
-                        start=start,
-                        end=end,
-                        step=step,
                     )
 
     def _assign_states(
@@ -455,9 +418,6 @@ class ConformationStateBuilder:
         molecules: list[Any],
         dihedrals: list[Any],
         peaks: list[list[Any]],
-        start: int,
-        end: int,
-        step: int,
     ) -> list[str]:
         """Assign discrete state labels for the provided dihedrals.
 
@@ -471,9 +431,6 @@ class ConformationStateBuilder:
             molecules: Molecule ids in the group.
             dihedrals: Dihedral AtomGroups.
             peaks: Peaks per dihedral.
-            start: Unused in legacy sampling.
-            end: Unused in legacy sampling.
-            step: Unused in legacy sampling.
 
         Returns:
             List of state labels (strings).

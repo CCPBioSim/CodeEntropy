@@ -22,7 +22,7 @@ class Search:
         self._universe = None
         self._mol_id = None
 
-    def get_RAD_neighbors(self, universe, mol_id):
+    def get_RAD_neighbors(self, universe, mol_id, timestep):
         """
         Find the neighbors of molecule with index mol_id.
 
@@ -34,6 +34,7 @@ class Search:
             neighbor_indices (list of ints): the list of neighboring molecule
                 indices.
         """
+        universe.trajectory[timestep]
         number_molecules = len(universe.atoms.fragments)
 
         central_position = universe.atoms.fragments[mol_id].center_of_mass()
@@ -52,12 +53,18 @@ class Search:
 
         # Get indices of neighbors
         neighbor_indices = self._get_RAD_indices(
-            central_position, sorted_dist, universe, number_molecules
+            central_position,
+            sorted_dist,
+            universe,
+            number_molecules,
+            timestep,
         )
 
         return neighbor_indices
 
-    def _get_RAD_indices(self, i_coords, sorted_distances, system, number_molecules):
+    def _get_RAD_indices(
+        self, i_coords, sorted_distances, system, number_molecules, timestep
+    ):
         # pylint: disable=too-many-locals
         r"""
         For a given set of atom coordinates, find its RAD shell from the distance
@@ -85,6 +92,7 @@ class Search:
         Returns:
             shell: list of indices of particles in the RAD shell of neighbors.
         """
+        system.trajectory[timestep]
         # 1. truncate neighbor list to closest 30 united atoms and iterate
         # through neighbors from closest to furthest/
         shell = []
@@ -186,7 +194,7 @@ class Search:
 
         return distance
 
-    def get_grid_neighbors(self, universe, mol_id, highest_level):
+    def get_grid_neighbors(self, universe, mol_id, highest_level, timestep):
         """
         Use MDAnalysis neighbor search to find neighbors.
 
@@ -205,6 +213,7 @@ class Search:
         Returns:
             neighbors: MDAnalysis atomgroup of the neighboring particles.
         """
+        universe.trajectory[timestep]
         search_object = mda.lib.NeighborSearch.AtomNeighborSearch(universe.atoms)
         fragment = universe.atoms.fragments[mol_id]
         selection_string = f"index {fragment.indices[0]}:{fragment.indices[-1]}"

@@ -67,7 +67,7 @@ def test_get_RAD_neighbors(tmp_path: Path):
     universe_operations = UniverseOperations()
     universe = CodeEntropyRunner._build_universe(args, universe_operations)
 
-    neighbors = search.get_RAD_neighbors(universe=universe, mol_id=0)
+    neighbors = search.get_RAD_neighbors(universe=universe, mol_id=0, timestep=0)
 
     assert neighbors == [151, 3, 75, 219, 229, 488, 460, 118, 230, 326]
 
@@ -119,7 +119,7 @@ def test_get_grid_neighbors(tmp_path: Path):
     universe = CodeEntropyRunner._build_universe(args, universe_operations)
 
     neighbors = search.get_grid_neighbors(
-        universe=universe, mol_id=0, highest_level="united_atom"
+        universe=universe, mol_id=0, highest_level="united_atom", timestep=0
     )
 
     assert (neighbors == [151, 3, 75, 219]).all
@@ -184,6 +184,7 @@ def test_get_RAD_indices_breaks_when_angle_is_nan():
         sorted_distances=sorted_distances,
         system=system,
         number_molecules=number_molecules,
+        timestep=0,
     )
 
     assert result == [1, 2]
@@ -218,9 +219,7 @@ def test_get_grid_neighbors_uses_residue_search_for_non_united_atom():
         mock_ans.search.return_value = search_result
 
         result = search.get_grid_neighbors(
-            universe=universe,
-            mol_id=0,
-            highest_level="residue",
+            universe=universe, mol_id=0, highest_level="residue", timestep=0
         )
 
     universe.select_atoms.assert_called_once_with("index 4:6")
@@ -264,6 +263,7 @@ def test_get_grid_neighbors_uses_atom_search_for_united_atom():
             universe=universe,
             mol_id=0,
             highest_level="united_atom",
+            timestep=0,
         )
 
     universe.select_atoms.assert_called_once_with("index 10:11")
