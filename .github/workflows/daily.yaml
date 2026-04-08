@@ -9,6 +9,13 @@ concurrency:
   group: daily-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  OMP_NUM_THREADS: 1
+  MKL_NUM_THREADS: 1
+  OPENBLAS_NUM_THREADS: 1
+  NUMEXPR_NUM_THREADS: 1
+  PYTHONHASHSEED: 0
+
 jobs:
   unit:
     name: Unit (${{ matrix.os }}, py${{ matrix.python-version }})
@@ -37,4 +44,4 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Run unit tests
-        run: python -m pytest tests/unit
+        run: python -m pytest tests/unit -n auto --dist=loadscope
