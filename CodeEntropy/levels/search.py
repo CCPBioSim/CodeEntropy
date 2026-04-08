@@ -10,6 +10,31 @@ from numba import njit
 
 
 @njit
+def _apply_pbc(vec, dimensions, half_dimensions):
+    """
+    Apply minimum image convention for periodic boundary conditions.
+
+    Args:
+        vec (np.ndarray):
+            Vector to wrap.
+        dimensions (np.ndarray):
+            Simulation box dimensions.
+        half_dimensions (np.ndarray):
+            Half box lengths.
+
+    Returns:
+        np.ndarray:
+            Wrapped vector.
+    """
+    for d in range(3):
+        if vec[d] > half_dimensions[d]:
+            vec[d] -= dimensions[d]
+        elif vec[d] < -half_dimensions[d]:
+            vec[d] += dimensions[d]
+    return vec
+
+
+@njit
 def _rad_blocking_loop(i_coords, sorted_indices, sorted_distances, coms, dimensions):
     """
     Perform RAD neighbor selection using a blocking criterion.
@@ -38,54 +63,58 @@ def _rad_blocking_loop(i_coords, sorted_indices, sorted_distances, coms, dimensi
             Simulation box dimensions for periodic boundary conditions.
 
     Returns:
-        list[int]:
+        np.ndarray:
             Indices of molecules that belong to the RAD neighbor shell.
     """
-    shell = []
-
     n = sorted_indices.shape[0]
     limit = min(n, 30)
+
+    half_dimensions = 0.5 * dimensions
+
+    inv_r2 = 1.0 / (sorted_distances * sorted_distances)
+
+    shell = np.empty(limit, dtype=np.int64)
+    count = 0
 
     for y in range(limit):
         j_idx = sorted_indices[y]
         r_ij = sorted_distances[y]
         j_coords = coms[j_idx]
 
+        ba = j_coords - i_coords
+        ba = _apply_pbc(ba, dimensions, half_dimensions)
+
         blocked = False
 
         for z in range(y):
             k_idx = sorted_indices[z]
             r_ik = sorted_distances[z]
+
+            if r_ik > r_ij:
+                continue
+
             k_coords = coms[k_idx]
 
-            ba = np.abs(j_coords - i_coords)
-            bc = np.abs(k_coords - i_coords)
-            ac = np.abs(k_coords - j_coords)
+            ac = k_coords - j_coords
+            ac = _apply_pbc(ac, dimensions, half_dimensions)
 
-            ba = np.where(ba > 0.5 * dimensions, ba - dimensions, ba)
-            bc = np.where(bc > 0.5 * dimensions, bc - dimensions, bc)
-            ac = np.where(ac > 0.5 * dimensions, ac - dimensions, ac)
+            dist_ac2 = (ac * ac).sum()
 
-            dist_ba = np.sqrt((ba**2).sum())
-            dist_bc = np.sqrt((bc**2).sum())
-            dist_ac = np.sqrt((ac**2).sum())
+            denom = -2.0 * r_ik * r_ij
+            if denom == 0.0:
+                continue
 
-            costheta = (dist_ac**2 - dist_bc**2 - dist_ba**2) / (-2 * dist_bc * dist_ba)
+            costheta = (dist_ac2 - r_ik * r_ik - r_ij * r_ij) / denom
 
-            if np.isnan(costheta):
-                break
-
-            LHS = (1.0 / r_ij) ** 2
-            RHS = ((1.0 / r_ik) ** 2) * costheta
-
-            if LHS < RHS:
+            if inv_r2[y] < inv_r2[z] * costheta:
                 blocked = True
                 break
 
         if not blocked:
-            shell.append(j_idx)
+            shell[count] = j_idx
+            count += 1
 
-    return shell
+    return shell[:count]
 
 
 class Search:
@@ -114,16 +143,13 @@ class Search:
             universe (MDAnalysis.Universe):
                 MDAnalysis universe object containing the system.
         """
-        # Get current frame index (MDAnalysis trajectory)
         current_frame = universe.trajectory.ts.frame
 
-        # Only recompute if frame has changed
         if self._cached_frame == current_frame:
             return
 
         fragments = universe.atoms.fragments
 
-        # Compute COMs once per frame (deterministic snapshot)
         coms = np.array([frag.center_of_mass() for frag in fragments])
 
         self._cached_fragments = fragments
@@ -149,9 +175,22 @@ class Search:
                 Distances from the central molecule to all fragments.
         """
         delta = coms - i_coords
-        delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
-        delta = np.where(delta < -0.5 * dimensions, delta + dimensions, delta)
-        return np.sqrt((delta**2).sum(axis=1))
+
+        half_dimensions = 0.5 * dimensions
+
+        for d in range(3):
+            delta[:, d] = np.where(
+                delta[:, d] > half_dimensions[d],
+                delta[:, d] - dimensions[d],
+                delta[:, d],
+            )
+            delta[:, d] = np.where(
+                delta[:, d] < -half_dimensions[d],
+                delta[:, d] + dimensions[d],
+                delta[:, d],
+            )
+
+        return np.sqrt((delta * delta).sum(axis=1))
 
     def get_RAD_neighbors(self, universe, mol_id):
         """
@@ -164,10 +203,9 @@ class Search:
                 Index of the central molecule.
 
         Returns:
-            list[int]:
+            np.ndarray:
                 Indices of neighboring molecules identified via the RAD method.
         """
-        # Ensure cache corresponds to current frame
         self._update_cache(universe)
 
         fragments = self._cached_fragments
@@ -178,7 +216,6 @@ class Search:
 
         central_position = coms[mol_id]
 
-        # Distances computed from same COM snapshot
         distances_array = self._get_distances(coms, central_position, dimensions)
 
         indices = np.arange(number_molecules)
@@ -187,7 +224,6 @@ class Search:
         filtered_indices = indices[mask]
         filtered_distances = distances_array[mask]
 
-        # Stable sort to avoid ordering ambiguity
         order = np.argsort(filtered_distances, kind="mergesort")
 
         sorted_indices = filtered_indices[order]
@@ -219,7 +255,7 @@ class Search:
                 Molecule level ("united_atom" or other).
 
         Returns:
-            list[int]:
+            np.ndarray:
                 Fragment indices of neighboring molecules.
         """
         fragments = universe.atoms.fragments
