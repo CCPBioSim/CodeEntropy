@@ -411,7 +411,9 @@ class ResultsReporter:
         for g in groups.values():
             if g["total"] is None:
                 comps = sorted(g["components"].values())
-                g["total"] = float(sum(comps)) if comps else 0.0
+                g["total"] = (
+                    float(sum(float(x) for x in sorted(comps))) if comps else 0.0
+                )
 
         payload: dict[str, Any] = {
             "args": self._serialize_args(args),
