@@ -103,7 +103,7 @@ class InitCovarianceAccumulatorsNode:
         Returns:
             GroupIndex mapping object.
         """
-        group_ids = list(groups.keys())
+        group_ids = sorted(groups.keys())
         gid2i = {gid: i for i, gid in enumerate(group_ids)}
         return GroupIndex(group_id_to_index=gid2i, index_to_group_id=list(group_ids))
 
@@ -168,8 +168,14 @@ class InitCovarianceAccumulatorsNode:
         Args:
             shared_data: Shared pipeline dictionary.
         """
-        shared_data["force_torque_stats"] = shared_data["forcetorque_covariances"]
-        shared_data["force_torque_counts"] = shared_data["forcetorque_counts"]
+        shared_data["force_torque_stats"] = {
+            "res": list(shared_data["forcetorque_covariances"]["res"]),
+            "poly": list(shared_data["forcetorque_covariances"]["poly"]),
+        }
+        shared_data["force_torque_counts"] = {
+            "res": shared_data["forcetorque_counts"]["res"].copy(),
+            "poly": shared_data["forcetorque_counts"]["poly"].copy(),
+        }
 
     @staticmethod
     def _build_return_payload(shared_data: SharedData) -> dict[str, Any]:
