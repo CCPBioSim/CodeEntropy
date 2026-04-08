@@ -90,7 +90,7 @@ class VibrationalEntropyNode:
 
         results: dict[int, dict[str, dict[str, float]]] = {}
 
-        for group_id, mol_ids in groups.items():
+        for group_id, mol_ids in sorted(groups.items()):
             results[group_id] = {}
             if not mol_ids:
                 continue
@@ -198,7 +198,7 @@ class VibrationalEntropyNode:
         if isinstance(gid2i, dict) and gid2i:
             return gid2i
         groups = shared_data["groups"]
-        return {gid: i for i, gid in enumerate(groups.keys())}
+        return {gid: i for i, gid in enumerate(sorted(groups.keys()))}
 
     def _get_ua_frame_counts(self, shared_data: Mapping[str, Any]) -> dict[CovKey, int]:
         """Extract per-(group,residue) frame counts for united-atom covariances.

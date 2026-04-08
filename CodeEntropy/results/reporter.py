@@ -408,9 +408,9 @@ class ResultsReporter:
                 key = f"{level}:{typ}"
                 groups[gid]["components"][key] = val
 
-        for _gid, g in groups.items():
+        for g in groups.values():
             if g["total"] is None:
-                comps = g["components"].values()
+                comps = sorted(g["components"].values())
                 g["total"] = float(sum(comps)) if comps else 0.0
 
         payload: dict[str, Any] = {
