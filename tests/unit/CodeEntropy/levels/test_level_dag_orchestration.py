@@ -8,16 +8,27 @@ from CodeEntropy.levels.level_dag import LevelDAG
 def _shared():
     return {
         "levels": [["united_atom"]],
-        "frame_counts": {},
+        "group_id_to_index": {0: 0},
+        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "force_counts": {
+            "ua": {},
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
+        "torque_counts": {
+            "ua": {},
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
+        "forcetorque_sums": {"res": [None], "poly": [None]},
+        "forcetorque_counts": {
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
         "force_covariances": {},
         "torque_covariances": {},
-        "force_counts": {},
-        "torque_counts": {},
-        "reduced_force_covariances": {},
-        "reduced_torque_covariances": {},
-        "reduced_force_counts": {},
-        "reduced_torque_counts": {},
-        "group_id_to_index": {0: 0},
+        "forcetorque_covariances": {},
     }
 
 
@@ -29,16 +40,35 @@ def test_execute_sets_default_axes_manager_once():
         "start": 0,
         "end": 0,
         "step": 1,
+        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "force_counts": {
+            "ua": {},
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
+        "torque_counts": {
+            "ua": {},
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
+        "forcetorque_sums": {"res": [None], "poly": [None]},
+        "forcetorque_counts": {
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
     }
 
     dag._run_static_stage = MagicMock()
     dag._run_frame_stage = MagicMock()
+    dag._finalize_means = MagicMock()
 
     dag.execute(shared)
 
     assert "axes_manager" in shared
     dag._run_static_stage.assert_called_once()
     dag._run_frame_stage.assert_called_once()
+    dag._finalize_means.assert_called_once_with(shared)
 
 
 def test_run_static_stage_calls_nodes_in_topological_sort_order():
@@ -71,6 +101,8 @@ def test_run_frame_stage_iterates_selected_frames_and_reduces_each():
         {
             "force": {"ua": {}, "res": {}, "poly": {}},
             "torque": {"ua": {}, "res": {}, "poly": {}},
+            "force_counts": {"ua": {}, "res": {}, "poly": {}},
+            "torque_counts": {"ua": {}, "res": {}, "poly": {}},
         }
     ] * 2
     dag._reduce_one_frame = MagicMock()
@@ -83,15 +115,10 @@ def test_run_frame_stage_iterates_selected_frames_and_reduces_each():
     dag._frame_dag.execute_frame.assert_any_call(shared, 11)
 
 
-def test_incremental_mean_handles_non_copyable_values():
-    out = LevelDAG._incremental_mean(old=None, new=3.0, n=1)
-    assert out == 3.0
-
-
 def test_reduce_forcetorque_no_key_is_noop():
     dag = LevelDAG()
     shared = {
-        "forcetorque_covariances": {"res": [None], "poly": [None]},
+        "forcetorque_sums": {"res": [None], "poly": [None]},
         "forcetorque_counts": {
             "res": np.zeros(1, dtype=int),
             "poly": np.zeros(1, dtype=int),
@@ -100,7 +127,7 @@ def test_reduce_forcetorque_no_key_is_noop():
     }
     dag._reduce_forcetorque(shared, frame_out={})
     assert shared["forcetorque_counts"]["res"][0] == 0
-    assert shared["forcetorque_covariances"]["res"][0] is None
+    assert shared["forcetorque_sums"]["res"][0] is None
 
 
 def test_build_registers_static_nodes_and_builds_frame_dag():
@@ -136,9 +163,10 @@ def test_reduce_force_and_torque_hits_zero_count_branches():
     dag = LevelDAG()
 
     shared = {
-        "force_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "torque_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "frame_counts": {"ua": {}, "res": [0], "poly": [0]},
+        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "force_counts": {"ua": {}, "res": np.array([0]), "poly": np.array([0])},
+        "torque_counts": {"ua": {}, "res": np.array([0]), "poly": np.array([0])},
         "group_id_to_index": {7: 0},
     }
 
@@ -153,16 +181,20 @@ def test_reduce_force_and_torque_hits_zero_count_branches():
             "res": {7: np.eye(2)},
             "poly": {7: np.eye(3)},
         },
+        "force_counts": {"ua": {(7, 0): 1}, "res": {7: 1}, "poly": {7: 1}},
+        "torque_counts": {"ua": {(7, 0): 1}, "res": {7: 1}, "poly": {7: 1}},
     }
 
     dag._reduce_force_and_torque(shared, frame_out)
 
-    assert shared["frame_counts"]["ua"][(7, 0)] == 1
-    assert (7, 0) in shared["force_covariances"]["ua"]
-    assert (7, 0) in shared["torque_covariances"]["ua"]
+    assert shared["force_counts"]["ua"][(7, 0)] == 1
+    assert (7, 0) in shared["force_sums"]["ua"]
+    assert (7, 0) in shared["torque_sums"]["ua"]
 
-    assert shared["frame_counts"]["res"][0] == 1
-    assert shared["frame_counts"]["poly"][0] == 1
+    assert shared["force_counts"]["res"][0] == 1
+    assert shared["force_counts"]["poly"][0] == 1
+    assert shared["torque_counts"]["res"][0] == 1
+    assert shared["torque_counts"]["poly"][0] == 1
 
 
 def test_reduce_force_and_torque_handles_empty_frame_gracefully():
@@ -170,22 +202,27 @@ def test_reduce_force_and_torque_handles_empty_frame_gracefully():
 
     shared = {
         "group_id_to_index": {0: 0},
-        "force_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "torque_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "frame_counts": {"ua": {}, "res": [0], "poly": [0]},
+        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "force_counts": {"ua": {}, "res": np.array([0]), "poly": np.array([0])},
+        "torque_counts": {"ua": {}, "res": np.array([0]), "poly": np.array([0])},
     }
 
     frame_out = {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
+        "force_counts": {"ua": {}, "res": {}, "poly": {}},
+        "torque_counts": {"ua": {}, "res": {}, "poly": {}},
     }
 
     dag._reduce_force_and_torque(shared_data=shared, frame_out=frame_out)
 
-    assert shared["force_covariances"]["ua"] == {}
-    assert shared["torque_covariances"]["ua"] == {}
-    assert shared["frame_counts"]["res"][0] == 0
-    assert shared["frame_counts"]["poly"][0] == 0
+    assert shared["force_sums"]["ua"] == {}
+    assert shared["torque_sums"]["ua"] == {}
+    assert shared["force_counts"]["res"][0] == 0
+    assert shared["force_counts"]["poly"][0] == 0
+    assert shared["torque_counts"]["res"][0] == 0
+    assert shared["torque_counts"]["poly"][0] == 0
 
 
 def test_reduce_force_and_torque_increments_res_and_poly_counts_from_zero():
@@ -193,9 +230,12 @@ def test_reduce_force_and_torque_increments_res_and_poly_counts_from_zero():
 
     shared = {
         "group_id_to_index": {7: 0},
-        "force_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "torque_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "frame_counts": {"ua": {}, "res": [0], "poly": [0]},
+        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "force_counts": {"ua": {}, "res": np.array([0]), "poly": np.array([0])},
+        "torque_counts": {"ua": {}, "res": np.array([0]), "poly": np.array([0])},
+        "forcetorque_sums": {"res": [None], "poly": [None]},
+        "forcetorque_counts": {"res": np.array([0]), "poly": np.array([0])},
     }
 
     F = np.eye(3)
@@ -204,12 +244,24 @@ def test_reduce_force_and_torque_increments_res_and_poly_counts_from_zero():
     frame_out = {
         "force": {"ua": {}, "res": {7: F}, "poly": {7: F}},
         "torque": {"ua": {}, "res": {7: T}, "poly": {7: T}},
+        "force_counts": {"ua": {}, "res": {7: 1}, "poly": {7: 1}},
+        "torque_counts": {"ua": {}, "res": {7: 1}, "poly": {7: 1}},
     }
 
     dag._reduce_force_and_torque(shared_data=shared, frame_out=frame_out)
 
-    assert shared["frame_counts"]["res"][0] == 1
-    assert shared["frame_counts"]["poly"][0] == 1
+    assert shared["force_counts"]["res"][0] == 1
+    assert shared["force_counts"]["poly"][0] == 1
+    assert shared["torque_counts"]["res"][0] == 1
+    assert shared["torque_counts"]["poly"][0] == 1
+    assert np.allclose(shared["torque_sums"]["res"][0], T)
+    assert np.allclose(shared["torque_sums"]["poly"][0], T)
+
+    shared["force_covariances"] = {}
+    shared["torque_covariances"] = {}
+    shared["forcetorque_covariances"] = {}
+    dag._finalize_means(shared)
+
     assert np.allclose(shared["torque_covariances"]["res"][0], T)
     assert np.allclose(shared["torque_covariances"]["poly"][0], T)
 
@@ -218,43 +270,42 @@ def test_reduce_one_frame_skips_missing_force_and_torque_keys():
     dag = LevelDAG()
     shared = _shared()
 
-    bead_key = (0, "united_atom", 0)
     frame_out = {
-        "beads": {bead_key: [1, 2, 3]},
-        "counts": {bead_key: 1},
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
+        "force_counts": {"ua": {}, "res": {}, "poly": {}},
+        "torque_counts": {"ua": {}, "res": {}, "poly": {}},
     }
 
     dag._reduce_one_frame(shared_data=shared, frame_out=frame_out)
 
-    assert shared["force_covariances"] == {}
-    assert shared["torque_covariances"] == {}
+    assert shared["force_sums"]["ua"] == {}
+    assert shared["torque_sums"]["ua"] == {}
 
 
 def test_reduce_force_and_torque_skips_when_counts_are_zero():
     dag = LevelDAG()
     shared = _shared()
 
-    k = (0, "united_atom", 0)
-    shared["force_covariances"][k] = np.eye(3)
-    shared["torque_covariances"][k] = np.eye(3)
-    shared["force_counts"][k] = 0
-    shared["torque_counts"][k] = 0
-    shared["frame_counts"][k] = 0
+    k = (0, 0)
+    shared["force_sums"]["ua"][k] = np.eye(3)
+    shared["torque_sums"]["ua"][k] = np.eye(3)
+    shared["force_counts"]["ua"][k] = 0
+    shared["torque_counts"]["ua"][k] = 0
 
     frame_out = {
-        "force": {"ua": {}, "res": {}, "poly": {}},
-        "torque": {"ua": {}, "res": {}, "poly": {}},
-        "beads": {},
+        "force": {"ua": {k: np.eye(3)}, "res": {}, "poly": {}},
+        "torque": {"ua": {k: np.eye(3)}, "res": {}, "poly": {}},
+        "force_counts": {"ua": {k: 0}, "res": {}, "poly": {}},
+        "torque_counts": {"ua": {k: 0}, "res": {}, "poly": {}},
     }
 
     dag._reduce_force_and_torque(shared_data=shared, frame_out=frame_out)
 
-    assert shared["reduced_force_covariances"] == {}
-    assert shared["reduced_torque_covariances"] == {}
-    assert shared["reduced_force_counts"] == {}
-    assert shared["reduced_torque_counts"] == {}
+    np.testing.assert_array_equal(shared["force_sums"]["ua"][k], np.eye(3))
+    np.testing.assert_array_equal(shared["torque_sums"]["ua"][k], np.eye(3))
+    assert shared["force_counts"]["ua"][k] == 0
+    assert shared["torque_counts"]["ua"][k] == 0
 
 
 def test_run_static_stage_forwards_progress_when_node_accepts_it():
@@ -284,7 +335,7 @@ def test_run_static_stage_falls_back_when_node_does_not_accept_progress():
     progress = MagicMock()
 
     with patch("networkx.topological_sort", return_value=["a"]):
-        dag._run_static_stage({"X": 1}, progress=progress)  # should not raise
+        dag._run_static_stage({"X": 1}, progress=progress)
 
 
 def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
@@ -301,6 +352,8 @@ def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
     dag._frame_dag.execute_frame.return_value = {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
+        "force_counts": {"ua": {}, "res": {}, "poly": {}},
+        "torque_counts": {"ua": {}, "res": {}, "poly": {}},
     }
     dag._reduce_one_frame = MagicMock()
 
@@ -333,6 +386,8 @@ def test_run_frame_stage_with_negative_end_computes_total_frames():
     dag._frame_dag.execute_frame.return_value = {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
+        "force_counts": {"ua": {}, "res": {}, "poly": {}},
+        "torque_counts": {"ua": {}, "res": {}, "poly": {}},
     }
     dag._reduce_one_frame = MagicMock()
 
@@ -349,7 +404,6 @@ def test_run_frame_stage_with_negative_end_computes_total_frames():
 
 
 def test_run_frame_stage_progress_total_frames_falls_back_to_none_on_error():
-
     dag = LevelDAG()
 
     class BadTrajectory:

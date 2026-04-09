@@ -165,7 +165,7 @@ class EntropyWorkflow:
             "universe": self._universe,
             "reduced_universe": reduced_universe,
             "levels": levels,
-            "groups": dict(groups),
+            "groups": dict(sorted(groups.items())),
             "start": traj.start,
             "end": traj.end,
             "step": traj.step,
