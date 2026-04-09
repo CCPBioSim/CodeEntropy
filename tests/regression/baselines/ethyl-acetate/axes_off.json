@@ -1,10 +1,10 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/molecules.top",
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/trajectory.crd"
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/ethyl-acetate/molecules.top",
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/ethyl-acetate/trajectory.crd"
     ],
-    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/forces.frc",
+    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/ethyl-acetate/forces.frc",
     "file_format": "MDCRD",
     "kcal_force_units": true,
     "selection_string": "resid 1:10",
@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-47/test_regression_matches_baseli0/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-1/popen-gw0/test_regression_matches_baseli0/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -24,22 +24,22 @@
   },
   "provenance": {
     "python": "3.14.3",
-    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
+    "platform": "Linux-6.17.0-20-generic-x86_64-with-glibc2.39",
     "codeentropy_version": "2.1.0",
-    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
+    "git_sha": "35b54c7d4ea40dac345db7fe8f6a0285bf6852e8"
   },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 0.08982962903796131,
-        "united_atom:Rovibrational": 32.16018134884085,
-        "residue:FTmat-Transvibrational": 88.7671666695003,
-        "residue:FTmat-Rovibrational": 61.61036267672132,
-        "united_atom:Conformational": 0.0,
+        "united_atom:Transvibrational": 1.2655393305199973,
+        "united_atom:Rovibrational": 68.85184585731292,
+        "residue:FTmat-Transvibrational": 77.33844477785695,
+        "residue:FTmat-Rovibrational": 56.03921993686319,
+        "united_atom:Conformational": 8.140778318198597,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 7.791711490122748
+        "residue:Orientational": 3.2718547817092687
       },
-      "total": 190.41925181422317
+      "total": 214.9076830024609
     }
   }
 }

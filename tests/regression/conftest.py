@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import os
+import random
+
+import numpy as np
 import pytest
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """
     Register custom command-line options for pytest.
-
-    Adds options to control regression test execution, baseline updates,
-    and debugging output.
     """
     parser.addoption(
         "--run-slow",
@@ -38,10 +39,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 def pytest_configure(config: pytest.Config) -> None:
     """
-    Register custom pytest markers.
+    Register markers and enforce deterministic behavior.
     """
     config.addinivalue_line("markers", "regression: end-to-end regression tests")
     config.addinivalue_line("markers", "slow: long-running tests (20-30+ minutes)")
+
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
+
+    os.environ["PYTHONHASHSEED"] = "0"
 
 
 def pytest_collection_modifyitems(
@@ -73,7 +80,6 @@ def pytest_collection_modifyitems(
         if callspec is not None:
             case = callspec.params.get("case")
 
-        # Keep non-parametrized tests
         if case is None:
             filtered_items.append(item)
             continue

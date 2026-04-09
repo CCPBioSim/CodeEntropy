@@ -303,7 +303,7 @@ class EntropyWorkflow:
 
         water_groups = {
             gid: mol_ids
-            for gid, mol_ids in groups.items()
+            for gid, mol_ids in sorted(groups.items())
             if any(
                 res.resid in water_resids
                 for mol in [universe.atoms.fragments[i] for i in mol_ids]
@@ -311,7 +311,7 @@ class EntropyWorkflow:
             )
         }
         nonwater_groups = {
-            gid: g for gid, g in groups.items() if gid not in water_groups
+            gid: g for gid, g in sorted(groups.items()) if gid not in water_groups
         }
         return nonwater_groups, water_groups
 
@@ -364,7 +364,7 @@ class EntropyWorkflow:
             except (TypeError, ValueError):
                 logger.warning("Skipping invalid entry: %s, %s", group_id, result)
 
-        for group_id, total in entropy_by_group.items():
+        for group_id, total in sorted(entropy_by_group.items()):
             self._reporter.molecule_data.append(
                 (group_id, "Group Total", "Group Total Entropy", total)
             )
