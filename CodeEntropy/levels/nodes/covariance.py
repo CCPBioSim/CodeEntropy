@@ -57,16 +57,16 @@ class FrameCovarianceNode:
         """Compute and store per-frame force/torque (and optional FT) matrices.
 
         Args:
-            ctx: Frame context dict expected to include:
-                - "shared": dict containing reduced_universe, groups, levels, beads,
-                  and args
-                - shared["axes_manager"] (created in static stage)
+            ctx: Frame context dictionary. Expected to include ``"shared"``,
+                containing reduced universe, groups, levels, beads, args,
+                and ``shared["axes_manager"]`` created during the static stage.
 
         Returns:
-            The frame covariance payload also stored at ctx["frame_covariance"].
+            The frame covariance payload also stored at
+            ``ctx["frame_covariance"]``.
 
         Raises:
-            KeyError: If ctx is missing required fields.
+            KeyError: If ``ctx`` is missing required fields.
         """
         shared = self._get_shared(ctx)
 
