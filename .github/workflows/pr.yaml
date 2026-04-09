@@ -95,12 +95,6 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Cache testdata
-        uses: actions/cache@v4
-        with:
-          path: .testdata
-          key: codeentropy-testdata-${{ runner.os }}-py314
-
       - name: Install testing dependencies
         run: |
           python -m pip install --upgrade pip
@@ -110,8 +104,7 @@ jobs:
         run: |
           python -m pytest tests/regression \
             -m "not slow" \
-            --dist=loadscope \
-            -n 1 \
+            -n 0 \
             -k "${{ matrix.system }}" \
             -vv \
             --durations=20
