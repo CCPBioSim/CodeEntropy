@@ -161,6 +161,7 @@ jobs:
 
   pre-commit:
     name: Pre-commit
+    needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
