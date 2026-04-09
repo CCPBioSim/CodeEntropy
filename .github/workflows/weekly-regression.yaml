@@ -82,7 +82,7 @@ jobs:
           pytest tests/regression \
             -k "${{ matrix.system }}" \
             --run-slow \
-            -n auto \
+            -n 1 \
             --dist=loadscope \
             -vv \
             --durations=20
