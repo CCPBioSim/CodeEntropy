@@ -110,9 +110,9 @@ jobs:
         run: |
           python -m pytest tests/regression \
             -m "not slow" \
-            -k "${{ matrix.system }}" \
             --dist=loadscope \
             -n auto \
+            -k "${{ matrix.system }}" \
             -vv \
             --durations=20
 
