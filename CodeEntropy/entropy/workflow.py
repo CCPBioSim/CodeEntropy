@@ -239,9 +239,9 @@ class EntropyWorkflow:
             MDAnalysis Universe (reduced according to user selections).
         """
         selection = self._args.selection_string
-        start = self._args.start
-        end = self._args.end
-        step = self._args.step
+        start = self._args.start or 0
+        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
+        step = self._args.step or 1
         if selection == "all":
             reduced_atoms = self._universe
         else:

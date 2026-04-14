@@ -235,7 +235,7 @@ def test_build_reduced_universe_non_all_selects_and_writes_universe():
 
     assert out is reduced2
     uops.select_atoms.assert_called_once_with(universe, "protein")
-    uops.select_frames.assert_called_once_with(reduced, 0, -1, 1)
+    uops.select_frames.assert_called_once_with(reduced, 0, 3, 1)
 
 
 def test_compute_water_entropy_updates_selection_string_and_calls_internal_method():

@@ -79,9 +79,10 @@ class ConformationStateBuilder:
         """
         number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
+        # states_res: list[list[str]] = [[]]
         states_res: list[list[str]] = [[] for _ in range(number_groups)]
         flexible_ua: dict[UAKey, int] = {}
-        flexible_res: list[int] = [0] * number_groups
+        flexible_res: list[int] = []
 
         task: TaskID | None = None
         if progress is not None:
@@ -131,6 +132,11 @@ class ConformationStateBuilder:
 
             if progress is not None and task is not None:
                 progress.advance(task)
+
+        logger.debug(f"States UA: {states_ua}")
+        logger.debug(f"Number of flexible dihedrals UA: {flexible_ua}")
+        logger.debug(f"States Res: {states_res}")
+        logger.debug(f"Number of flexible dihedrals Res: {flexible_res}")
 
         return states_ua, states_res, flexible_ua, flexible_res
 
@@ -217,10 +223,11 @@ class ConformationStateBuilder:
         number_frames = len(rep_mol.trajectory)
         num_residues = len(rep_mol.residues)
 
+        num_dihedrals_ua: list[Any] = [0 for _ in range(num_residues)]
+        phi_ua = {}
+        phi_res: dict[list, list[float]] = {}
         peaks_ua: list[list[Any]] = [[] for _ in range(num_residues)]
         peaks_res: list[Any] = []
-        phi_ua: list[list[Any]] = [[] for _ in range(num_residues)]
-        phi_res: list[Any] = []
 
         for molecule in molecules:
             mol = self._universe_operations.extract_fragment(data_container, molecule)
@@ -230,19 +237,21 @@ class ConformationStateBuilder:
                     for res_id in range(num_residues):
                         heavy_res = self._select_heavy_residue(mol, res_id)
                         dihedrals = self._get_dihedrals(heavy_res, level)
-                        num_dihedrals_ua = len(dihedrals)
-                        if num_dihedrals_ua == 0:
+                        num_dihedrals_ua[res_id] = len(dihedrals)
+                        if num_dihedrals_ua[res_id] == 0:
                             # No dihedrals, no peaks
                             phi_ua[res_id] = []
 
                         else:
+                            if res_id not in phi_ua:
+                                phi_ua[res_id] = {}
                             dihedral_results = Dihedral(dihedrals).run()
-                            phis = self._process_dihedral_phi(
+                            phi_ua[res_id] = self._process_dihedral_phi(
                                 dihedral_results,
-                                num_dihedrals_ua,
+                                num_dihedrals_ua[res_id],
                                 number_frames,
+                                phi_ua[res_id],
                             )
-                            phi_ua[res_id].append(phis)
 
                 elif level == "residue":
                     dihedrals = self._get_dihedrals(mol, level)
@@ -253,24 +262,33 @@ class ConformationStateBuilder:
 
                     else:
                         dihedral_results = Dihedral(dihedrals).run()
-                        phis = self._process_dihedral_phi(
+                        phi_res = self._process_dihedral_phi(
                             dihedral_results,
                             num_dihedrals_res,
                             number_frames,
+                            phi_res,
                         )
-                        phi_res.append(phis)
+
+        logger.debug(f"phi_ua {phi_ua}")
+        logger.debug(f"phi_res {phi_res}")
 
         for level in level_list:
             if level == "united_atom":
                 for res_id in range(num_residues):
-                    peaks_ua[res_id] = self._process_histogram(
-                        num_dihedrals_ua, phi_ua[res_id], bin_width
-                    )
+                    if phi_ua[res_id] is None:
+                        peaks_ua[res_id] = []
+                    else:
+                        peaks_ua[res_id] = self._process_histogram(
+                            num_dihedrals_ua[res_id], phi_ua[res_id], bin_width
+                        )
 
             elif level == "residue":
-                peaks_res = self._process_histogram(
-                    num_dihedrals_res, phi_res, bin_width
-                )
+                if phi_res is None:
+                    peaks_res = []
+                else:
+                    peaks_res = self._process_histogram(
+                        num_dihedrals_res, phi_res, bin_width
+                    )
 
         return peaks_ua, peaks_res
 
@@ -279,9 +297,10 @@ class ConformationStateBuilder:
         dihedral_results,
         num_dihedrals,
         number_frames,
+        phi_values,
     ):
         """
-        Find peaks from array of dihedral angle values.
+        Find array of dihedral angle values.
 
         Args:
             dihedral_results: the result of MDAnalysis Dihedrals.run.
@@ -290,7 +309,6 @@ class ConformationStateBuilder:
         Returns:
             peaks
         """
-        phi_values = [[] for _ in range(num_dihedrals)]
         for dihedral_index in range(num_dihedrals):
             phi: list[float] = []
 
@@ -300,7 +318,10 @@ class ConformationStateBuilder:
                     value += 360
                 phi.append(float(value))
 
-            phi_values[dihedral_index].append(phi)
+            if dihedral_index not in phi_values:
+                phi_values[dihedral_index] = phi
+            else:
+                phi_values[dihedral_index].extend(phi)
 
         return phi_values
 
@@ -325,6 +346,9 @@ class ConformationStateBuilder:
             phi = phi_values[dihedral_index]
             number_bins = int(360 / bin_width)
             popul, bin_edges = np.histogram(a=phi, bins=number_bins, range=(0, 360))
+
+            logger.debug(f"Histogram: {popul}")
+
             bin_value = [
                 0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(0, len(popul))
             ]
@@ -401,6 +425,8 @@ class ConformationStateBuilder:
         number_frames = len(rep_mol.trajectory)
         num_residues = len(rep_mol.residues)
 
+        state_res = []
+        flex_res = 0
         for molecule in molecules:
             mol = self._universe_operations.extract_fragment(data_container, molecule)
 
@@ -417,7 +443,7 @@ class ConformationStateBuilder:
                             flexible_ua[key] = 0
                         else:
                             dihedral_results = Dihedral(dihedrals).run()
-                            states, flexible_ua[key] = self._process_conformations(
+                            states, flexible = self._process_conformations(
                                 peaks_ua[res_id],
                                 dihedral_results,
                                 num_dihedrals,
@@ -425,36 +451,30 @@ class ConformationStateBuilder:
                             )
                             if key not in states_ua:
                                 states_ua[key] = states
+                                flexible_ua[key] = flexible
                             else:
                                 states_ua[key].extend(states)
-
-                        logger.debug(f"States UA {key}: {states_ua[key]}")
-                        logger.debug(
-                            f"Number of flexible dihedrals UA {key}: {flexible_ua[key]}"
-                        )
+                                flexible_ua[key] = max(flexible_ua[key], flexible)
 
                 if level == "residue":
                     dihedrals = self._get_dihedrals(mol, level)
                     num_dihedrals = len(dihedrals)
                     if num_dihedrals == 0:
                         # No dihedrals, no conformations
-                        states_res[group_id] = []
-                        flexible_res[group_id] = 0
+                        state_res = []
                     else:
                         dihedral_results = Dihedral(dihedrals).run()
-                        states, flexible_res[group_id] = self._process_conformations(
+                        states, flexible = self._process_conformations(
                             peaks_res,
                             dihedral_results,
                             num_dihedrals,
                             number_frames,
-                            molecule,
                         )
-                        states_res[group_id].extend(states)
+                        state_res.extend(states)
+                        flex_res = max(flex_res, flexible)
 
-        logger.debug(f"States Res {group_id}: {states_res[group_id]}")
-        logger.debug(
-            f"Number of flexible dihedrals Res {group_id}: {flexible_res[group_id]}"
-        )
+        states_res.append(state_res)
+        flexible_res.append(flex_res)
 
     def _process_conformations(
         self, peaks, dihedral_results, num_dihedrals, number_frames
@@ -475,8 +495,8 @@ class ConformationStateBuilder:
             conformation: list[Any] = []
 
             # Check for flexible dihedrals
-            if len(peaks[dihedral_index]) > 1:
-                num_flexible += 1
+            #      if len(peaks[dihedral_index]) > 1:
+            #          num_flexible += 1
 
             # Get conformations
             for timestep in range(number_frames):
@@ -491,6 +511,10 @@ class ConformationStateBuilder:
                 # Find the peak closest to the dihedral value
                 distances = [abs(value - peak) for peak in peaks[dihedral_index]]
                 conformation.append(np.argmin(distances))
+
+            unique = np.unique(conformation)
+            if len(unique) > 1:
+                num_flexible += 1
 
             conformations.append(conformation)
 
