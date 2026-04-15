@@ -1,0 +1,15 @@
+---
+
+run1:
+  force_file: ".testdata/methanol/forces.frc"
+  top_traj_file:
+    - ".testdata/methanol/molecules.top"
+    - ".testdata/methanol/trajectory.crd"
+  selection_string: "resid 1:10"
+  start: 0
+  end: 1
+  step: 1
+  file_format: "MDCRD"
+  kcal_force_units: True
+  search_type: "grid"
+  grouping: "each"

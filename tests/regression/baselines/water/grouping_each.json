@@ -1,0 +1,123 @@
+{
+  "args": {
+    "top_traj_file": [
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/water/molecules.top",
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/water/trajectory.crd"
+    ],
+    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/water/forces.frc",
+    "file_format": "MDCRD",
+    "kcal_force_units": true,
+    "selection_string": "resid 1:10",
+    "start": 0,
+    "end": 1,
+    "step": 1,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-49/test_regression_matches_baseli4/job001/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "each",
+    "combined_forcetorque": true,
+    "customised_axes": true,
+    "search_type": "grid"
+  },
+  "provenance": {
+    "python": "3.14.3",
+    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.0",
+    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 14.945907953805552,
+        "united_atom:Rovibrational": 1.8947243953648254,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 16.840632349170377
+    },
+    "1": {
+      "components": {
+        "united_atom:Transvibrational": 8.111522208287779,
+        "united_atom:Rovibrational": 0.9607747968334215,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 9.0722970051212
+    },
+    "2": {
+      "components": {
+        "united_atom:Transvibrational": 15.79497347968759,
+        "united_atom:Rovibrational": 4.606072530590255,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 20.401046010277845
+    },
+    "3": {
+      "components": {
+        "united_atom:Transvibrational": 9.462487265119448,
+        "united_atom:Rovibrational": 1.6509513986984767,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 11.113438663817924
+    },
+    "4": {
+      "components": {
+        "united_atom:Transvibrational": 16.254161245740693,
+        "united_atom:Rovibrational": 1.367597374110767,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 17.62175861985146
+    },
+    "5": {
+      "components": {
+        "united_atom:Transvibrational": 11.57779876203329,
+        "united_atom:Rovibrational": 7.351163568004953,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 18.928962330038242
+    },
+    "6": {
+      "components": {
+        "united_atom:Transvibrational": 10.172061262201801,
+        "united_atom:Rovibrational": 3.671537296888502,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 13.843598559090303
+    },
+    "7": {
+      "components": {
+        "united_atom:Transvibrational": 13.49951045186194,
+        "united_atom:Rovibrational": 1.7029491215274863,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 15.202459573389428
+    },
+    "8": {
+      "components": {
+        "united_atom:Transvibrational": 16.597759171924583,
+        "united_atom:Rovibrational": 1.6190289365617598,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 18.21678810848634
+    },
+    "9": {
+      "components": {
+        "united_atom:Transvibrational": 13.731375187064538,
+        "united_atom:Rovibrational": 5.650620990305761,
+        "united_atom:Conformational": 0.0,
+        "united_atom:Orientational": 0.0
+      },
+      "total": 19.381996177370297
+    }
+  }
+}

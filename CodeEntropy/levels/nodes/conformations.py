@@ -15,6 +15,7 @@ from CodeEntropy.levels.dihedrals import ConformationStateBuilder
 
 SharedData = dict[str, Any]
 ConformationalStates = dict[str, Any]
+FlexibleStates = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,13 @@ class ComputeConformationalStatesNode:
 
     Produces:
         shared_data["conformational_states"] = {"ua": states_ua, "res": states_res}
+        shared_data["flexible_dihedrals"] = {"ua: flexible_ua, "res": flexible_res}
 
     Where:
         - states_ua is a dict keyed by (group_id, local_residue_id)
         - states_res is a list-like structure indexed by group_id (or equivalent)
+        - flexible_ua is a dict keyed by (group_id, local_residue_id)
+        - flexible_res is a list-like structure indexed by group_id (or equivalent)
     """
 
     def __init__(self, universe_operations: Any) -> None:
@@ -79,22 +83,33 @@ class ComputeConformationalStatesNode:
 
         cfg = self._build_config(shared_data)
 
-        states_ua, states_res = self._dihedral_analysis.build_conformational_states(
-            data_container=u,
-            levels=levels,
-            groups=groups,
-            start=cfg.start,
-            end=cfg.end,
-            step=cfg.step,
-            bin_width=cfg.bin_width,
-            progress=progress,
+        states_ua, states_res, flexible_ua, flexible_res = (
+            self._dihedral_analysis.build_conformational_states(
+                data_container=u,
+                levels=levels,
+                groups=groups,
+                start=cfg.start,
+                end=cfg.end,
+                step=cfg.step,
+                bin_width=cfg.bin_width,
+                progress=progress,
+            )
         )
 
+        # Get state information into shared_data
         conformational_states: ConformationalStates = {
             "ua": states_ua,
             "res": states_res,
         }
         shared_data["conformational_states"] = conformational_states
+
+        # Get flexible_dihedral data into shared_data
+        flexible_states: FlexibleStates = {
+            "ua": flexible_ua,
+            "res": flexible_res,
+        }
+        shared_data["flexible_dihedrals"] = flexible_states
+
         return {"conformational_states": conformational_states}
 
     @staticmethod

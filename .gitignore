@@ -129,4 +129,4 @@ job*
 .testdata/
 
 !tests/regression/baselines/
-!tests/regression/baselines/*.json
+!tests/regression/baselines/*/*.json

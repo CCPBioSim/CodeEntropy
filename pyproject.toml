@@ -47,9 +47,10 @@ dependencies = [
     "art>=6.5,<7.0",
     "networkx>=3.6,<3.7",
     "matplotlib>=3.10,<3.11",
-    "waterEntropy>=2,<2.1",
+    "waterEntropy>=2,<2.3",
     "requests>=2.32,<3.0",
     "rdkit>=2025.9.5",
+    "numba>=0.65.0,<0.70",
 ]
 
 [project.urls]
@@ -61,7 +62,8 @@ Documentation = "https://codeentropy.readthedocs.io"
 testing = [
     "pytest>=9.0,<10.0",
     "pytest-cov>=7.0,<8.0",
-    "pytest-sugar>=1.1,<2.0"
+    "pytest-sugar>=1.1,<2.0",
+    "pytest-xdist"
 ]
 pre-commit = [
     "pre-commit>=4.5,<5.0",
@@ -82,6 +84,16 @@ docs = [
 
 [project.scripts]
 CodeEntropy = "CodeEntropy.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+addopts = "-n auto -vv -ra"
+
+markers = [
+  "regression: end-to-end regression tests against baselines",
+  "slow: long-running regression tests (20-30+ minutes)",
+]
 
 [tool.ruff]
 line-length = 88

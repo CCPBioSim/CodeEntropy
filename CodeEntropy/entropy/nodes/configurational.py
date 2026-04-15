@@ -53,7 +53,7 @@ class ConfigurationalEntropyNode:
         fragments = universe.atoms.fragments
         results: dict[int, dict[str, float]] = {}
 
-        for group_id, mol_ids in groups.items():
+        for group_id, mol_ids in sorted(groups.items()):
             results[group_id] = {"ua": 0.0, "res": 0.0, "poly": 0.0}
             if not mol_ids:
                 continue

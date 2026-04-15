@@ -68,6 +68,7 @@ class VibrationalEntropy:
         matrix_type: MatrixType,
         temp: float,
         highest_level: bool,
+        flexible: int,
     ) -> float:
         """Compute vibrational entropy for the given covariance matrix.
 
@@ -101,11 +102,17 @@ class VibrationalEntropy:
         Raises:
             ValueError: If matrix_type is unknown.
         """
-        components = self._entropy_components(matrix, temp)
+        components = self._entropy_components(matrix, matrix_type, flexible, temp)
         total = self._sum_components(components, matrix_type, highest_level)
         return float(total)
 
-    def _entropy_components(self, matrix: np.ndarray, temp: float) -> np.ndarray:
+    def _entropy_components(
+        self,
+        matrix: np.ndarray,
+        matrix_type: str,
+        flexible: int,
+        temp: float,
+    ) -> np.ndarray:
         """Compute per-mode entropy components from a covariance matrix.
 
         Args:
@@ -116,7 +123,12 @@ class VibrationalEntropy:
             Array of entropy components (J/mol/K) for each valid mode.
         """
         lambdas = self._matrix_eigenvalues(matrix)
+        logger.debug("lambdas: %s", lambdas)
         lambdas = self._convert_lambda_units(lambdas)
+        logger.debug("lambdas converted units: %s", lambdas)
+        if matrix_type == "force" and flexible > 0:
+            lambdas = self._flexible_dihedral(lambdas, flexible)
+            logger.debug("lambdas flexible halved: %s", lambdas)
 
         freqs = self._frequencies_from_lambdas(lambdas, temp)
         if freqs.size == 0:
@@ -148,6 +160,26 @@ class VibrationalEntropy:
             Converted eigenvalues.
         """
         return self._run_manager.change_lambda_units(lambdas)
+
+    def _flexible_dihedral(self, lambdas: np.ndarray, flexible: int) -> np.ndarray:
+        """Force halving for flexible dihedrals.
+
+        If N flexible dihedrals, halve the forces for the N largest eigenvalues.
+        The matrix has force^2 so use factor of 0.25 for eigenvalues.
+
+        Args:
+            lambdas: Eigenvalues
+            flexible: the number of flexible dihedrals in the molecule
+
+        Returns:
+            reduced lambdas
+        """
+        halved = sorted(lambdas, reverse=True)
+        for i in range(flexible):
+            halved[i] = 0.25 * halved[i]
+        lambdas = halved
+
+        return lambdas
 
     def _frequencies_from_lambdas(self, lambdas: np.ndarray, temp: float) -> np.ndarray:
         """Convert eigenvalues to frequencies with robust filtering.

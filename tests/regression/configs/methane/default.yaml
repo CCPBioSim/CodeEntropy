@@ -1,0 +1,15 @@
+---
+
+run1:
+  force_file: ".testdata/methane/forces.frc"
+  top_traj_file:
+    - ".testdata/methane/molecules.top"
+    - ".testdata/methane/trajectory.crd"
+  selection_string: "all"
+  start: 0
+  end: 1
+  step: 1
+  file_format: "MDCRD"
+  temperature: 112.0
+  kcal_force_units: True
+  search_type: "grid"

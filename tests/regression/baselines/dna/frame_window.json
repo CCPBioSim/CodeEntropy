@@ -1,0 +1,61 @@
+{
+  "args": {
+    "top_traj_file": [
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/dna/md_A4_dna.tpr",
+      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/dna/md_A4_dna_xf.trr"
+    ],
+    "force_file": null,
+    "file_format": null,
+    "kcal_force_units": false,
+    "selection_string": "resid 1:10",
+    "start": 0,
+    "end": 5,
+    "step": 2,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/tmp/pytest-of-harry-swift/pytest-44/test_regression_matches_baseli3/job001/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "molecules",
+    "combined_forcetorque": true,
+    "customised_axes": true,
+    "search_type": "RAD"
+  },
+  "provenance": {
+    "python": "3.14.3",
+    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.0",
+    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 0.0,
+        "united_atom:Rovibrational": 1.5821720528374943,
+        "residue:Transvibrational": 0.0,
+        "residue:Rovibrational": 27.397449238560412,
+        "polymer:FTmat-Transvibrational": 48.62026970762269,
+        "polymer:FTmat-Rovibrational": 0.0,
+        "united_atom:Conformational": 7.0411434528236345,
+        "residue:Conformational": 0.0,
+        "polymer:Orientational": 4.758905336627712
+      },
+      "total": 89.39993978847194
+    },
+    "1": {
+      "components": {
+        "united_atom:Transvibrational": 0.0,
+        "united_atom:Rovibrational": 2.5277936366208014,
+        "residue:Transvibrational": 0.0,
+        "residue:Rovibrational": 24.80670067454149,
+        "polymer:FTmat-Transvibrational": 60.47397935339153,
+        "polymer:FTmat-Rovibrational": 0.0,
+        "united_atom:Conformational": 6.410455987098191,
+        "residue:Conformational": 0.46183561256411515,
+        "polymer:Orientational": 4.758905336627712
+      },
+      "total": 99.43967060084383
+    }
+  }
+}

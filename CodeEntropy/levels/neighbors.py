@@ -95,7 +95,8 @@ class Neighbors:
                 len(molecules) * number_frames
             )
             logger.debug(
-                "group: {group_id}number neighbors {average_number_neighbors[group_id]}"
+                f"group: {group_id}"
+                f"number neighbors {average_number_neighbors[group_id]}"
             )
 
         return average_number_neighbors
@@ -233,14 +234,13 @@ class Neighbors:
         Returns:
             linear (bool): True if molecule linear
         """
-        rdkit_heavy = Chem.RemoveHs(rdkit_mol)
-
         linear = False
         if number_heavy == 1:
             linear = False
         elif number_heavy == 2:
             linear = True
         else:
+            rdkit_heavy = Chem.RemoveHs(rdkit_mol)
             sp_count = 0
             for x in rdkit_heavy.GetAtoms():
                 if x.GetHybridization() == Chem.HybridizationType.SP:

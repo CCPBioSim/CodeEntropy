@@ -6,6 +6,115 @@ Currently RAD is the default with grid as an alternative.
 
 import MDAnalysis as mda
 import numpy as np
+from numba import njit
+
+
+@njit
+def _apply_pbc(vec, dimensions, half_dimensions):
+    """
+    Apply minimum image convention for periodic boundary conditions.
+
+    Args:
+        vec (np.ndarray):
+            Vector to wrap.
+        dimensions (np.ndarray):
+            Simulation box dimensions.
+        half_dimensions (np.ndarray):
+            Half box lengths.
+
+    Returns:
+        np.ndarray:
+            Wrapped vector.
+    """
+    for d in range(3):
+        if vec[d] > half_dimensions[d]:
+            vec[d] -= dimensions[d]
+        elif vec[d] < -half_dimensions[d]:
+            vec[d] += dimensions[d]
+    return vec
+
+
+@njit
+def _rad_blocking_loop(i_coords, sorted_indices, sorted_distances, coms, dimensions):
+    """
+    Perform RAD neighbor selection using a blocking criterion.
+
+    This is a Numba-compiled implementation of the RAD algorithm, which
+    determines whether a molecule j is a neighbor of molecule i by checking
+    whether any closer molecule k blocks j based on angular and distance
+    relationships.
+
+    The criterion is based on:
+
+        (1 / r_ij)^2 > (1 / r_ik)^2 * cos(theta_jik)
+
+    where k blocks j if the inequality holds.
+
+    Args:
+        i_coords (np.ndarray):
+            Coordinates of the central molecule.
+        sorted_indices (np.ndarray):
+            Indices of molecules sorted by distance from i.
+        sorted_distances (np.ndarray):
+            Distances corresponding to sorted_indices.
+        coms (np.ndarray):
+            Precomputed center of mass coordinates for all molecules.
+        dimensions (np.ndarray):
+            Simulation box dimensions for periodic boundary conditions.
+
+    Returns:
+        np.ndarray:
+            Indices of molecules that belong to the RAD neighbor shell.
+    """
+    n = sorted_indices.shape[0]
+    limit = min(n, 30)
+
+    half_dimensions = 0.5 * dimensions
+
+    inv_r2 = 1.0 / (sorted_distances * sorted_distances)
+
+    shell = np.empty(limit, dtype=np.int64)
+    count = 0
+
+    for y in range(limit):
+        j_idx = sorted_indices[y]
+        r_ij = sorted_distances[y]
+        j_coords = coms[j_idx]
+
+        ba = j_coords - i_coords
+        ba = _apply_pbc(ba, dimensions, half_dimensions)
+
+        blocked = False
+
+        for z in range(y):
+            k_idx = sorted_indices[z]
+            r_ik = sorted_distances[z]
+
+            if r_ik > r_ij:
+                continue
+
+            k_coords = coms[k_idx]
+
+            ac = k_coords - j_coords
+            ac = _apply_pbc(ac, dimensions, half_dimensions)
+
+            dist_ac2 = (ac * ac).sum()
+
+            denom = -2.0 * r_ik * r_ij
+            if denom == 0.0:
+                continue
+
+            costheta = (dist_ac2 - r_ik * r_ik - r_ij * r_ij) / denom
+
+            if inv_r2[y] < inv_r2[z] * costheta:
+                blocked = True
+                break
+
+        if not blocked:
+            shell[count] = j_idx
+            count += 1
+
+    return shell[:count]
 
 
 class Search:
@@ -15,226 +124,164 @@ class Search:
 
     def __init__(self):
         """
-        Initializes the Search class with a placeholder for the system
-        trajectory.
-        """
+        Initialize the Search class.
 
-        self._universe = None
-        self._mol_id = None
+        This class includes frame-safe caching of fragment COMs and
+        system dimensions to avoid recomputation while preserving
+        identical results to the original implementation.
+        """
+        self._cached_frame = None
+        self._cached_fragments = None
+        self._cached_coms = None
+        self._cached_dimensions = None
+
+    def _update_cache(self, universe):
+        """
+        Update cached MDAnalysis data if the simulation frame has changed.
+
+        Args:
+            universe (MDAnalysis.Universe):
+                MDAnalysis universe object containing the system.
+        """
+        current_frame = universe.trajectory.ts.frame
+
+        if self._cached_frame == current_frame:
+            return
+
+        fragments = universe.atoms.fragments
+
+        coms = np.array([frag.center_of_mass() for frag in fragments])
+
+        self._cached_fragments = fragments
+        self._cached_coms = coms
+        self._cached_dimensions = universe.dimensions[:3]
+        self._cached_frame = current_frame
+
+    def _get_distances(self, coms, i_coords, dimensions):
+        """
+        Compute distances between a central coordinate and all fragment COMs
+        using periodic boundary conditions.
+
+        Args:
+            coms (np.ndarray):
+                Array of fragment center of mass coordinates.
+            i_coords (np.ndarray):
+                Coordinates of the reference (central) molecule.
+            dimensions (np.ndarray):
+                Simulation box dimensions.
+
+        Returns:
+            np.ndarray:
+                Distances from the central molecule to all fragments.
+        """
+        delta = coms - i_coords
+
+        half_dimensions = 0.5 * dimensions
+
+        for d in range(3):
+            delta[:, d] = np.where(
+                delta[:, d] > half_dimensions[d],
+                delta[:, d] - dimensions[d],
+                delta[:, d],
+            )
+            delta[:, d] = np.where(
+                delta[:, d] < -half_dimensions[d],
+                delta[:, d] + dimensions[d],
+                delta[:, d],
+            )
+
+        return np.sqrt((delta * delta).sum(axis=1))
 
     def get_RAD_neighbors(self, universe, mol_id):
         """
-        Find the neighbors of molecule with index mol_id.
+        Find RAD neighbors of a given molecule.
 
         Args:
-            universe: The MDAnalysis universe of the system.
-            mol_id (int): the index for the central molecule.
+            universe (MDAnalysis.Universe):
+                The MDAnalysis universe of the system.
+            mol_id (int):
+                Index of the central molecule.
 
         Returns:
-            neighbor_indices (list of ints): the list of neighboring molecule
-                indices.
+            np.ndarray:
+                Indices of neighboring molecules identified via the RAD method.
         """
-        number_molecules = len(universe.atoms.fragments)
+        self._update_cache(universe)
 
-        central_position = universe.atoms.fragments[mol_id].center_of_mass()
+        fragments = self._cached_fragments
+        coms = self._cached_coms
+        dimensions = self._cached_dimensions
 
-        # Find distances between molecule of interest and other molecules in the system
-        distances = {}
-        for molecule_index_j in range(number_molecules):
-            if molecule_index_j != mol_id:
-                j_position = universe.atoms.fragments[molecule_index_j].center_of_mass()
-                distances[molecule_index_j] = self.get_distance(
-                    j_position, central_position, universe.dimensions[:3]
-                )
+        number_molecules = len(fragments)
 
-        # Sort distances smallest to largest
-        sorted_dist = sorted(distances.items(), key=lambda item: item[1])
+        central_position = coms[mol_id]
 
-        # Get indices of neighbors
-        neighbor_indices = self._get_RAD_indices(
-            central_position, sorted_dist, universe, number_molecules
+        distances_array = self._get_distances(coms, central_position, dimensions)
+
+        indices = np.arange(number_molecules)
+
+        mask = indices != mol_id
+        filtered_indices = indices[mask]
+        filtered_distances = distances_array[mask]
+
+        order = np.argsort(filtered_distances, kind="mergesort")
+
+        sorted_indices = filtered_indices[order]
+        sorted_distances = filtered_distances[order]
+
+        neighbor_indices = _rad_blocking_loop(
+            central_position,
+            sorted_indices,
+            sorted_distances,
+            coms,
+            dimensions,
         )
 
         return neighbor_indices
 
-    def _get_RAD_indices(self, i_coords, sorted_distances, system, number_molecules):
-        # pylint: disable=too-many-locals
-        r"""
-        For a given set of atom coordinates, find its RAD shell from the distance
-        sorted list, truncated to the closest 30 molecules.
-
-        This function calculates coordination shells using RAD the relative
-        angular distance, as defined first in DOI:10.1063/1.4961439
-        where molecules are defined as neighbors if
-        they fulfil the following condition:
-
-        .. math::
-            \Bigg(\frac{1}{r_{ij}}\Bigg)^2 >
-            \Bigg(\frac{1}{r_{ik}}\Bigg)^2 \cos \theta_{jik}
-
-        For a given particle :math:`i`, neighbor :math:`j` is in its coordination
-        shell if :math:`k` is not blocking particle :math:`j`. In this implementation
-        of RAD, we enforce symmetry, whereby neighboring particles must be in each
-        others coordination shells.
-
-        Args:
-            i_coords: xyz centre of mass of molecule :math:`i`
-            sorted_indices: dict of index and distance pairs sorted by distance
-            system: mdanalysis instance of atoms in a frame
-
-        Returns:
-            shell: list of indices of particles in the RAD shell of neighbors.
-        """
-        # 1. truncate neighbor list to closest 30 united atoms and iterate
-        # through neighbors from closest to furthest/
-        shell = []
-        count = -1
-        limit = min(number_molecules - 1, 30)
-        for y in range(limit):
-            count += 1
-            j_idx = sorted_distances[y][0]
-            j_coords = system.atoms.fragments[j_idx].center_of_mass()
-            r_ij = sorted_distances[y][1]
-            blocked = False
-            # 3. iterate through neighbors other than atom j and check if they block
-            # it from molecule i
-            for z in range(count):  # only closer units can block
-                k_idx = sorted_distances[z][0]
-                k_coords = system.atoms.fragments[k_idx].center_of_mass()
-                r_ik = sorted_distances[z][1]
-                # 4. find the angle jik
-                costheta_jik = self.get_angle(
-                    j_coords, i_coords, k_coords, system.dimensions[:3]
-                )
-                if np.isnan(costheta_jik):
-                    break
-                # 5. check if k blocks j from i
-                LHS = (1 / r_ij) ** 2
-                RHS = ((1 / r_ik) ** 2) * costheta_jik
-                if LHS < RHS:
-                    blocked = True
-                    break
-            # 6. if j is not blocked from i by k, then its in i's shell
-            if blocked is False:
-                shell.append(j_idx)
-
-        return shell
-
-    def get_angle(
-        self, a: np.ndarray, b: np.ndarray, c: np.ndarray, dimensions: np.ndarray
-    ):
-        """
-        Get the angle between three atoms, taking into account periodic
-        bondary conditions.
-
-        b is the vertex of the angle.
-
-        Pairwise differences between the coordinates are used with the
-        distances calculated as the square root of the sum of the squared
-        x, y, and z coordinates.
-
-        Args:
-            a: (3,) array of atom cooordinates
-            b: (3,) array of atom cooordinates
-            c: (3,) array of atom cooordinates
-            dimensions: (3,) array of system box dimensions.
-
-        Returns:
-            cosine_angle: float, cosine of the angle abc.
-        """
-        # Differences in positions
-        ba = np.abs(a - b)
-        bc = np.abs(c - b)
-        ac = np.abs(c - a)
-
-        # Correct for periodic boundary conditions
-        ba = np.where(ba > 0.5 * dimensions, ba - dimensions, ba)
-        bc = np.where(bc > 0.5 * dimensions, bc - dimensions, bc)
-        ac = np.where(ac > 0.5 * dimensions, ac - dimensions, ac)
-
-        # Get distances
-        dist_ba = np.sqrt((ba**2).sum(axis=-1))
-        dist_bc = np.sqrt((bc**2).sum(axis=-1))
-        dist_ac = np.sqrt((ac**2).sum(axis=-1))
-
-        # Trigonometry
-        cosine_angle = (dist_ac**2 - dist_bc**2 - dist_ba**2) / (-2 * dist_bc * dist_ba)
-
-        return cosine_angle
-
-    def get_distance(self, j_position, i_position, dimensions):
-        """
-        Function to calculate the distance between two points.
-        Take periodic boundary conditions into account.
-
-        Args:
-            j_position: the x, y, z coordinates of point 1
-            i_position: the x, y, z coordinates of the other point
-            dimensions: the dimensions of the simulation box
-
-        Returns:
-            distance: float, the distance between the two points
-        """
-        # Difference in positions
-        delta = np.abs(j_position - i_position)
-
-        # Account for periodic boundary conditions
-        delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
-
-        # Get distance value
-        distance = np.sqrt((delta**2).sum(axis=-1))
-
-        return distance
-
     def get_grid_neighbors(self, universe, mol_id, highest_level):
         """
-        Use MDAnalysis neighbor search to find neighbors.
+        Find neighbors using MDAnalysis grid-based neighbor search.
 
-        For molecules with just one united atom, use the "A" search level to
-        find neighboring atoms. For larger molecules use the "R" search level
-        to find neighboring residues.
-
-        The atoms/residues of the molecule of interest are removed from the
-        neighbor list.
+        For small molecules (united_atom), atom-level search is used.
+        For larger molecules, residue-level search is used.
 
         Args:
-            universe: MDAnalysis universe object for system.
-            mol_id: int, the index for the molecule of interest.
-            highest_level: str, molecule level.
+            universe (MDAnalysis.Universe):
+                MDAnalysis universe object for the system.
+            mol_id (int):
+                Index of the molecule of interest.
+            highest_level (str):
+                Molecule level ("united_atom" or other).
 
         Returns:
-            neighbors: MDAnalysis atomgroup of the neighboring particles.
+            np.ndarray:
+                Fragment indices of neighboring molecules.
         """
+        fragments = universe.atoms.fragments
+        fragment = fragments[mol_id]
+
         search_object = mda.lib.NeighborSearch.AtomNeighborSearch(universe.atoms)
-        fragment = universe.atoms.fragments[mol_id]
+
         selection_string = f"index {fragment.indices[0]}:{fragment.indices[-1]}"
         molecule_atom_group = universe.select_atoms(selection_string)
 
         if highest_level == "united_atom":
-            # For united atom size molecules, use the grid search
-            # to find neighboring atoms
-            search_level = "A"
             search = mda.lib.NeighborSearch.AtomNeighborSearch.search(
                 search_object,
                 molecule_atom_group,
                 radius=3.0,
-                level=search_level,
+                level="A",
             )
-            # Make sure that the neighbors list does not include
-            # atoms from the central molecule
-            #  neighbors = search - fragment.residues
             neighbors = search - molecule_atom_group
         else:
-            # For larger molecules, use the grid search to find neighboring residues
-            search_level = "R"
             search = mda.lib.NeighborSearch.AtomNeighborSearch.search(
                 search_object,
                 molecule_atom_group,
                 radius=3.5,
-                level=search_level,
+                level="R",
             )
-            # Make sure that the neighbors list does not include
-            # residues from the central molecule
             neighbors = search - fragment.residues
+            neighbors = neighbors.atoms
 
         return neighbors.fragindices
