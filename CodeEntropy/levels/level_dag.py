@@ -196,11 +196,11 @@ class LevelDAG:
                 title="Initializing",
             )
 
-        for ts in range(n_frames):
+        for frame_index in range(n_frames):
             if progress is not None and task is not None:
-                progress.update(task, title=f"Frame {ts}")
+                progress.update(task, title=f"Frame {frame_index}")
 
-            frame_out = self._frame_dag.execute_frame(shared_data, ts)
+            frame_out = self._frame_dag.execute_frame(shared_data, frame_index)
             self._reduce_one_frame(shared_data, frame_out)
 
             if progress is not None and task is not None:

@@ -1,10 +1,10 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/octonol/molecules.top",
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/octonol/trajectory.crd"
+      "/home/ogo12949/CodeEntropy/.testdata/octonol/molecules.top",
+      "/home/ogo12949/CodeEntropy/.testdata/octonol/trajectory.crd"
     ],
-    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/octonol/forces.frc",
+    "force_file": "/home/ogo12949/CodeEntropy/.testdata/octonol/forces.frc",
     "file_format": "MDCRD",
     "kcal_force_units": true,
     "selection_string": "all",
@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-48/test_regression_matches_baseli5/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw0/test_regression_matches_baseli3/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -23,23 +23,23 @@
     "search_type": "RAD"
   },
   "provenance": {
-    "python": "3.14.3",
-    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.0",
-    "git_sha": "4d39e9aeeed72fc3993f4a4eb6485da40524ebc5"
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.1",
+    "git_sha": "ac1f2ac999409433f391e45cffd116cdecc46096"
   },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 50.77228933028987,
+        "united_atom:Transvibrational": 37.860034170693694,
         "united_atom:Rovibrational": 84.2608785308744,
         "residue:FTmat-Transvibrational": 66.13571365167344,
         "residue:FTmat-Rovibrational": 57.090651827515686,
-        "united_atom:Conformational": 20.4159084259166,
+        "united_atom:Conformational": 34.22940197506605,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 28.13775462144063
+        "residue:Orientational": 28.084239413273323
       },
-      "total": 306.8131963877106
+      "total": 307.66091956909656
     }
   }
 }
