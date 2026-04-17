@@ -107,17 +107,22 @@ class AxesCalculator:
             # residue of interest
         if len(residue) == 0:
             raise ValueError(f"Empty residue selection for resindex={index}")
-        anchors = data_container.select_atoms(
-            f"(resindex {index_prev} or "
-            f"resindex {index_next}) and "
-            f"bonded resindex {index}"
+        # anchors = data_container.select_atoms(
+        #    f"(resindex {index_prev} or "
+        #    f"resindex {index_next}) and "
+        #    f"bonded resindex {index}"
+        # )
+        edge_atom_set = data_container.atoms.select_atoms(
+            f" resindex {index} and "
+            f"(bonded resindex {index_prev} or "
+            f"resindex {index_next})"
         )
 
         uas = residue.select_atoms("mass 2 to 999")
         ua_masses = self.get_UA_masses(residue)
 
-        if len(anchors) == 0:
-            # No bonds to other residues.
+        if len(edge_atom_set) == 0:
+            # No UAS are bonded to other residues
             # Use a custom principal axes, from a MOI tensor that uses positions of
             # heavy atoms only, but including masses of heavy atom + bonded H.
             moi_tensor = self.get_moment_of_inertia_tensor(
@@ -133,32 +138,41 @@ class AxesCalculator:
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            backbone = self.get_backbone(data_container, index)
+            residue = data_container.residues[index]
+            if len(edge_atom_set) == 1:
+                if index == 0:
+                    # first residue
+                    # use first heavy atom
+                    edges = [residue.atoms[0], edge_atom_set[0]]
+                    backbone = self.get_chain(
+                        residue, residue.atoms[0], edge_atom_set[0]
+                    )
+                else:
+                    # last residue
+                    last_index = len(uas) - 1
+                    last = None
+                    # look for last heavy atom
+                    # with only one bond to another
+                    while last_index > 0 and last is None:
+                        heavy_atom = uas[last_index]
+                        bonded_atoms = residue.atoms.select_atoms(
+                            f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                        )
+                        if len(bonded_atoms) == 1:
+                            last = heavy_atom
+                        else:
+                            last_index -= 1
+                    edges = [edge_atom_set[0], last]
+                    backbone = self.get_chain(residue, edge_atom_set[0], last)
+            else:
+                # residue has two bonds to other residues
+                edges = [edge_atom_set[0], edge_atom_set[1]]
+                backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
             # get edge atoms of the residue
             # for terminal residues, this will include the C/N terminus
-            # bond-derived rotation axes
-            # center = np.zeros(3)
-            # for atom in backbone:
-            #    center += atom.position
-            # center /= len(backbone)
             center = np.array(backbone.center_of_mass())
-            if len(anchors) == 1:
-                # only one neighbour
-                rot_axes = self.get_custom_axes(
-                    a=center,
-                    b_list=anchors[0].position,
-                    c=np.zeros(3),
-                    dimensions=data_container.dimensions[:3],
-                )
-            else:
-                # two neighbours
-                rot_axes = self.get_custom_axes(
-                    a=center,
-                    b_list=anchors.positions,
-                    c=anchors[1].position,
-                    dimensions=data_container.dimensions[:3],
-                )
-            # analogous to the UA case where a heavy atom is bound to >=2 heavy atoms
+            print(f"Edges of the residue: {edges}")
+            rot_axes = self.get_residue_custom_axes(edges, center)
 
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
                 center_of_mass=center,
@@ -209,84 +223,73 @@ class AxesCalculator:
         """
 
         index = int(index)  # bead index
+        heavy_atoms = data_container.atoms.select_atoms("mass 2 to 999")
 
         # use the same customPI trans axes as the residue level
-        if len(data_container.residues) == 1:
-            # only the one residue => use principal axes
-            residue = data_container
-            trans_center = data_container.atoms.center_of_mass(unwrap=True)
-            trans_axes = data_container.atoms.principal_axes
-        else:
-            # residue of interest has at least one neighbour
-            if res_position == -1:
-                residue = data_container.residues[0]
-                index_next = residue.resid + 1
-                anchor = data_container.atoms.select_atoms(
-                    f"resindex {index_next - 1} and bonded resindex {residue.resid - 1}"
-                )
-                # the .resid attribute gives 1-indexing
-                # substract 1 to match indexing later
-                backbone = self.get_backbone(data_container, 0)
-                # trans_center = np.zeros(3)
-                # for atom in backbone:
-                #    trans_center += atom.position
-                # trans_center /= len(backbone)
-                trans_center = np.array(backbone.center_of_mass())
-                trans_axes = self.get_custom_axes(
-                    a=trans_center,
-                    b_list=anchor[0].position,
-                    c=np.zeros(3),
-                    dimensions=data_container.dimensions[:3],
-                )
-
-            elif res_position == 0:
-                # between 2 residues
-                residue = data_container.residues[1]
-                index_prev = residue.resid - 1
-                index_next = residue.resid + 1
-                anchors = data_container.atoms.select_atoms(
-                    f"(resindex {index_prev - 1} or "
-                    f"resindex {index_next - 1}) and "
-                    f"bonded resindex {residue.resid - 1}"
-                )
-                backbone = self.get_backbone(data_container, 1)
-                # trans_center = np.zeros(3)
-                # for atom in backbone:
-                #    trans_center += atom.position
-                # trans_center /= len(backbone)
-                trans_center = np.array(backbone.center_of_mass())
-                trans_axes = self.get_custom_axes(
-                    a=trans_center,
-                    b_list=anchors.positions,
-                    c=anchors[1].position,
-                    dimensions=data_container.dimensions[:3],
-                )
+        if len(heavy_atoms) > 1:
+            if len(data_container.residues) == 1:
+                # only the one residue => use principal axes
+                residue = data_container
+                trans_center = data_container.atoms.center_of_mass(unwrap=True)
+                trans_axes = data_container.atoms.principal_axes
             else:
-                # last resid
-                residue = data_container.residues[1]
-                index_prev = residue.resid - 1
-                anchor = data_container.atoms.select_atoms(
-                    f"resindex {index_prev - 1} and bonded resindex {residue.resid - 1}"
-                )
-                backbone = self.get_backbone(data_container, 1)
-                # trans_center = np.zeros(3)
-                # for atom in backbone:
-                #    trans_center += atom.position
-
-                # trans_center /= len(backbone)
+                # residue of interest has at least one neighbour
+                if res_position == -1:
+                    residue = data_container.residues[0]
+                    index_next = residue.resid + 1
+                    # the .resid attribute gives 1-indexing
+                    # substract 1 to match indexing later
+                    second_edge = data_container.atoms.select_atoms(
+                        f"resindex {residue.resid - 1} and "
+                        f"bonded resindex {index_next - 1}"
+                    )
+                    edges = [residue.atoms[0], second_edge]
+                    backbone = self.get_chain(residue, residue.atoms[0], second_edge)
+                elif res_position == 0:
+                    # between 2 residues
+                    residue = data_container.residues[1]
+                    index_prev = residue.resid - 1
+                    index_next = residue.resid + 1
+                    edge_set = data_container.atoms.select_atoms(
+                        f"(resindex {residue.resid - 1} and "
+                        f"(bonded resindex {index_next - 1} or "
+                        f"bonded resindex {residue.resid - 1})"
+                    )
+                    edges = [edge_set[0], edge_set[1]]
+                    backbone = self.get_chain(residue, edge_set[0], edge_set[1])
+                else:
+                    # last resid
+                    residue = data_container.residues[1]
+                    index_prev = residue.resid - 1
+                    first_edge = data_container.atoms.select_atoms(
+                        f"resindex {residue.resid - 1} and "
+                        f"bonded resindex {index_prev - 1}"
+                    )
+                    last_index = len(heavy_atoms) - 1
+                    last = None
+                    # look for last heavy atom
+                    # with only one bond to another
+                    while last_index > 0 and last is None:
+                        heavy_atom = heavy_atoms[last_index]
+                        bonded_atoms = residue.atoms.select_atoms(
+                            f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                        )
+                        if len(bonded_atoms) == 1:
+                            last = heavy_atom
+                        else:
+                            last_index -= 1
+                    edges = [first_edge, last]
+                    backbone = self.get_chain(residue, first_edge, last)
+                print(f"The edges of the residue: {edges}")
                 trans_center = np.array(backbone.center_of_mass())
-                trans_axes = self.get_custom_axes(
-                    a=trans_center,
-                    b_list=anchor[0].position,
-                    c=np.zeros(3),
-                    dimensions=data_container.dimensions[:3],
-                )
-
-        heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
-
+                trans_axes = self.get_residue_custom_axes(edges, trans_center)
+        else:
+            make_whole(data_container.atoms)
+            trans_axes = data_container.atoms.principal_axes()
+        residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
         # look for heavy atoms in residue of interest
         heavy_atom_indices = []
-        for atom in heavy_atoms:
+        for atom in residue_heavy_atoms:
             heavy_atom_indices.append(atom.index)
         # we find the nth heavy atom
         # where n is the bead index
@@ -310,8 +313,42 @@ class AxesCalculator:
 
         return trans_axes, rot_axes, rot_center, moment_of_inertia
 
+    def get_residue_custom_axes(self, edges, center):
+        """
+        Compute rotation axes at the residue level, given
+        two edge atoms of the residue (heavy atoms bonded
+        to neighbouring residues), and the rotation centre.
+
+                E1----O
+                       \
+                        \
+                        E2
+            Args:
+                edges: (2,3) positions of two edge atoms
+                center: (3,) coordinates of the rotation centre
+            Returns:
+                rot_axes: (3,3) rotation axes of residue
+        """
+        # x axis is O-E1
+        x_axis = edges[0].position - center
+        # y axis is perpendicular to x
+        # in the same plane as E2
+        # look for projection of E2-E1 on O-E1
+        E1E2_vector = edges[1].position - edges[1].position
+        y_axis = np.dot(x_axis, E1E2_vector) / (np.linalg.norm(x_axis) ** 2)
+        y_axis = y_axis * x_axis
+        y_axis = edges[1].position - y_axis
+        print(f"We found the perpendicular: {np.dot(x_axis, y_axis)}")
+        z_axis = np.cross(x_axis, y_axis)
+        x_axis /= np.linalg.norm(x_axis)
+        y_axis /= np.linalg.norm(y_axis)
+        z_axis /= np.linalg.norm(z_axis)
+        rot_axes = np.array([x_axis, y_axis, z_axis])
+
+        return rot_axes
+
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
-        r"""Compute UA rotational axes from bonded topology around a heavy atom.
+        """Compute UA rotational axes from bonded topology around a heavy atom.
 
         For a given heavy atom, use its bonded atoms to get the axes for rotating
         forces around. Few cases for choosing united atom axes, which are dependent
@@ -766,72 +803,6 @@ class AxesCalculator:
                 ua_masses.append(ua_mass)
         return ua_masses
 
-    def get_backbone(self, data_container, index):
-        """
-        For a given residue, return AtomGroup corresponding to
-        its backbone.
-        This looks for heavy atoms between edge atoms of a residue.
-        Note: For a protein, this gives only the NCC atoms.
-        Meanwhile, the MDAnalysis "backbone" keyword includes
-        the O.
-        Args:
-            data_container (MDAnalysis.Universe or AtomGroup):
-                Molecule and trajectory data.
-            index: index of the residue of interest in
-            the data_container
-
-        Returns:
-            backbone: MDAnalysis AtomGroup containing
-                the backbone atoms.
-
-        """
-        # identify atoms with bind to neighbour residues
-        residue = data_container.residues[index]
-        edge_atom_set = data_container.atoms.select_atoms(
-            f" resindex {residue.resid - 1} and "
-            f"(bonded resindex {residue.resid - 2} or "
-            f"resindex {residue.resid})"
-        )
-        heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
-        if len(edge_atom_set) == 1:
-            # terminal residue
-            if index == 0:
-                # first residue
-                # assume first backbone atom will be first
-                backbone = self.get_chain(residue, residue.atoms[0], edge_atom_set[0])
-                # add terminal atom to edge atom set
-            else:
-                # last residue
-                index = len(heavy_atoms) - 1
-                last = None
-                # look for last heavy atom
-                # with only one bound to another
-                # prev_terminal_atom = data_container.atoms.select_atoms(
-                #    f" resindex {residue.resid - 2} and "
-                #    f"bonded resindex {residue.resid - 1}"
-                # )
-                # last_name = prev_terminal_atom.names[0]
-                # print(f"Name of last residue in chain: {last_name}")
-                # last = residue.atoms.select_atoms(f"name {last_name}")
-                # print(f"The last atom of the residue is: {last}")
-                while index > 0 and last is None:
-                    heavy_atom = heavy_atoms[index]
-                    bonded_atoms = residue.atoms.select_atoms(
-                        f"(mass 2 to 999) and bonded index {heavy_atom.index}"
-                    )
-                    if len(bonded_atoms) == 1:
-                        last = heavy_atom
-                    else:
-                        index -= 1
-                backbone = self.get_chain(residue, edge_atom_set[0], last)
-        else:
-            # will identify 2 edge atoms from linear neighbours
-            # disulfide bonds will be accounted for in the future
-            # not terminal residue
-            backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
-
-        return backbone
-
     def get_chain(self, residue, first, last):
         """
         For a given MDAnalysis AtomGroup and two given heavy atoms
@@ -903,5 +874,4 @@ class AxesCalculator:
         # accout for in-residue index
         chain_AtomGroup = residue.atoms[chain_indices]
         chain = chain_AtomGroup.atoms.select_atoms("all")
-        print(f"The chain is: {chain}")
         return chain
