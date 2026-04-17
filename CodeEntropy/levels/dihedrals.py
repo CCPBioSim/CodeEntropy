@@ -39,9 +39,6 @@ class ConformationStateBuilder:
         data_container: Any,
         levels: dict[Any, list[str]],
         groups: dict[int, list[Any]],
-        start: int,
-        end: int,
-        step: int,
         bin_width: float,
         progress: _RichProgressSink | None = None,
     ) -> tuple[dict[UAKey, list[str]], list[list[str]], dict[UAKey, int], list[int]]:
@@ -62,9 +59,6 @@ class ConformationStateBuilder:
             levels: Mapping of molecule_id -> iterable of enabled level names
                 (e.g., ["united_atom", "residue"]).
             groups: Mapping of group_id -> list of molecule_ids.
-            start: Inclusive start frame index.
-            end: Exclusive end frame index.
-            step: Frame stride.
             bin_width: Histogram bin width in degrees used when identifying peak
                 dihedral populations.
             progress: Optional progress sink (e.g., from
@@ -81,14 +75,14 @@ class ConformationStateBuilder:
 
         Notes:
             - This function advances progress once per group_id.
-            - Frame slicing arguments (start/end/step) are forwarded to downstream
               helpers as implemented in this module.
         """
         number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
+        # states_res: list[list[str]] = [[]]
         states_res: list[list[str]] = [[] for _ in range(number_groups)]
         flexible_ua: dict[UAKey, int] = {}
-        flexible_res: list[int] = [0] * number_groups
+        flexible_res: list[int] = []
 
         task: TaskID | None = None
         if progress is not None:
@@ -116,39 +110,20 @@ class ConformationStateBuilder:
             if progress is not None and task is not None:
                 progress.update(task, title=f"Group {group_id}")
 
-            mol = self._universe_operations.extract_fragment(
-                data_container, molecules[0]
-            )
-
-            dihedrals_ua, dihedrals_res = self._collect_dihedrals_for_group(
-                mol=mol,
-                level_list=levels[molecules[0]],
-            )
-
-            peaks_ua, peaks_res = self._collect_peaks_for_group(
+            peaks_ua, peaks_res = self._identify_peaks(
                 data_container=data_container,
                 molecules=molecules,
-                dihedrals_ua=dihedrals_ua,
-                dihedrals_res=dihedrals_res,
                 bin_width=bin_width,
-                start=start,
-                end=end,
-                step=step,
                 level_list=levels[molecules[0]],
             )
 
-            self._assign_states_for_group(
+            self._assign_states(
                 data_container=data_container,
                 group_id=group_id,
                 molecules=molecules,
-                dihedrals_ua=dihedrals_ua,
-                peaks_ua=peaks_ua,
-                dihedrals_res=dihedrals_res,
-                peaks_res=peaks_res,
-                start=start,
-                end=end,
-                step=step,
                 level_list=levels[molecules[0]],
+                peaks_ua=peaks_ua,
+                peaks_res=peaks_res,
                 states_ua=states_ua,
                 states_res=states_res,
                 flexible_ua=flexible_ua,
@@ -158,36 +133,12 @@ class ConformationStateBuilder:
             if progress is not None and task is not None:
                 progress.advance(task)
 
+        logger.debug(f"States UA: {states_ua}")
+        logger.debug(f"Number of flexible dihedrals UA: {flexible_ua}")
+        logger.debug(f"States Res: {states_res}")
+        logger.debug(f"Number of flexible dihedrals Res: {flexible_res}")
+
         return states_ua, states_res, flexible_ua, flexible_res
-
-    def _collect_dihedrals_for_group(
-        self, mol: Any, level_list: list[str]
-    ) -> tuple[list[list[Any]], list[Any]]:
-        """Collect UA and residue dihedral AtomGroups for a group.
-
-        Args:
-            mol: Representative molecule AtomGroup.
-            level_list: List of enabled hierarchy levels.
-
-        Returns:
-            Tuple:
-                dihedrals_ua: List of per-residue dihedral AtomGroups.
-                dihedrals_res: List of residue-level dihedral AtomGroups.
-        """
-        num_residues = len(mol.residues)
-        dihedrals_ua: list[list[Any]] = [[] for _ in range(num_residues)]
-        dihedrals_res: list[Any] = []
-
-        for level in level_list:
-            if level == "united_atom":
-                for res_id in range(num_residues):
-                    heavy_res = self._select_heavy_residue(mol, res_id)
-                    dihedrals_ua[res_id] = self._get_dihedrals(heavy_res, level)
-
-            elif level == "residue":
-                dihedrals_res = self._get_dihedrals(mol, level)
-
-        return dihedrals_ua, dihedrals_res
 
     def _select_heavy_residue(self, mol: Any, res_id: int) -> Any:
         """Select heavy atoms in a residue by residue index.
@@ -245,72 +196,12 @@ class ConformationStateBuilder:
         logger.debug(f"Level: {level}, Dihedrals: {atom_groups}")
         return atom_groups
 
-    def _collect_peaks_for_group(
-        self,
-        data_container: Any,
-        molecules: list[Any],
-        dihedrals_ua: list[list[Any]],
-        dihedrals_res: list[Any],
-        bin_width: float,
-        start: int,
-        end: int,
-        step: int,
-        level_list: list[str],
-    ) -> tuple[list[list[Any]], list[Any]]:
-        """Compute histogram peaks for UA and residue dihedral sets.
-
-        Returns:
-            Tuple:
-                peaks_ua: list of peaks per residue
-                (each item is list-of-peaks per dihedral)
-                peaks_res: list-of-peaks per dihedral for residue level (or [])
-        """
-        peaks_ua: list[list[Any]] = [[] for _ in range(len(dihedrals_ua))]
-        peaks_res: list[Any] = []
-
-        for level in level_list:
-            if level == "united_atom":
-                for res_id in range(len(dihedrals_ua)):
-                    if len(dihedrals_ua[res_id]) == 0:
-                        # No dihedrals means no peaks
-                        peaks_ua[res_id] = []
-                    else:
-                        peaks_ua[res_id] = self._identify_peaks(
-                            data_container=data_container,
-                            molecules=molecules,
-                            dihedrals=dihedrals_ua[res_id],
-                            bin_width=bin_width,
-                            start=start,
-                            end=end,
-                            step=step,
-                        )
-
-            elif level == "residue":
-                if len(dihedrals_res) == 0:
-                    # No dihedrals means no peaks
-                    peaks_res = []
-                else:
-                    peaks_res = self._identify_peaks(
-                        data_container=data_container,
-                        molecules=molecules,
-                        dihedrals=dihedrals_res,
-                        bin_width=bin_width,
-                        start=start,
-                        end=end,
-                        step=step,
-                    )
-
-        return peaks_ua, peaks_res
-
     def _identify_peaks(
         self,
         data_container: Any,
         molecules: list[Any],
-        dihedrals: list[Any],
         bin_width: float,
-        start: int,
-        end: int,
-        step: int,
+        level_list: list[Any],
     ) -> list[list[float]]:
         """Identify histogram peaks ("convex turning points") for each dihedral.
 
@@ -322,36 +213,142 @@ class ConformationStateBuilder:
         Args:
             data_container: MDAnalysis universe.
             molecules: Molecule ids in the group.
-            dihedrals: Dihedral AtomGroups.
+            levels: Molecule levels.
             bin_width: Histogram bin width (degrees).
-            start: Unused in legacy sampling.
-            end: Unused in legacy sampling.
-            step: Unused in legacy sampling.
 
         Returns:
             List of peaks per dihedral (peak_values[dihedral_index] -> list of peaks).
         """
-        peak_values: list[list[float]] = []
+        rep_mol = self._universe_operations.extract_fragment(data_container, 0)
+        number_frames = len(rep_mol.trajectory)
+        num_residues = len(rep_mol.residues)
 
-        for dihedral_index in range(len(dihedrals)):
+        num_dihedrals_ua: list[Any] = [0 for _ in range(num_residues)]
+        phi_ua = {}
+        phi_res: dict[list, list[float]] = {}
+        peaks_ua: list[list[Any]] = [[] for _ in range(num_residues)]
+        peaks_res: list[Any] = []
+
+        for molecule in molecules:
+            mol = self._universe_operations.extract_fragment(data_container, molecule)
+
+            for level in level_list:
+                if level == "united_atom":
+                    for res_id in range(num_residues):
+                        heavy_res = self._select_heavy_residue(mol, res_id)
+                        dihedrals = self._get_dihedrals(heavy_res, level)
+                        num_dihedrals_ua[res_id] = len(dihedrals)
+                        if num_dihedrals_ua[res_id] == 0:
+                            # No dihedrals, no peaks
+                            phi_ua[res_id] = []
+
+                        else:
+                            if res_id not in phi_ua:
+                                phi_ua[res_id] = {}
+                            dihedral_results = Dihedral(dihedrals).run()
+                            phi_ua[res_id] = self._process_dihedral_phi(
+                                dihedral_results,
+                                num_dihedrals_ua[res_id],
+                                number_frames,
+                                phi_ua[res_id],
+                            )
+
+                elif level == "residue":
+                    dihedrals = self._get_dihedrals(mol, level)
+                    num_dihedrals_res = len(dihedrals)
+                    if num_dihedrals_res == 0:
+                        # No dihedrals, no peaks
+                        phi_res = []
+
+                    else:
+                        dihedral_results = Dihedral(dihedrals).run()
+                        phi_res = self._process_dihedral_phi(
+                            dihedral_results,
+                            num_dihedrals_res,
+                            number_frames,
+                            phi_res,
+                        )
+
+        logger.debug(f"phi_ua {phi_ua}")
+        logger.debug(f"phi_res {phi_res}")
+
+        for level in level_list:
+            if level == "united_atom":
+                for res_id in range(num_residues):
+                    if phi_ua[res_id] is None:
+                        peaks_ua[res_id] = []
+                    else:
+                        peaks_ua[res_id] = self._process_histogram(
+                            num_dihedrals_ua[res_id], phi_ua[res_id], bin_width
+                        )
+
+            elif level == "residue":
+                if phi_res is None:
+                    peaks_res = []
+                else:
+                    peaks_res = self._process_histogram(
+                        num_dihedrals_res, phi_res, bin_width
+                    )
+
+        return peaks_ua, peaks_res
+
+    def _process_dihedral_phi(
+        self,
+        dihedral_results,
+        num_dihedrals,
+        number_frames,
+        phi_values,
+    ):
+        """
+        Find array of dihedral angle values.
+
+        Args:
+            dihedral_results: the result of MDAnalysis Dihedrals.run.
+            num_dihedrals: the number of dihedrals in the molecule or residue.
+
+        Returns:
+            peaks
+        """
+        for dihedral_index in range(num_dihedrals):
             phi: list[float] = []
 
-            for molecule in molecules:
-                mol = self._universe_operations.extract_fragment(
-                    data_container, molecule
-                )
-                number_frames = len(mol.trajectory)
+            for timestep in range(number_frames):
+                value = dihedral_results.results.angles[timestep][dihedral_index]
+                if value < 0:
+                    value += 360
+                phi.append(float(value))
 
-                dihedral_results = Dihedral(dihedrals).run()
+            if dihedral_index not in phi_values:
+                phi_values[dihedral_index] = phi
+            else:
+                phi_values[dihedral_index].extend(phi)
 
-                for timestep in range(number_frames):
-                    value = dihedral_results.results.angles[timestep][dihedral_index]
-                    if value < 0:
-                        value += 360
-                    phi.append(float(value))
+        return phi_values
 
+    def _process_histogram(
+        self,
+        num_dihedrals,
+        phi_values,
+        bin_width,
+    ):
+        """
+        Find peaks from array of dihedral angle values.
+
+        Args:
+            dihedral_results: the result of MDAnalysis Dihedrals.run.
+            num_dihedrals: the number of dihedrals in the molecule or residue.
+
+        Returns:
+            peaks
+        """
+        peak_values = []
+        for dihedral_index in range(num_dihedrals):
+            phi = phi_values[dihedral_index]
             number_bins = int(360 / bin_width)
             popul, bin_edges = np.histogram(a=phi, bins=number_bins, range=(0, 360))
+
+            logger.debug(f"Histogram: {popul}")
+
             bin_value = [
                 0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(0, len(popul))
             ]
@@ -359,9 +356,7 @@ class ConformationStateBuilder:
             peaks = self._find_histogram_peaks(popul=popul, bin_value=bin_value)
             peak_values.append(peaks)
 
-            logger.debug(
-                f"Dihedral: {dihedral_index}Peak Values: {peak_values[dihedral_index]}"
-            )
+            logger.debug(f"Dihedral: {dihedral_index} Peaks: {peaks}")
 
         return peak_values
 
@@ -397,67 +392,18 @@ class ConformationStateBuilder:
 
         return peaks
 
-    def _assign_states_for_group(
+    def _assign_states(
         self,
         data_container: Any,
         group_id: int,
         molecules: list[Any],
-        dihedrals_ua: list[list[Any]],
+        level_list: list[Any],
         peaks_ua: list[list[Any]],
-        dihedrals_res: list[Any],
         peaks_res: list[Any],
-        start: int,
-        end: int,
-        step: int,
-        level_list: list[str],
-        states_ua: dict[UAKey, list[str]],
-        states_res: list[list[str]],
-        flexible_ua: dict[UAKey, list[int]],
-        flexible_res: list[int],
-    ) -> None:
-        """Assign UA and residue states for a group into output containers."""
-        for level in level_list:
-            if level == "united_atom":
-                for res_id in range(len(dihedrals_ua)):
-                    key = (group_id, res_id)
-                    if len(dihedrals_ua[res_id]) == 0:
-                        states_ua[key] = []
-                        flexible_ua[key] = 0
-                    else:
-                        states_ua[key], flexible_ua[key] = self._assign_states(
-                            data_container=data_container,
-                            molecules=molecules,
-                            dihedrals=dihedrals_ua[res_id],
-                            peaks=peaks_ua[res_id],
-                            start=start,
-                            end=end,
-                            step=step,
-                        )
-
-            elif level == "residue":
-                if len(dihedrals_res) == 0:
-                    states_res[group_id] = []
-                    flexible_res[group_id] = 0
-                else:
-                    states_res[group_id], flexible_res[group_id] = self._assign_states(
-                        data_container=data_container,
-                        molecules=molecules,
-                        dihedrals=dihedrals_res,
-                        peaks=peaks_res,
-                        start=start,
-                        end=end,
-                        step=step,
-                    )
-
-    def _assign_states(
-        self,
-        data_container: Any,
-        molecules: list[Any],
-        dihedrals: list[Any],
-        peaks: list[list[Any]],
-        start: int,
-        end: int,
-        step: int,
+        states_ua: Any,
+        states_res: Any,
+        flexible_ua: Any,
+        flexible_res: Any,
     ) -> list[str]:
         """Assign discrete state labels for the provided dihedrals.
 
@@ -471,62 +417,118 @@ class ConformationStateBuilder:
             molecules: Molecule ids in the group.
             dihedrals: Dihedral AtomGroups.
             peaks: Peaks per dihedral.
-            start: Unused in legacy sampling.
-            end: Unused in legacy sampling.
-            step: Unused in legacy sampling.
 
         Returns:
             List of state labels (strings).
         """
-        states: list[str] = []
-        num_flexible = 0
+        rep_mol = self._universe_operations.extract_fragment(data_container, 0)
+        number_frames = len(rep_mol.trajectory)
+        num_residues = len(rep_mol.residues)
 
+        state_res = []
+        flex_res = 0
         for molecule in molecules:
-            conformations: list[list[Any]] = []
             mol = self._universe_operations.extract_fragment(data_container, molecule)
-            number_frames = len(mol.trajectory)
 
-            dihedral_results = Dihedral(dihedrals).run()
+            for level in level_list:
+                if level == "united_atom":
+                    for res_id in range(num_residues):
+                        key = (group_id, res_id)
+                        heavy_res = self._select_heavy_residue(mol, res_id)
+                        dihedrals = self._get_dihedrals(heavy_res, level)
+                        num_dihedrals = len(dihedrals)
+                        if num_dihedrals == 0:
+                            # No dihedrals, no conformations
+                            states_ua[key] = []
+                            flexible_ua[key] = 0
+                        else:
+                            dihedral_results = Dihedral(dihedrals).run()
+                            states, flexible = self._process_conformations(
+                                peaks_ua[res_id],
+                                dihedral_results,
+                                num_dihedrals,
+                                number_frames,
+                            )
+                            if key not in states_ua:
+                                states_ua[key] = states
+                                flexible_ua[key] = flexible
+                            else:
+                                states_ua[key].extend(states)
+                                flexible_ua[key] = max(flexible_ua[key], flexible)
 
-            for dihedral_index in range(len(dihedrals)):
-                conformation: list[Any] = []
+                if level == "residue":
+                    dihedrals = self._get_dihedrals(mol, level)
+                    num_dihedrals = len(dihedrals)
+                    if num_dihedrals == 0:
+                        # No dihedrals, no conformations
+                        state_res = []
+                    else:
+                        dihedral_results = Dihedral(dihedrals).run()
+                        states, flexible = self._process_conformations(
+                            peaks_res,
+                            dihedral_results,
+                            num_dihedrals,
+                            number_frames,
+                        )
+                        state_res.extend(states)
+                        flex_res = max(flex_res, flexible)
 
-                # Check for flexible dihedrals
-                if len(peaks[dihedral_index]) > 1 and molecule == 0:
-                    num_flexible += 1
+        states_res.append(state_res)
+        flexible_res.append(flex_res)
 
-                # Get conformations
-                for timestep in range(number_frames):
-                    value = dihedral_results.results.angles[timestep][dihedral_index]
-                    # We want postive values in range 0 to 360 to make
-                    # the peak assignment.
-                    # works using the fact that dihedrals have circular symmetry
-                    # (i.e. -15 degrees = +345 degrees)
-                    if value < 0:
-                        value += 360
+    def _process_conformations(
+        self, peaks, dihedral_results, num_dihedrals, number_frames
+    ):
+        """
+        Find conformations
 
-                    # Find the peak closest to the dihedral value
-                    distances = [abs(value - peak) for peak in peaks[dihedral_index]]
-                    conformation.append(np.argmin(distances))
+        Args:
+            peaks: Histogram peaks.
+            num_dihedrals: Number of dihedral angles in the molecule or residue.
+        Returns:
+            conformations
+        """
+        states: list[list[Any]] = []
+        conformations: list[list[Any]] = []
+        num_flexible = 0
+        for dihedral_index in range(num_dihedrals):
+            conformation: list[Any] = []
 
-                conformations.append(conformation)
+            # Check for flexible dihedrals
+            #      if len(peaks[dihedral_index]) > 1:
+            #          num_flexible += 1
 
-            # Concatenate all the dihedrals in the molecule into the state
-            # for the frame.
-            mol_states = [
-                state
-                for state in (
-                    "".join(
-                        str(int(conformations[d][f])) for d in range(len(dihedrals))
-                    )
-                    for f in range(number_frames)
-                )
-                if state
-            ]
+            # Get conformations
+            for timestep in range(number_frames):
+                value = dihedral_results.results.angles[timestep][dihedral_index]
+                # We want postive values in range 0 to 360 to make
+                # the peak assignment.
+                # works using the fact that dihedrals have circular symmetry
+                # (i.e. -15 degrees = +345 degrees)
+                if value < 0:
+                    value += 360
 
-            states.extend(mol_states)
+                # Find the peak closest to the dihedral value
+                distances = [abs(value - peak) for peak in peaks[dihedral_index]]
+                conformation.append(np.argmin(distances))
 
-        logger.debug(f"States: {states}")
-        logger.debug(f"Number of flexible dihedrals: {num_flexible}")
+            unique = np.unique(conformation)
+            if len(unique) > 1:
+                num_flexible += 1
+
+            conformations.append(conformation)
+
+        # Concatenate all the dihedrals in the molecule into the state
+        # for the frame.
+        mol_states = [
+            state
+            for state in (
+                "".join(str(int(conformations[d][f])) for d in range(num_dihedrals))
+                for f in range(number_frames)
+            )
+            if state
+        ]
+
+        states.extend(mol_states)
 
         return states, num_flexible

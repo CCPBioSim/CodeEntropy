@@ -33,10 +33,11 @@ def test_raises_error_unknown_search_type():
     universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
+    n_frames = 2
     search_type = "weird"
 
     with pytest.raises(ValueError):
-        neighbors.get_neighbors(universe, levels, groups, search_type)
+        neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
 
 
 def test_average_number_neighbors_RAD():
@@ -46,11 +47,12 @@ def test_average_number_neighbors_RAD():
     universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
+    n_frames = 2
     search_type = "RAD"
 
     neighbors._search.get_RAD_neighbors = MagicMock(side_effect=[[1, 2, 3], [1, 3]])
 
-    result = neighbors.get_neighbors(universe, levels, groups, search_type)
+    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
 
     assert result == {0: np.float64(2.5)}
 
@@ -62,11 +64,12 @@ def test_average_number_neighbors_grid():
     universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
+    n_frames = 2
     search_type = "grid"
 
     neighbors._search.get_grid_neighbors = MagicMock(side_effect=[[1, 2, 3], [1, 3]])
 
-    result = neighbors.get_neighbors(universe, levels, groups, search_type)
+    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
 
     assert result == {0: np.float64(2.5)}
 
@@ -78,13 +81,14 @@ def test_average_number_neighbors_RAD_multiple():
     universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0, 1]}
+    n_frames = 2
     search_type = "RAD"
 
     neighbors._search.get_RAD_neighbors = MagicMock(
         side_effect=[[1, 2, 3, 5], [1, 3], [2, 3, 4, 5], [3, 5]]
     )
 
-    result = neighbors.get_neighbors(universe, levels, groups, search_type)
+    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
 
     assert result == {0: np.float64(3.0)}
 

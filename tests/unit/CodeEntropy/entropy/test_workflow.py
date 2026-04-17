@@ -211,8 +211,12 @@ def test_build_reduced_universe_non_all_selects_and_writes_universe():
     reduced = MagicMock()
     reduced.trajectory = list(range(2))
 
+    reduced2 = MagicMock()
+    reduced2.trajectory = list(range(2))
+
     uops = MagicMock()
     uops.select_atoms.return_value = reduced
+    uops.select_frames.return_value = reduced2
 
     run_manager = MagicMock()
     reporter = MagicMock()
@@ -229,9 +233,9 @@ def test_build_reduced_universe_non_all_selects_and_writes_universe():
 
     out = wf._build_reduced_universe()
 
-    assert out is reduced
+    assert out is reduced2
     uops.select_atoms.assert_called_once_with(universe, "protein")
-    run_manager.write_universe.assert_called_once()
+    uops.select_frames.assert_called_once_with(reduced, 0, 3, 1)
 
 
 def test_compute_water_entropy_updates_selection_string_and_calls_internal_method():
@@ -303,7 +307,17 @@ def test_build_reduced_universe_all_returns_original_universe():
         output_file="out.json",
     )
     universe = MagicMock()
+
+    reduced = MagicMock()
+    reduced.trajectory = list(range(2))
+
+    reduced2 = MagicMock()
+    reduced2.trajectory = list(range(2))
+
     uops = MagicMock()
+    uops.select_atoms.return_value = reduced
+    uops.select_frames.return_value = reduced2
+
     run_manager = MagicMock()
     wf = EntropyWorkflow(
         run_manager, args, universe, MagicMock(), MagicMock(), MagicMock(), uops
@@ -311,9 +325,10 @@ def test_build_reduced_universe_all_returns_original_universe():
 
     out = wf._build_reduced_universe()
 
-    assert out is universe
+    assert out is reduced2
     uops.select_atoms.assert_not_called()
-    run_manager.write_universe.assert_not_called()
+    uops.select_frames.assert_called_once()
+    run_manager.write_universe.assert_called_once()
 
 
 def test_split_water_groups_partitions_correctly():
