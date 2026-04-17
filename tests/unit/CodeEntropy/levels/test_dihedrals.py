@@ -123,11 +123,14 @@ def test_identify_peaks_wraps_negative_angles_and_calls_find_histogram_peaks():
 
     mol = MagicMock()
     mol.trajectory = [0, 1]
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
     uops.extract_fragment.return_value = mol
 
     dihedral = MagicMock()
     angles = np.array([[-10.0], [10.0]], dtype=float)
 
+    dt._select_heavy_residue = MagicMock(return_value=mol)
     dt._get_dihedrals = MagicMock(return_value=dihedral)
     dt._process_dihedral_phi = MagicMock(return_value=angles)
 
@@ -142,15 +145,16 @@ def test_identify_peaks_wraps_negative_angles_and_calls_find_histogram_peaks():
         patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral),
         patch.object(dt, "_process_histogram", return_value=[15.0]) as peaks_spy,
     ):
-        out = dt._identify_peaks(
+        out_ua, out_res = dt._identify_peaks(
             data_container=MagicMock(),
             molecules=[0],
             bin_width=10.0,
-            level_list=["residue"],
+            level_list=["united_atom", "residue"],
         )
 
-    assert out == ([], [15.0])
-    peaks_spy.assert_called_once()
+    assert out_ua[0] == [15.0]
+    assert out_res == [15.0]
+    assert peaks_spy.call_count == 2
 
 
 def test_find_histogram_peaks_hits_interior_and_wraparound_last_bin():
@@ -168,16 +172,19 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
 
     mol = MagicMock()
     mol.trajectory = [0, 1]
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
     uops.extract_fragment.return_value = mol
 
     dihedrals = ["D0"]
     angles = np.array([[5.0], [15.0]], dtype=float)
     peaks = [[5.0, 15.0]]
-    states_ua = []
+    states_ua = {}
     states_res = []
-    flexible_ua = []
+    flexible_ua = {}
     flexible_res = []
 
+    dt._select_heavy_residue = MagicMock(return_value=mol)
     dt._get_dihedrals = MagicMock(return_value=dihedrals)
 
     class _FakeDihedral:
@@ -192,8 +199,8 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
             data_container=MagicMock(),
             group_id=0,
             molecules=[0, 1],
-            level_list=["residue"],
-            peaks_ua=[],
+            level_list=["united_atom", "residue"],
+            peaks_ua=[peaks],
             peaks_res=peaks,
             states_ua=states_ua,
             states_res=states_res,
@@ -201,6 +208,8 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
             flexible_res=flexible_res,
         )
 
+    assert states_ua[(0, 0)] == ["0", "1", "0", "1"]
+    assert flexible_ua[(0, 0)] == 1
     assert states_res[0] == ["0", "1", "0", "1"]
     assert flexible_res[0] == 1
 
@@ -233,6 +242,8 @@ def test_identify_peaks_handles_multiple_dihedrals():
 
     mol = MagicMock()
     mol.trajectory = [0, 1]
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
     uops.extract_fragment.return_value = mol
 
     dihedrals = (["D0", "D1"],)
@@ -244,6 +255,7 @@ def test_identify_peaks_handles_multiple_dihedrals():
         dtype=float,
     )
 
+    dt._select_heavy_residue = MagicMock(return_value=mol)
     dt._get_dihedrals = MagicMock(return_value=dihedrals)
     dt._process_dihedral_phi = MagicMock(return_value=angles)
     dt._process_histogram = MagicMock(return_value=[1, 2])
@@ -256,14 +268,15 @@ def test_identify_peaks_handles_multiple_dihedrals():
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
     with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
-        out = dt._identify_peaks(
+        out_ua, out_res = dt._identify_peaks(
             data_container=MagicMock(),
             molecules=[0],
             bin_width=30.0,
             level_list=["united_atom", "residue"],
         )
 
-    assert len(out) == 2
+    assert len(out_ua[0]) == 2
+    assert len(out_res) == 2
 
 
 def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
@@ -272,14 +285,17 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
 
     mol = MagicMock()
     mol.trajectory = [0, 1, 2]
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
     uops.extract_fragment.return_value = mol
 
     dihedrals = []
-    states_ua = []
+    states_ua = {}
     states_res = []
-    flexible_ua = []
+    flexible_ua = {}
     flexible_res = []
 
+    dt._select_heavy_residue = MagicMock(return_value=mol)
     dt._get_dihedrals = MagicMock(return_value=dihedrals)
 
     class _FakeDihedral:
@@ -294,7 +310,7 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
             data_container=MagicMock(),
             group_id=0,
             molecules=[0],
-            level_list=["residue"],
+            level_list=["united_atom", "residue"],
             peaks_ua=[],
             peaks_res=[],
             states_ua=states_ua,
@@ -303,6 +319,8 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
             flexible_res=flexible_res,
         )
 
+    assert states_ua[(0, 0)] == []
+    assert flexible_ua[(0, 0)] == 0
     assert states_res[0] == []
     assert flexible_res[0] == 0
 
@@ -313,8 +331,12 @@ def test_identify_peaks_multiple_molecules_real_histogram():
 
     mol0 = MagicMock()
     mol0.trajectory = [0, 1]
+    mol0.residues = [MagicMock()]
+    mol0.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
     mol1 = MagicMock()
     mol1.trajectory = [0, 1]
+    mol1.residues = [MagicMock()]
+    mol1.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
 
     uops.extract_fragment.side_effect = [mol0, mol0, mol1]
 
@@ -323,6 +345,7 @@ def test_identify_peaks_multiple_molecules_real_histogram():
     phi_values = {}
     phi_values[0] = np.array([[10.0], [20.0]], dtype=float)
 
+    dt._select_heavy_residue = MagicMock(return_value=mol0)
     dt._get_dihedrals = MagicMock(return_value=dihedrals)
     dt._process_dihedral_phi = MagicMock(return_value=phi_values)
 
@@ -344,10 +367,10 @@ def test_identify_peaks_multiple_molecules_real_histogram():
             data_container=MagicMock(),
             molecules=[0, 1],
             bin_width=90.0,
-            level_list=["residue"],
+            level_list=["united_atom", "residue"],
         )
 
-    assert len(peaks_ua) == 0
+    assert len(peaks_ua) == 1
     assert len(peaks_res) == 1
 
 
@@ -357,16 +380,19 @@ def test_assign_states_wraps_negative_angles():
 
     mol = MagicMock()
     mol.trajectory = [0, 1]
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
     uops.extract_fragment.return_value = mol
 
     angles = np.array([[-10.0], [10.0]], dtype=float)
     peaks = [[10.0, 350.0]]
     dihedrals = ["D0"]
-    states_ua = []
+    states_ua = {}
     states_res = []
-    flexible_ua = []
+    flexible_ua = {}
     flexible_res = []
 
+    dt._select_heavy_residue = MagicMock(return_value=mol)
     dt._get_dihedrals = MagicMock(return_value=dihedrals)
 
     class _FakeDihedral:
@@ -381,8 +407,8 @@ def test_assign_states_wraps_negative_angles():
             data_container=MagicMock(),
             group_id=0,
             molecules=[0, 1],
-            level_list=["residue"],
-            peaks_ua=[],
+            level_list=["united_atom", "residue"],
+            peaks_ua=[peaks],
             peaks_res=peaks,
             states_ua=states_ua,
             states_res=states_res,
@@ -390,6 +416,8 @@ def test_assign_states_wraps_negative_angles():
             flexible_res=flexible_res,
         )
 
+    assert states_ua[(0, 0)] == ["1", "0", "1", "0"]
+    assert flexible_ua[(0, 0)] == 1
     assert states_res[0] == ["1", "0", "1", "0"]
     assert flexible_res[0] == 1
 
@@ -464,3 +492,39 @@ def test_build_conformational_states_with_progress_updates_title_per_group(monke
 
     progress.update.assert_any_call(9, title="Group 1")
     progress.advance.assert_called_with(9)
+
+
+def test_process_dihedral_phi():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    dihedral_results = MagicMock()
+    dihedral_results.results.angles = [[0, 1, 2], [3, 4, 5]]
+    num_dihedrals = 3
+    number_frames = 2
+    phi_values = {}
+
+    phi_values = dt._process_dihedral_phi(
+        dihedral_results, num_dihedrals, number_frames, phi_values
+    )
+
+    assert len(phi_values) == 3
+    assert phi_values[0] == [0, 3]
+
+
+def test_process_dihedral_phi_negative():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    dihedral_results = MagicMock()
+    dihedral_results.results.angles = [[0, 1, 2], [-3, 4, 5]]
+    num_dihedrals = 3
+    number_frames = 2
+    phi_values = {}
+
+    phi_values = dt._process_dihedral_phi(
+        dihedral_results, num_dihedrals, number_frames, phi_values
+    )
+
+    assert len(phi_values) == 3
+    assert phi_values[0] == [0, 357]

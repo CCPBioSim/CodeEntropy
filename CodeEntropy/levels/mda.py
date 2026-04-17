@@ -121,30 +121,6 @@ class UniverseOperations:
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
         return self.select_atoms(universe, selection_string)
 
-    def extract_fragments(
-        self, universe: mda.Universe, molecule_ids: list[int]
-    ) -> mda.Universe:
-        """Extract a single molecule (fragment) as a standalone reduced universe.
-
-        Args:
-            universe: The source universe.
-            molecule_id: Fragment index in `universe.atoms.fragments`.
-
-        Returns:
-            A reduced universe containing only the atoms of the selected fragment.
-        """
-        group_indices = []
-        for mol_id in molecule_ids:
-            frag = universe.atoms.fragments[mol_id]
-            group_indices.extend(frag.indices)
-
-        selection_string = "index "
-        for i in group_indices:
-            group_indices[i] = int(group_indices[i])
-            selection_string += f"{group_indices[i]} "
-
-        return self.select_atoms(universe, selection_string)
-
     def merge_forces(
         self,
         tprfile: str,
