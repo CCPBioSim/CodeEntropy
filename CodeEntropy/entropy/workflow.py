@@ -96,7 +96,7 @@ class EntropyWorkflow:
 
         This orchestrates the complete entropy pipeline:
             1. Build trajectory slice.
-            2. Apply atom selection to create a reduced universe.
+            2. Apply atom and frame selection to create a reduced universe.
             3. Detect hierarchy levels.
             4. Group molecules.
             5. Split groups into water and non-water.
@@ -233,21 +233,31 @@ class EntropyWorkflow:
         return math.floor((end - start) / step)
 
     def _build_reduced_universe(self) -> Any:
-        """Apply atom selection and return the reduced universe.
-
-        If `selection_string` is "all", the original universe is returned.
+        """Apply atom and frame selection and return the reduced universe.
 
         Returns:
-            MDAnalysis Universe (original or reduced).
+            MDAnalysis Universe (reduced according to user selections).
         """
         selection = self._args.selection_string
+        start = self._args.start
+        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
+        step = self._args.step
         if selection == "all":
-            return self._universe
+            reduced_atoms = self._universe
+        else:
+            reduced_atoms = self._universe_operations.select_atoms(
+                self._universe, selection
+            )
+            name = f"{len(reduced_atoms.trajectory)}_frame_dump_atom_selection"
+            self._run_manager.write_universe(reduced_atoms, name)
 
-        reduced = self._universe_operations.select_atoms(self._universe, selection)
-        name = f"{len(reduced.trajectory)}_frame_dump_atom_selection"
-        self._run_manager.write_universe(reduced, name)
-        return reduced
+        reduced_frames = self._universe_operations.select_frames(
+            reduced_atoms, start, end, step
+        )
+        name = f"{len(reduced_frames.trajectory)}_frame_dump_frame_selection"
+        self._run_manager.write_universe(reduced_frames, name)
+
+        return reduced_frames
 
     def _detect_levels(self, reduced_universe: Any) -> Any:
         """Detect hierarchy levels for each molecule in the reduced universe.
@@ -293,7 +303,7 @@ class EntropyWorkflow:
 
         water_groups = {
             gid: mol_ids
-            for gid, mol_ids in groups.items()
+            for gid, mol_ids in sorted(groups.items())
             if any(
                 res.resid in water_resids
                 for mol in [universe.atoms.fragments[i] for i in mol_ids]
@@ -301,7 +311,7 @@ class EntropyWorkflow:
             )
         }
         nonwater_groups = {
-            gid: g for gid, g in groups.items() if gid not in water_groups
+            gid: g for gid, g in sorted(groups.items()) if gid not in water_groups
         }
         return nonwater_groups, water_groups
 
@@ -354,7 +364,7 @@ class EntropyWorkflow:
             except (TypeError, ValueError):
                 logger.warning("Skipping invalid entry: %s, %s", group_id, result)
 
-        for group_id, total in entropy_by_group.items():
+        for group_id, total in sorted(entropy_by_group.items()):
             self._reporter.molecule_data.append(
                 (group_id, "Group Total", "Group Total Entropy", total)
             )

@@ -23,15 +23,11 @@ class ConformationalStateConfig:
     """Configuration for conformational state construction.
 
     Attributes:
-        start: Start frame index (inclusive).
-        end: End frame index (exclusive).
-        step: Frame stride.
+        n_frames: Number of frames to be analyised.
         bin_width: Histogram bin width in degrees.
     """
 
-    start: int
-    end: int
-    step: int
+    n_frames: int
     bin_width: int
 
 
@@ -70,7 +66,7 @@ class ComputeConformationalStatesNode:
                 - "reduced_universe"
                 - "levels"
                 - "groups"
-                - "start", "end", "step"
+                - "n_frames"
                 - "args" with attribute "bin_width"
             progress: Optional progress sink provided by ResultsReporter.progress().
 
@@ -80,18 +76,14 @@ class ComputeConformationalStatesNode:
         u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
-
-        cfg = self._build_config(shared_data)
+        bin_width = int(shared_data["args"].bin_width)
 
         states_ua, states_res, flexible_ua, flexible_res = (
             self._dihedral_analysis.build_conformational_states(
                 data_container=u,
                 levels=levels,
                 groups=groups,
-                start=cfg.start,
-                end=cfg.end,
-                step=cfg.step,
-                bin_width=cfg.bin_width,
+                bin_width=bin_width,
                 progress=progress,
             )
         )
@@ -111,21 +103,3 @@ class ComputeConformationalStatesNode:
         shared_data["flexible_dihedrals"] = flexible_states
 
         return {"conformational_states": conformational_states}
-
-    @staticmethod
-    def _build_config(shared_data: SharedData) -> ConformationalStateConfig:
-        """Extract and validate configuration from shared_data.
-
-        Args:
-            shared_data: Shared data dictionary.
-
-        Returns:
-            ConformationalStateConfig with normalized integer fields.
-        """
-        start = int(shared_data["start"])
-        end = int(shared_data["end"])
-        step = int(shared_data["step"])
-        bin_width = int(shared_data["args"].bin_width)
-        return ConformationalStateConfig(
-            start=start, end=end, step=step, bin_width=bin_width
-        )

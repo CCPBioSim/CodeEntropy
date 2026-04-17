@@ -75,7 +75,7 @@ def test_run_frame_stage_calls_execute_frame_for_each_ts(simple_ts_list):
     u = MagicMock()
     u.trajectory = simple_ts_list
 
-    shared = {"reduced_universe": u, "start": 0, "end": 3, "step": 1}
+    shared = {"reduced_universe": u, "start": 0, "end": 3, "step": 1, "n_frames": 3}
 
     dag._frame_dag = MagicMock()
     dag._frame_dag.execute_frame.side_effect = lambda shared_data, frame_index: {

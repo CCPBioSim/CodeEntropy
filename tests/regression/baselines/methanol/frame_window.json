@@ -1,0 +1,45 @@
+{
+  "args": {
+    "top_traj_file": [
+      "/home/ogo12949/CodeEntropy/.testdata/methanol/molecules.top",
+      "/home/ogo12949/CodeEntropy/.testdata/methanol/trajectory.crd"
+    ],
+    "force_file": "/home/ogo12949/CodeEntropy/.testdata/methanol/forces.frc",
+    "file_format": "MDCRD",
+    "kcal_force_units": true,
+    "selection_string": "resid 1:10",
+    "start": 0,
+    "end": 5,
+    "step": 2,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw14/test_regression_matches_baseli2/job001/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "molecules",
+    "combined_forcetorque": true,
+    "customised_axes": true,
+    "search_type": "grid"
+  },
+  "provenance": {
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.1",
+    "git_sha": "ac1f2ac999409433f391e45cffd116cdecc46096"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 0.0,
+        "united_atom:Rovibrational": 43.01626564417083,
+        "residue:FTmat-Transvibrational": 74.91032652381023,
+        "residue:FTmat-Rovibrational": 32.84395719280311,
+        "united_atom:Conformational": 0.0,
+        "residue:Conformational": 0.0,
+        "residue:Orientational": 0.0
+      },
+      "total": 150.77054936078417
+    }
+  }
+}

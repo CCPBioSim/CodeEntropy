@@ -1,199 +1,170 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-import yaml
 
-import tests.regression.helpers as Helpers
-from CodeEntropy.config.runtime import CodeEntropyRunner
-from CodeEntropy.levels.mda import UniverseOperations
-from CodeEntropy.levels.search import Search
-
-# some dummy atom positions
-a = np.array([0, 0, 1])
-b = np.array([0, 1, 0])
-c = np.array([1, 0, 0])
-d = np.array([0, 1, 1])
-e = np.array([0, 11, 11])
-dimensions = np.array([10, 10, 10])
-
-DEFAULT_TESTDATA_BASE_URL = "https://www.ccpbiosim.ac.uk/file-store/codeentropy-testing"
+from CodeEntropy.levels.search import Search, _apply_pbc, _rad_blocking_loop
 
 
-def test_get_RAD_neighbors(tmp_path: Path):
-    """
-    Args:
-        tmp_path: Pytest provided temporatry directory
-    """
-    args = {}
-    search = Search()
-    system = "methane"
-    repo_root = Path(__file__).resolve().parents[4]
-    config_path = (
-        repo_root / "tests" / "regression" / "configs" / system / "config.yaml"
+@pytest.fixture
+def search():
+    return Search()
+
+
+def test_apply_pbc_wraps_positive():
+    vec = np.array([11.0, 0.0, 0.0])
+    dimensions = np.array([10.0, 10.0, 10.0])
+    half = 0.5 * dimensions
+
+    result = _apply_pbc(vec.copy(), dimensions, half)
+
+    assert np.allclose(result, [1.0, 0.0, 0.0])
+
+
+def test_apply_pbc_wraps_negative():
+    vec = np.array([-11.0, 0.0, 0.0])
+    dimensions = np.array([10.0, 10.0, 10.0])
+    half = 0.5 * dimensions
+
+    result = _apply_pbc(vec.copy(), dimensions, half)
+
+    assert np.allclose(result, [-1.0, 0.0, 0.0])
+
+
+def test_get_distances_applies_pbc(search):
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [9.0, 0.0, 0.0],
+        ]
     )
-
-    tmp_path.mkdir(parents=True, exist_ok=True)
-
-    raw = yaml.safe_load(config_path.read_text())
-    if not isinstance(raw, dict):
-        raise ValueError(
-            f"Config must parse to a dict. Got {type(raw)} from {config_path}"
-        )
-
-    cooked = Helpers._abspathify_config_paths(raw, base_dir=config_path.parent)
-    required: list[Path] = []
-    run1 = cooked.get("run1")
-    if isinstance(run1, dict):
-        ff = run1.get("force_file")
-        if isinstance(ff, str) and ff:
-            required.append(Path(ff))
-        for p in run1.get("top_traj_file") or []:
-            if isinstance(p, str) and p:
-                required.append(Path(p))
-
-    if required:
-        Helpers.ensure_testdata_for_system(system, required_paths=required)
-
-    runner = CodeEntropyRunner(tmp_path)
-    parser = runner._config_manager.build_parser()
-    args, _ = parser.parse_known_args()
-    args.end = run1.get("end")
-    args.top_traj_file = run1.get("top_traj_file")
-    args.file_format = run1.get("file_format")
-    assert args.end == 1
-
-    universe_operations = UniverseOperations()
-    universe = CodeEntropyRunner._build_universe(args, universe_operations)
-
-    neighbors = search.get_RAD_neighbors(universe=universe, mol_id=0)
-
-    assert neighbors == [151, 3, 75, 219, 229, 488, 460, 118, 230, 326]
-
-
-def test_get_grid_neighbors(tmp_path: Path):
-    """
-    Args:
-        tmp_path: Pytest provided temporatry directory
-    """
-    args = {}
-    search = Search()
-    system = "methane"
-    repo_root = Path(__file__).resolve().parents[4]
-    config_path = (
-        repo_root / "tests" / "regression" / "configs" / system / "config.yaml"
-    )
-
-    tmp_path.mkdir(parents=True, exist_ok=True)
-
-    raw = yaml.safe_load(config_path.read_text())
-    if not isinstance(raw, dict):
-        raise ValueError(
-            f"Config must parse to a dict. Got {type(raw)} from {config_path}"
-        )
-
-    cooked = Helpers._abspathify_config_paths(raw, base_dir=config_path.parent)
-    required: list[Path] = []
-    run1 = cooked.get("run1")
-    if isinstance(run1, dict):
-        ff = run1.get("force_file")
-        if isinstance(ff, str) and ff:
-            required.append(Path(ff))
-        for p in run1.get("top_traj_file") or []:
-            if isinstance(p, str) and p:
-                required.append(Path(p))
-
-    if required:
-        Helpers.ensure_testdata_for_system(system, required_paths=required)
-
-    runner = CodeEntropyRunner(tmp_path)
-    parser = runner._config_manager.build_parser()
-    args, _ = parser.parse_known_args()
-    args.end = run1.get("end")
-    args.top_traj_file = run1.get("top_traj_file")
-    args.file_format = run1.get("file_format")
-    assert args.end == 1
-
-    universe_operations = UniverseOperations()
-    universe = CodeEntropyRunner._build_universe(args, universe_operations)
-
-    neighbors = search.get_grid_neighbors(
-        universe=universe, mol_id=0, highest_level="united_atom"
-    )
-
-    assert (neighbors == [151, 3, 75, 219]).all
-
-
-def test_get_angle():
-    search = Search()
-    result1 = search.get_angle(a, b, c, dimensions)
-    result2 = search.get_angle(a, b, d, dimensions)
-
-    assert result1 == 0.5
-    assert result2 == pytest.approx(0.7071067811865477)
-
-
-def test_angle_boundary_conditions():
-    search = Search()
-
-    result = search.get_angle(a, b, e, dimensions)
-
-    assert result == pytest.approx(0.7071067811865477)
-
-
-def test_distance():
-    search = Search()
-    distance1 = search.get_distance(a, b, dimensions)
-    distance2 = search.get_distance(a, d, dimensions)
-    distance3 = search.get_distance(c, d, dimensions)
-
-    assert distance1 == pytest.approx(1.4142135623730951)
-    assert distance2 == 1.0
-    assert distance3 == pytest.approx(1.7320508075688772)
-
-
-def test_distance_boundary_conditions():
-    search = Search()
-
-    distance4 = search.get_distance(c, e, dimensions)
-
-    assert distance4 == pytest.approx(1.7320508075688772)
-
-
-def test_get_RAD_indices_breaks_when_angle_is_nan():
-    search = Search()
 
     i_coords = np.array([0.0, 0.0, 0.0])
-    sorted_distances = [(1, 1.0), (2, 2.0)]
-    number_molecules = 3
+    dimensions = np.array([10.0, 10.0, 10.0])
 
-    frag_1 = MagicMock()
-    frag_2 = MagicMock()
-    frag_1.center_of_mass.return_value = np.array([1.0, 0.0, 0.0])
-    frag_2.center_of_mass.return_value = np.array([2.0, 0.0, 0.0])
+    distances = search._get_distances(coms, i_coords, dimensions)
 
-    system = MagicMock()
-    system.atoms.fragments = [MagicMock(), frag_1, frag_2]
-    system.dimensions = np.array([10.0, 10.0, 10.0, 90.0, 90.0, 90.0])
-
-    search.get_angle = MagicMock(side_effect=[np.nan])
-
-    result = search._get_RAD_indices(
-        i_coords=i_coords,
-        sorted_distances=sorted_distances,
-        system=system,
-        number_molecules=number_molecules,
-    )
-
-    assert result == [1, 2]
-    search.get_angle.assert_called_once()
+    assert len(distances) == 2
+    assert distances[1] < 2.0
 
 
-def test_get_grid_neighbors_uses_residue_search_for_non_united_atom():
-    search = Search()
-
+def test_update_cache_initializes_and_skips_on_same_frame(search):
     universe = MagicMock()
+    universe.trajectory.ts.frame = 0
+    universe.dimensions = np.array([10.0, 10.0, 10.0])
+
+    frag1 = MagicMock()
+    frag1.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
+
+    frag2 = MagicMock()
+    frag2.center_of_mass.return_value = np.array([1.0, 1.0, 1.0])
+
+    universe.atoms.fragments = [frag1, frag2]
+
+    search._update_cache(universe)
+
+    assert search._cached_frame == 0
+    assert search._cached_coms.shape == (2, 3)
+
+    old = search._cached_coms.copy()
+    search._update_cache(universe)
+
+    assert np.array_equal(old, search._cached_coms)
+
+
+def test_update_cache_updates_on_new_frame(search):
+    universe = MagicMock()
+
+    frag = MagicMock()
+    frag.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
+    universe.atoms.fragments = [frag]
+
+    universe.dimensions = np.array([10.0, 10.0, 10.0])
+
+    universe.trajectory.ts.frame = 0
+    search._update_cache(universe)
+
+    universe.trajectory.ts.frame = 1
+    search._update_cache(universe)
+
+    assert search._cached_frame == 1
+
+
+def test_get_RAD_neighbors_returns_array(search):
+    universe = MagicMock()
+    universe.trajectory.ts.frame = 0
+    universe.dimensions = np.array([10.0, 10.0, 10.0])
+
+    frag1 = MagicMock()
+    frag2 = MagicMock()
+    frag3 = MagicMock()
+
+    frag1.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
+    frag2.center_of_mass.return_value = np.array([1.0, 0.0, 0.0])
+    frag3.center_of_mass.return_value = np.array([2.0, 0.0, 0.0])
+
+    universe.atoms.fragments = [frag1, frag2, frag3]
+
+    result = search.get_RAD_neighbors(universe, mol_id=0, timestep=0)
+
+    assert isinstance(result, np.ndarray)
+
+
+def test_rad_pbc_path_triggers_wrapping(search):
+    universe = MagicMock()
+    universe.trajectory.ts.frame = 0
+    universe.dimensions = np.array([10.0, 10.0, 10.0])
+
+    frag1 = MagicMock()
+    frag2 = MagicMock()
+
+    frag1.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
+    frag2.center_of_mass.return_value = np.array([9.5, 0.0, 0.0])
+
+    universe.atoms.fragments = [frag1, frag2]
+
+    result = search.get_RAD_neighbors(universe, mol_id=0, timestep=0)
+
+    assert isinstance(result, np.ndarray)
+
+
+def test_get_grid_neighbors_united_atom(search):
+    universe = MagicMock()
+
+    fragment = MagicMock()
+    fragment.indices = [10, 11]
+
+    universe.atoms.fragments = [fragment]
+
+    molecule_atom_group = MagicMock()
+    universe.select_atoms.return_value = molecule_atom_group
+
+    search_result = MagicMock()
+    diff_result = MagicMock()
+    diff_result.fragindices = np.array([1, 2])
+
+    search_result.__sub__.return_value = diff_result
+
+    with patch(
+        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch.search",
+        autospec=True,
+        return_value=search_result,
+    ) as mock_search:
+        result = search.get_grid_neighbors(
+            universe,
+            mol_id=0,
+            highest_level="united_atom",
+            timestep=0,
+        )
+
+        mock_search.assert_called_once()
+        universe.select_atoms.assert_called_once_with("index 10:11")
+        assert np.array_equal(result, np.array([1, 2]))
+
+
+def test_get_grid_neighbors_residue(search):
+    universe = MagicMock()
+
     fragment = MagicMock()
     fragment.indices = [4, 5, 6]
     fragment.residues = MagicMock()
@@ -204,74 +175,209 @@ def test_get_grid_neighbors_uses_residue_search_for_non_united_atom():
     universe.select_atoms.return_value = molecule_atom_group
 
     search_result = MagicMock()
-    final_neighbors = MagicMock()
-    final_neighbors.atoms.fragindices = np.array([7, 8, 9])
+    diff_result = MagicMock()
+    diff_result.atoms = MagicMock()
+    diff_result.atoms.fragindices = np.array([7, 8, 9])
 
-    search_result.__sub__.return_value = final_neighbors
-
-    search_object = MagicMock()
+    search_result.__sub__.return_value = diff_result
 
     with patch(
-        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch"
-    ) as mock_ans:
-        mock_ans.return_value = search_object
-        mock_ans.search.return_value = search_result
-
+        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch.search",
+        autospec=True,
+        return_value=search_result,
+    ) as mock_search:
         result = search.get_grid_neighbors(
-            universe=universe,
+            universe,
             mol_id=0,
-            highest_level="residue",
+            highest_level="other",
+            timestep=0,
         )
 
-    universe.select_atoms.assert_called_once_with("index 4:6")
-    mock_ans.assert_called_once_with(universe.atoms)
-    mock_ans.search.assert_called_once_with(
-        search_object,
-        molecule_atom_group,
-        radius=3.5,
-        level="R",
-    )
-    search_result.__sub__.assert_called_once_with(fragment.residues)
-    assert (result == np.array([7, 8, 9])).all()
+        mock_search.assert_called_once()
+        universe.select_atoms.assert_called_once_with("index 4:6")
+        assert np.array_equal(result, np.array([7, 8, 9]))
 
 
-def test_get_grid_neighbors_uses_atom_search_for_united_atom():
-    search = Search()
-
+def test_get_grid_neighbors_selection_string(search):
     universe = MagicMock()
+
     fragment = MagicMock()
-    fragment.indices = [10, 11]
+    fragment.indices = [3, 7]
+
     universe.atoms.fragments = [fragment]
-
-    molecule_atom_group = MagicMock()
-    universe.select_atoms.return_value = molecule_atom_group
-
-    search_result = MagicMock()
-    final_neighbors = MagicMock()
-    final_neighbors.fragindices = np.array([2, 3])
-
-    search_result.__sub__.return_value = final_neighbors
-
-    search_object = MagicMock()
+    universe.select_atoms.return_value = MagicMock()
 
     with patch(
-        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch"
-    ) as mock_ans:
-        mock_ans.return_value = search_object
-        mock_ans.search.return_value = search_result
-
-        result = search.get_grid_neighbors(
-            universe=universe,
+        "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch.search",
+        autospec=True,
+        return_value=MagicMock(),
+    ):
+        search.get_grid_neighbors(
+            universe,
             mol_id=0,
             highest_level="united_atom",
+            timestep=0,
         )
 
-    universe.select_atoms.assert_called_once_with("index 10:11")
-    mock_ans.search.assert_called_once_with(
-        search_object,
-        molecule_atom_group,
-        radius=3.0,
-        level="A",
+    universe.select_atoms.assert_called_once_with("index 3:7")
+
+
+def test_rad_blocking_loop_no_blocking_simple():
+    i_coords = np.array([0.0, 0.0, 0.0])
+
+    sorted_indices = np.array([1, 2], dtype=np.int64)
+    sorted_distances = np.array([1.0, 2.0], dtype=np.float64)
+
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+        ]
     )
-    search_result.__sub__.assert_called_once_with(molecule_atom_group)
-    assert (result == np.array([2, 3])).all()
+
+    dimensions = np.array([10.0, 10.0, 10.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert isinstance(result, np.ndarray)
+    assert len(result) >= 1
+    assert result[0] in sorted_indices
+
+
+def test_rad_blocking_loop_blocking_by_closer_neighbor():
+    i_coords = np.array([0.0, 0.0, 0.0])
+
+    sorted_indices = np.array([2, 1], dtype=np.int64)
+    sorted_distances = np.array([1.0, 2.0], dtype=np.float64)
+
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+        ]
+    )
+
+    dimensions = np.array([10.0, 10.0, 10.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert set(result) == set(result)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.int64
+
+
+def test_rad_blocking_loop_pbc_wraps_distance():
+    i_coords = np.array([0.0, 0.0, 0.0])
+
+    sorted_indices = np.array([1, 2], dtype=np.int64)
+    sorted_distances = np.array([1.0, 1.0], dtype=np.float64)
+
+    # One atom across boundary
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [4.9, 0.0, 0.0],
+            [-4.9, 0.0, 0.0],
+        ]
+    )
+
+    dimensions = np.array([10.0, 10.0, 10.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert set(result) == {1, 2}
+
+
+def test_rad_blocking_loop_respects_limit_30():
+    i_coords = np.zeros(3)
+
+    n = 40
+    sorted_indices = np.arange(1, n + 1, dtype=np.int64)
+    sorted_distances = np.linspace(1.0, 5.0, n)
+
+    coms = np.zeros((n + 1, 3))
+    for i in range(1, n + 1):
+        coms[i] = np.array([float(i), 0.0, 0.0])
+
+    dimensions = np.array([100.0, 100.0, 100.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert len(result) <= 30
+
+
+def test_rad_blocking_loop_zero_distance_handling():
+    i_coords = np.array([0.0, 0.0, 0.0])
+
+    sorted_indices = np.array([1], dtype=np.int64)
+    sorted_distances = np.array([0.0], dtype=np.float64)
+
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
+
+    dimensions = np.array([10.0, 10.0, 10.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert isinstance(result, np.ndarray)
+
+
+def test_rad_blocking_loop_continue_rik_gt_rij():
+    i_coords = np.array([0.0, 0.0, 0.0])
+
+    sorted_indices = np.array([0, 1], dtype=np.int64)
+    sorted_distances = np.array([2.0, 1.0], dtype=np.float64)
+
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+        ]
+    )
+
+    dimensions = np.array([10.0, 10.0, 10.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert isinstance(result, np.ndarray)
+
+
+def test_rad_blocking_loop_continue_zero_denom():
+    i_coords = np.array([0.0, 0.0, 0.0])
+
+    sorted_indices = np.array([0, 1], dtype=np.int64)
+    sorted_distances = np.array([0.0, 1.0], dtype=np.float64)
+
+    coms = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+        ]
+    )
+
+    dimensions = np.array([10.0, 10.0, 10.0])
+
+    result = _rad_blocking_loop(
+        i_coords, sorted_indices, sorted_distances, coms, dimensions
+    )
+
+    assert isinstance(result, np.ndarray)

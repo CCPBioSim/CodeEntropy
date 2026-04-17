@@ -1,0 +1,45 @@
+{
+  "args": {
+    "top_traj_file": [
+      "/home/ogo12949/CodeEntropy/.testdata/cyclohexane/molecules.top",
+      "/home/ogo12949/CodeEntropy/.testdata/cyclohexane/trajectory.crd"
+    ],
+    "force_file": "/home/ogo12949/CodeEntropy/.testdata/cyclohexane/forces.frc",
+    "file_format": "MDCRD",
+    "kcal_force_units": true,
+    "selection_string": "resid 1:10",
+    "start": 0,
+    "end": 1,
+    "step": 1,
+    "bin_width": 30,
+    "temperature": 298.0,
+    "verbose": false,
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw7/test_regression_matches_baseli1/job001/output_file.json",
+    "force_partitioning": 0.5,
+    "water_entropy": true,
+    "grouping": "molecules",
+    "combined_forcetorque": false,
+    "customised_axes": true,
+    "search_type": "grid"
+  },
+  "provenance": {
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.1",
+    "git_sha": "ac1f2ac999409433f391e45cffd116cdecc46096"
+  },
+  "groups": {
+    "0": {
+      "components": {
+        "united_atom:Transvibrational": 0.5949308536734588,
+        "united_atom:Rovibrational": 24.234154676578637,
+        "residue:Transvibrational": 69.9872567772153,
+        "residue:Rovibrational": 68.68521019685565,
+        "united_atom:Conformational": 0.0,
+        "residue:Conformational": 0.0,
+        "residue:Orientational": 0.0
+      },
+      "total": 163.50155250432303
+    }
+  }
+}

@@ -61,7 +61,7 @@ class ComputeNeighborsNode:
                 - "reduced_universe"
                 - "levels"
                 - "groups"
-                - "start", "end", "step"
+                - "n_frames"
                 - "args" with attribute "bin_width"
             progress: Optional progress sink provided by ResultsReporter.progress().
 
@@ -71,6 +71,7 @@ class ComputeNeighborsNode:
         u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
+        n_frames = int(shared_data["n_frames"])
         search_type = shared_data["args"].search_type
 
         # Get average number of neighbors
@@ -78,6 +79,7 @@ class ComputeNeighborsNode:
             universe=u,
             levels=levels,
             groups=groups,
+            n_frames=n_frames,
             search_type=search_type,
         )
 
