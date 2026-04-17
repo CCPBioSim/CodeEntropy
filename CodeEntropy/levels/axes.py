@@ -243,17 +243,19 @@ class AxesCalculator:
                         f"resindex {residue.resid - 1} and "
                         f"bonded resindex {index_next - 1}"
                     )
-                    edges = [residue.atoms[0], second_edge]
-                    backbone = self.get_chain(residue, residue.atoms[0], second_edge)
+                    edges = [residue.atoms[0], second_edge.atoms[0]]
+                    backbone = self.get_chain(
+                        residue, residue.atoms[0], second_edge.atoms[0]
+                    )
                 elif res_position == 0:
                     # between 2 residues
                     residue = data_container.residues[1]
                     index_prev = residue.resid - 1
                     index_next = residue.resid + 1
                     edge_set = data_container.atoms.select_atoms(
-                        f"(resindex {residue.resid - 1} and "
+                        f"resindex {residue.resid - 1} and "
                         f"(bonded resindex {index_next - 1} or "
-                        f"bonded resindex {residue.resid - 1})"
+                        f"resindex {index_prev - 1})"
                     )
                     edges = [edge_set[0], edge_set[1]]
                     backbone = self.get_chain(residue, edge_set[0], edge_set[1])
@@ -278,9 +280,9 @@ class AxesCalculator:
                             last = heavy_atom
                         else:
                             last_index -= 1
-                    edges = [first_edge, last]
-                    backbone = self.get_chain(residue, first_edge, last)
-                print(f"The edges of the residue: {edges}")
+                    edges = [first_edge.atoms[0], last]
+                    backbone = self.get_chain(residue, first_edge.atoms[0], last)
+
                 trans_center = np.array(backbone.center_of_mass())
                 trans_axes = self.get_residue_custom_axes(edges, trans_center)
         else:
@@ -319,10 +321,10 @@ class AxesCalculator:
         two edge atoms of the residue (heavy atoms bonded
         to neighbouring residues), and the rotation centre.
 
-                E1----O
-                       \
-                        \
-                        E2
+                 E1---O
+                   \  |
+                    \ |
+                      E2
             Args:
                 edges: (2,3) positions of two edge atoms
                 center: (3,) coordinates of the rotation centre
@@ -330,15 +332,21 @@ class AxesCalculator:
                 rot_axes: (3,3) rotation axes of residue
         """
         # x axis is O-E1
-        x_axis = edges[0].position - center
+        E1O_vector = center - edges[0].position
+        x_axis = -E1O_vector
         # y axis is perpendicular to x
         # in the same plane as E2
-        # look for projection of E2-E1 on O-E1
-        E1E2_vector = edges[1].position - edges[1].position
-        y_axis = np.dot(x_axis, E1E2_vector) / (np.linalg.norm(x_axis) ** 2)
-        y_axis = y_axis * x_axis
-        y_axis = edges[1].position - y_axis
-        print(f"We found the perpendicular: {np.dot(x_axis, y_axis)}")
+        # look for projection of E1-E2 on E1-O
+        E1E2_vector = edges[1].position - edges[0].position
+        projection = (
+            np.dot(E1O_vector, E1E2_vector) / (np.linalg.norm(E1O_vector) ** 2)
+        ) * E1O_vector
+        # get the perpendicular onto E1-O
+        perpendicular = E1E2_vector - projection
+        # get the perpendicular through O
+        diagonal = -(projection - E1O_vector) - perpendicular
+        # get the projection from this diagonal
+        y_axis = (projection - E1O_vector) + diagonal
         z_axis = np.cross(x_axis, y_axis)
         x_axis /= np.linalg.norm(x_axis)
         y_axis /= np.linalg.norm(y_axis)
@@ -818,6 +826,7 @@ class AxesCalculator:
                 chain: MDAnalysis AtomGroup containing
                 the chain heavy atoms.
         """
+        print(f"Last: {last} ")
         chain = []
         chain_indices = []
         # at the beggining we've only visited the first atom
