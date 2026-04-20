@@ -105,7 +105,7 @@ def test_get_RAD_neighbors_returns_array(search):
 
     universe.atoms.fragments = [frag1, frag2, frag3]
 
-    result = search.get_RAD_neighbors(universe, mol_id=0)
+    result = search.get_RAD_neighbors(universe, mol_id=0, timestep=0)
 
     assert isinstance(result, np.ndarray)
 
@@ -123,7 +123,7 @@ def test_rad_pbc_path_triggers_wrapping(search):
 
     universe.atoms.fragments = [frag1, frag2]
 
-    result = search.get_RAD_neighbors(universe, mol_id=0)
+    result = search.get_RAD_neighbors(universe, mol_id=0, timestep=0)
 
     assert isinstance(result, np.ndarray)
 
@@ -154,6 +154,7 @@ def test_get_grid_neighbors_united_atom(search):
             universe,
             mol_id=0,
             highest_level="united_atom",
+            timestep=0,
         )
 
         mock_search.assert_called_once()
@@ -189,6 +190,7 @@ def test_get_grid_neighbors_residue(search):
             universe,
             mol_id=0,
             highest_level="other",
+            timestep=0,
         )
 
         mock_search.assert_called_once()
@@ -214,6 +216,7 @@ def test_get_grid_neighbors_selection_string(search):
             universe,
             mol_id=0,
             highest_level="united_atom",
+            timestep=0,
         )
 
     universe.select_atoms.assert_called_once_with("index 3:7")

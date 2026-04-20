@@ -192,7 +192,7 @@ class Search:
 
         return np.sqrt((delta * delta).sum(axis=1))
 
-    def get_RAD_neighbors(self, universe, mol_id):
+    def get_RAD_neighbors(self, universe, mol_id, timestep):
         """
         Find RAD neighbors of a given molecule.
 
@@ -206,6 +206,7 @@ class Search:
             np.ndarray:
                 Indices of neighboring molecules identified via the RAD method.
         """
+        universe.trajectory[timestep]
         self._update_cache(universe)
 
         fragments = self._cached_fragments
@@ -239,7 +240,7 @@ class Search:
 
         return neighbor_indices
 
-    def get_grid_neighbors(self, universe, mol_id, highest_level):
+    def get_grid_neighbors(self, universe, mol_id, highest_level, timestep):
         """
         Find neighbors using MDAnalysis grid-based neighbor search.
 
@@ -258,6 +259,7 @@ class Search:
             np.ndarray:
                 Fragment indices of neighboring molecules.
         """
+        universe.trajectory[timestep]
         fragments = universe.atoms.fragments
         fragment = fragments[mol_id]
 
