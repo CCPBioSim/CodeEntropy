@@ -171,7 +171,6 @@ class AxesCalculator:
             # get edge atoms of the residue
             # for terminal residues, this will include the C/N terminus
             center = np.array(backbone.center_of_mass())
-            print(f"Edges of the residue: {edges}")
             rot_axes = self.get_residue_custom_axes(edges, center)
 
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
@@ -247,6 +246,7 @@ class AxesCalculator:
                     backbone = self.get_chain(
                         residue, residue.atoms[0], second_edge.atoms[0]
                     )
+
                 elif res_position == 0:
                     # between 2 residues
                     residue = data_container.residues[1]
@@ -259,6 +259,7 @@ class AxesCalculator:
                     )
                     edges = [edge_set[0], edge_set[1]]
                     backbone = self.get_chain(residue, edge_set[0], edge_set[1])
+
                 else:
                     # last resid
                     residue = data_container.residues[1]
@@ -285,7 +286,9 @@ class AxesCalculator:
 
                 trans_center = np.array(backbone.center_of_mass())
                 trans_axes = self.get_residue_custom_axes(edges, trans_center)
+
         else:
+            # only one heavy atom or hydrogen molecule
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
         residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
@@ -343,9 +346,12 @@ class AxesCalculator:
         ) * E1O_vector
         # get the perpendicular onto E1-O
         perpendicular = E1E2_vector - projection
-        # get the perpendicular through O
-        diagonal = -(projection - E1O_vector) - perpendicular
-        # get the projection from this diagonal
+        # get the perpendicular through O (Q-O)
+        # first get P-Q diagonal through paralellogram rule
+        # P- Q = P-E2 + P-O
+        diagonal = -(projection - E1O_vector) + perpendicular
+        # get the parallel of P-E2 through O
+        # OQ = OP + PQ
         y_axis = (projection - E1O_vector) + diagonal
         z_axis = np.cross(x_axis, y_axis)
         x_axis /= np.linalg.norm(x_axis)
@@ -826,7 +832,6 @@ class AxesCalculator:
                 chain: MDAnalysis AtomGroup containing
                 the chain heavy atoms.
         """
-        print(f"Last: {last} ")
         chain = []
         chain_indices = []
         # at the beggining we've only visited the first atom
@@ -884,3 +889,27 @@ class AxesCalculator:
         chain_AtomGroup = residue.atoms[chain_indices]
         chain = chain_AtomGroup.atoms.select_atoms("all")
         return chain
+
+    def get_NCC_axes(self, residue):
+        """
+        Return axes based on the NCC atoms of a
+        residue in a protein. This is based on Argo's implementation
+        and it's here to compare protein results with previous published results.
+        Will most likely be deleted in the future when merging into main.
+        """
+        N_coords = residue.atoms.select_atoms("name N").positions[0]
+        C_alpha_coords = residue.atoms.select_atoms("name CA").positions[0]
+        C_coords = residue.atoms.select_atoms("name C").positions[0]
+        # get projection of CC_alpha onto CN
+        CCa_vector = C_alpha_coords - C_coords
+        CN_vector = N_coords - C_coords
+        center = np.dot(CCa_vector, CN_vector) / (np.linalg.norm(CN_vector) ** 2)
+        center = center * CN_vector + C_coords
+        x_axis = N_coords - center
+        x_axis /= np.linalg.norm(x_axis)
+        y_axis = C_alpha_coords - center
+        y_axis /= np.linalg.norm(y_axis)
+        z_axis = np.cross(x_axis, y_axis)
+        z_axis /= np.linalg.norm(z_axis)
+        rot_axes = np.array([x_axis, y_axis, z_axis])
+        return center, rot_axes
