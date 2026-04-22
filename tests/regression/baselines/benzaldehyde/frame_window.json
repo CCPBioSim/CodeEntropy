@@ -26,20 +26,20 @@
     "python": "3.13.5",
     "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
     "codeentropy_version": "2.1.1",
-    "git_sha": "ac1f2ac999409433f391e45cffd116cdecc46096"
+    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
   },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 0.06976323861519099,
-        "united_atom:Rovibrational": 43.1148685234083,
-        "residue:FTmat-Transvibrational": 81.88770108142911,
-        "residue:FTmat-Rovibrational": 54.95209390854072,
+        "united_atom:Transvibrational": 40.30267601961045,
+        "united_atom:Rovibrational": 38.21906858443615,
+        "residue:FTmat-Transvibrational": 73.41098578352612,
+        "residue:FTmat-Rovibrational": 57.881504393660364,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 20.481571492615355
       },
-      "total": 200.50599824460866
+      "total": 230.29580627384846
     }
   }
 }

@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw6/test_regression_matches_baseli3/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw0/test_regression_matches_baseli3/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -26,20 +26,20 @@
     "python": "3.13.5",
     "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
     "codeentropy_version": "2.1.1",
-    "git_sha": "ac1f2ac999409433f391e45cffd116cdecc46096"
+    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
   },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 0.5593770868041172,
-        "united_atom:Rovibrational": 13.488941026792721,
-        "residue:FTmat-Transvibrational": 79.60741090497159,
-        "residue:FTmat-Rovibrational": 60.864478264811964,
+        "united_atom:Transvibrational": 65.86600728016141,
+        "united_atom:Rovibrational": 162.26463085986236,
+        "residue:FTmat-Transvibrational": 74.84326467422125,
+        "residue:FTmat-Rovibrational": 60.95710412746361,
         "united_atom:Conformational": 16.651144380045313,
         "residue:Conformational": 0.0,
         "residue:Orientational": 25.79114991860739
       },
-      "total": 196.9625015820331
+      "total": 406.37330124036134
     }
   }
 }
