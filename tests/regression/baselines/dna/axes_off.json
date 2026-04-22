@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw9/test_regression_matches_baseli1/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw10/test_regression_matches_baseli1/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -26,36 +26,36 @@
     "python": "3.13.5",
     "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
     "codeentropy_version": "2.1.1",
-    "git_sha": "ac1f2ac999409433f391e45cffd116cdecc46096"
+    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
   },
   "groups": {
     "0": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 138.6554635683915,
+        "united_atom:Rovibrational": 1.2269044878385265,
         "residue:Transvibrational": 0.0,
-        "residue:Rovibrational": 3.7744745512812843,
-        "polymer:FTmat-Transvibrational": 13.548865634429543,
+        "residue:Rovibrational": 27.45710747332319,
+        "polymer:FTmat-Transvibrational": 48.62026970762269,
         "polymer:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 10.584542990557836,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 171.3222520812879
+      "total": 92.64772999596995
     },
     "1": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 0.018570889591209457,
+        "united_atom:Rovibrational": 1.7972774672527945,
         "residue:Transvibrational": 0.0,
-        "residue:Rovibrational": 6.178603242071742,
-        "polymer:FTmat-Transvibrational": 14.075720078226187,
+        "residue:Rovibrational": 25.287669468441067,
+        "polymer:FTmat-Transvibrational": 60.47397935339153,
         "polymer:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 5.292271495278918,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 30.32407104179577
+      "total": 97.61010312099201
     }
   }
 }
