@@ -324,10 +324,10 @@ class AxesCalculator:
         two edge atoms of the residue (heavy atoms bonded
         to neighbouring residues), and the rotation centre.
 
-                 E1---O
-                   \  |
-                    \ |
-                      E2
+                    Q --- E2
+                    |     |
+                    |     |
+            E1 ---- O --- P
             Args:
                 edges: (2,3) positions of two edge atoms
                 center: (3,) coordinates of the rotation centre
@@ -339,13 +339,18 @@ class AxesCalculator:
         x_axis = -E1O_vector
         # y axis is perpendicular to x
         # in the same plane as E2
-        # look for projection of E1-E2 on E1-O
+        # look for projection of E1-E2 on E1-O (E1-P)
         E1E2_vector = edges[1].position - edges[0].position
         projection = (
             np.dot(E1O_vector, E1E2_vector) / (np.linalg.norm(E1O_vector) ** 2)
         ) * E1O_vector
-        # get the perpendicular onto E1-O
+        # get the perpendicular onto E1-O (P-E2)
+        # P-E2 = P-E1 + E1-E2
         perpendicular = E1E2_vector - projection
+        print(
+            f"The perpendicular is perpendicular to the projection: "
+            f"{np.dot(projection, perpendicular)}"
+        )
         # get the perpendicular through O (Q-O)
         # first get P-Q diagonal through paralellogram rule
         # P- Q = P-E2 + P-O
@@ -353,11 +358,18 @@ class AxesCalculator:
         # get the parallel of P-E2 through O
         # OQ = OP + PQ
         y_axis = (projection - E1O_vector) + diagonal
+        print(
+            f"The y-axis and perpendicular are "
+            f"parallel: {np.cross(perpendicular, y_axis)}"
+        )
+        print(f"The x and y axis are parallel: {np.cross(x_axis, y_axis)}")
         z_axis = np.cross(x_axis, y_axis)
         x_axis /= np.linalg.norm(x_axis)
         y_axis /= np.linalg.norm(y_axis)
         z_axis /= np.linalg.norm(z_axis)
         rot_axes = np.array([x_axis, y_axis, z_axis])
+
+        return rot_axes
 
         return rot_axes
 
