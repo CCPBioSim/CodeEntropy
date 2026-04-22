@@ -347,10 +347,6 @@ class AxesCalculator:
         # get the perpendicular onto E1-O (P-E2)
         # P-E2 = P-E1 + E1-E2
         perpendicular = E1E2_vector - projection
-        print(
-            f"The perpendicular is perpendicular to the projection: "
-            f"{np.dot(projection, perpendicular)}"
-        )
         # get the perpendicular through O (Q-O)
         # first get P-Q diagonal through paralellogram rule
         # P- Q = P-E2 + P-O
@@ -358,11 +354,6 @@ class AxesCalculator:
         # get the parallel of P-E2 through O
         # OQ = OP + PQ
         y_axis = (projection - E1O_vector) + diagonal
-        print(
-            f"The y-axis and perpendicular are "
-            f"parallel: {np.cross(perpendicular, y_axis)}"
-        )
-        print(f"The x and y axis are parallel: {np.cross(x_axis, y_axis)}")
         z_axis = np.cross(x_axis, y_axis)
         x_axis /= np.linalg.norm(x_axis)
         y_axis /= np.linalg.norm(y_axis)
