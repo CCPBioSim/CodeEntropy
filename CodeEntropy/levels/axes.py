@@ -889,27 +889,3 @@ class AxesCalculator:
         chain_AtomGroup = residue.atoms[chain_indices]
         chain = chain_AtomGroup.atoms.select_atoms("all")
         return chain
-
-    def get_NCC_axes(self, residue):
-        """
-        Return axes based on the NCC atoms of a
-        residue in a protein. This is based on Argo's implementation
-        and it's here to compare protein results with previous published results.
-        Will most likely be deleted in the future when merging into main.
-        """
-        N_coords = residue.atoms.select_atoms("name N").positions[0]
-        C_alpha_coords = residue.atoms.select_atoms("name CA").positions[0]
-        C_coords = residue.atoms.select_atoms("name C").positions[0]
-        # get projection of CC_alpha onto CN
-        CCa_vector = C_alpha_coords - C_coords
-        CN_vector = N_coords - C_coords
-        center = np.dot(CCa_vector, CN_vector) / (np.linalg.norm(CN_vector) ** 2)
-        center = center * CN_vector + C_coords
-        x_axis = N_coords - center
-        x_axis /= np.linalg.norm(x_axis)
-        y_axis = C_alpha_coords - center
-        y_axis /= np.linalg.norm(y_axis)
-        z_axis = np.cross(x_axis, y_axis)
-        z_axis /= np.linalg.norm(z_axis)
-        rot_axes = np.array([x_axis, y_axis, z_axis])
-        return center, rot_axes
