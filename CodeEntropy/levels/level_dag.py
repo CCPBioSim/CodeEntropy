@@ -179,6 +179,7 @@ class LevelDAG:
         Notes:
             The task title shows the current frame index being processed.
         """
+        u = shared_data["reduced_universe"]
         n_frames = shared_data["n_frames"]
 
         task: TaskID | None = None
@@ -196,11 +197,11 @@ class LevelDAG:
                 title="Initializing",
             )
 
-        for frame_index in range(n_frames):
+        for ts in u.trajectory:
             if progress is not None and task is not None:
-                progress.update(task, title=f"Frame {frame_index}")
+                progress.update(task, title=f"Frame {ts.frame}")
 
-            frame_out = self._frame_dag.execute_frame(shared_data, frame_index)
+            frame_out = self._frame_dag.execute_frame(shared_data, ts.frame)
             self._reduce_one_frame(shared_data, frame_out)
 
             if progress is not None and task is not None:
