@@ -74,23 +74,20 @@ class HBondBias:
             return hbond_factor
 
         if max_donors == 0:
-            p_donor = 1
+            p_donor = 0
         else:
             p_donor = n_donor / (max_donors * number_frames * len(mols))
-            p_donor = min(p_donor, 1)
 
         if max_acceptors == 0:
-            p_acceptor = 1
+            p_acceptor = 0
         else:
             p_acceptor = n_acceptor / (max_acceptors * number_frames * len(mols))
-            p_acceptor = min(p_acceptor, 1)
 
-        hbond_factor = (1 - p_donor) * (1 - p_acceptor)
-        hbond_factor = max(hbond_factor, normal_factor)
-
-        # TODO temp print
-        print(f"N donor {n_donor}, N acceptor {n_acceptor}")
-        print(f"donor {p_donor}, acceptor {p_acceptor}, hbond {hbond_factor}")
+        if p_donor > 1 or p_acceptor > 1:
+            logger.warn("Too many hydrogen bonds found. Fudge factor being used.")
+            hbond_factor = normal_factor
+        else:
+            hbond_factor = (1 - p_donor) * (1 - p_acceptor)
 
         logger.debug(f"Hydrogen bond donations: {max_donors}, {n_donor}, {p_donor}")
         logger.debug(
