@@ -109,7 +109,7 @@ def test_get_residue_axes_no_bonds_uses_custom_principal_axes(monkeypatch):
         lambda moi: (np.eye(3), np.array([3.0, 2.0, 1.0])),
     )
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=7)
+    trans, rot, center, moi = ax.get_residue_axes(u, index=7, residue=None)
 
     assert np.allclose(trans, np.eye(3))
     assert np.allclose(rot, np.eye(3))
@@ -144,7 +144,7 @@ def test_get_residue_axes_with_bonds_uses_vanilla_axes(monkeypatch):
         ax, "get_vanilla_axes", lambda mol: (np.eye(3) * 2, np.array([9.0, 8.0, 7.0]))
     )
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=10)
+    trans, rot, center, moi = ax.get_residue_axes(u, index=10, residue=None)
 
     assert np.allclose(trans, np.eye(3))
     assert np.allclose(rot, np.eye(3) * 2)
@@ -184,7 +184,7 @@ def test_get_UA_axes_uses_principal_axes_when_single_heavy(monkeypatch):
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 2.0, 3.0])),
     )
 
-    trans, rot, center, moi = ax.get_UA_axes(u, index=0)
+    trans, rot, center, moi = ax.get_UA_axes(u, index=0, res_position=None)
 
     assert np.allclose(trans, np.eye(3))
     assert np.allclose(rot, np.eye(3))
