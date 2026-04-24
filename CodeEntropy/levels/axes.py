@@ -107,11 +107,6 @@ class AxesCalculator:
             # residue of interest
         if len(residue) == 0:
             raise ValueError(f"Empty residue selection for resindex={index}")
-        # anchors = data_container.select_atoms(
-        #    f"(resindex {index_prev} or "
-        #    f"resindex {index_next}) and "
-        #    f"bonded resindex {index}"
-        # )
         edge_atom_set = data_container.atoms.select_atoms(
             f" resindex {index} and "
             f"(bonded resindex {index_prev} or "
