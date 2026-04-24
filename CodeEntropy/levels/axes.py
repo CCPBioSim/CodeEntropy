@@ -225,7 +225,7 @@ class AxesCalculator:
                 # only the one residue => use principal axes
                 residue = data_container
                 trans_center = data_container.atoms.center_of_mass(unwrap=True)
-                trans_axes = data_container.atoms.principal_axes
+                trans_axes = data_container.atoms.principal_axes()
             else:
                 # residue of interest has at least one neighbour
                 if res_position == -1:

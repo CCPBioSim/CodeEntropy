@@ -223,6 +223,7 @@ class FrameCovarianceNode:
             else:
                 # only one residue
                 res_position = None
+                residue_group = res
             bead_key = (mol_id, "united_atom", local_res_i)
             bead_idx_list = beads.get(bead_key, [])
             if not bead_idx_list:
@@ -475,9 +476,12 @@ class FrameCovarianceNode:
                 if res_position == -1:
                     # first residue in group
                     residue = residue_group.residues[0]
-                else:
+                elif res_position == 0 or res_position == 1:
                     # middle or last residue => second in group
                     residue = residue_group.residues[1]
+                else:
+                    # res_position is None bc there is only one residue
+                    residue = residue_group
                 trans_axes = residue.atoms.principal_axes()
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
