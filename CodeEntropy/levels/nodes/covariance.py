@@ -202,23 +202,27 @@ class FrameCovarianceNode:
         """
 
         for local_res_i, res in enumerate(mol.residues):
-            # build residue group here
-            if local_res_i == 0:
-                # first residue
-                res_position = -1
-                res_next = mol.residues[1]
-                residue_group = res + res_next
-            elif local_res_i == len(mol.residues) - 1:
-                # last residue
-                res_position = 1
-                res_prev = mol.residues[-2]
-                residue_group = res + res_prev
+            if len(mol.residues) > 1:
+                # there are multiple residues in the molecule
+                # build residue group here
+                if local_res_i == 0:
+                    # first residue
+                    res_position = -1
+                    res_next = mol.residues[1]
+                    residue_group = res + res_next
+                elif local_res_i == len(mol.residues) - 1:
+                    # last residue
+                    res_position = 1
+                    res_prev = mol.residues[-2]
+                    residue_group = res + res_prev
+                else:
+                    res_position = 0
+                    res_prev = mol.residues[local_res_i - 1]
+                    res_next = mol.residues[local_res_i + 1]
+                    residue_group = res_prev + res + res_next
             else:
-                res_position = 0
-                res_prev = mol.residues[local_res_i - 1]
-                res_next = mol.residues[local_res_i + 1]
-                residue_group = res_prev + res + res_next
-
+                # only one residue
+                res_position = None
             bead_key = (mol_id, "united_atom", local_res_i)
             bead_idx_list = beads.get(bead_key, [])
             if not bead_idx_list:
