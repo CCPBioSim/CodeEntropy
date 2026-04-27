@@ -32,7 +32,7 @@ class Neighbors:
         self._levels = None
         self._search = Search()
 
-    def get_neighbors(self, universe, levels, groups, search_type):
+    def get_neighbors(self, universe, levels, groups, n_frames, search_type):
         """
         Find the neighbors relative to the central molecule.
 
@@ -54,22 +54,16 @@ class Neighbors:
         number_neighbors = {}
         average_number_neighbors = {}
 
-        number_frames = len(universe.trajectory)
-
-        for group_id in sorted(groups.keys()):
+        for group_id in groups.keys():
             molecules = groups[group_id]
             highest_level = levels[molecules[0]][-1]
 
             for mol_id in molecules:
-                for timestep in range(number_frames):
-                    # This is to get MDAnalysis to get the information from the
-                    # correct frame of the trajectory
-                    universe.trajectory[timestep]
-
+                for timestep in range(n_frames):
                     if search_type == "RAD":
                         # Use the relative angular distance method to find neighbors
                         neighbors = self._search.get_RAD_neighbors(
-                            universe=universe, mol_id=mol_id
+                            universe=universe, mol_id=mol_id, timestep=timestep
                         )
 
                     elif search_type == "grid":
@@ -78,6 +72,7 @@ class Neighbors:
                             universe=universe,
                             mol_id=mol_id,
                             highest_level=highest_level,
+                            timestep=timestep,
                         )
                     else:
                         # Raise error for unavailale search_type
@@ -91,9 +86,7 @@ class Neighbors:
             # Get the average number of neighbors:
             # dividing the sum by the number of molecules and number of frames
             number = np.sum(number_neighbors[group_id])
-            average_number_neighbors[group_id] = number / (
-                len(molecules) * number_frames
-            )
+            average_number_neighbors[group_id] = number / (len(molecules) * n_frames)
             logger.debug(
                 f"group: {group_id}"
                 f"number neighbors {average_number_neighbors[group_id]}"

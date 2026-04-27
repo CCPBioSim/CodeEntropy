@@ -18,6 +18,7 @@ def test_compute_find_neighbors_node_runs_and_writes_shared_data():
         "start": 0,
         "end": 10,
         "step": 1,
+        "n_frames": 10,
         "args": SimpleNamespace(search_type="RAD"),
     }
 

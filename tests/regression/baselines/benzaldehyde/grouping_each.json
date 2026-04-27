@@ -1,10 +1,10 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/molecules.top",
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/trajectory.crd"
+      "/home/ogo12949/CodeEntropy/.testdata/benzaldehyde/molecules.top",
+      "/home/ogo12949/CodeEntropy/.testdata/benzaldehyde/trajectory.crd"
     ],
-    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzaldehyde/forces.frc",
+    "force_file": "/home/ogo12949/CodeEntropy/.testdata/benzaldehyde/forces.frc",
     "file_format": "MDCRD",
     "kcal_force_units": true,
     "selection_string": "resid 1:10",
@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-53/test_regression_matches_baseli4/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw2/test_regression_matches_baseli0/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "each",
@@ -23,10 +23,10 @@
     "search_type": "grid"
   },
   "provenance": {
-    "python": "3.14.3",
-    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.0",
-    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.1",
+    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
   },
   "groups": {
     "0": {
@@ -37,9 +37,9 @@
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 9.587915463990273
+        "residue:Orientational": 31.909265242174982
       },
-      "total": 26.488985268171085
+      "total": 48.81033504635579
     },
     "1": {
       "components": {
@@ -61,9 +61,9 @@
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 13.250255095331166
+        "residue:Orientational": 31.909265242174982
       },
-      "total": 30.70184213788489
+      "total": 49.36085228472871
     },
     "3": {
       "components": {
@@ -97,9 +97,9 @@
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 23.16437388578126
+        "residue:Orientational": 31.909265242174982
       },
-      "total": 34.22999650128771
+      "total": 42.97488785768143
     },
     "6": {
       "components": {
@@ -109,9 +109,9 @@
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 18.044518549147842
+        "residue:Orientational": 0.0
       },
-      "total": 37.76863350196386
+      "total": 19.72411495281602
     },
     "7": {
       "components": {
@@ -133,9 +133,9 @@
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 10.453350878685521
+        "residue:Orientational": 31.909265242174982
       },
-      "total": 26.605755727773698
+      "total": 48.06167009126315
     },
     "9": {
       "components": {

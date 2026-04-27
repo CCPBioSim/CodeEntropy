@@ -1,8 +1,8 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/dna/md_A4_dna.tpr",
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/dna/md_A4_dna_xf.trr"
+      "/home/ogo12949/CodeEntropy/.testdata/dna/md_A4_dna.tpr",
+      "/home/ogo12949/CodeEntropy/.testdata/dna/md_A4_dna_xf.trr"
     ],
     "force_file": null,
     "file_format": null,
@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-44/test_regression_matches_baseli0/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw10/test_regression_matches_baseli1/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -23,10 +23,10 @@
     "search_type": "RAD"
   },
   "provenance": {
-    "python": "3.14.3",
-    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.0",
-    "git_sha": "be46d826f4ae38e3c6e62a7d5bcddeca85e31590"
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.1",
+    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
   },
   "groups": {
     "0": {
@@ -37,11 +37,11 @@
         "residue:Rovibrational": 27.45710747332319,
         "polymer:FTmat-Transvibrational": 48.62026970762269,
         "polymer:FTmat-Rovibrational": 0.0,
-        "united_atom:Conformational": 7.0411434528236345,
+        "united_atom:Conformational": 10.584542990557836,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 89.10433045823575
+      "total": 92.64772999596995
     },
     "1": {
       "components": {
@@ -51,11 +51,11 @@
         "residue:Rovibrational": 25.287669468441067,
         "polymer:FTmat-Transvibrational": 60.47397935339153,
         "polymer:FTmat-Rovibrational": 0.0,
-        "united_atom:Conformational": 6.410455987098191,
-        "residue:Conformational": 0.46183561256411515,
+        "united_atom:Conformational": 5.292271495278918,
+        "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 99.1901232253754
+      "total": 97.61010312099201
     }
   }
 }

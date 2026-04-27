@@ -1,10 +1,10 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzene/molecules.top",
-      "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzene/trajectory.crd"
+      "/home/ogo12949/CodeEntropy/.testdata/benzene/molecules.top",
+      "/home/ogo12949/CodeEntropy/.testdata/benzene/trajectory.crd"
     ],
-    "force_file": "/home/harry-swift/BioSim/software/CodeEntropy/.testdata/benzene/forces.frc",
+    "force_file": "/home/ogo12949/CodeEntropy/.testdata/benzene/forces.frc",
     "file_format": "MDCRD",
     "kcal_force_units": true,
     "selection_string": "all",
@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 298.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-harry-swift/pytest-50/test_regression_matches_baseli5/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw6/test_regression_matches_baseli0/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -23,10 +23,10 @@
     "search_type": "RAD"
   },
   "provenance": {
-    "python": "3.14.3",
-    "platform": "Linux-6.17.0-19-generic-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.0",
-    "git_sha": "4d39e9aeeed72fc3993f4a4eb6485da40524ebc5"
+    "python": "3.13.5",
+    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.1.1",
+    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
   },
   "groups": {
     "0": {
@@ -37,9 +37,9 @@
         "residue:FTmat-Rovibrational": 59.93761874375924,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
-        "residue:Orientational": 12.282076945243183
+        "residue:Orientational": 12.386543820026672
       },
-      "total": 181.49804724694582
+      "total": 181.6025141217293
     }
   }
 }

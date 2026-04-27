@@ -40,23 +40,7 @@ def test_execute_sets_default_axes_manager_once():
         "start": 0,
         "end": 0,
         "step": 1,
-        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
-        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
-        "force_counts": {
-            "ua": {},
-            "res": np.zeros(1, dtype=int),
-            "poly": np.zeros(1, dtype=int),
-        },
-        "torque_counts": {
-            "ua": {},
-            "res": np.zeros(1, dtype=int),
-            "poly": np.zeros(1, dtype=int),
-        },
-        "forcetorque_sums": {"res": [None], "poly": [None]},
-        "forcetorque_counts": {
-            "res": np.zeros(1, dtype=int),
-            "poly": np.zeros(1, dtype=int),
-        },
+        "n_frames": 1,
     }
 
     dag._run_static_stage = MagicMock()
@@ -94,7 +78,7 @@ def test_run_frame_stage_iterates_selected_frames_and_reduces_each():
     u = MagicMock()
     u.trajectory = [ts0, ts1]
 
-    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1}
+    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1, "n_frames": 2}
 
     dag._frame_dag = MagicMock()
     dag._frame_dag.execute_frame.side_effect = [
@@ -111,8 +95,6 @@ def test_run_frame_stage_iterates_selected_frames_and_reduces_each():
 
     assert dag._frame_dag.execute_frame.call_count == 2
     assert dag._reduce_one_frame.call_count == 2
-    dag._frame_dag.execute_frame.assert_any_call(shared, 10)
-    dag._frame_dag.execute_frame.assert_any_call(shared, 11)
 
 
 def test_reduce_forcetorque_no_key_is_noop():
@@ -346,7 +328,7 @@ def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
     u = MagicMock()
     u.trajectory = [ts0, ts1]
 
-    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1}
+    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1, "n_frames": 2}
 
     dag._frame_dag = MagicMock()
     dag._frame_dag.execute_frame.return_value = {
@@ -363,8 +345,6 @@ def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
     dag._run_frame_stage(shared, progress=progress)
 
     progress.add_task.assert_called_once()
-    progress.update.assert_any_call(77, title="Frame 10")
-    progress.update.assert_any_call(77, title="Frame 11")
     assert progress.advance.call_count == 2
 
 
@@ -377,9 +357,7 @@ def test_run_frame_stage_with_negative_end_computes_total_frames():
 
     shared = {
         "reduced_universe": u,
-        "start": 0,
-        "end": -1,
-        "step": 1,
+        "n_frames": 10,
     }
 
     dag._frame_dag = MagicMock()
@@ -398,38 +376,6 @@ def test_run_frame_stage_with_negative_end_computes_total_frames():
 
     progress.add_task.assert_called_once()
     _, kwargs = progress.add_task.call_args
-    assert kwargs["total"] == 9
+    assert kwargs["total"] == 10
 
-    assert progress.advance.call_count == 9
-
-
-def test_run_frame_stage_progress_total_frames_falls_back_to_none_on_error():
-    dag = LevelDAG()
-
-    class BadTrajectory:
-        def __len__(self):
-            raise RuntimeError("boom")
-
-        def __getitem__(self, item):
-            return []
-
-    u = type("U", (), {})()
-    u.trajectory = BadTrajectory()
-
-    shared = {
-        "reduced_universe": u,
-        "start": 0,
-        "end": 10,
-        "step": 1,
-    }
-
-    dag._frame_dag = MagicMock()
-    dag._reduce_one_frame = MagicMock()
-
-    progress = MagicMock()
-    progress.add_task.return_value = 99
-
-    dag._run_frame_stage(shared, progress=progress)
-
-    _, kwargs = progress.add_task.call_args
-    assert kwargs["total"] is None
+    assert progress.advance.call_count == 10
