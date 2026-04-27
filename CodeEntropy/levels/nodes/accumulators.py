@@ -1,12 +1,12 @@
 """Initialize covariance accumulators.
 
 This module defines a LevelDAG static node that allocates all per-frame reduction
-accumulators (means) and counters used by downstream frame processing.
+accumulators (sums) and counters used by downstream frame processing.
 
 The node owns only initialization concerns (single responsibility):
 - create group-id <-> index mappings
-- allocate force/torque covariance mean containers
-- allocate optional combined force-torque (FT) mean containers
+- allocate force/torque covariance sum containers
+- allocate optional combined force-torque (FT) sum containers
 - allocate per-level frame counters
 
 The structure created here is treated as the canonical storage layout for the
@@ -37,12 +37,13 @@ class GroupIndex:
 
 @dataclass(frozen=True)
 class CovarianceAccumulators:
-    """Container for covariance mean accumulators and frame counters."""
+    """Container for covariance sum accumulators and frame counters."""
 
-    force_covariances: dict[str, Any]
-    torque_covariances: dict[str, Any]
-    frame_counts: dict[str, Any]
-    forcetorque_covariances: dict[str, Any]
+    force_sums: dict[str, Any]
+    torque_sums: dict[str, Any]
+    force_counts: dict[str, Any]
+    torque_counts: dict[str, Any]
+    forcetorque_sums: dict[str, Any]
     forcetorque_counts: dict[str, Any]
 
 
@@ -51,21 +52,29 @@ class InitCovarianceAccumulatorsNode:
 
     Produces the following keys in `shared_data`:
 
-    Canonical mean accumulators:
-        - force_covariances: {"ua": dict, "res": list, "poly": list}
-        - torque_covariances: {"ua": dict, "res": list, "poly": list}
-        - forcetorque_covariances: {"res": list, "poly": list}  (6N x 6N means)
+    Canonical sum accumulators:
+        - force_sums: {"ua": dict, "res": list, "poly": list}
+        - torque_sums: {"ua": dict, "res": list, "poly": list}
+        - forcetorque_sums: {"res": list, "poly": list}  (6N x 6N sums)
 
     Counters:
-        - frame_counts: {"ua": dict, "res": np.ndarray[int], "poly": np.ndarray[int]}
+        - force_counts: {"ua": dict, "res": np.ndarray[int], "poly": np.ndarray[int]}
+        - torque_counts: {"ua": dict, "res": np.ndarray[int], "poly": np.ndarray[int]}
         - forcetorque_counts: {"res": np.ndarray[int], "poly": np.ndarray[int]}
 
     Group index mapping:
         - group_id_to_index: {group_id: index}
         - index_to_group_id: [group_id_by_index]
 
-    Backwards-compatible aliases (kept for older consumers):
-        - force_torque_stats -> forcetorque_covariances
+    Compatibility aliases:
+        - force_covariances -> force_sums during reduction, later overwritten
+          with finalized means by LevelDAG.
+        - torque_covariances -> torque_sums during reduction, later overwritten
+          with finalized means by LevelDAG.
+        - forcetorque_covariances -> forcetorque_sums during reduction, later
+          overwritten with finalized means by LevelDAG.
+        - frame_counts -> force_counts
+        - force_torque_stats -> forcetorque_sums
         - force_torque_counts -> forcetorque_counts
     """
 
@@ -89,7 +98,7 @@ class InitCovarianceAccumulatorsNode:
         )
 
         self._attach_to_shared_data(shared_data, group_index, accumulators)
-        self._attach_backwards_compatible_aliases(shared_data)
+        self._attach_compatible_aliases(shared_data)
 
         return self._build_return_payload(shared_data)
 
@@ -103,13 +112,13 @@ class InitCovarianceAccumulatorsNode:
         Returns:
             GroupIndex mapping object.
         """
-        group_ids = list(groups.keys())
+        group_ids = sorted(groups.keys())
         gid2i = {gid: i for i, gid in enumerate(group_ids)}
         return GroupIndex(group_id_to_index=gid2i, index_to_group_id=list(group_ids))
 
     @staticmethod
     def _build_accumulators(n_groups: int) -> CovarianceAccumulators:
-        """Allocate empty covariance means and counters.
+        """Allocate empty covariance sum containers and counters.
 
         Args:
             n_groups: Number of molecule groups.
@@ -117,26 +126,32 @@ class InitCovarianceAccumulatorsNode:
         Returns:
             CovarianceAccumulators containing allocated containers.
         """
-        force_cov = {"ua": {}, "res": [None] * n_groups, "poly": [None] * n_groups}
-        torque_cov = {"ua": {}, "res": [None] * n_groups, "poly": [None] * n_groups}
+        force_sums = {"ua": {}, "res": [None] * n_groups, "poly": [None] * n_groups}
+        torque_sums = {"ua": {}, "res": [None] * n_groups, "poly": [None] * n_groups}
 
-        frame_counts = {
+        force_counts = {
+            "ua": {},
+            "res": np.zeros(n_groups, dtype=int),
+            "poly": np.zeros(n_groups, dtype=int),
+        }
+        torque_counts = {
             "ua": {},
             "res": np.zeros(n_groups, dtype=int),
             "poly": np.zeros(n_groups, dtype=int),
         }
 
-        forcetorque_cov = {"res": [None] * n_groups, "poly": [None] * n_groups}
+        forcetorque_sums = {"res": [None] * n_groups, "poly": [None] * n_groups}
         forcetorque_counts = {
             "res": np.zeros(n_groups, dtype=int),
             "poly": np.zeros(n_groups, dtype=int),
         }
 
         return CovarianceAccumulators(
-            force_covariances=force_cov,
-            torque_covariances=torque_cov,
-            frame_counts=frame_counts,
-            forcetorque_covariances=forcetorque_cov,
+            force_sums=force_sums,
+            torque_sums=torque_sums,
+            force_counts=force_counts,
+            torque_counts=torque_counts,
+            forcetorque_sums=forcetorque_sums,
             forcetorque_counts=forcetorque_counts,
         )
 
@@ -154,21 +169,27 @@ class InitCovarianceAccumulatorsNode:
         shared_data["group_id_to_index"] = group_index.group_id_to_index
         shared_data["index_to_group_id"] = group_index.index_to_group_id
 
-        shared_data["force_covariances"] = acc.force_covariances
-        shared_data["torque_covariances"] = acc.torque_covariances
-        shared_data["frame_counts"] = acc.frame_counts
+        shared_data["force_sums"] = acc.force_sums
+        shared_data["torque_sums"] = acc.torque_sums
+        shared_data["force_counts"] = acc.force_counts
+        shared_data["torque_counts"] = acc.torque_counts
 
-        shared_data["forcetorque_covariances"] = acc.forcetorque_covariances
+        shared_data["forcetorque_sums"] = acc.forcetorque_sums
         shared_data["forcetorque_counts"] = acc.forcetorque_counts
 
     @staticmethod
-    def _attach_backwards_compatible_aliases(shared_data: SharedData) -> None:
-        """Attach backwards-compatible aliases.
+    def _attach_compatible_aliases(shared_data: SharedData) -> None:
+        """Attach compatibility aliases.
 
         Args:
             shared_data: Shared pipeline dictionary.
         """
-        shared_data["force_torque_stats"] = shared_data["forcetorque_covariances"]
+        shared_data["force_covariances"] = shared_data["force_sums"]
+        shared_data["torque_covariances"] = shared_data["torque_sums"]
+        shared_data["forcetorque_covariances"] = shared_data["forcetorque_sums"]
+
+        shared_data["frame_counts"] = shared_data["force_counts"]
+        shared_data["force_torque_stats"] = shared_data["forcetorque_sums"]
         shared_data["force_torque_counts"] = shared_data["forcetorque_counts"]
 
     @staticmethod
@@ -184,11 +205,16 @@ class InitCovarianceAccumulatorsNode:
         return {
             "group_id_to_index": shared_data["group_id_to_index"],
             "index_to_group_id": shared_data["index_to_group_id"],
+            "force_sums": shared_data["force_sums"],
+            "torque_sums": shared_data["torque_sums"],
+            "force_counts": shared_data["force_counts"],
+            "torque_counts": shared_data["torque_counts"],
+            "forcetorque_sums": shared_data["forcetorque_sums"],
+            "forcetorque_counts": shared_data["forcetorque_counts"],
             "force_covariances": shared_data["force_covariances"],
             "torque_covariances": shared_data["torque_covariances"],
             "frame_counts": shared_data["frame_counts"],
             "forcetorque_covariances": shared_data["forcetorque_covariances"],
-            "forcetorque_counts": shared_data["forcetorque_counts"],
             "force_torque_stats": shared_data["force_torque_stats"],
             "force_torque_counts": shared_data["force_torque_counts"],
         }

@@ -11,7 +11,7 @@ workflow:
 
 2) Frame stage (runs for each trajectory frame):
    - Execute the `FrameGraph` to produce frame-local covariance outputs.
-   - Reduce frame-local outputs into running (incremental) means.
+   - Reduce frame-local outputs into deterministic sums and counts.
 """
 
 from __future__ import annotations
@@ -41,10 +41,11 @@ class LevelDAG:
     The LevelDAG is responsible for:
       - Running a static DAG (once) to prepare shared inputs.
       - Running a per-frame DAG (for each frame) to compute frame-local outputs.
-      - Reducing frame-local outputs into shared running means.
+      - Reducing frame-local outputs into deterministic sums and counts.
 
-    The reduction performed here is an incremental mean across frames (and across
-    molecules within a group when frame nodes average within-frame first).
+    The reduction performed here is order-independent: frame-local sums and
+    counts are accumulated across frames and final means are computed once after
+    all frames have been processed.
     """
 
     def __init__(self, universe_operations: Any | None = None) -> None:
@@ -98,7 +99,7 @@ class LevelDAG:
 
         This method ensures required shared components exist, runs the static stage
         once, then iterates through trajectory frames to run the per-frame stage and
-        reduce outputs into running means.
+        reduce outputs into deterministic sums and counts.
 
         Args:
             shared_data: Shared workflow data dict. This mapping is mutated in-place
@@ -112,6 +113,7 @@ class LevelDAG:
         shared_data.setdefault("axes_manager", AxesCalculator())
         self._run_static_stage(shared_data, progress=progress)
         self._run_frame_stage(shared_data, progress=progress)
+        self._finalize_means(shared_data)
         return shared_data
 
     def _run_static_stage(
@@ -207,26 +209,10 @@ class LevelDAG:
             if progress is not None and task is not None:
                 progress.advance(task)
 
-    @staticmethod
-    def _incremental_mean(old: Any, new: Any, n: int) -> Any:
-        """Compute an incremental mean.
-
-        Args:
-            old: Previous running mean (or None for first sample).
-            new: New sample to incorporate.
-            n: 1-based sample count after adding `new`.
-
-        Returns:
-            Updated running mean.
-        """
-        if old is None:
-            return new.copy() if hasattr(new, "copy") else new
-        return old + (new - old) / float(n)
-
     def _reduce_one_frame(
         self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
-        """Reduce one frame's covariance outputs into shared running means.
+        """Reduce one frame's covariance outputs into shared sum accumulators.
 
         Args:
             shared_data: Shared workflow data dict containing accumulators.
@@ -238,94 +224,191 @@ class LevelDAG:
     def _reduce_force_and_torque(
         self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
-        """Reduce force/torque covariance outputs into shared accumulators.
+        """Reduce force/torque frame-local sums into shared accumulators.
 
         Args:
             shared_data: Shared workflow data dict containing:
-                - "force_covariances", "torque_covariances": accumulator structures.
-                - "frame_counts": running sample counts for each accumulator slot.
+                - "force_sums", "torque_sums": running sum accumulators.
+                - "force_counts", "torque_counts": running sample counts.
                 - "group_id_to_index": mapping from group id to accumulator index.
-            frame_out: Frame-local outputs containing "force" and "torque" sections.
+            frame_out: Frame-local outputs containing "force", "torque",
+                "force_counts", and "torque_counts" sections.
 
         Returns:
-            None. Mutates accumulator values and counts in shared_data in-place.
+            None. Mutates shared accumulators and counts in-place.
         """
-        f_cov = shared_data["force_covariances"]
-        t_cov = shared_data["torque_covariances"]
-        counts = shared_data["frame_counts"]
+        f_sums = shared_data["force_sums"]
+        t_sums = shared_data["torque_sums"]
+        f_counts = shared_data["force_counts"]
+        t_counts = shared_data["torque_counts"]
         gid2i = shared_data["group_id_to_index"]
 
         f_frame = frame_out["force"]
         t_frame = frame_out["torque"]
+        f_frame_counts = frame_out["force_counts"]
+        t_frame_counts = frame_out["torque_counts"]
 
-        for key, F in f_frame["ua"].items():
-            counts["ua"][key] = counts["ua"].get(key, 0) + 1
-            n = counts["ua"][key]
-            f_cov["ua"][key] = self._incremental_mean(f_cov["ua"].get(key), F, n)
+        for key in sorted(f_frame["ua"].keys()):
+            F = f_frame["ua"][key]
+            c = int(f_frame_counts["ua"].get(key, 0))
+            if c <= 0:
+                continue
+            prev = f_sums["ua"].get(key)
+            f_sums["ua"][key] = F.copy() if prev is None else prev + F
+            f_counts["ua"][key] = f_counts["ua"].get(key, 0) + c
 
-        for key, T in t_frame["ua"].items():
-            if key not in counts["ua"]:
-                counts["ua"][key] = counts["ua"].get(key, 0) + 1
-            n = counts["ua"][key]
-            t_cov["ua"][key] = self._incremental_mean(t_cov["ua"].get(key), T, n)
+        for key in sorted(t_frame["ua"].keys()):
+            T = t_frame["ua"][key]
+            c = int(t_frame_counts["ua"].get(key, 0))
+            if c <= 0:
+                continue
+            prev = t_sums["ua"].get(key)
+            t_sums["ua"][key] = T.copy() if prev is None else prev + T
+            t_counts["ua"][key] = t_counts["ua"].get(key, 0) + c
 
-        for gid, F in f_frame["res"].items():
+        for gid in sorted(f_frame["res"].keys()):
+            F = f_frame["res"][gid]
             gi = gid2i[gid]
-            counts["res"][gi] += 1
-            n = counts["res"][gi]
-            f_cov["res"][gi] = self._incremental_mean(f_cov["res"][gi], F, n)
+            c = int(f_frame_counts["res"].get(gid, 0))
+            if c <= 0:
+                continue
+            prev = f_sums["res"][gi]
+            f_sums["res"][gi] = F.copy() if prev is None else prev + F
+            f_counts["res"][gi] += c
 
-        for gid, T in t_frame["res"].items():
+        for gid in sorted(t_frame["res"].keys()):
+            T = t_frame["res"][gid]
             gi = gid2i[gid]
-            if counts["res"][gi] == 0:
-                counts["res"][gi] += 1
-            n = counts["res"][gi]
-            t_cov["res"][gi] = self._incremental_mean(t_cov["res"][gi], T, n)
+            c = int(t_frame_counts["res"].get(gid, 0))
+            if c <= 0:
+                continue
+            prev = t_sums["res"][gi]
+            t_sums["res"][gi] = T.copy() if prev is None else prev + T
+            t_counts["res"][gi] += c
 
-        for gid, F in f_frame["poly"].items():
+        for gid in sorted(f_frame["poly"].keys()):
+            F = f_frame["poly"][gid]
             gi = gid2i[gid]
-            counts["poly"][gi] += 1
-            n = counts["poly"][gi]
-            f_cov["poly"][gi] = self._incremental_mean(f_cov["poly"][gi], F, n)
+            c = int(f_frame_counts["poly"].get(gid, 0))
+            if c <= 0:
+                continue
+            prev = f_sums["poly"][gi]
+            f_sums["poly"][gi] = F.copy() if prev is None else prev + F
+            f_counts["poly"][gi] += c
 
-        for gid, T in t_frame["poly"].items():
+        for gid in sorted(t_frame["poly"].keys()):
+            T = t_frame["poly"][gid]
             gi = gid2i[gid]
-            if counts["poly"][gi] == 0:
-                counts["poly"][gi] += 1
-            n = counts["poly"][gi]
-            t_cov["poly"][gi] = self._incremental_mean(t_cov["poly"][gi], T, n)
+            c = int(t_frame_counts["poly"].get(gid, 0))
+            if c <= 0:
+                continue
+            prev = t_sums["poly"][gi]
+            t_sums["poly"][gi] = T.copy() if prev is None else prev + T
+            t_counts["poly"][gi] += c
 
     def _reduce_forcetorque(
         self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
-        """Reduce combined force-torque covariance outputs into shared accumulators.
+        """Reduce combined force-torque frame-local sums into shared accumulators.
 
         Args:
             shared_data: Shared workflow data dict containing:
-                - "forcetorque_covariances": accumulator structures.
-                - "forcetorque_counts": running sample counts for each accumulator slot.
+                - "forcetorque_sums": running sum accumulators.
+                - "forcetorque_counts": running sample counts.
                 - "group_id_to_index": mapping from group id to accumulator index.
-            frame_out: Frame-local outputs that may include a "forcetorque" section.
+            frame_out: Frame-local outputs that may include "forcetorque" and
+                "forcetorque_counts" sections.
 
         Returns:
-            None. Mutates accumulator values and counts in shared_data in-place.
+            None. Mutates shared accumulators and counts in-place.
         """
         if "forcetorque" not in frame_out:
             return
 
-        ft_cov = shared_data["forcetorque_covariances"]
+        ft_sums = shared_data["forcetorque_sums"]
         ft_counts = shared_data["forcetorque_counts"]
         gid2i = shared_data["group_id_to_index"]
+
         ft_frame = frame_out["forcetorque"]
+        ft_frame_counts = frame_out.get("forcetorque_counts", {"res": {}, "poly": {}})
 
-        for gid, M in ft_frame.get("res", {}).items():
+        for gid in sorted(ft_frame.get("res", {}).keys()):
+            M = ft_frame["res"][gid]
             gi = gid2i[gid]
-            ft_counts["res"][gi] += 1
-            n = ft_counts["res"][gi]
-            ft_cov["res"][gi] = self._incremental_mean(ft_cov["res"][gi], M, n)
+            c = int(ft_frame_counts.get("res", {}).get(gid, 0))
+            if c <= 0:
+                continue
+            prev = ft_sums["res"][gi]
+            ft_sums["res"][gi] = M.copy() if prev is None else prev + M
+            ft_counts["res"][gi] += c
 
-        for gid, M in ft_frame.get("poly", {}).items():
+        for gid in sorted(ft_frame.get("poly", {}).keys()):
+            M = ft_frame["poly"][gid]
             gi = gid2i[gid]
-            ft_counts["poly"][gi] += 1
-            n = ft_counts["poly"][gi]
-            ft_cov["poly"][gi] = self._incremental_mean(ft_cov["poly"][gi], M, n)
+            c = int(ft_frame_counts.get("poly", {}).get(gid, 0))
+            if c <= 0:
+                continue
+            prev = ft_sums["poly"][gi]
+            ft_sums["poly"][gi] = M.copy() if prev is None else prev + M
+            ft_counts["poly"][gi] += c
+
+    def _finalize_means(self, shared_data: dict[str, Any]) -> None:
+        """Compute finalized mean matrices from accumulated sums and counts.
+
+        Args:
+            shared_data: Shared workflow data dict containing running sums and counts.
+
+        Returns:
+            None. Writes finalized mean matrices back into shared_data.
+        """
+
+        def _compute_means(
+            sums: dict[str, Any],
+            counts: dict[str, Any],
+        ) -> dict[str, Any]:
+            out: dict[str, Any] = {}
+
+            for domain in sorted(sums.keys()):
+                domain_sums = sums[domain]
+                domain_counts = counts[domain]
+
+                if isinstance(domain_sums, dict):
+                    out[domain] = {}
+                    for key in sorted(domain_sums.keys()):
+                        total = domain_sums[key]
+                        count = int(domain_counts.get(key, 0))
+                        out[domain][key] = total / float(count) if count > 0 else None
+                    continue
+
+                mean_list: list[Any] = [None] * len(domain_sums)
+                for idx, total in enumerate(domain_sums):
+                    if total is None:
+                        continue
+                    count = int(domain_counts[idx])
+                    mean_list[idx] = total / float(count) if count > 0 else None
+                out[domain] = mean_list
+
+            return out
+
+        shared_data["force_covariances"] = _compute_means(
+            shared_data["force_sums"],
+            shared_data["force_counts"],
+        )
+        shared_data["torque_covariances"] = _compute_means(
+            shared_data["torque_sums"],
+            shared_data["torque_counts"],
+        )
+        shared_data["forcetorque_covariances"] = _compute_means(
+            shared_data["forcetorque_sums"],
+            shared_data["forcetorque_counts"],
+        )
+
+        shared_data["frame_counts"] = shared_data["force_counts"]
+        shared_data["force_torque_stats"] = {
+            "res": list(shared_data["forcetorque_covariances"]["res"]),
+            "poly": list(shared_data["forcetorque_covariances"]["poly"]),
+        }
+        shared_data["force_torque_counts"] = {
+            "res": shared_data["forcetorque_counts"]["res"].copy(),
+            "poly": shared_data["forcetorque_counts"]["poly"].copy(),
+        }

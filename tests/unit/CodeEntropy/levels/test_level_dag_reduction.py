@@ -5,32 +5,30 @@ import numpy as np
 from CodeEntropy.levels.level_dag import LevelDAG
 
 
-def test_incremental_mean_none_returns_copy_for_numpy():
-    arr = np.array([1.0, 2.0])
-    out = LevelDAG._incremental_mean(None, arr, n=1)
-    assert np.all(out == arr)
-    arr[0] = 999.0
-    assert out[0] != 999.0
-
-
-def test_incremental_mean_updates_mean_correctly():
-    old = np.array([2.0, 2.0])
-    new = np.array([4.0, 0.0])
-    out = LevelDAG._incremental_mean(old, new, n=2)
-    np.testing.assert_allclose(out, np.array([3.0, 1.0]))
-
-
 def test_reduce_force_and_torque_updates_counts_and_means():
     dag = LevelDAG()
 
     shared = {
-        "force_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "torque_covariances": {"ua": {}, "res": [None], "poly": [None]},
-        "frame_counts": {
+        "force_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "torque_sums": {"ua": {}, "res": [None], "poly": [None]},
+        "force_counts": {
             "ua": {},
             "res": np.zeros(1, dtype=int),
             "poly": np.zeros(1, dtype=int),
         },
+        "torque_counts": {
+            "ua": {},
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
+        "forcetorque_sums": {"res": [None], "poly": [None]},
+        "forcetorque_counts": {
+            "res": np.zeros(1, dtype=int),
+            "poly": np.zeros(1, dtype=int),
+        },
+        "force_covariances": {},
+        "torque_covariances": {},
+        "forcetorque_covariances": {},
         "group_id_to_index": {9: 0},
     }
 
@@ -40,15 +38,24 @@ def test_reduce_force_and_torque_updates_counts_and_means():
     frame_out = {
         "force": {"ua": {(0, 0): F1}, "res": {9: F1}, "poly": {}},
         "torque": {"ua": {(0, 0): T1}, "res": {9: T1}, "poly": {}},
+        "force_counts": {"ua": {(0, 0): 1}, "res": {9: 1}, "poly": {}},
+        "torque_counts": {"ua": {(0, 0): 1}, "res": {9: 1}, "poly": {}},
     }
 
     dag._reduce_force_and_torque(shared, frame_out)
 
-    assert shared["frame_counts"]["ua"][(0, 0)] == 1
+    assert shared["force_counts"]["ua"][(0, 0)] == 1
+    np.testing.assert_allclose(shared["force_sums"]["ua"][(0, 0)], F1)
+    np.testing.assert_allclose(shared["torque_sums"]["ua"][(0, 0)], T1)
+
+    assert shared["force_counts"]["res"][0] == 1
+    np.testing.assert_allclose(shared["force_sums"]["res"][0], F1)
+    np.testing.assert_allclose(shared["torque_sums"]["res"][0], T1)
+
+    dag._finalize_means(shared)
+
     np.testing.assert_allclose(shared["force_covariances"]["ua"][(0, 0)], F1)
     np.testing.assert_allclose(shared["torque_covariances"]["ua"][(0, 0)], T1)
-
-    assert shared["frame_counts"]["res"][0] == 1
     np.testing.assert_allclose(shared["force_covariances"]["res"][0], F1)
     np.testing.assert_allclose(shared["torque_covariances"]["res"][0], T1)
 
@@ -56,7 +63,7 @@ def test_reduce_force_and_torque_updates_counts_and_means():
 def test_reduce_forcetorque_no_key_is_noop():
     dag = LevelDAG()
     shared = {
-        "forcetorque_covariances": {"res": [None], "poly": [None]},
+        "forcetorque_sums": {"res": [None], "poly": [None]},
         "forcetorque_counts": {
             "res": np.zeros(1, dtype=int),
             "poly": np.zeros(1, dtype=int),
@@ -66,7 +73,7 @@ def test_reduce_forcetorque_no_key_is_noop():
 
     dag._reduce_forcetorque(shared, frame_out={})
     assert shared["forcetorque_counts"]["res"][0] == 0
-    assert shared["forcetorque_covariances"]["res"][0] is None
+    assert shared["forcetorque_sums"]["res"][0] is None
 
 
 def test_run_frame_stage_calls_execute_frame_for_each_ts(simple_ts_list):
@@ -81,6 +88,8 @@ def test_run_frame_stage_calls_execute_frame_for_each_ts(simple_ts_list):
     dag._frame_dag.execute_frame.side_effect = lambda shared_data, frame_index: {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
+        "force_counts": {"ua": {}, "res": {}, "poly": {}},
+        "torque_counts": {"ua": {}, "res": {}, "poly": {}},
     }
 
     dag._reduce_one_frame = MagicMock()

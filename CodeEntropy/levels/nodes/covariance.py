@@ -2,13 +2,14 @@
 
 This module computes per-frame second-moment matrices for force and torque
 vectors at each hierarchy level (united_atom, residue, polymer). Results are
-incrementally averaged across molecules within a group for the current frame.
+accumulated as deterministic sums and counts across molecules within a group
+for the current frame.
 
 Responsibilities:
 - Build bead-level force/torque vectors using ForceTorqueCalculator.
 - Construct per-frame force/torque second moments (outer products).
 - Optionally construct combined force-torque block matrices.
-- Average per-frame matrices across molecules in the same group.
+- Accumulate per-frame matrices and counts across molecules in the same group.
 
 Not responsible for:
 - Defining groups/levels/beads mapping (provided via shared context).
@@ -42,9 +43,9 @@ class FrameCovarianceNode:
     - residue
     - polymer
 
-    Within a single frame, outputs are incrementally averaged across molecules
-    that belong to the same group. Frame-to-frame accumulation is handled
-    elsewhere (by a higher-level reducer).
+    Within a single frame, outputs are accumulated as sums together with sample
+    counts across molecules that belong to the same group. Frame-to-frame
+    accumulation is handled elsewhere (by a higher-level reducer).
 
     """
 
@@ -56,16 +57,16 @@ class FrameCovarianceNode:
         """Compute and store per-frame force/torque (and optional FT) matrices.
 
         Args:
-            ctx: Frame context dict expected to include:
-                - "shared": dict containing reduced_universe, groups, levels, beads,
-                args
-                - shared["axes_manager"] (created in static stage)
+            ctx: Frame context dictionary. Expected to include ``"shared"``,
+                containing reduced universe, groups, levels, beads, args,
+                and ``shared["axes_manager"]`` created during the static stage.
 
         Returns:
-            The frame covariance payload also stored at ctx["frame_covariance"].
+            The frame covariance payload also stored at
+            ``ctx["frame_covariance"]``.
 
         Raises:
-            KeyError: If ctx is missing required fields.
+            KeyError: If ``ctx`` is missing required fields.
         """
         shared = self._get_shared(ctx)
 
@@ -85,16 +86,17 @@ class FrameCovarianceNode:
 
         out_force: dict[str, dict[Any, Matrix]] = {"ua": {}, "res": {}, "poly": {}}
         out_torque: dict[str, dict[Any, Matrix]] = {"ua": {}, "res": {}, "poly": {}}
+        out_counts: dict[str, dict[Any, int]] = {"ua": {}, "res": {}, "poly": {}}
+
         out_ft: dict[str, dict[Any, Matrix]] | None = (
             {"ua": {}, "res": {}, "poly": {}} if combined else None
         )
-
-        ua_molcount: dict[tuple[int, int], int] = {}
-        res_molcount: dict[int, int] = {}
-        poly_molcount: dict[int, int] = {}
+        out_ft_counts: dict[str, dict[Any, int]] | None = (
+            {"ua": {}, "res": {}, "poly": {}} if combined else None
+        )
 
         for group_id, mol_ids in sorted(groups.items()):
-            for mol_id in mol_ids:
+            for mol_id in sorted(mol_ids):
                 mol = fragments[mol_id]
                 level_list = levels[mol_id]
 
@@ -112,7 +114,7 @@ class FrameCovarianceNode:
                         is_highest=("united_atom" == level_list[-1]),
                         out_force=out_force,
                         out_torque=out_torque,
-                        molcount=ua_molcount,
+                        out_counts=out_counts,
                     )
 
                 if "residue" in level_list:
@@ -129,8 +131,9 @@ class FrameCovarianceNode:
                         is_highest=("residue" == level_list[-1]),
                         out_force=out_force,
                         out_torque=out_torque,
+                        out_counts=out_counts,
                         out_ft=out_ft,
-                        molcount=res_molcount,
+                        out_ft_counts=out_ft_counts,
                         combined=combined,
                     )
 
@@ -147,14 +150,25 @@ class FrameCovarianceNode:
                         is_highest=("polymer" == level_list[-1]),
                         out_force=out_force,
                         out_torque=out_torque,
+                        out_counts=out_counts,
                         out_ft=out_ft,
-                        molcount=poly_molcount,
+                        out_ft_counts=out_ft_counts,
                         combined=combined,
                     )
 
-        frame_cov: dict[str, Any] = {"force": out_force, "torque": out_torque}
-        if combined and out_ft is not None:
+        frame_cov: dict[str, Any] = {
+            "force": out_force,
+            "torque": out_torque,
+            "force_counts": out_counts,
+            "torque_counts": {
+                "ua": dict(out_counts["ua"]),
+                "res": dict(out_counts["res"]),
+                "poly": dict(out_counts["poly"]),
+            },
+        }
+        if combined and out_ft is not None and out_ft_counts is not None:
             frame_cov["forcetorque"] = out_ft
+            frame_cov["forcetorque_counts"] = out_ft_counts
 
         ctx["frame_covariance"] = frame_cov
         return frame_cov
@@ -174,7 +188,7 @@ class FrameCovarianceNode:
         is_highest: bool,
         out_force: dict[str, dict[Any, Matrix]],
         out_torque: dict[str, dict[Any, Matrix]],
-        molcount: dict[tuple[int, int], int],
+        out_counts: dict[str, dict[Any, int]],
     ) -> None:
         """Compute UA-level force/torque second moments for one molecule.
 
@@ -195,10 +209,10 @@ class FrameCovarianceNode:
             is_highest: Whether the UA level is the highest level for the molecule.
             out_force: Output accumulator for UA force second moments.
             out_torque: Output accumulator for UA torque second moments.
-            molcount: Per-(group_id, local_res_i) molecule counters for averaging.
+            out_counts: Output accumulator for UA molecule counts.
 
         Returns:
-            None. Mutates out_force/out_torque and molcount in-place.
+            None. Mutates out_force/out_torque and out_counts in-place.
         """
         for local_res_i, res in enumerate(mol.residues):
             bead_key = (mol_id, "united_atom", local_res_i)
@@ -223,10 +237,9 @@ class FrameCovarianceNode:
             F, T = self._ft.compute_frame_covariance(force_vecs, torque_vecs)
 
             key = (group_id, local_res_i)
-            n = molcount.get(key, 0) + 1
-            out_force["ua"][key] = self._inc_mean(out_force["ua"].get(key), F, n)
-            out_torque["ua"][key] = self._inc_mean(out_torque["ua"].get(key), T, n)
-            molcount[key] = n
+            out_force["ua"][key] = self._accumulate_sum(out_force["ua"].get(key), F)
+            out_torque["ua"][key] = self._accumulate_sum(out_torque["ua"].get(key), T)
+            out_counts["ua"][key] = out_counts["ua"].get(key, 0) + 1
 
     def _process_residue(
         self,
@@ -243,8 +256,9 @@ class FrameCovarianceNode:
         is_highest: bool,
         out_force: dict[str, dict[Any, Matrix]],
         out_torque: dict[str, dict[Any, Matrix]],
+        out_counts: dict[str, dict[Any, int]],
         out_ft: dict[str, dict[Any, Matrix]] | None,
-        molcount: dict[int, int],
+        out_ft_counts: dict[str, dict[Any, int]] | None,
         combined: bool,
     ) -> None:
         """Compute residue-level force/torque (and optional FT) moments for one
@@ -252,9 +266,9 @@ class FrameCovarianceNode:
 
         Residue bead vectors are constructed for the molecule and used to compute
         per-frame force and torque second-moment matrices. Outputs are then
-        incrementally averaged across molecules in the same group for this frame.
-        If combined FT matrices are enabled and this is the highest level, a
-        force-torque block matrix is also constructed and averaged.
+        accumulated as sums and counts across molecules in the same group for this
+        frame. If combined FT matrices are enabled and this is the highest level,
+        a force-torque block matrix is also constructed and averaged.
 
         Args:
             u: MDAnalysis Universe (or compatible) providing atom access.
@@ -269,12 +283,13 @@ class FrameCovarianceNode:
             is_highest: Whether residue level is the highest level for the molecule.
             out_force: Output accumulator for residue force second moments.
             out_torque: Output accumulator for residue torque second moments.
+            out_counts: Output accumulator for residue molecule counts.
             out_ft: Optional output accumulator for residue combined FT matrices.
-            molcount: Per-group molecule counter for within-frame averaging.
+            out_ft_counts: Optional output accumulator for residue FT counts.
             combined: Whether combined force-torque matrices are enabled.
 
         Returns:
-            None. Mutates output dictionaries and molcount in-place.
+            None. Mutates output dictionaries and count accumulators in-place.
         """
         bead_key = (mol_id, "residue")
         bead_idx_list = beads.get(bead_key, [])
@@ -297,18 +312,20 @@ class FrameCovarianceNode:
 
         F, T = self._ft.compute_frame_covariance(force_vecs, torque_vecs)
 
-        n = molcount.get(group_id, 0) + 1
-        out_force["res"][group_id] = self._inc_mean(
-            out_force["res"].get(group_id), F, n
+        out_force["res"][group_id] = self._accumulate_sum(
+            out_force["res"].get(group_id), F
         )
-        out_torque["res"][group_id] = self._inc_mean(
-            out_torque["res"].get(group_id), T, n
+        out_torque["res"][group_id] = self._accumulate_sum(
+            out_torque["res"].get(group_id), T
         )
-        molcount[group_id] = n
+        out_counts["res"][group_id] = out_counts["res"].get(group_id, 0) + 1
 
-        if combined and is_highest and out_ft is not None:
+        if combined and is_highest and out_ft is not None and out_ft_counts is not None:
             M = self._build_ft_block(force_vecs, torque_vecs)
-            out_ft["res"][group_id] = self._inc_mean(out_ft["res"].get(group_id), M, n)
+            out_ft["res"][group_id] = self._accumulate_sum(
+                out_ft["res"].get(group_id), M
+            )
+            out_ft_counts["res"][group_id] = out_ft_counts["res"].get(group_id, 0) + 1
 
     def _process_polymer(
         self,
@@ -324,8 +341,9 @@ class FrameCovarianceNode:
         is_highest: bool,
         out_force: dict[str, dict[Any, Matrix]],
         out_torque: dict[str, dict[Any, Matrix]],
+        out_counts: dict[str, dict[Any, int]],
         out_ft: dict[str, dict[Any, Matrix]] | None,
-        molcount: dict[int, int],
+        out_ft_counts: dict[str, dict[Any, int]] | None,
         combined: bool,
     ) -> None:
         """Compute polymer-level force/torque (and optional FT) moments for one
@@ -333,10 +351,10 @@ class FrameCovarianceNode:
 
         Polymer level uses a single bead. Translation/rotation axes, center, and
         principal moments of inertia are computed, then used to build the
-        generalized force and torque vectors. Outputs are incrementally averaged
-        across molecules in the same group for this frame. If combined FT matrices
-        are enabled and this is the highest level, a force-torque block matrix is
-        also constructed and averaged.
+        generalized force and torque vectors. Outputs are accumulated
+        as sums and counts across molecules in the same group for this frame.
+        If combined FT matrices are enabled and this is the highest level,
+        a force-torque block matrix is also constructed and averaged.
 
         Args:
             u: MDAnalysis Universe (or compatible) providing atom access.
@@ -350,12 +368,13 @@ class FrameCovarianceNode:
             is_highest: Whether polymer level is the highest level for the molecule.
             out_force: Output accumulator for polymer force second moments.
             out_torque: Output accumulator for polymer torque second moments.
+            out_counts: Output accumulator for polymer molecule counts.
             out_ft: Optional output accumulator for polymer combined FT matrices.
-            molcount: Per-group molecule counter for within-frame averaging.
+            out_ft_counts: Optional output accumulator for polymer FT counts.
             combined: Whether combined force-torque matrices are enabled.
 
         Returns:
-            None. Mutates output dictionaries and molcount in-place.
+            None. Mutates output dictionaries and count accumulators in-place.
         """
         bead_key = (mol_id, "polymer")
         bead_idx_list = beads.get(bead_key, [])
@@ -394,20 +413,20 @@ class FrameCovarianceNode:
 
         F, T = self._ft.compute_frame_covariance(force_vecs, torque_vecs)
 
-        n = molcount.get(group_id, 0) + 1
-        out_force["poly"][group_id] = self._inc_mean(
-            out_force["poly"].get(group_id), F, n
+        out_force["poly"][group_id] = self._accumulate_sum(
+            out_force["poly"].get(group_id), F
         )
-        out_torque["poly"][group_id] = self._inc_mean(
-            out_torque["poly"].get(group_id), T, n
+        out_torque["poly"][group_id] = self._accumulate_sum(
+            out_torque["poly"].get(group_id), T
         )
-        molcount[group_id] = n
+        out_counts["poly"][group_id] = out_counts["poly"].get(group_id, 0) + 1
 
-        if combined and is_highest and out_ft is not None:
+        if combined and is_highest and out_ft is not None and out_ft_counts is not None:
             M = self._build_ft_block(force_vecs, torque_vecs)
-            out_ft["poly"][group_id] = self._inc_mean(
-                out_ft["poly"].get(group_id), M, n
+            out_ft["poly"][group_id] = self._accumulate_sum(
+                out_ft["poly"].get(group_id), M
             )
+            out_ft_counts["poly"][group_id] = out_ft_counts["poly"].get(group_id, 0) + 1
 
     def _build_ua_vectors(
         self,
@@ -641,20 +660,19 @@ class FrameCovarianceNode:
             return None
 
     @staticmethod
-    def _inc_mean(old: np.ndarray | None, new: np.ndarray, n: int) -> np.ndarray:
-        """Compute an incremental mean (streaming average).
+    def _accumulate_sum(old: np.ndarray | None, new: np.ndarray) -> np.ndarray:
+        """Accumulate a deterministic sum of matrix contributions.
 
         Args:
-            old: Previous running mean value, or None for the first sample.
-            new: New sample to incorporate.
-            n: 1-based sample count after adding the new sample.
+            old: Previous running sum value, or None for the first sample.
+            new: New sample to add into the sum.
 
         Returns:
-            Updated running mean.
+            Updated running sum.
         """
         if old is None:
             return new.copy()
-        return old + (new - old) / float(n)
+        return old + new
 
     @staticmethod
     def _build_ft_block(

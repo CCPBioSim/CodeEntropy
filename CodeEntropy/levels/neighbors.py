@@ -113,7 +113,7 @@ class Neighbors:
         symmetry_number = {}
         linear = {}
 
-        for group_id in groups.keys():
+        for group_id in sorted(groups.keys()):
             molecules = groups[group_id]
 
             rdkit_mol, number_heavy, number_hydrogen = self._get_rdkit_mol(

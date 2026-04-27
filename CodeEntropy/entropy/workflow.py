@@ -165,7 +165,7 @@ class EntropyWorkflow:
             "universe": self._universe,
             "reduced_universe": reduced_universe,
             "levels": levels,
-            "groups": dict(groups),
+            "groups": dict(sorted(groups.items())),
             "start": traj.start,
             "end": traj.end,
             "step": traj.step,
@@ -329,7 +329,7 @@ class EntropyWorkflow:
 
         water_entropy = WaterEntropy(self._args, self._reporter)
 
-        for group_id in water_groups.keys():
+        for group_id in sorted(water_groups.keys()):
             water_entropy.calculate_and_log(
                 universe=self._universe,
                 start=traj.start,
