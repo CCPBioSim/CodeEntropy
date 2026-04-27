@@ -357,8 +357,6 @@ class AxesCalculator:
 
         return rot_axes
 
-        return rot_axes
-
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
         """Compute UA rotational axes from bonded topology around a heavy atom.
 
