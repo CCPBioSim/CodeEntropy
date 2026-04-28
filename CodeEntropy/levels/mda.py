@@ -174,6 +174,19 @@ class UniverseOperations:
             ts.data["c_7"] *= 4.184
             return ts
 
+        def _convert_lammps_forces(ts):
+            """
+            Convert lammps forces from kcal/mol/Ang to kJ/mol/Ang.
+
+            Args:
+                ts: MDAnalysis timeseries from the trajectory.
+
+            Returns:
+                A converted time series.
+            """
+            ts.forces *= 4.184
+            return ts
+
         if fileformat == "LAMMPSDUMP":
             try:
                 return mda.Universe(
@@ -184,7 +197,16 @@ class UniverseOperations:
                     transformations=[_convert_lammps_forces_energies],
                 )
             except KeyError:
-                raise
+                logger.debug(
+                    f"Warning: Energy columns not found in LAMMPSDUMP: {trrfile}"
+                )
+                return mda.Universe(
+                    tprfile,
+                    trrfile,
+                    format=fileformat,
+                    additional_columns=["fx", "fy", "fz"],
+                    transformations=[_convert_lammps_forces],
+                )
         else:
             raise ValueError(
                 f"Incorrect file format: {fileformat}, LAMMPSDUMP expected"
