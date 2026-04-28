@@ -121,6 +121,75 @@ class UniverseOperations:
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
         return self.select_atoms(universe, selection_string)
 
+    def convert_lammps(
+        self,
+        tprfile: str,
+        trrfile,
+        fileformat: str | None = None,
+    ) -> mda.Universe:
+        """Update the units produced from the universe produced from LAMMPS
+        format topology and trajectory files. MDA currently has a bug that
+        results in forces not being converted to the correct units
+        (see issue for more details:
+        https://github.com/MDAnalysis/mdanalysis/issues/5115
+        )
+        The method currently expects the following additional columns in the
+        lammps dump file: fx fy fz c_5 c_7
+        where c_5 and c_7 are the atom potential and kinetic energies respectively.
+
+        This method loads:
+
+        - Coordinates and dimensions from the coordinate trajectory
+          (``tprfile`` + ``trrfile``).
+
+        Args:
+            tprfile: Topology input file.
+            trrfile: Coordinate trajectory file(s). This can be a single path or a
+                list, as accepted by MDAnalysis.
+            fileformat: Optional file format for the coordinate trajectory, as
+                recognised by MDAnalysis.
+
+        Returns:
+            MDAnalysis.Universe: A new Universe containing coordinates, forces and
+            dimensions loaded into memory.
+
+        Raises:
+            ValueError: If fileformat is not one of the supported values.
+        """
+
+        def _convert_lammps_forces_energies(ts):
+            """
+            Convert lammps forces from kcal/mol/Ang to kJ/mol/Ang.
+            Assumes columns for per-atom potential (c_5) and kinetic energies (c_7)
+            are provided and converts these too.
+
+            Args:
+                ts: MDAnalysis timeseries from the trajectory.
+
+            Returns:
+                A converted time series.
+            """
+            ts.forces *= 4.184
+            ts.data["c_5"] *= 4.184
+            ts.data["c_7"] *= 4.184
+            return ts
+
+        if fileformat == "LAMMPSDUMP":
+            try:
+                return mda.Universe(
+                    tprfile,
+                    trrfile,
+                    format=fileformat,
+                    additional_columns=["fx", "fy", "fz", "c_5", "c_7"],
+                    transformations=[_convert_lammps_forces_energies],
+                )
+            except KeyError:
+                raise
+        else:
+            raise ValueError(
+                f"Incorrect file format: {fileformat}, LAMMPSDUMP expected"
+            )
+
     def merge_forces(
         self,
         tprfile: str,
