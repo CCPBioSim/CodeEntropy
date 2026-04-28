@@ -76,7 +76,10 @@ class AxesCalculator:
             * Set translational axes equal to rotational axes (as per the original
               code convention).
         - If bonded to other residues:
-            * Use default axes and MOI (MDAnalysis principal axes / inertia).
+            Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
+            and find the shortest chain between them: the backbone. Edge
+            atoms + backbone COM are used to determine UA translational axes
+            (see get_residue_custom_axes)
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
@@ -185,7 +188,12 @@ class AxesCalculator:
         This preserves the original behaviour and its rationale:
 
         - Translational axes:
-            Use the same custom principal-axes approach as residue level:
+            Use the same approach as residue level rotational.
+            Identify residue of interest and neighbours, then select
+            edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
+            and find the shortest chain between them: the backbone. Edge
+            atoms + backbone COM are used to determine UA translational axes
+            (see get_residue_custom_axes)
             compute a custom MOI tensor using heavy-atom coordinates but UA masses
             (heavy + bonded H masses), then compute the principal axes from it.
 
@@ -213,7 +221,7 @@ class AxesCalculator:
             IndexError:
                 If `index` does not correspond to an existing heavy atom.
             ValueError:
-                If bonded-axis construction fails.
+                If axis construction fails.
         """
 
         index = int(index)  # bead index
@@ -296,12 +304,16 @@ class AxesCalculator:
         heavy_atom_index = heavy_atom_indices[index]
         heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
 
+        if trans_axes is None:
+            raise ValueError("Unable to compute translation axes for UA bead.")
+
         rot_center = heavy_atom.positions[0]
         rot_axes, moment_of_inertia = self.get_bonded_axes(
             system=data_container,
             atom=heavy_atom[0],
             dimensions=data_container.dimensions[:3],
         )
+
         if rot_axes is None or moment_of_inertia is None:
             raise ValueError("Unable to compute bonded axes for UA bead.")
 
@@ -316,8 +328,12 @@ class AxesCalculator:
     def get_residue_custom_axes(self, edges, center):
         """
         Compute rotation axes at the residue level, given
-        two edge atoms of the residue (heavy atoms bonded
-        to neighbouring residues), and the rotation centre.
+        two edge atoms of the residue (E1+E2),
+        and the rotation centre (O).
+        - x axis is O-E1
+        - y axis is O-Q (perpendicular to O-E1 in the
+        same plane as E2)
+        - z axis is perpendicular to the two other axes
 
                     Q --- E2
                     |     |
