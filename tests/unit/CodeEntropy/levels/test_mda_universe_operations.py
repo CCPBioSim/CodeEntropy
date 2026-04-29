@@ -141,7 +141,7 @@ def test_convert_lammps_transforms_forces_and_energies(monkeypatch):
 
     assert np.allclose(ts.forces, np.array([[1.0, 2.0, 3.0]], dtype=float) * 4.184)
     assert np.allclose(ts.data["c_5"], np.array([1.0], dtype=float) * 4.184)
-    assert np.allclose(ts.data["c_7"], np.array([[2.0]], dtype=float) * 4.184)
+    assert np.allclose(ts.data["c_7"], np.array([2.0], dtype=float) * 4.184)
 
 
 def test_convert_lammps_fallback_on_keyerror(monkeypatch):

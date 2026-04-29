@@ -170,7 +170,7 @@ class Neighbors:
             try:
                 rdkit_mol = molecule.convert_to("RDKIT", force=True)
             except Exception:
-                logger.debug("Warning: Constriant bonds to H atoms found")
+                logger.debug("Warning: Constraint bonds to H atoms found")
                 rdkit_mol = molecule.convert_to("RDKIT", force=True, inferrer=None)
 
         number_heavy = rdkit_mol.GetNumHeavyAtoms()
