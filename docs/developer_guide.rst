@@ -60,13 +60,46 @@ Run tests with coverage::
 
     pytest --cov CodeEntropy --cov-report=term-missing
 
-Update regression baselines::
-
-    pytest tests/regression --update-baselines
-
 Run a specific test::
 
     pytest tests/unit/.../test_file.py::test_function
+
+Updating Regression Baselines
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Regression baselines should only be updated when a change intentionally alters
+the expected numerical output of CodeEntropy. Do not update baselines simply
+because a regression test fails.
+
+Before updating baselines, confirm that:
+
+- The code change is intentional and understood.
+- The new output has been reviewed.
+- The regression difference is expected.
+- The pull request explains why the baselines changed.
+
+For local updates, run::
+
+    pytest tests/regression --update-baselines
+
+For pull requests, baselines can also be updated using the GitHub Actions
+workflow **Update Regression Baselines**.
+
+To use it:
+
+1. Push your changes to your PR branch.
+2. Open the **Actions** tab on GitHub.
+3. Select **Update Regression Baselines**.
+4. Click **Run workflow**.
+5. Select your PR branch.
+6. Run the workflow.
+
+The workflow runs the regression tests with ``--update-baselines`` and commits
+any changed baseline files back to the selected branch.
+
+Only use this workflow when the baseline changes are intentional. If a regression
+test fails unexpectedly, investigate the failure instead of updating the
+baseline.
 
 Regression Test Data
 --------------------
