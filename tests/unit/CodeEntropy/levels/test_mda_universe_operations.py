@@ -118,6 +118,59 @@ def test_merge_forces_scales_kcal(monkeypatch):
     assert np.allclose(forces, np.ones((2, 2, 3)) * 4.184)
 
 
+def test_convert_lammps_transforms_forces_and_energies(monkeypatch):
+    ops = UniverseOperations()
+
+    mock_universe = MagicMock()
+    transformations_captured = []
+
+    def capture_universe(*args, **kwargs):
+        if "transformations" in kwargs:
+            transformations_captured.extend(kwargs["transformations"])
+        return mock_universe
+
+    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Universe", capture_universe)
+
+    ops.convert_lammps("tpr", "trr", "LAMMPSDUMP")
+
+    ts = MagicMock()
+    ts.forces = np.array([[1.0, 2.0, 3.0]], dtype=float)
+    ts.data = {"c_5": np.array([1.0]), "c_7": np.array([2.0])}
+
+    transformations_captured[0](ts)
+
+    assert np.allclose(ts.forces, np.array([[1.0, 2.0, 3.0]], dtype=float) * 4.184)
+    assert np.allclose(ts.data["c_5"], np.array([1.0], dtype=float) * 4.184)
+    assert np.allclose(ts.data["c_7"], np.array([[2.0]], dtype=float) * 4.184)
+
+
+def test_convert_lammps_fallback_on_keyerror(monkeypatch):
+    ops = UniverseOperations()
+
+    transformations_captured = []
+    call_count = [0]
+
+    def mock_universe(*args, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise KeyError("c_5")
+        if "transformations" in kwargs:
+            transformations_captured.extend(kwargs["transformations"])
+        return MagicMock()
+
+    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Universe", mock_universe)
+
+    ops.convert_lammps("tpr", "trr", "LAMMPSDUMP")
+
+    ts = MagicMock()
+    ts.forces = np.array([[1.0, 2.0, 3.0]], dtype=float)
+
+    transformations_captured[0](ts)
+
+    assert np.allclose(ts.forces, np.array([[1.0, 2.0, 3.0]], dtype=float) * 4.184)
+    assert call_count[0] == 2
+
+
 def test_select_atoms_builds_merged_universe_and_loads_timeseries(monkeypatch):
     ops = UniverseOperations()
 
