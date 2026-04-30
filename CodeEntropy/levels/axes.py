@@ -293,7 +293,9 @@ class AxesCalculator:
         else:
             # only one heavy atom or hydrogen molecule
             make_whole(data_container.atoms)
+            residue = data_container
             trans_axes = data_container.atoms.principal_axes()
+
         residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
         # look for heavy atoms in residue of interest
         heavy_atom_indices = []

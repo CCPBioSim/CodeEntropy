@@ -401,7 +401,7 @@ def test_build_ua_vectors_customised_axes_true_calls_get_UA_axes():
     node = FrameCovarianceNode()
 
     bead = _BeadGroup(1)
-    residue_atoms = MagicMock()
+    residue_group = MagicMock()
 
     axes_manager = MagicMock()
     axes_manager.get_UA_axes.return_value = (
@@ -416,7 +416,7 @@ def test_build_ua_vectors_customised_axes_true_calls_get_UA_axes():
 
     force_vecs, torque_vecs = node._build_ua_vectors(
         bead_groups=[bead],
-        residue_atoms=residue_atoms,
+        residue_group=residue_group,
         axes_manager=axes_manager,
         box=np.array([10.0, 10.0, 10.0]),
         force_partitioning=1.0,
@@ -451,7 +451,7 @@ def test_build_ua_vectors_vanilla_path_uses_principal_axes_and_vanilla_axes(
 
     force_vecs, torque_vecs = node._build_ua_vectors(
         bead_groups=[bead],
-        residue_atoms=residue_atoms,
+        residue_group=residue_atoms,
         axes_manager=axes_manager,
         box=np.array([10.0, 10.0, 10.0]),
         force_partitioning=1.0,
