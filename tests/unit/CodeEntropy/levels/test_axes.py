@@ -184,7 +184,7 @@ def test_get_UA_axes_uses_principal_axes_when_single_heavy(monkeypatch):
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 2.0, 3.0])),
     )
 
-    trans, rot, center, moi = ax.get_UA_axes(u, index=0)
+    trans, rot, center, moi = ax.get_UA_axes(u, index=0, res_position=None)
 
     assert np.allclose(trans, np.eye(3))
     assert np.allclose(rot, np.eye(3))
@@ -217,7 +217,7 @@ def test_get_UA_axes_raises_when_bonded_axes_fail(monkeypatch):
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
     with pytest.raises(ValueError):
-        ax.get_UA_axes(u, index=0)
+        ax.get_UA_axes(u, index=0, res_position=None)
 
 
 def test_get_custom_axes_degenerate_axis1_raises():
@@ -531,7 +531,7 @@ def test_get_residue_axes_with_bonds_vanilla_path(monkeypatch):
         ax, "get_vanilla_axes", lambda mol: (np.eye(3) * 2, np.array([9.0, 8.0, 7.0]))
     )
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=10)
+    trans, rot, center, moi = ax.get_residue_axes(u, index=10, residue=residue)
 
     assert np.allclose(trans, np.eye(3) * 2)
     assert np.allclose(rot, np.eye(3) * 2)
@@ -664,7 +664,9 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
     got_custom_axes = MagicMock(return_value=(np.eye(3), np.array([3.0, 2.0, 1.0])))
     monkeypatch.setattr(ax, "get_custom_principal_axes", got_custom_axes)
 
-    trans_axes, rot_axes, center, moi = ax.get_UA_axes(data_container, index=0)
+    trans_axes, rot_axes, center, moi = ax.get_UA_axes(
+        data_container, index=0, res_position=None
+    )
 
     assert trans_axes.shape == (3, 3)
     assert rot_axes.shape == (3, 3)
