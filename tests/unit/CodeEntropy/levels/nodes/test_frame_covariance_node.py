@@ -422,6 +422,7 @@ def test_build_ua_vectors_customised_axes_true_calls_get_UA_axes():
         force_partitioning=1.0,
         customised_axes=True,
         is_highest=True,
+        res_position=None,
     )
 
     axes_manager.get_UA_axes.assert_called_once()
@@ -457,6 +458,7 @@ def test_build_ua_vectors_vanilla_path_uses_principal_axes_and_vanilla_axes(
         force_partitioning=1.0,
         customised_axes=False,
         is_highest=True,
+        res_position=None,
     )
 
     axes_manager.get_vanilla_axes.assert_called_once()
