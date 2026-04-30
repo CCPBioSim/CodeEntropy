@@ -335,8 +335,14 @@ class CodeEntropyRunner:
         kcal_units = args.kcal_force_units
 
         if forcefile is None:
-            logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
-            return mda.Universe(tprfile, trrfile, format=fileformat)
+            if fileformat == "LAMMPSDUMP":
+                logger.debug(
+                    f"Loading Universe with {tprfile} and {trrfile} (LAMMPSDUMP)"
+                )
+                return universe_operations.convert_lammps(tprfile, trrfile, fileformat)
+            else:
+                logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
+                return mda.Universe(tprfile, trrfile, format=fileformat)
 
         return universe_operations.merge_forces(
             tprfile, trrfile, forcefile, fileformat, kcal_units
