@@ -51,4 +51,4 @@ about:
   home: https://ccpbiosim.github.io/CodeEntropy/
   license: MIT
   license_file: LICENSE
-  summary: "Entropy analysis tools for macromolecular systems and MD simulation"
+  summary: "CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics."
