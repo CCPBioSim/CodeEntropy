@@ -14,7 +14,7 @@ from CodeEntropy.levels.mda import UniverseOperations
 logger = logging.getLogger(__name__)
 
 
-class HBondBias:
+class HBondFactor:
     """
     Class for functions to find hydrogen bond biases.
     """
@@ -29,7 +29,7 @@ class HBondBias:
         self._universe = None
         self._mol_id = None
 
-    def get_hbond_bias(
+    def get_hbond_factor(
         self, universe, groups, group_id, donors, acceptors
     ) -> tuple[float, float]:
         """
@@ -61,8 +61,6 @@ class HBondBias:
 
             return hbond_factor
 
-        normal_factor = 1 / (max_donors + max_acceptors)
-
         # Get probablities
         n_donor, n_acceptor = self.get_hbond_info(universe, mols, donors, acceptors)
         if n_donor == 0 and n_acceptor == 0:
@@ -84,8 +82,8 @@ class HBondBias:
             p_acceptor = n_acceptor / (max_acceptors * number_frames * len(mols))
 
         if p_donor > 1 or p_acceptor > 1:
-            logger.warn("Too many hydrogen bonds found. Fudge factor being used.")
-            hbond_factor = normal_factor
+            logger.warning("Too many hydrogen bonds found. Fudge factor being used.")
+            hbond_factor = 1 / (max_donors + max_acceptors)
         else:
             hbond_factor = (1 - p_donor) * (1 - p_acceptor)
 
@@ -149,9 +147,6 @@ class HBondBias:
         number_acceptors = 0
         donor_counter = Counter(donors)
         acceptor_counter = Counter(acceptors)
-
-        # TODO temp print
-        print(len(donors))
 
         for index in indices:
             number_donors += donor_counter[index]

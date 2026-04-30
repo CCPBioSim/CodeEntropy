@@ -101,7 +101,7 @@ def test_get_bias():
     hbonds = MagicMock()
     hbonds.results.hbonds = MagicMock(side_effect=[0, 1, 2, 3, 4, 5])
 
-    neighbors._bias.get_hbond_bias = MagicMock(side_effect=[[1, 1]])
+    neighbors._bias.get_hbond_factor = MagicMock(side_effect=[[1]])
 
     class _FakeMDA_HBA(universe):
         """Class to mock MDAnalysis functionality."""
@@ -112,7 +112,7 @@ def test_get_bias():
     with patch("CodeEntropy.levels.neighbors.HBA", _FakeMDA_HBA):
         result = neighbors.get_bias(universe, groups)
 
-    assert result == ({0: 1}, {0: 1})
+    assert result[0] == [1]
 
 
 def test_get_symmetry_number_res():

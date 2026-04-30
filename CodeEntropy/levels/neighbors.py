@@ -11,7 +11,7 @@ import numpy as np
 from MDAnalysis.analysis.hydrogenbonds.hbond_analysis import HydrogenBondAnalysis as HBA
 from rdkit import Chem
 
-from CodeEntropy.levels.hbond_bias import HBondBias
+from CodeEntropy.levels.hbond_bias import HBondFactor
 from CodeEntropy.levels.search import Search
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class Neighbors:
         self._groups = None
         self._levels = None
         self._search = Search()
-        self._bias = HBondBias()
+        self._bias = HBondFactor()
 
     def get_neighbors(self, universe, levels, groups, n_frames, search_type):
         """
@@ -117,7 +117,7 @@ class Neighbors:
         acceptors = hbonds.results.hbonds[:, 3].astype(int)
 
         for group_id in groups.keys():
-            hbond_factor[group_id] = self._bias.get_hbond_bias(
+            hbond_factor[group_id] = self._bias.get_hbond_factor(
                 universe, groups, group_id, donors, acceptors
             )
 
