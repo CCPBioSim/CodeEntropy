@@ -294,6 +294,8 @@ class AxesCalculator:
             # only one heavy atom or hydrogen molecule
             make_whole(data_container.atoms)
             residue = data_container
+            # trans_center is center of mass
+            trans_center = np.array(data_container.center_of_mass())
             trans_axes = data_container.atoms.principal_axes()
 
         residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
