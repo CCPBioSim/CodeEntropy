@@ -7,6 +7,13 @@ concurrency:
   group: pr-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  OMP_NUM_THREADS: 1
+  MKL_NUM_THREADS: 1
+  OPENBLAS_NUM_THREADS: 1
+  NUMEXPR_NUM_THREADS: 1
+  PYTHONHASHSEED: 0
+
 jobs:
   unit:
     name: Unit
@@ -34,7 +41,7 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Pytest (unit) • ${{ matrix.os }}, ${{ matrix.python-version }}
-        run: python -m pytest tests/unit
+        run: python -m pytest tests/unit --cache-clear
 
   discover-systems:
     name: Discover regression systems
@@ -84,23 +91,34 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Cache testdata
-        uses: actions/cache@v4
-        with:
-          path: .testdata
-          key: codeentropy-testdata-${{ runner.os }}-py314
+      # Intentionally disabled while debugging CI-only regression flakes.
+      # The old key was static and could restore stale generated test data:
+      # codeentropy-testdata-${{ runner.os }}-py314
+      #
+      # - name: Cache testdata
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: .testdata
+      #     key: codeentropy-testdata-${{ runner.os }}-py314
 
       - name: Install testing dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
+      - name: Clean local test caches
+        shell: bash
+        run: |
+          rm -rf .pytest_cache
+          rm -rf .testdata
+          find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+
       - name: Run fast regression tests (per system)
         run: |
           python -m pytest tests/regression \
             -m "not slow" \
-            -n auto \
-            --dist=loadscope \
+            --cache-clear \
+            -n 1 \
             -k "${{ matrix.system }}" \
             -vv \
             --durations=20
@@ -200,6 +218,7 @@ jobs:
       - name: Run coverage
         run: |
           pytest tests/unit \
+            --cache-clear \
             --cov CodeEntropy \
             --cov-report term-missing \
             --cov-report xml \
