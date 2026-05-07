@@ -110,17 +110,22 @@ jobs:
         shell: bash
         run: |
           rm -rf .pytest_cache
-          rm -rf .testdata
           find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+
+      - name: Prepare regression test data
+        shell: bash
+        run: |
+          python -m tests.regression.prepare_testdata --system "${{ matrix.system }}"
+
+          if [ ! -d .testdata ]; then
+            echo ".testdata was not created"
+            exit 1
+          fi
 
       - name: Snapshot regression test data before tests
         shell: bash
         run: |
-          if [ -d .testdata ]; then
-            find .testdata -type f -exec sha256sum {} \; | sort > testdata.before.sha256
-          else
-            touch testdata.before.sha256
-          fi
+          find .testdata -type f -exec sha256sum {} \; | sort > testdata.before.sha256
 
       - name: Run fast regression tests (per system)
         run: |
@@ -128,19 +133,16 @@ jobs:
             -m "not slow" \
             --cache-clear \
             -n 1 \
-            -k "${{ matrix.system }}" \
+            --system "${{ matrix.system }}" \
             -vv \
-            --durations=20
+            --durations=20 \
+            --codeentropy-debug
 
       - name: Snapshot regression test data after tests
         if: always()
         shell: bash
         run: |
-          if [ -d .testdata ]; then
-            find .testdata -type f -exec sha256sum {} \; | sort > testdata.after.sha256
-          else
-            touch testdata.after.sha256
-          fi
+          find .testdata -type f -exec sha256sum {} \; | sort > testdata.after.sha256
 
       - name: Check regression test data did not change
         if: always()

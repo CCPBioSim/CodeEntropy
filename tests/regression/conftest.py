@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import random
 
 import numpy as np
@@ -47,8 +46,6 @@ def pytest_configure(config: pytest.Config) -> None:
     seed = 0
     random.seed(seed)
     np.random.seed(seed)
-
-    os.environ["PYTHONHASHSEED"] = "0"
 
 
 def pytest_collection_modifyitems(
