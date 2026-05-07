@@ -14,7 +14,7 @@ jobs:
   update-baselines:
     name: Update regression baselines
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -33,11 +33,27 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
+      - name: Clean regression test data cache
+        run: |
+          rm -rf .testdata
+          rm -rf .pytest_cache
+
       - name: Update regression baselines
-        run: pytest tests/regression --update-baselines
+        run: |
+          python -m pytest tests/regression \
+            --update-baselines \
+            -n 1 \
+            -vv
+
+      - name: Upload updated baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-regression-baselines
+          path: tests/regression/baselines/**
 
       - name: Commit updated baselines
-        uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6
+        uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0
         with:
           commit_message: "test(regression): update baselines"
           commit_user_name: github-actions[bot]
