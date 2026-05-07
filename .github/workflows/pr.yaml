@@ -113,6 +113,15 @@ jobs:
           rm -rf .testdata
           find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 
+      - name: Snapshot regression test data before tests
+        shell: bash
+        run: |
+          if [ -d .testdata ]; then
+            find .testdata -type f -exec sha256sum {} \; | sort > testdata.before.sha256
+          else
+            touch testdata.before.sha256
+          fi
+
       - name: Run fast regression tests (per system)
         run: |
           python -m pytest tests/regression \
@@ -123,6 +132,22 @@ jobs:
             -vv \
             --durations=20
 
+      - name: Snapshot regression test data after tests
+        if: always()
+        shell: bash
+        run: |
+          if [ -d .testdata ]; then
+            find .testdata -type f -exec sha256sum {} \; | sort > testdata.after.sha256
+          else
+            touch testdata.after.sha256
+          fi
+
+      - name: Check regression test data did not change
+        if: always()
+        shell: bash
+        run: |
+          diff -u testdata.before.sha256 testdata.after.sha256
+
       - name: Upload artifacts (failure)
         if: failure()
         uses: actions/upload-artifact@v4
@@ -130,6 +155,8 @@ jobs:
           name: quick-regression-failure-${{ matrix.system }}
           path: |
             .testdata/**
+            testdata.before.sha256
+            testdata.after.sha256
             /tmp/pytest-of-*/pytest-*/**
 
   docs:
