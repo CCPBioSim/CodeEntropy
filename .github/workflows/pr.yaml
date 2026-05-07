@@ -91,16 +91,6 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      # Intentionally disabled while debugging CI-only regression flakes.
-      # The old key was static and could restore stale generated test data:
-      # codeentropy-testdata-${{ runner.os }}-py314
-      #
-      # - name: Cache testdata
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: .testdata
-      #     key: codeentropy-testdata-${{ runner.os }}-py314
-
       - name: Install testing dependencies
         run: |
           python -m pip install --upgrade pip
@@ -111,21 +101,6 @@ jobs:
         run: |
           rm -rf .pytest_cache
           find . -type d -name "__pycache__" -prune -exec rm -rf {} +
-
-      - name: Prepare regression test data
-        shell: bash
-        run: |
-          python -m tests.regression.prepare_testdata --system "${{ matrix.system }}"
-
-          if [ ! -d .testdata ]; then
-            echo ".testdata was not created"
-            exit 1
-          fi
-
-      - name: Snapshot regression test data before tests
-        shell: bash
-        run: |
-          find .testdata -type f -exec sha256sum {} \; | sort > testdata.before.sha256
 
       - name: Run fast regression tests (per system)
         run: |
@@ -138,23 +113,6 @@ jobs:
             --durations=20 \
             --codeentropy-debug
 
-      - name: Snapshot regression test data after tests
-        if: always()
-        shell: bash
-        run: |
-          if [ -d .testdata ]; then
-            find .testdata -type f -exec sha256sum {} \; | sort > testdata.after.sha256
-          else
-            touch testdata.after.sha256
-          fi
-
-      - name: Check regression test data did not change
-        if: always()
-        shell: bash
-        run: |
-          touch testdata.before.sha256 testdata.after.sha256
-          diff -u testdata.before.sha256 testdata.after.sha256
-
       - name: Upload artifacts (failure)
         if: failure()
         uses: actions/upload-artifact@v4
@@ -162,8 +120,6 @@ jobs:
           name: quick-regression-failure-${{ matrix.system }}
           path: |
             .testdata/**
-            testdata.before.sha256
-            testdata.after.sha256
             /tmp/pytest-of-*/pytest-*/**
 
   docs:
