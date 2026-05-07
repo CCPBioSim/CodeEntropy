@@ -39,7 +39,7 @@ requirements:
     - distributed >=2026.1.2,<2026.2.0
     - dask-jobqueue >=0.9,<0.10
     - pytest-xdist >=3.8, <3.9
-    - numba >=0.65.0, <0.7
+    - numba >=0.65.1, <0.70
 
 test:
   imports:
@@ -48,7 +48,13 @@ test:
     - CodeEntropy --help
 
 about:
-  home: https://ccpbiosim.github.io/CodeEntropy/
+  home: https://github.com/CCPBioSim/CodeEntropy
   license: MIT
+  license_family: MIT
   license_file: LICENSE
-  summary: "Entropy analysis tools for macromolecular systems and MD simulation"
+  license_url: https://github.com/CCPBioSim/CodeEntropy/blob/main/LICENSE
+  summary: Python package for calculating configurational entropy from molecular dynamics simulations using the multiscale cell correlation method.
+  description: "CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics."
+  dev_url: https://github.com/CCPBioSim/CodeEntropy
+  doc_url: https://codeentropy.readthedocs.io/en/latest/
+  doc_source_url: https://github.com/CCPBioSim/CodeEntropy/blob/main/README.md

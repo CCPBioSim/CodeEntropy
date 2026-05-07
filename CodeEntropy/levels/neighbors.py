@@ -167,7 +167,11 @@ class Neighbors:
             rdkit_mol = frag.convert_to("RDKIT", force=True, inferrer=None)
             logger.debug("Warning: Dummy atoms found")
         else:
-            rdkit_mol = molecule.convert_to("RDKIT", force=True)
+            try:
+                rdkit_mol = molecule.convert_to("RDKIT", force=True)
+            except Exception:
+                logger.debug("Warning: Constraint bonds to H atoms found")
+                rdkit_mol = molecule.convert_to("RDKIT", force=True, inferrer=None)
 
         number_heavy = rdkit_mol.GetNumHeavyAtoms()
         number_hydrogen = rdkit_mol.GetNumAtoms() - number_heavy
