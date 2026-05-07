@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -12,7 +13,15 @@ from tests.regression.helpers import (
 )
 
 
-def required_paths_for_case(case) -> list[Path]:
+def unwrap_case(case_or_param: Any) -> Any:
+    if hasattr(case_or_param, "values"):
+        values = case_or_param.values
+        if values:
+            return values[0]
+    return case_or_param
+
+
+def required_paths_for_case(case: Any) -> list[Path]:
     raw = yaml.safe_load(case.config_path.read_text())
     cooked = _abspathify_config_paths(raw, base_dir=case.config_path.parent)
 
@@ -37,9 +46,10 @@ def main() -> None:
     args = parser.parse_args()
 
     selected = set(args.system or [])
-    cases = discover_cases()
 
-    for case in cases:
+    for case_or_param in discover_cases():
+        case = unwrap_case(case_or_param)
+
         if selected and case.system not in selected:
             continue
 

@@ -142,12 +142,17 @@ jobs:
         if: always()
         shell: bash
         run: |
-          find .testdata -type f -exec sha256sum {} \; | sort > testdata.after.sha256
+          if [ -d .testdata ]; then
+            find .testdata -type f -exec sha256sum {} \; | sort > testdata.after.sha256
+          else
+            touch testdata.after.sha256
+          fi
 
       - name: Check regression test data did not change
         if: always()
         shell: bash
         run: |
+          touch testdata.before.sha256 testdata.after.sha256
           diff -u testdata.before.sha256 testdata.after.sha256
 
       - name: Upload artifacts (failure)
