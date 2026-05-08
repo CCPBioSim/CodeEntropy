@@ -103,7 +103,7 @@ class InitCovarianceAccumulatorsNode:
         Returns:
             GroupIndex mapping object.
         """
-        group_ids = list(groups.keys())
+        group_ids = sorted(groups.keys())
         gid2i = {gid: i for i, gid in enumerate(group_ids)}
         return GroupIndex(group_id_to_index=gid2i, index_to_group_id=list(group_ids))
 

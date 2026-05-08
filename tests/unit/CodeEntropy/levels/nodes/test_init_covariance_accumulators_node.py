@@ -10,8 +10,8 @@ def test_init_covariance_accumulators_allocates_and_sets_aliases():
 
     out = node.run(shared)
 
-    assert out["group_id_to_index"] == {9: 0, 2: 1}
-    assert out["index_to_group_id"] == [9, 2]
+    assert out["group_id_to_index"] == {2: 0, 9: 1}
+    assert out["index_to_group_id"] == [2, 9]
 
     assert shared["force_covariances"]["res"] == [None, None]
     assert shared["torque_covariances"]["poly"] == [None, None]
