@@ -201,17 +201,7 @@ class VibrationalEntropyNode:
         return {gid: i for i, gid in enumerate(sorted(groups.keys()))}
 
     def _get_ua_frame_counts(self, shared_data: Mapping[str, Any]) -> dict[CovKey, int]:
-        """Extract per-(group,residue) frame counts for united-atom covariances.
-
-        Args:
-            shared_data: Read-only mapping which may contain nested frame count data
-                under shared_data["frame_counts"]["ua"].
-
-        Returns:
-            A dict keyed by (group_id, residue_id) containing frame counts. Returns
-            an empty dict if not present or not well-formed.
-        """
-        counts = shared_data.get("frame_counts", {})
+        counts = shared_data.get("force_frame_counts", {})
         if isinstance(counts, dict):
             ua_counts = counts.get("ua", {})
             if isinstance(ua_counts, dict):

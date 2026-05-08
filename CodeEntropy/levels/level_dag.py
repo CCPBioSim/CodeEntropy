@@ -240,56 +240,69 @@ class LevelDAG:
     def _reduce_force_and_torque(
         self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
-        """Reduce force/torque covariance outputs into shared accumulators."""
+        """Reduce force/torque covariance outputs into shared running means.
+
+        Force and torque must use independent sample counts. Reusing the same count
+        for both silently assumes every force key and torque key appears together in
+        every frame, which is too fragile for regression tests.
+        """
         f_cov = shared_data["force_covariances"]
         t_cov = shared_data["torque_covariances"]
-        counts = shared_data["frame_counts"]
         gid2i = shared_data["group_id_to_index"]
 
         f_frame = frame_out["force"]
         t_frame = frame_out["torque"]
 
-        for key in sorted(f_frame["ua"].keys()):
-            F = f_frame["ua"][key]
-            counts["ua"][key] = counts["ua"].get(key, 0) + 1
-            n = counts["ua"][key]
+        force_counts = shared_data.setdefault(
+            "force_frame_counts",
+            {
+                "ua": {},
+                "res": [0 for _ in f_cov["res"]],
+                "poly": [0 for _ in f_cov["poly"]],
+            },
+        )
+
+        torque_counts = shared_data.setdefault(
+            "torque_frame_counts",
+            {
+                "ua": {},
+                "res": [0 for _ in t_cov["res"]],
+                "poly": [0 for _ in t_cov["poly"]],
+            },
+        )
+
+        for key, F in f_frame["ua"].items():
+            force_counts["ua"][key] = force_counts["ua"].get(key, 0) + 1
+            n = force_counts["ua"][key]
             f_cov["ua"][key] = self._incremental_mean(f_cov["ua"].get(key), F, n)
 
-        for key in sorted(t_frame["ua"].keys()):
-            T = t_frame["ua"][key]
-            if key not in counts["ua"]:
-                counts["ua"][key] = counts["ua"].get(key, 0) + 1
-            n = counts["ua"][key]
+        for key, T in t_frame["ua"].items():
+            torque_counts["ua"][key] = torque_counts["ua"].get(key, 0) + 1
+            n = torque_counts["ua"][key]
             t_cov["ua"][key] = self._incremental_mean(t_cov["ua"].get(key), T, n)
 
-        for gid in sorted(f_frame["res"].keys()):
-            F = f_frame["res"][gid]
+        for gid, F in f_frame["res"].items():
             gi = gid2i[gid]
-            counts["res"][gi] += 1
-            n = counts["res"][gi]
+            force_counts["res"][gi] += 1
+            n = force_counts["res"][gi]
             f_cov["res"][gi] = self._incremental_mean(f_cov["res"][gi], F, n)
 
-        for gid in sorted(t_frame["res"].keys()):
-            T = t_frame["res"][gid]
+        for gid, T in t_frame["res"].items():
             gi = gid2i[gid]
-            if counts["res"][gi] == 0:
-                counts["res"][gi] += 1
-            n = counts["res"][gi]
+            torque_counts["res"][gi] += 1
+            n = torque_counts["res"][gi]
             t_cov["res"][gi] = self._incremental_mean(t_cov["res"][gi], T, n)
 
-        for gid in sorted(f_frame["poly"].keys()):
-            F = f_frame["poly"][gid]
+        for gid, F in f_frame["poly"].items():
             gi = gid2i[gid]
-            counts["poly"][gi] += 1
-            n = counts["poly"][gi]
+            force_counts["poly"][gi] += 1
+            n = force_counts["poly"][gi]
             f_cov["poly"][gi] = self._incremental_mean(f_cov["poly"][gi], F, n)
 
-        for gid in sorted(t_frame["poly"].keys()):
-            T = t_frame["poly"][gid]
+        for gid, T in t_frame["poly"].items():
             gi = gid2i[gid]
-            if counts["poly"][gi] == 0:
-                counts["poly"][gi] += 1
-            n = counts["poly"][gi]
+            torque_counts["poly"][gi] += 1
+            n = torque_counts["poly"][gi]
             t_cov["poly"][gi] = self._incremental_mean(t_cov["poly"][gi], T, n)
 
     def _reduce_forcetorque(
