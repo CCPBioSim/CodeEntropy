@@ -96,6 +96,9 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Run fast regression tests (per system)
+        env:
+          CODEENTROPY_DEBUG_REGRESSION: "1"
+          CODEENTROPY_DEBUG_DIR: regression-debug
         run: |
           python -m pytest tests/regression \
             -m "not slow" \
@@ -112,6 +115,7 @@ jobs:
           name: quick-regression-failure-${{ matrix.system }}
           path: |
             .testdata/**
+            regression-debug/**
             /tmp/pytest-of-*/pytest-*/**
 
   docs:

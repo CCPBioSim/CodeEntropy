@@ -13,7 +13,9 @@ The implementation is intentionally split into small, single-purpose methods:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -123,6 +125,15 @@ class VibrationalEntropy:
             Array of entropy components (J/mol/K) for each valid mode.
         """
         lambdas = self._matrix_eigenvalues(matrix)
+        if os.getenv("CODEENTROPY_DEBUG_REGRESSION") == "1":
+            debug_dir = Path(os.getenv("CODEENTROPY_DEBUG_DIR", "regression-debug"))
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            idx = len(list(debug_dir.glob("eigenvalues_*.npy")))
+            np.save(
+                debug_dir / f"eigenvalues_{idx}_{matrix_type}.npy", np.asarray(lambdas)
+            )
+            np.save(debug_dir / f"matrix_{idx}_{matrix_type}.npy", np.asarray(matrix))
         logger.debug("lambdas: %s", lambdas)
         lambdas = self._convert_lambda_units(lambdas)
         logger.debug("lambdas converted units: %s", lambdas)

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -263,6 +265,19 @@ class VibrationalEntropyNode:
             fmat = force_ua.get(key)
             tmat = torque_ua.get(key)
             flexible = flexible_ua.get(key)
+
+            if os.getenv("CODEENTROPY_DEBUG_REGRESSION") == "1":
+                debug_dir = Path(os.getenv("CODEENTROPY_DEBUG_DIR", "regression-debug"))
+                debug_dir.mkdir(parents=True, exist_ok=True)
+
+                np.save(
+                    debug_dir / f"ua_force_group{group_id}_res{res_id}.npy",
+                    np.asarray(fmat),
+                )
+                np.save(
+                    debug_dir / f"ua_torque_group{group_id}_res{res_id}.npy",
+                    np.asarray(tmat),
+                )
 
             pair = self._compute_force_torque_entropy(
                 ve=ve,
