@@ -139,16 +139,24 @@ class VibrationalEntropy:
 
     @staticmethod
     def _matrix_eigenvalues(matrix: np.ndarray) -> np.ndarray:
-        """Compute eigenvalues of a matrix.
+        """Compute eigenvalues of a symmetric covariance matrix.
 
         Args:
-            matrix: Input matrix.
+            matrix: Input covariance/second-moment matrix.
 
         Returns:
-            Eigenvalues as a NumPy array.
+            Real eigenvalues as a NumPy array.
         """
         matrix = np.asarray(matrix, dtype=float)
-        return la.eigvals(matrix)
+
+        if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+            raise ValueError(f"Expected square matrix, got shape={matrix.shape}")
+
+        # Covariance matrices should be symmetric. Explicit symmetrisation avoids
+        # tiny floating-point asymmetries affecting the eigensolver path.
+        matrix = 0.5 * (matrix + matrix.T)
+
+        return la.eigvalsh(matrix)
 
     def _convert_lambda_units(self, lambdas: np.ndarray) -> np.ndarray:
         """Convert eigenvalues into SI units using run_manager.
@@ -162,54 +170,51 @@ class VibrationalEntropy:
         return self._run_manager.change_lambda_units(lambdas)
 
     def _flexible_dihedral(self, lambdas: np.ndarray, flexible: int) -> np.ndarray:
-        """Force halving for flexible dihedrals.
+        """Force halving for flexible dihedrals."""
+        lambdas = np.asarray(lambdas, dtype=float).copy()
 
-        If N flexible dihedrals, halve the forces for the N largest eigenvalues.
-        The matrix has force^2 so use factor of 0.25 for eigenvalues.
+        if flexible <= 0 or lambdas.size == 0:
+            return lambdas
 
-        Args:
-            lambdas: Eigenvalues
-            flexible: the number of flexible dihedrals in the molecule
+        n_flexible = min(int(flexible), lambdas.size)
 
-        Returns:
-            reduced lambdas
-        """
-        halved = sorted(lambdas, reverse=True)
-        for i in range(flexible):
-            halved[i] = 0.25 * halved[i]
-        lambdas = halved
+        # Halve the largest eigenvalues deterministically.
+        idx = np.argsort(lambdas)[::-1][:n_flexible]
+        lambdas[idx] *= 0.25
 
         return lambdas
 
     def _frequencies_from_lambdas(self, lambdas: np.ndarray, temp: float) -> np.ndarray:
         """Convert eigenvalues to frequencies with robust filtering.
 
-        Filters out eigenvalues that are complex, non-positive, or near-zero to
-        avoid invalid frequencies and unstable entropies.
-
-        Args:
-            lambdas: Eigenvalues (post unit conversion).
-            temp: Temperature in Kelvin.
-
-        Returns:
-            Frequencies in Hz.
+        Filters out non-finite, non-positive, and near-zero eigenvalues. The
+        near-zero threshold is scale-aware so rigid-body/null modes are removed
+        consistently across platforms.
         """
-        lambdas = np.asarray(lambdas)
-        lambdas = np.real_if_close(lambdas, tol=1000)
+        lambdas = np.asarray(lambdas, dtype=float).reshape(-1)
 
-        valid_mask = (
-            np.isreal(lambdas) & (lambdas > 0) & (~np.isclose(lambdas, 0, atol=1e-7))
-        )
+        finite_mask = np.isfinite(lambdas)
+        finite_lambdas = lambdas[finite_mask]
 
-        removed = int(len(lambdas) - np.count_nonzero(valid_mask))
+        if finite_lambdas.size == 0:
+            logger.warning("No finite eigenvalues available for vibrational entropy.")
+            return np.array([], dtype=float)
+
+        scale = float(np.max(np.abs(finite_lambdas)))
+        zero_tol = max(1e-7, 1e-10 * scale)
+
+        valid_mask = finite_mask & (lambdas > zero_tol)
+
+        removed = int(lambdas.size - np.count_nonzero(valid_mask))
         if removed:
             logger.warning(
-                "%d invalid eigenvalues excluded (complex, non-positive, "
-                "or near-zero).",
+                "%d eigenvalues excluded from vibrational entropy "
+                "(non-finite, non-positive, or below zero_tol=%g).",
                 removed,
+                zero_tol,
             )
 
-        lambdas = np.asarray(lambdas[valid_mask].real, dtype=float)
+        lambdas = lambdas[valid_mask]
         if lambdas.size == 0:
             return np.array([], dtype=float)
 
