@@ -94,7 +94,7 @@ class FrameCovarianceNode:
         poly_molcount: dict[int, int] = {}
 
         for group_id, mol_ids in sorted(groups.items()):
-            for mol_id in mol_ids:
+            for mol_id in sorted(mol_ids):
                 mol = fragments[mol_id]
                 level_list = levels[mol_id]
 
