@@ -240,18 +240,7 @@ class LevelDAG:
     def _reduce_force_and_torque(
         self, shared_data: dict[str, Any], frame_out: dict[str, Any]
     ) -> None:
-        """Reduce force/torque covariance outputs into shared accumulators.
-
-        Args:
-            shared_data: Shared workflow data dict containing:
-                - "force_covariances", "torque_covariances": accumulator structures.
-                - "frame_counts": running sample counts for each accumulator slot.
-                - "group_id_to_index": mapping from group id to accumulator index.
-            frame_out: Frame-local outputs containing "force" and "torque" sections.
-
-        Returns:
-            None. Mutates accumulator values and counts in shared_data in-place.
-        """
+        """Reduce force/torque covariance outputs into shared accumulators."""
         f_cov = shared_data["force_covariances"]
         t_cov = shared_data["torque_covariances"]
         counts = shared_data["frame_counts"]
@@ -260,37 +249,43 @@ class LevelDAG:
         f_frame = frame_out["force"]
         t_frame = frame_out["torque"]
 
-        for key, F in f_frame["ua"].items():
+        for key in sorted(f_frame["ua"].keys()):
+            F = f_frame["ua"][key]
             counts["ua"][key] = counts["ua"].get(key, 0) + 1
             n = counts["ua"][key]
             f_cov["ua"][key] = self._incremental_mean(f_cov["ua"].get(key), F, n)
 
-        for key, T in t_frame["ua"].items():
+        for key in sorted(t_frame["ua"].keys()):
+            T = t_frame["ua"][key]
             if key not in counts["ua"]:
                 counts["ua"][key] = counts["ua"].get(key, 0) + 1
             n = counts["ua"][key]
             t_cov["ua"][key] = self._incremental_mean(t_cov["ua"].get(key), T, n)
 
-        for gid, F in f_frame["res"].items():
+        for gid in sorted(f_frame["res"].keys()):
+            F = f_frame["res"][gid]
             gi = gid2i[gid]
             counts["res"][gi] += 1
             n = counts["res"][gi]
             f_cov["res"][gi] = self._incremental_mean(f_cov["res"][gi], F, n)
 
-        for gid, T in t_frame["res"].items():
+        for gid in sorted(t_frame["res"].keys()):
+            T = t_frame["res"][gid]
             gi = gid2i[gid]
             if counts["res"][gi] == 0:
                 counts["res"][gi] += 1
             n = counts["res"][gi]
             t_cov["res"][gi] = self._incremental_mean(t_cov["res"][gi], T, n)
 
-        for gid, F in f_frame["poly"].items():
+        for gid in sorted(f_frame["poly"].keys()):
+            F = f_frame["poly"][gid]
             gi = gid2i[gid]
             counts["poly"][gi] += 1
             n = counts["poly"][gi]
             f_cov["poly"][gi] = self._incremental_mean(f_cov["poly"][gi], F, n)
 
-        for gid, T in t_frame["poly"].items():
+        for gid in sorted(t_frame["poly"].keys()):
+            T = t_frame["poly"][gid]
             gi = gid2i[gid]
             if counts["poly"][gi] == 0:
                 counts["poly"][gi] += 1
