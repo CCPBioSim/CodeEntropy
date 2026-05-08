@@ -139,15 +139,16 @@ class VibrationalEntropy:
 
     @staticmethod
     def _matrix_eigenvalues(matrix: np.ndarray) -> np.ndarray:
-        """Compute eigenvalues of a real symmetric covariance matrix."""
+        """Compute eigenvalues of a matrix.
+
+        Args:
+            matrix: Input matrix.
+
+        Returns:
+            Eigenvalues as a NumPy array.
+        """
         matrix = np.asarray(matrix, dtype=float)
-
-        if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
-            raise ValueError(f"Expected square matrix, got shape={matrix.shape}")
-
-        matrix = 0.5 * (matrix + matrix.T)
-
-        return la.eigvalsh(matrix)
+        return la.eigvals(matrix)
 
     def _convert_lambda_units(self, lambdas: np.ndarray) -> np.ndarray:
         """Convert eigenvalues into SI units using run_manager.
