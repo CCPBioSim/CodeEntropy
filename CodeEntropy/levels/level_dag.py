@@ -315,13 +315,15 @@ class LevelDAG:
         gid2i = shared_data["group_id_to_index"]
         ft_frame = frame_out["forcetorque"]
 
-        for gid, M in ft_frame.get("res", {}).items():
+        for gid in sorted(ft_frame.get("res", {}).keys()):
+            M = ft_frame["res"][gid]
             gi = gid2i[gid]
             ft_counts["res"][gi] += 1
             n = ft_counts["res"][gi]
             ft_cov["res"][gi] = self._incremental_mean(ft_cov["res"][gi], M, n)
 
-        for gid, M in ft_frame.get("poly", {}).items():
+        for gid in sorted(ft_frame.get("poly", {}).keys()):
+            M = ft_frame["poly"][gid]
             gi = gid2i[gid]
             ft_counts["poly"][gi] += 1
             n = ft_counts["poly"][gi]
