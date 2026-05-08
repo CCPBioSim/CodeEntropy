@@ -197,7 +197,9 @@ class LevelDAG:
                 title="Initializing",
             )
 
-        for ts in u.trajectory:
+        for frame_index in range(len(u.trajectory)):
+            ts = u.trajectory[frame_index]
+
             if progress is not None and task is not None:
                 progress.update(task, title=f"Frame {ts.frame}")
 
