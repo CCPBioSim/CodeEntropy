@@ -217,7 +217,7 @@ def test_get_UA_axes_raises_when_bonded_axes_fail(monkeypatch):
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
     with pytest.raises(ValueError):
-        ax.get_UA_axes(u, index=0, res_position=None)
+        ax.get_UA_axes(u, index=5, res_position=None)
 
 
 def test_get_custom_axes_degenerate_axis1_raises():
