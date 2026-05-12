@@ -8,7 +8,7 @@ import sys
 
 import psutil
 from dask.distributed import Client
-from dask_jobqueue import SLURMCluster
+from dask_jobqueue.slurm import SLURMCluster
 
 
 class HPCDaskManager:
