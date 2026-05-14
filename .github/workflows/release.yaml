@@ -168,7 +168,8 @@ jobs:
         with:
           miniforge-variant: Miniforge3
           python-version: "3.12"
-          auto-activate: false
+          auto-activate: true
+          activate-environment: base
           conda-remove-defaults: true
           channels: conda-forge
           channel-priority: strict
@@ -178,6 +179,8 @@ jobs:
         run: |
           conda install -y conda-build anaconda-client
           conda config --set anaconda_upload no
+          conda list conda-build
+          conda build --help
 
       - name: Build package
         shell: bash -l {0}
