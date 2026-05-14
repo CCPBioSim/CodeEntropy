@@ -219,7 +219,9 @@ class ConformationStateBuilder:
         Returns:
             List of peaks per dihedral (peak_values[dihedral_index] -> list of peaks).
         """
-        rep_mol = self._universe_operations.extract_fragment(data_container, 0)
+        rep_mol = self._universe_operations.extract_fragment(
+            data_container, molecules[0]
+        )
         number_frames = len(rep_mol.trajectory)
         num_residues = len(rep_mol.residues)
 
@@ -421,7 +423,9 @@ class ConformationStateBuilder:
         Returns:
             List of state labels (strings).
         """
-        rep_mol = self._universe_operations.extract_fragment(data_container, 0)
+        rep_mol = self._universe_operations.extract_fragment(
+            data_container, molecules[0]
+        )
         number_frames = len(rep_mol.trajectory)
         num_residues = len(rep_mol.residues)
 
