@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from CodeEntropy.levels.dihedrals import ConformationStateBuilder
+from CodeEntropy.levels.conformations import ConformationStateBuilder
 
 SharedData = dict[str, Any]
 ConformationalStates = dict[str, Any]
@@ -77,6 +77,7 @@ class ComputeConformationalStatesNode:
         levels = shared_data["levels"]
         groups = shared_data["groups"]
         bin_width = int(shared_data["args"].bin_width)
+        conf_type = shared_data["args"].conf_type
 
         states_ua, states_res, flexible_ua, flexible_res = (
             self._dihedral_analysis.build_conformational_states(
@@ -84,6 +85,7 @@ class ComputeConformationalStatesNode:
                 levels=levels,
                 groups=groups,
                 bin_width=bin_width,
+                conf_type=conf_type,
                 progress=progress,
             )
         )

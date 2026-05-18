@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from CodeEntropy.levels.dihedrals import ConformationStateBuilder
+from CodeEntropy.levels.conformations import ConformationStateBuilder
 
 
 class _AddableAG:
@@ -63,7 +63,10 @@ def test_get_dihedrals_united_atom_collects_atoms_from_dihedral_objects():
     container = MagicMock()
     container.dihedrals = [d0, d1]
 
-    assert dt._get_dihedrals(container, level="united_atom") == ["A0", "A1"]
+    assert dt._get_dihedrals(container, level="united_atom", conf_type="res_bonds") == [
+        "A0",
+        "A1",
+    ]
 
 
 def test_get_dihedrals_residue_returns_empty_when_less_than_4_residues():
@@ -73,7 +76,7 @@ def test_get_dihedrals_residue_returns_empty_when_less_than_4_residues():
     mol.residues = [MagicMock(), MagicMock(), MagicMock()]
     mol.select_atoms = MagicMock()
 
-    assert dt._get_dihedrals(mol, level="residue") == []
+    assert dt._get_dihedrals(mol, level="residue", conf_type="res_bonds") == []
     mol.select_atoms.assert_not_called()
 
 
@@ -91,7 +94,7 @@ def test_get_dihedrals_residue_builds_one_dihedral_when_4_residues():
         ]
     )
 
-    out = dt._get_dihedrals(mol, level="residue")
+    out = dt._get_dihedrals(mol, level="residue", conf_type="res_bonds")
 
     assert len(out) == 1
     assert isinstance(out[0], _AddableAG)
@@ -110,6 +113,7 @@ def test_identify_peaks_sets_empty_outputs_when_no_dihedrals():
         data_container=MagicMock(),
         molecules=[0],
         bin_width=30.0,
+        conf_type="res_bonds",
         level_list=["united_atom", "residue"],
     )
 
@@ -142,13 +146,14 @@ def test_identify_peaks_wraps_negative_angles_and_calls_find_histogram_peaks():
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
     with (
-        patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral),
+        patch("CodeEntropy.levels.conformations.Dihedral", _FakeDihedral),
         patch.object(dt, "_process_histogram", return_value=[15.0]) as peaks_spy,
     ):
         out_ua, out_res = dt._identify_peaks(
             data_container=MagicMock(),
             molecules=[0],
             bin_width=10.0,
+            conf_type="res_bonds",
             level_list=["united_atom", "residue"],
         )
 
@@ -194,12 +199,13 @@ def test_assign_states_initialises_then_extends_for_multiple_molecules():
         def run(self):
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
-    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
+    with patch("CodeEntropy.levels.conformations.Dihedral", _FakeDihedral):
         dt._assign_states(
             data_container=MagicMock(),
             group_id=0,
             molecules=[0, 1],
             level_list=["united_atom", "residue"],
+            conf_type="res_bonds",
             peaks_ua=[peaks],
             peaks_res=peaks,
             states_ua=states_ua,
@@ -228,6 +234,7 @@ def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatc
         levels=levels,
         groups=groups,
         bin_width=30.0,
+        conf_type="res_bonds",
     )
 
     assert states_ua == {}
@@ -267,11 +274,12 @@ def test_identify_peaks_handles_multiple_dihedrals():
         def run(self):
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
-    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
+    with patch("CodeEntropy.levels.conformations.Dihedral", _FakeDihedral):
         out_ua, out_res = dt._identify_peaks(
             data_container=MagicMock(),
             molecules=[0],
             bin_width=30.0,
+            conf_type="res_bonds",
             level_list=["united_atom", "residue"],
         )
 
@@ -305,12 +313,13 @@ def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
         def run(self):
             return SimpleNamespace(results=SimpleNamespace(angles=[]))
 
-    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
+    with patch("CodeEntropy.levels.conformations.Dihedral", _FakeDihedral):
         dt._assign_states(
             data_container=MagicMock(),
             group_id=0,
             molecules=[0],
             level_list=["united_atom", "residue"],
+            conf_type="res_bonds",
             peaks_ua=[],
             peaks_res=[],
             states_ua=states_ua,
@@ -357,9 +366,9 @@ def test_identify_peaks_multiple_molecules_real_histogram():
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
     with (
-        patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral),
+        patch("CodeEntropy.levels.conformations.Dihedral", _FakeDihedral),
         patch(
-            "CodeEntropy.levels.dihedrals.ConformationStateBuilder._process_dihedral_phi",
+            "CodeEntropy.levels.conformations.ConformationStateBuilder._process_dihedral_phi",
             dt._process_dihedral_phi,
         ),
     ):
@@ -367,6 +376,7 @@ def test_identify_peaks_multiple_molecules_real_histogram():
             data_container=MagicMock(),
             molecules=[0, 1],
             bin_width=90.0,
+            conf_type="res_bonds",
             level_list=["united_atom", "residue"],
         )
 
@@ -402,12 +412,13 @@ def test_assign_states_wraps_negative_angles():
         def run(self):
             return SimpleNamespace(results=SimpleNamespace(angles=angles))
 
-    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
+    with patch("CodeEntropy.levels.conformations.Dihedral", _FakeDihedral):
         dt._assign_states(
             data_container=MagicMock(),
             group_id=0,
             molecules=[0, 1],
             level_list=["united_atom", "residue"],
+            conf_type="res_bonds",
             peaks_ua=[peaks],
             peaks_res=peaks,
             states_ua=states_ua,
@@ -434,6 +445,7 @@ def test_build_conformational_states_with_progress_handles_no_groups():
         levels={},
         groups={},  # empty
         bin_width=30.0,
+        conf_type="res_bonds",
         progress=progress,
     )
 
@@ -459,6 +471,7 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
         levels=levels,
         groups=groups,
         bin_width=30.0,
+        conf_type="res_bonds",
         progress=progress,
     )
 
@@ -487,6 +500,7 @@ def test_build_conformational_states_with_progress_updates_title_per_group(monke
         levels=levels,
         groups=groups,
         bin_width=30.0,
+        conf_type="res_bonds",
         progress=progress,
     )
 

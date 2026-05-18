@@ -21,6 +21,7 @@ def test_compute_conformational_states_node_runs_and_writes_shared_data():
         "step": 1,
         "n_frames": 10,
         "args": SimpleNamespace(bin_width=10),
+        "conf_type": "res_bonds",
     }
 
     out = node.run(shared)
