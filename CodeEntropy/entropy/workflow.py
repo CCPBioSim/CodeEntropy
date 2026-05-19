@@ -42,7 +42,7 @@ class TrajectorySlice:
 
     Attributes:
         start: Inclusive start frame index.
-        end: Exclusive end frame index (or a concrete index derived from args).
+        end: Exclusive end frame index.
         step: Step size between frames.
         n_frames: Number of frames in the slice.
     """
@@ -170,6 +170,7 @@ class EntropyWorkflow:
             "end": traj.end,
             "step": traj.step,
             "n_frames": traj.n_frames,
+            # "frame_indices": traj.frame_indices,
         }
         return shared_data
 
@@ -206,17 +207,24 @@ class EntropyWorkflow:
         """
         start, end, step = self._get_trajectory_bounds()
         n_frames = self._get_number_frames(start, end, step)
-        return TrajectorySlice(start=start, end=end, step=step, n_frames=n_frames)
+
+        return TrajectorySlice(
+            start=start,
+            end=end,
+            step=step,
+            n_frames=n_frames,
+        )
 
     def _get_trajectory_bounds(self) -> tuple[int, int, int]:
         """Return start, end, and step frame indices from args.
 
         Returns:
-            Tuple of (start, end, step).
+            Tuple of ``(start, end, step)``.
         """
-        start = self._args.start or 0
+        start = self._args.start
         end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
-        step = self._args.step or 1
+        step = self._args.step
+
         return start, end, step
 
     def _get_number_frames(self, start: int, end: int, step: int) -> int:
@@ -230,30 +238,37 @@ class EntropyWorkflow:
         Returns:
             Number of frames processed.
         """
+
         return math.floor((end - start) / step)
 
     def _build_reduced_universe(self) -> Any:
         """Apply atom and frame selection and return the reduced universe.
 
         Returns:
-            MDAnalysis Universe (reduced according to user selections).
+            MDAnalysis Universe reduced according to user selections.
         """
         selection = self._args.selection_string
         start = self._args.start
         end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
         step = self._args.step
+
         if selection == "all":
             reduced_atoms = self._universe
         else:
             reduced_atoms = self._universe_operations.select_atoms(
-                self._universe, selection
+                self._universe,
+                selection,
             )
             name = f"{len(reduced_atoms.trajectory)}_frame_dump_atom_selection"
             self._run_manager.write_universe(reduced_atoms, name)
 
         reduced_frames = self._universe_operations.select_frames(
-            reduced_atoms, start, end, step
+            reduced_atoms,
+            start,
+            end,
+            step,
         )
+
         name = f"{len(reduced_frames.trajectory)}_frame_dump_frame_selection"
         self._run_manager.write_universe(reduced_frames, name)
 

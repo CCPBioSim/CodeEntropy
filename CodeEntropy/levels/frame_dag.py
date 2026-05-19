@@ -70,16 +70,19 @@ class FrameGraph:
         """Execute the frame DAG for a single trajectory frame.
 
         Args:
-            shared_data: Shared workflow data dict.
-            frame_index: Absolute trajectory frame index.
+            shared_data: Shared workflow data dictionary.
+            frame_index: Local reduced-trajectory frame index.
 
         Returns:
-            Frame-local covariance payload produced by FrameCovarianceNode.
+            Frame-local covariance payload produced by ``FrameCovarianceNode``.
         """
-        ctx = self._make_frame_ctx(shared_data=shared_data, frame_index=frame_index)
+        ctx = self._make_frame_ctx(
+            shared_data=shared_data,
+            frame_index=frame_index,
+        )
 
         for node_name in nx.topological_sort(self._graph):
-            logger.debug(f"[FrameGraph] running {node_name} @ frame={frame_index}")
+            logger.debug("[FrameGraph] running %s @ frame=%s", node_name, frame_index)
             self._nodes[node_name].run(ctx)
 
         return ctx["frame_covariance"]
