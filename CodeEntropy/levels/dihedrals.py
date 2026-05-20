@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from CodeEntropy.levels.axes import AxesCalculator
+
 logger = logging.getLogger(__name__)
 
 UAKey = tuple[int, int]
@@ -20,6 +22,7 @@ class DihedralDefinitions:
 
     def __init__(self) -> None:
         """Initializes the analysis helper."""
+        self._axes = AxesCalculator()
 
     def method_res_bonds(self, data_container: Any, level: str) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
@@ -104,4 +107,42 @@ class DihedralDefinitions:
                     atom_groups.append(atom1 + atom2 + atom3 + atom4)
 
         logger.debug(f"Level: {level}, Dihedrals: {atom_groups}")
+        return atom_groups
+
+    def method_ua_only(self, data_container: Any, level: str) -> list[Any]:
+        """Return dihedral AtomGroups for a container at a given level.
+
+        Args:
+            data_container: MDAnalysis container (AtomGroup/Universe).
+            level: Either "united_atom" or "residue".
+
+        Returns:
+            List of AtomGroups (each representing a dihedral definition).
+        """
+        atom_groups: list[Any] = []
+
+        if level == "united_atom":
+            dihedrals = data_container.dihedrals
+            for d in dihedrals:
+                atom_groups.append(d.atoms)
+
+        if level == "residue":
+            num_residues = len(data_container.residues)
+            backbone = data_container.select_atoms("name H and not name H")
+            if num_residues >= 4:
+                for index in range(num_residues):
+                    residue = data_container.residues[index]
+                    edges = data_container.select_atoms(
+                        f"resindex {index} and bonded not resindex {index}"
+                    )
+                    if len(edges) == 1:
+                        backbone += edges
+                    elif len(edges) == 2:
+                        chain = self._axes.get_chain(residue, edges[0], edges[1])
+                        backbone += chain
+
+                dihedrals = backbone.dihedrals
+                for d in dihedrals:
+                    atom_groups.append(d.atoms)
+
         return atom_groups

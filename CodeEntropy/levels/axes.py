@@ -116,7 +116,7 @@ class AxesCalculator:
             # No bonds to other residues.
             # Use a custom principal axes, from a MOI tensor that uses positions of
             # heavy atoms only, but including masses of heavy atom + bonded H.
-            uas = residue.select_atoms("mass 2 to 999")
+            uas = residue.select_atoms("prop mass > 1.1")
             ua_masses = self.get_UA_masses(residue)
             moi_tensor = self.get_moment_of_inertia_tensor(
                 center_of_mass=center,
@@ -339,11 +339,11 @@ class AxesCalculator:
 
         Returns:
             Tuple[AtomGroup, AtomGroup]:
-                - bonded_heavy_atoms: bonded heavy atoms (mass 2 to 999)
+                - bonded_heavy_atoms: bonded heavy atoms (mass > 1.1)
                 - bonded_H_atoms: bonded hydrogen atoms (mass 1 to 1.1)
         """
         bonded_atoms = system.select_atoms(f"bonded index {atom_idx}")
-        bonded_heavy_atoms = bonded_atoms.select_atoms("mass 2 to 999")
+        bonded_heavy_atoms = bonded_atoms.select_atoms("prop mass > 1.1")
         bonded_H_atoms = bonded_atoms.select_atoms("mass 1 to 1.1")
         return bonded_heavy_atoms, bonded_H_atoms
 
@@ -636,3 +636,76 @@ class AxesCalculator:
                     ua_mass += float(h.mass)
                 ua_masses.append(ua_mass)
         return ua_masses
+
+    def get_chain(self, residue, first, last):
+        """
+        For a given MDAnalysis AtomGroup and two given heavy atoms
+        within that AtomGroup, return the
+        shortest path between the two atoms.
+        Args:
+            residue: MDAnalysis AtomGroup representing
+                the residue/monomer of interest.
+            first: First heavy atom in the chain
+            last: Last heavy atom in the chain
+
+            Returns:
+                chain: MDAnalysis AtomGroup containing
+                the chain heavy atoms.
+        """
+        chain = []
+        chain_indices = []
+        # at the beggining we've only visited the first atom
+        visited_dict = {first: True}
+        # keep the previous atom to trace back the path
+        prev = {}
+        # queue of next heavy atoms to visit
+        next_to_visit = [first]
+        # all others heavy atoms in the residue, we have not yet visited
+        remaining_heavy_atoms = residue.atoms.select_atoms(
+            f"(prop mass > 1.1) and not index {first.index}"
+        )
+        for atom in remaining_heavy_atoms:
+            visited_dict[atom] = False
+        current = first
+        while not visited_dict[last]:
+            # we haven't found a path to the last residue
+            next_to_visit.pop(0)
+            # we're visiting the current atom => we remove it from the queue
+            bonded_atoms = residue.atoms.select_atoms(
+                f"(prop mass > 1.1) and bonded index {current.index}"
+            )
+            if last in bonded_atoms:
+                # we found a path to the last atom
+                visited_dict[last] = True
+                chain.append(last)
+                prev[last] = current
+            else:
+                for bonded_atom in bonded_atoms:
+                    # look for unvisited bonded atoms to the current atom we're visiting
+                    if not visited_dict[bonded_atom]:
+                        # we're going to want to visit the atoms
+                        next_to_visit.append(bonded_atom)
+                        prev[bonded_atom] = current
+                # we visit the next atom in the queue
+                current = next_to_visit[0]
+                visited_dict[current] = True
+
+        # we track the previous atom back to the first atom now
+        current = last
+        chain = [last]
+        # subtract index of first atom in resid
+        # most likely will coincide with first
+        # but this will work even if it doesn't
+        # accout for in-residue index
+        chain_indices = [last.index - residue.atoms.indices[0]]
+        # start from last atom in chain
+        while chain[-1] != first:
+            # we haven't yet returned to the first atom
+            current = prev[current]
+            chain.append(current)
+            chain_indices.append(current.index - residue.atoms.indices[0])
+        chain_indices = np.flip(chain_indices)
+        # accout for in-residue index
+        chain_AtomGroup = residue.atoms[chain_indices]
+        chain = chain_AtomGroup.atoms.select_atoms("all")
+        return chain

@@ -185,6 +185,11 @@ class ConformationStateBuilder:
                 data_container=data_container, level=level
             )
 
+        elif conf_type == "ua_only":
+            atom_groups = self._dihedral_definitions.method_ua_only(
+                data_container=data_container, level=level
+            )
+
         return atom_groups
 
     def _identify_peaks(
@@ -479,6 +484,8 @@ class ConformationStateBuilder:
                         flex_res = max(flex_res, flexible)
 
                     states_res.append(state_res)
+                    if conf_type == "ua_only":
+                        flex_res = 0
                     flexible_res.append(flex_res)
 
     def _process_conformations(
