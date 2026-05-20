@@ -80,10 +80,8 @@ class ConformationStateBuilder:
             - This function advances progress once per group_id.
               helpers as implemented in this module.
         """
-        number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
-        # states_res: list[list[str]] = [[]]
-        states_res: list[list[str]] = [[] for _ in range(number_groups)]
+        states_res: list[Any] = []
         flexible_ua: dict[UAKey, int] = {}
         flexible_res: list[int] = []
 
@@ -480,8 +478,8 @@ class ConformationStateBuilder:
                         state_res.extend(states)
                         flex_res = max(flex_res, flexible)
 
-        states_res.append(state_res)
-        flexible_res.append(flex_res)
+                    states_res.append(state_res)
+                    flexible_res.append(flex_res)
 
     def _process_conformations(
         self, peaks, dihedral_results, num_dihedrals, number_frames

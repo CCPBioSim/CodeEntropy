@@ -59,7 +59,7 @@ class ConformationalEntropy:
         probs = probs[probs > 0.0]
 
         s_conf = -self._GAS_CONST * float(np.sum(probs * np.log(probs)))
-        logger.debug(f"Total conformational entropy: {s_conf}")
+        logger.debug(f"Conformational entropy: {s_conf}")
         return s_conf
 
     @staticmethod

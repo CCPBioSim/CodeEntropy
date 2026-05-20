@@ -159,6 +159,8 @@ class ConfigurationalEntropyNode:
             val = self._entropy_or_zero(ce, states)
             total += val
 
+            logger.debug(f"UA Conformational {res_id} val {val}")
+
             if reporter is not None:
                 reporter.add_residue_data(
                     group_id=group_id,
@@ -168,6 +170,8 @@ class ConfigurationalEntropyNode:
                     frame_count=n_frames,
                     value=val,
                 )
+
+        logger.debug(f"UA Conformational {group_id} total {total}")
 
         if reporter is not None:
             reporter.add_results_data(group_id, "united_atom", "Conformational", total)
@@ -184,7 +188,10 @@ class ConfigurationalEntropyNode:
     ) -> float:
         """Compute residue-level entropy for a group."""
         group_states = self._get_group_states(states_res, group_id)
-        return self._entropy_or_zero(ce, group_states)
+        val = self._entropy_or_zero(ce, group_states)
+
+        logger.debug(f"Residue Level {group_id} Conformational {val}")
+        return val
 
     def _entropy_or_zero(
         self,
