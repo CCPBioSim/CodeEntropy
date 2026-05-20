@@ -69,13 +69,35 @@ class FrameGraph:
     def execute_frame(self, shared_data: dict[str, Any], frame_index: int) -> Any:
         """Execute the frame DAG for a single trajectory frame.
 
+        FrameGraph owns MDAnalysis trajectory positioning for frame-local execution.
+        Higher-level orchestration passes frame indices, but must not rely on hidden
+        trajectory cursor state.
+
         Args:
-            shared_data: Shared workflow data dictionary.
-            frame_index: Local reduced-trajectory frame index.
+            shared_data: Shared workflow data dictionary. Must contain
+                ``"reduced_universe"``.
+            frame_index: Frame index to process. At this migration stage this is a
+                local index into the already frame-reduced universe.
 
         Returns:
             Frame-local covariance payload produced by ``FrameCovarianceNode``.
+
+        Raises:
+            KeyError: If ``"reduced_universe"`` is missing from ``shared_data``.
+            IndexError: If ``frame_index`` is outside the trajectory bounds.
         """
+        universe = shared_data["reduced_universe"]
+        frame_index = int(frame_index)
+
+        try:
+            universe.trajectory[frame_index]
+        except IndexError as exc:
+            n_frames = len(universe.trajectory)
+            raise IndexError(
+                f"Frame index {frame_index} is outside trajectory bounds "
+                f"for trajectory with {n_frames} frames."
+            ) from exc
+
         ctx = self._make_frame_ctx(
             shared_data=shared_data,
             frame_index=frame_index,

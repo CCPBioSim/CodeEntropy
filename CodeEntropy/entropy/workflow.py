@@ -16,7 +16,6 @@ The manager intentionally delegates calculations to dedicated components.
 from __future__ import annotations
 
 import logging
-import math
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -251,10 +250,9 @@ class EntropyWorkflow:
             step: Step between frames.
 
         Returns:
-            Number of frames processed.
+            Number of frames selected by Python slicing semantics.
         """
-
-        return math.floor((end - start) / step)
+        return len(range(start, end, step))
 
     def _build_reduced_universe(self) -> Any:
         """Apply atom and frame selection and return the reduced universe.

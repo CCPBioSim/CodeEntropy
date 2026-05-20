@@ -160,33 +160,40 @@ class LevelDAG:
     ) -> None:
         """Execute the per-frame DAG stage and reduce frame outputs.
 
-        This method iterates over the already frame-reduced trajectory, executes the
-        frame-local DAG for each local reduced-frame index, and reduces frame outputs
-        into shared accumulators.
+        This method iterates over explicit frame indices stored in
+        ``shared_data["frame_indices"]``. At this migration stage, those indices are
+        local indices into the already frame-reduced universe.
+
+        FrameGraph owns trajectory positioning. LevelDAG only decides which frame
+        indices to process and reduces each frame-local output into the shared
+        accumulators.
 
         Args:
             shared_data: Shared data dictionary. Must contain:
                 - ``reduced_universe``: MDAnalysis Universe after atom/frame selection.
-                - ``n_frames``: Number of frames to process.
+                - ``frame_indices``: Frame indices to process.
             progress: Optional progress sink.
 
         Returns:
             None. Mutates ``shared_data`` in-place via reduction.
+
+        Raises:
+            KeyError: If ``frame_indices`` is missing from ``shared_data``.
         """
-        universe = shared_data["reduced_universe"]
-        n_frames = shared_data["n_frames"]
+        frame_indices = list(shared_data["frame_indices"])
+        shared_data["n_frames"] = len(frame_indices)
 
         task: TaskID | None = None
 
         if progress is not None:
             task = progress.add_task(
                 "[green]Frame processing",
-                total=n_frames,
+                total=len(frame_indices),
                 title="Initializing",
             )
 
-        for ts in universe.trajectory:
-            frame_index = ts.frame
+        for frame_index in frame_indices:
+            frame_index = int(frame_index)
 
             if progress is not None and task is not None:
                 progress.update(task, title=f"Frame {frame_index}")
