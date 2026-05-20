@@ -32,42 +32,46 @@ class Neighbors:
         self._levels = None
         self._search = Search()
 
-    def get_neighbors(self, universe, levels, groups, n_frames, search_type):
-        """
-        Find the neighbors relative to the central molecule.
-
-        The search defaults to using RAD, but an MDAnalysis method based
-        on grid searches is also available.
-        The average number of neighbors is calculated.
+    def get_neighbors(self, universe, levels, groups, frame_indices, search_type):
+        """Find average neighbour counts for each molecule group.
 
         Args:
-            universe: MDAnalysis universe object for the system
-            groups: list of groups for averaging
-            levels: list of levels for each molecule
-            search_type: str, how to find neigbours
+            universe: MDAnalysis universe object for the system.
+            levels: Level list for each molecule.
+            groups: Mapping of group id to molecule ids.
+            frame_indices: Frame indices to scan. At this migration stage these are
+                local indices into the already frame-reduced universe.
+            search_type: Neighbour search method, either ``"RAD"`` or ``"grid"``.
 
         Returns:
-            average_number_neighbors (dict): average number of neighbors
-                at each frame for each group
+            Dict mapping group id to average number of neighbours.
+
+        Raises:
+            ValueError: If ``search_type`` is unknown.
         """
+        frame_indices = [int(frame_index) for frame_index in frame_indices]
+        n_frames = len(frame_indices)
 
         number_neighbors = {}
         average_number_neighbors = {}
+
+        if n_frames == 0:
+            return {group_id: 0.0 for group_id in groups.keys()}
 
         for group_id in groups.keys():
             molecules = groups[group_id]
             highest_level = levels[molecules[0]][-1]
 
             for mol_id in molecules:
-                for timestep in range(n_frames):
+                for timestep in frame_indices:
                     if search_type == "RAD":
-                        # Use the relative angular distance method to find neighbors
                         neighbors = self._search.get_RAD_neighbors(
-                            universe=universe, mol_id=mol_id, timestep=timestep
+                            universe=universe,
+                            mol_id=mol_id,
+                            timestep=timestep,
                         )
 
                     elif search_type == "grid":
-                        # Use MDAnalysis neighbor search.
                         neighbors = self._search.get_grid_neighbors(
                             universe=universe,
                             mol_id=mol_id,
@@ -75,7 +79,6 @@ class Neighbors:
                             timestep=timestep,
                         )
                     else:
-                        # Raise error for unavailale search_type
                         raise ValueError(f"unknown search_type {search_type}")
 
                     if group_id in number_neighbors:
@@ -83,8 +86,6 @@ class Neighbors:
                     else:
                         number_neighbors[group_id] = [len(neighbors)]
 
-            # Get the average number of neighbors:
-            # dividing the sum by the number of molecules and number of frames
             number = np.sum(number_neighbors[group_id])
             average_number_neighbors[group_id] = number / (len(molecules) * n_frames)
             logger.debug(
