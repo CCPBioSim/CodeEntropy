@@ -41,16 +41,24 @@ class TrajectorySlice:
     """Trajectory slicing parameters.
 
     Attributes:
-        start: Inclusive start frame index.
-        end: Exclusive end frame index.
+        start: Inclusive start frame index in the source trajectory.
+        end: Exclusive end frame index in the source trajectory.
         step: Step size between frames.
-        n_frames: Number of frames in the slice.
+        n_frames: Number of frames in the selected slice.
+        frame_indices: Frame indices to process in the current analysis universe.
+
+    Notes:
+        During the stabilisation step, ``frame_indices`` are local to the
+        frame-reduced universe because ``_build_reduced_universe`` still performs
+        physical frame slicing. After physical frame slicing is removed, these
+        will become absolute source-trajectory frame indices.
     """
 
     start: int
     end: int
     step: int
     n_frames: int
+    frame_indices: list[int]
 
 
 class EntropyWorkflow:
@@ -149,7 +157,7 @@ class EntropyWorkflow:
         """Build the shared_data dict used by nodes and graphs.
 
         Args:
-            reduced_universe: Universe after applying selection.
+            reduced_universe: Universe after applying atom/frame selection.
             levels: Level definition per molecule id.
             groups: Mapping of group id -> list of molecule ids.
             traj: Trajectory slice parameters.
@@ -170,7 +178,7 @@ class EntropyWorkflow:
             "end": traj.end,
             "step": traj.step,
             "n_frames": traj.n_frames,
-            # "frame_indices": traj.frame_indices,
+            "frame_indices": list(traj.frame_indices),
         }
         return shared_data
 
@@ -204,6 +212,12 @@ class EntropyWorkflow:
 
         Returns:
             A TrajectorySlice describing the frames to analyze.
+
+        Notes:
+            At this migration stage, the workflow still physically creates a
+            frame-reduced universe. Therefore ``frame_indices`` are local indices into
+            that reduced universe. This preserves regression behaviour while making
+            frame selection explicit for the DAG.
         """
         start, end, step = self._get_trajectory_bounds()
         n_frames = self._get_number_frames(start, end, step)
@@ -213,6 +227,7 @@ class EntropyWorkflow:
             end=end,
             step=step,
             n_frames=n_frames,
+            frame_indices=list(range(n_frames)),
         )
 
     def _get_trajectory_bounds(self) -> tuple[int, int, int]:
