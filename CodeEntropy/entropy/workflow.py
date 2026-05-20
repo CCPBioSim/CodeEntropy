@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
@@ -28,36 +27,13 @@ from CodeEntropy.entropy.graph import EntropyGraph
 from CodeEntropy.entropy.water import WaterEntropy
 from CodeEntropy.levels.hierarchy import HierarchyBuilder
 from CodeEntropy.levels.level_dag import LevelDAG
+from CodeEntropy.trajectory.frames import FrameSelection
+from CodeEntropy.trajectory.source import FrameSource
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
 
 SharedData = dict[str, Any]
-
-
-@dataclass(frozen=True)
-class TrajectorySlice:
-    """Trajectory slicing parameters.
-
-    Attributes:
-        start: Inclusive start frame index in the source trajectory.
-        end: Exclusive end frame index in the source trajectory.
-        step: Step size between frames.
-        n_frames: Number of frames in the selected slice.
-        frame_indices: Frame indices to process in the current analysis universe.
-
-    Notes:
-        During the stabilisation step, ``frame_indices`` are local to the
-        frame-reduced universe because ``_build_reduced_universe`` still performs
-        physical frame slicing. After physical frame slicing is removed, these
-        will become absolute source-trajectory frame indices.
-    """
-
-    start: int
-    end: int
-    step: int
-    n_frames: int
-    frame_indices: list[int]
 
 
 class EntropyWorkflow:
@@ -102,21 +78,22 @@ class EntropyWorkflow:
         """Run the full entropy workflow and emit results.
 
         This orchestrates the complete entropy pipeline:
-            1. Build trajectory slice.
-            2. Apply atom and frame selection to create a reduced universe.
+            1. Build trajectory frame selection.
+            2. Apply atom/frame selection to create the current analysis universe.
             3. Detect hierarchy levels.
             4. Group molecules.
             5. Split groups into water and non-water.
-            6. Optionally compute water entropy (only if solute exists).
+            6. Optionally compute water entropy.
             7. Run level DAG and entropy graph.
             8. Finalize and persist results.
         """
-        traj = self._build_trajectory_slice()
+        frame_selection = self._build_frame_selection()
         console.print(
-            f"Analyzing a total of {traj.n_frames} frames in this calculation."
+            f"Analyzing a total of {frame_selection.n_frames} "
+            f"frames in this calculation."
         )
 
-        reduced_universe = self._build_reduced_universe()
+        reduced_universe = self._build_reduced_universe(frame_selection)
 
         levels = self._detect_levels(reduced_universe)
         groups = self._group_molecules.grouping_molecules(
@@ -128,7 +105,7 @@ class EntropyWorkflow:
         )
 
         if self._args.water_entropy and water_groups and nonwater_groups:
-            self._compute_water_entropy(traj, water_groups)
+            self._compute_water_entropy(frame_selection, water_groups)
         else:
             nonwater_groups.update(water_groups)
 
@@ -136,7 +113,7 @@ class EntropyWorkflow:
             reduced_universe=reduced_universe,
             levels=levels,
             groups=nonwater_groups,
-            traj=traj,
+            frame_selection=frame_selection,
         )
 
         with self._reporter.progress(transient=False) as p:
@@ -146,24 +123,46 @@ class EntropyWorkflow:
         self._finalize_molecule_results()
         self._reporter.log_tables()
 
+    def _build_frame_selection(self) -> FrameSelection:
+        """Build the workflow frame selection.
+
+        Returns:
+            FrameSelection containing:
+                - absolute source frame indices
+                - active analysis-universe frame indices
+        """
+        start, end, step = self._get_trajectory_bounds()
+        return FrameSelection.from_bounds(
+            start=start,
+            stop=end,
+            step=step,
+            physical_frame_slicing=True,
+        )
+
     def _build_shared_data(
         self,
         reduced_universe: Any,
         levels: Any,
         groups: Mapping[int, Any],
-        traj: TrajectorySlice,
+        frame_selection: FrameSelection,
     ) -> SharedData:
         """Build the shared_data dict used by nodes and graphs.
 
         Args:
-            reduced_universe: Universe after applying atom/frame selection.
+            reduced_universe: Active analysis universe after current atom/frame
+                selection policy.
             levels: Level definition per molecule id.
-            groups: Mapping of group id -> list of molecule ids.
-            traj: Trajectory slice parameters.
+            groups: Mapping of group id to molecule ids.
+            frame_selection: Explicit workflow frame selection.
 
         Returns:
             Shared data dictionary for DAG/graph execution.
         """
+        frame_source = FrameSource(
+            universe=reduced_universe,
+            selection=frame_selection,
+        )
+
         shared_data: SharedData = {
             "entropy_manager": self,
             "run_manager": self._run_manager,
@@ -173,11 +172,14 @@ class EntropyWorkflow:
             "reduced_universe": reduced_universe,
             "levels": levels,
             "groups": dict(groups),
-            "start": traj.start,
-            "end": traj.end,
-            "step": traj.step,
-            "n_frames": traj.n_frames,
-            "frame_indices": list(traj.frame_indices),
+            "start": frame_selection.source_start,
+            "end": frame_selection.source_stop_exclusive,
+            "step": frame_selection.infer_source_step(),
+            "n_frames": frame_selection.n_frames,
+            "frame_selection": frame_selection,
+            "frame_source": frame_source,
+            "frame_indices": list(frame_selection.analysis_indices),
+            "source_frame_indices": list(frame_selection.source_indices),
         }
         return shared_data
 
@@ -206,64 +208,63 @@ class EntropyWorkflow:
         entropy_results = EntropyGraph().build().execute(shared_data, progress=progress)
         shared_data.update(entropy_results)
 
-    def _build_trajectory_slice(self) -> TrajectorySlice:
-        """Compute trajectory slicing parameters from args.
-
-        Returns:
-            A TrajectorySlice describing the frames to analyze.
-
-        Notes:
-            At this migration stage, the workflow still physically creates a
-            frame-reduced universe. Therefore ``frame_indices`` are local indices into
-            that reduced universe. This preserves regression behaviour while making
-            frame selection explicit for the DAG.
-        """
-        start, end, step = self._get_trajectory_bounds()
-        n_frames = self._get_number_frames(start, end, step)
-
-        return TrajectorySlice(
-            start=start,
-            end=end,
-            step=step,
-            n_frames=n_frames,
-            frame_indices=list(range(n_frames)),
-        )
-
     def _get_trajectory_bounds(self) -> tuple[int, int, int]:
-        """Return start, end, and step frame indices from args.
+        """Return validated start, end, and step frame indices from args.
 
         Returns:
             Tuple of ``(start, end, step)``.
+
+        Raises:
+            ValueError: If the frame window is invalid.
         """
-        start = self._args.start
-        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
-        step = self._args.step
+        n_total = len(self._universe.trajectory)
+
+        start = 0 if self._args.start is None else int(self._args.start)
+        end = (
+            n_total
+            if self._args.end is None or int(self._args.end) == -1
+            else int(self._args.end)
+        )
+        step = 1 if self._args.step is None else int(self._args.step)
+
+        if step <= 0:
+            raise ValueError(f"Trajectory step must be positive, got {step}")
+
+        if start < 0:
+            raise ValueError(f"Trajectory start must be non-negative, got {start}")
+
+        if end < start:
+            raise ValueError(
+                f"Trajectory end must be greater than or equal to start, "
+                f"got start={start}, end={end}"
+            )
+
+        if end > n_total:
+            raise ValueError(
+                f"Trajectory end {end} is outside trajectory bounds for trajectory "
+                f"with {n_total} frames."
+            )
 
         return start, end, step
 
-    def _get_number_frames(self, start: int, end: int, step: int) -> int:
-        """Compute the number of frames in a trajectory slice.
+    def _build_reduced_universe(self, frame_selection: FrameSelection) -> Any:
+        """Apply atom and frame selection and return the active analysis universe.
 
         Args:
-            start: Inclusive start frame index.
-            end: Exclusive end frame index.
-            step: Step between frames.
+            frame_selection: Workflow frame selection.
 
         Returns:
-            Number of frames selected by Python slicing semantics.
-        """
-        return len(range(start, end, step))
-
-    def _build_reduced_universe(self) -> Any:
-        """Apply atom and frame selection and return the reduced universe.
-
-        Returns:
-            MDAnalysis Universe reduced according to user selections.
+            MDAnalysis Universe reduced according to the current migration-stage
+            policy.
         """
         selection = self._args.selection_string
-        start = self._args.start
-        end = len(self._universe.trajectory) if self._args.end == -1 else self._args.end
-        step = self._args.step
+
+        start = frame_selection.source_start
+        end = frame_selection.source_stop_exclusive
+        step = frame_selection.infer_source_step()
+
+        if start is None or end is None:
+            raise ValueError("Frame selection is empty.")
 
         if selection == "all":
             reduced_atoms = self._universe
@@ -284,6 +285,14 @@ class EntropyWorkflow:
 
         name = f"{len(reduced_frames.trajectory)}_frame_dump_frame_selection"
         self._run_manager.write_universe(reduced_frames, name)
+
+        expected = frame_selection.n_frames
+        actual = len(reduced_frames.trajectory)
+        if actual != expected:
+            raise ValueError(
+                f"FrameSelection/reduced_universe mismatch: expected {expected} "
+                f"frames, got {actual}."
+            )
 
         return reduced_frames
 
@@ -344,15 +353,24 @@ class EntropyWorkflow:
         return nonwater_groups, water_groups
 
     def _compute_water_entropy(
-        self, traj: TrajectorySlice, water_groups: Mapping[int, Any]
+        self,
+        frame_selection: FrameSelection,
+        water_groups: Mapping[int, Any],
     ) -> None:
         """Compute water entropy for each water group and adjust selection string.
 
         Args:
-            traj: Trajectory slice parameters.
-            water_groups: Mapping of group id -> molecule ids for waters.
+            frame_selection: Workflow frame selection.
+            water_groups: Mapping of group id to molecule ids for waters.
         """
         if not water_groups or not self._args.water_entropy:
+            return
+
+        start = frame_selection.source_start
+        end = frame_selection.source_stop_exclusive
+        step = frame_selection.infer_source_step()
+
+        if start is None or end is None:
             return
 
         water_entropy = WaterEntropy(self._args, self._reporter)
@@ -360,9 +378,9 @@ class EntropyWorkflow:
         for group_id in water_groups.keys():
             water_entropy.calculate_and_log(
                 universe=self._universe,
-                start=traj.start,
-                end=traj.end,
-                step=traj.step,
+                start=start,
+                end=end,
+                step=step,
                 group_id=group_id,
             )
 

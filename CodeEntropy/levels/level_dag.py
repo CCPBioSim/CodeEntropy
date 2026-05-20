@@ -160,27 +160,27 @@ class LevelDAG:
     ) -> None:
         """Execute the per-frame DAG stage and reduce frame outputs.
 
-        This method iterates over explicit frame indices stored in
-        ``shared_data["frame_indices"]``. At this migration stage, those indices are
-        local indices into the already frame-reduced universe.
+        This method iterates over explicit frame indices provided by
+        ``shared_data["frame_source"]``. During this migration stage, those indices
+        are local indices into the physically frame-reduced analysis universe. After
+        physical frame slicing is removed, they will be absolute source-trajectory
+        indices.
 
-        FrameGraph owns trajectory positioning. LevelDAG only decides which frame
-        indices to process and reduces each frame-local output into the shared
+        FrameGraph owns trajectory positioning. LevelDAG only chooses which frame
+        indices to process and reduces each frame-local output into shared
         accumulators.
 
         Args:
-            shared_data: Shared data dictionary. Must contain:
-                - ``reduced_universe``: MDAnalysis Universe after atom/frame selection.
-                - ``frame_indices``: Frame indices to process.
+            shared_data: Shared data dictionary. Must contain ``frame_source``.
             progress: Optional progress sink.
 
         Returns:
             None. Mutates ``shared_data`` in-place via reduction.
-
-        Raises:
-            KeyError: If ``frame_indices`` is missing from ``shared_data``.
         """
-        frame_indices = list(shared_data["frame_indices"])
+        frame_source = shared_data["frame_source"]
+        frame_indices = [
+            int(frame_index) for frame_index in frame_source.iter_indices()
+        ]
         shared_data["n_frames"] = len(frame_indices)
 
         task: TaskID | None = None
@@ -193,8 +193,6 @@ class LevelDAG:
             )
 
         for frame_index in frame_indices:
-            frame_index = int(frame_index)
-
             if progress is not None and task is not None:
                 progress.update(task, title=f"Frame {frame_index}")
 

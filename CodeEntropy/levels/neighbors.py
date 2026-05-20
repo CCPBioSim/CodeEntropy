@@ -32,15 +32,14 @@ class Neighbors:
         self._levels = None
         self._search = Search()
 
-    def get_neighbors(self, universe, levels, groups, frame_indices, search_type):
+    def get_neighbors(self, universe, levels, groups, frame_source, search_type):
         """Find average neighbour counts for each molecule group.
 
         Args:
-            universe: MDAnalysis universe object for the system.
+            universe: MDAnalysis universe object for the active analysis system.
             levels: Level list for each molecule.
             groups: Mapping of group id to molecule ids.
-            frame_indices: Frame indices to scan. At this migration stage these are
-                local indices into the already frame-reduced universe.
+            frame_source: FrameSource controlling selected trajectory access.
             search_type: Neighbour search method, either ``"RAD"`` or ``"grid"``.
 
         Returns:
@@ -49,26 +48,29 @@ class Neighbors:
         Raises:
             ValueError: If ``search_type`` is unknown.
         """
-        frame_indices = [int(frame_index) for frame_index in frame_indices]
+        frame_indices = [
+            int(frame_index) for frame_index in frame_source.iter_indices()
+        ]
         n_frames = len(frame_indices)
+
+        if n_frames <= 0:
+            return {group_id: 0.0 for group_id in groups.keys()}
 
         number_neighbors = {}
         average_number_neighbors = {}
-
-        if n_frames == 0:
-            return {group_id: 0.0 for group_id in groups.keys()}
 
         for group_id in groups.keys():
             molecules = groups[group_id]
             highest_level = levels[molecules[0]][-1]
 
             for mol_id in molecules:
-                for timestep in frame_indices:
+                for frame_index in frame_indices:
                     if search_type == "RAD":
                         neighbors = self._search.get_RAD_neighbors(
                             universe=universe,
                             mol_id=mol_id,
-                            timestep=timestep,
+                            frame_source=frame_source,
+                            frame_index=frame_index,
                         )
 
                     elif search_type == "grid":
@@ -76,21 +78,20 @@ class Neighbors:
                             universe=universe,
                             mol_id=mol_id,
                             highest_level=highest_level,
-                            timestep=timestep,
+                            frame_source=frame_source,
+                            frame_index=frame_index,
                         )
                     else:
                         raise ValueError(f"unknown search_type {search_type}")
 
-                    if group_id in number_neighbors:
-                        number_neighbors[group_id].append(len(neighbors))
-                    else:
-                        number_neighbors[group_id] = [len(neighbors)]
+                    number_neighbors.setdefault(group_id, []).append(len(neighbors))
 
             number = np.sum(number_neighbors[group_id])
             average_number_neighbors[group_id] = number / (len(molecules) * n_frames)
             logger.debug(
-                f"group: {group_id}"
-                f"number neighbors {average_number_neighbors[group_id]}"
+                "group: %s number neighbors %s",
+                group_id,
+                average_number_neighbors[group_id],
             )
 
         return average_number_neighbors

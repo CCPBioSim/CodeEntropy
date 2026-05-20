@@ -52,15 +52,15 @@ class ComputeNeighborsNode:
     def run(
         self, shared_data: SharedData, *, progress: object | None = None
     ) -> SharedData:
-        """Compute neighbour and symmetry information.
+        """Compute neighbour and symmetry information and store it in shared_data.
 
         Args:
             shared_data: Shared data dictionary. Requires:
                 - ``reduced_universe``
                 - ``levels``
                 - ``groups``
+                - ``frame_source``
                 - ``args.search_type``
-                - ``frame_indices`` or ``n_frames``
             progress: Optional progress sink. Currently unused.
 
         Returns:
@@ -69,20 +69,14 @@ class ComputeNeighborsNode:
         u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
+        frame_source = shared_data["frame_source"]
         search_type = shared_data["args"].search_type
-
-        frame_indices = list(
-            shared_data.get(
-                "frame_indices",
-                range(int(shared_data["n_frames"])),
-            )
-        )
 
         number_neighbors = self._neighbor_analysis.get_neighbors(
             universe=u,
             levels=levels,
             groups=groups,
-            frame_indices=frame_indices,
+            frame_source=frame_source,
             search_type=search_type,
         )
 
