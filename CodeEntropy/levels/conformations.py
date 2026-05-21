@@ -185,8 +185,13 @@ class ConformationStateBuilder:
                 data_container=data_container, level=level
             )
 
-        elif conf_type == "ua_only":
-            atom_groups = self._dihedral_definitions.method_ua_only(
+        elif conf_type == "ua_backbone":
+            atom_groups = self._dihedral_definitions.method_ua_backbone(
+                data_container=data_container, level=level
+            )
+
+        elif conf_type == "ua_whole":
+            atom_groups = self._dihedral_definitions.method_ua_whole(
                 data_container=data_container, level=level
             )
 
@@ -232,7 +237,30 @@ class ConformationStateBuilder:
             mol = self._universe_operations.extract_fragment(data_container, molecule)
 
             for level in level_list:
-                if level == "united_atom":
+                if level == "united_atom" and conf_type == "ua_whole":
+                    heavy = mol.select_atoms("prop mass > 1.1")
+                    dihedrals = self._get_dihedrals(
+                        data_container=heavy,
+                        level=level,
+                        conf_type=conf_type,
+                    )
+                    num_dihedrals_ua[0] = len(dihedrals)
+                    if num_dihedrals_ua[0] == 0:
+                        # No dihedrals, no peaks
+                        phi_ua[0] = []
+
+                    else:
+                        if 0 not in phi_ua:
+                            phi_ua[0] = {}
+                        dihedral_results = Dihedral(dihedrals).run()
+                        phi_ua[0] = self._process_dihedral_phi(
+                            dihedral_results,
+                            num_dihedrals_ua[0],
+                            number_frames,
+                            phi_ua[0],
+                        )
+
+                elif level == "united_atom":
                     for res_id in range(num_residues):
                         heavy_res = self._select_heavy_residue(mol, res_id)
                         dihedrals = self._get_dihedrals(
@@ -280,7 +308,15 @@ class ConformationStateBuilder:
         logger.debug(f"phi_res {phi_res}")
 
         for level in level_list:
-            if level == "united_atom":
+            if level == "united_atom" and conf_type == "ua_whole":
+                if phi_ua[0] is None:
+                    peaks_ua[0] = []
+                else:
+                    peaks_ua[0] = self._process_histogram(
+                        num_dihedrals_ua[0], phi_ua[0], bin_width
+                    )
+
+            elif level == "united_atom":
                 for res_id in range(num_residues):
                     if phi_ua[res_id] is None:
                         peaks_ua[res_id] = []
@@ -441,7 +477,31 @@ class ConformationStateBuilder:
             mol = self._universe_operations.extract_fragment(data_container, molecule)
 
             for level in level_list:
-                if level == "united_atom":
+                if level == "united_atom" and conf_type == "ua_whole":
+                    key = (group_id, 0)
+                    heavy = mol.select_atoms("prop mass > 1.1")
+                    dihedrals = self._get_dihedrals(heavy, level, conf_type)
+                    num_dihedrals = len(dihedrals)
+                    if num_dihedrals == 0:
+                        # No dihedrals, no conformations
+                        states_ua[key] = []
+                        flexible_ua[key] = 0
+                    else:
+                        dihedral_results = Dihedral(dihedrals).run()
+                        states, flexible = self._process_conformations(
+                            peaks_ua[0],
+                            dihedral_results,
+                            num_dihedrals,
+                            number_frames,
+                        )
+                        if key not in states_ua:
+                            states_ua[key] = states
+                            flexible_ua[key] = 0
+                        else:
+                            states_ua[key].extend(states)
+                            flexible_ua[key] = 0
+
+                elif level == "united_atom":
                     for res_id in range(num_residues):
                         key = (group_id, res_id)
                         heavy_res = self._select_heavy_residue(mol, res_id)
@@ -484,7 +544,7 @@ class ConformationStateBuilder:
                         flex_res = max(flex_res, flexible)
 
                     states_res.append(state_res)
-                    if conf_type == "ua_only":
+                    if conf_type == "ua_backbone":
                         flex_res = 0
                     flexible_res.append(flex_res)
 
