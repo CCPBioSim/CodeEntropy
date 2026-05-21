@@ -1,71 +1,39 @@
 """Frame-selection primitives for trajectory-indexed execution.
 
-This module defines the frame-index contract used by the workflow.
-
-During the migration, a workflow may still use a physically frame-sliced
-``reduced_universe``. In that case:
-
-    source_indices:
-        Absolute indices into the original/source trajectory.
-
-    analysis_indices:
-        Local indices into the physically frame-sliced analysis universe.
-
-Once physical frame slicing is removed, ``analysis_indices`` and
-``source_indices`` should become identical.
+Frame-index contract:
+    - FrameSelection.indices are absolute MDAnalysis trajectory indices.
+    - MDAnalysis trajectory access must use these absolute frame indices.
+    - Arrays produced by analyses over FrameSelection are indexed locally with
+      enumerate(FrameSelection.indices).
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Literal
-
-IndexSpace = Literal["source", "local"]
 
 
 @dataclass(frozen=True)
 class FrameSelection:
-    """Selected trajectory frames and their active analysis index space.
+    """Absolute trajectory frame selection.
 
     Attributes:
-        source_indices: Absolute source-trajectory frame indices selected for
-            analysis.
-        analysis_indices: Frame indices used to seek the active analysis universe.
-            These are local indices while the workflow still physically
-            frame-slices the universe. They become absolute source indices after
-            physical frame slicing is removed.
-        analysis_index_space: Indicates whether ``analysis_indices`` are
-            ``"local"`` to a frame-sliced universe or ``"source"`` absolute
-            trajectory indices.
+        indices: Absolute source-trajectory frame indices selected for analysis.
     """
 
-    source_indices: tuple[int, ...]
-    analysis_indices: tuple[int, ...]
-    analysis_index_space: IndexSpace
+    indices: tuple[int, ...]
 
     @classmethod
-    def from_bounds(
-        cls,
-        start: int,
-        stop: int,
-        step: int,
-        *,
-        physical_frame_slicing: bool,
-    ) -> FrameSelection:
+    def from_bounds(cls, start: int, stop: int, step: int) -> FrameSelection:
         """Build a frame selection from Python range semantics.
 
         Args:
             start: Inclusive source-trajectory start frame.
             stop: Exclusive source-trajectory stop frame.
             step: Frame stride.
-            physical_frame_slicing: If True, the active analysis universe is
-                assumed to be physically sliced, so analysis indices are local
-                ``0..n_frames-1``. If False, analysis indices are the same as
-                source indices.
 
         Returns:
-            FrameSelection describing both source and active-analysis index spaces.
+            FrameSelection containing absolute source-trajectory frame indices.
 
         Raises:
             ValueError: If ``step`` is not positive.
@@ -73,28 +41,15 @@ class FrameSelection:
         if step <= 0:
             raise ValueError(f"Frame step must be positive, got {step}")
 
-        source_indices = tuple(range(int(start), int(stop), int(step)))
-
-        if physical_frame_slicing:
-            analysis_indices = tuple(range(len(source_indices)))
-            analysis_index_space: IndexSpace = "local"
-        else:
-            analysis_indices = source_indices
-            analysis_index_space = "source"
-
-        return cls(
-            source_indices=source_indices,
-            analysis_indices=analysis_indices,
-            analysis_index_space=analysis_index_space,
-        )
+        return cls(indices=tuple(range(int(start), int(stop), int(step))))
 
     def __len__(self) -> int:
         """Return the number of selected frames."""
-        return len(self.source_indices)
+        return len(self.indices)
 
     def __iter__(self) -> Iterator[int]:
-        """Iterate over active analysis-universe frame indices."""
-        return iter(self.analysis_indices)
+        """Iterate over absolute source-trajectory frame indices."""
+        return iter(self.indices)
 
     @property
     def n_frames(self) -> int:
@@ -102,66 +57,78 @@ class FrameSelection:
         return len(self)
 
     @property
+    def source_indices(self) -> tuple[int, ...]:
+        """Return absolute source-trajectory frame indices.
+
+        This compatibility property is intentionally identical to ``indices``.
+        """
+        return self.indices
+
+    @property
+    def analysis_indices(self) -> tuple[int, ...]:
+        """Return active analysis frame indices.
+
+        Physical frame slicing has been removed, so analysis indices are absolute
+        source-trajectory indices.
+        """
+        return self.indices
+
+    @property
     def source_start(self) -> int | None:
         """Return the first selected source frame, or None if empty."""
-        return self.source_indices[0] if self.source_indices else None
+        return self.indices[0] if self.indices else None
 
     @property
     def source_stop_exclusive(self) -> int | None:
         """Return one past the final selected source frame, or None if empty."""
-        return self.source_indices[-1] + 1 if self.source_indices else None
+        return self.indices[-1] + 1 if self.indices else None
 
-    def iter_analysis_indices(self) -> Iterator[int]:
-        """Yield frame indices valid for the active analysis universe."""
-        yield from self.analysis_indices
+    def iter_indices(self) -> Iterator[int]:
+        """Yield absolute source-trajectory frame indices."""
+        yield from self.indices
 
     def iter_source_indices(self) -> Iterator[int]:
         """Yield absolute source-trajectory frame indices."""
-        yield from self.source_indices
+        yield from self.indices
 
-    def iter_pairs(self) -> Iterator[tuple[int, int, int]]:
-        """Yield ``(local_i, source_index, analysis_index)`` triples."""
-        for local_i, (source_index, analysis_index) in enumerate(
-            zip(self.source_indices, self.analysis_indices, strict=True)
-        ):
-            yield local_i, source_index, analysis_index
+    def iter_analysis_indices(self) -> Iterator[int]:
+        """Yield active analysis frame indices.
 
-    def infer_source_step(self) -> int:
-        """Infer the regular stride in source-frame index space.
+        Since physical frame slicing has been removed, these are absolute source
+        trajectory frame indices.
+        """
+        yield from self.indices
+
+    def iter_pairs(self) -> Iterator[tuple[int, int]]:
+        """Yield ``(local_i, absolute_frame_index)`` pairs."""
+        yield from enumerate(self.indices)
+
+    def infer_step(self) -> int:
+        """Infer the regular stride in selected frame indices.
 
         Returns:
-            Integer step between selected source frames. Returns 1 if zero or one
-            frames are selected.
+            Integer step between selected frames. Returns 1 for zero or one frame.
 
         Raises:
-            ValueError: If the source frame selection is not regularly spaced.
+            ValueError: If the frame selection is not regularly spaced.
         """
-        return self._infer_regular_step(self.source_indices, "source")
-
-    def infer_analysis_step(self) -> int:
-        """Infer the regular stride in active analysis-frame index space.
-
-        Returns:
-            Integer step between active analysis frames. Returns 1 if zero or one
-            frames are selected.
-
-        Raises:
-            ValueError: If the analysis frame selection is not regularly spaced.
-        """
-        return self._infer_regular_step(self.analysis_indices, "analysis")
-
-    @staticmethod
-    def _infer_regular_step(indices: tuple[int, ...], label: str) -> int:
-        """Infer a regular positive stride from indices."""
-        if len(indices) <= 1:
+        if len(self.indices) <= 1:
             return 1
 
-        step = indices[1] - indices[0]
+        step = self.indices[1] - self.indices[0]
         if step <= 0:
-            raise ValueError(f"{label} frame indices must be strictly increasing.")
+            raise ValueError("Frame indices must be strictly increasing.")
 
-        for left, right in zip(indices, indices[1:], strict=False):
+        for left, right in zip(self.indices, self.indices[1:], strict=False):
             if right - left != step:
-                raise ValueError(f"{label} frame selection is not regularly spaced.")
+                raise ValueError("Frame selection is not regularly spaced.")
 
         return step
+
+    def infer_source_step(self) -> int:
+        """Return the regular source-frame stride."""
+        return self.infer_step()
+
+    def infer_analysis_step(self) -> int:
+        """Return the regular analysis-frame stride."""
+        return self.infer_step()

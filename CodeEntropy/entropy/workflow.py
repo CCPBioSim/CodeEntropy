@@ -127,16 +127,17 @@ class EntropyWorkflow:
         """Build the workflow frame selection.
 
         Returns:
-            FrameSelection containing:
-                - absolute source frame indices
-                - active analysis-universe frame indices
+            FrameSelection containing absolute source-trajectory frame indices.
+
+        Notes:
+            Physical frame slicing is not used. The selected frame indices are the
+            global workflow frame contract and are consumed by FrameSource.
         """
         start, end, step = self._get_trajectory_bounds()
         return FrameSelection.from_bounds(
             start=start,
             stop=end,
             step=step,
-            physical_frame_slicing=True,
         )
 
     def _build_shared_data(
@@ -149,11 +150,11 @@ class EntropyWorkflow:
         """Build the shared_data dict used by nodes and graphs.
 
         Args:
-            reduced_universe: Active analysis universe after current atom/frame
-                selection policy.
+            reduced_universe: Active analysis universe after atom selection.
+                The trajectory is not physically frame-sliced.
             levels: Level definition per molecule id.
             groups: Mapping of group id to molecule ids.
-            frame_selection: Explicit workflow frame selection.
+            frame_selection: Explicit absolute workflow frame selection.
 
         Returns:
             Shared data dictionary for DAG/graph execution.
@@ -178,8 +179,9 @@ class EntropyWorkflow:
             "n_frames": frame_selection.n_frames,
             "frame_selection": frame_selection,
             "frame_source": frame_source,
-            "frame_indices": list(frame_selection.analysis_indices),
-            "source_frame_indices": list(frame_selection.source_indices),
+            # Compatibility aliases. These are absolute trajectory frame indices.
+            "frame_indices": list(frame_selection.indices),
+            "source_frame_indices": list(frame_selection.indices),
         }
         return shared_data
 
@@ -248,53 +250,34 @@ class EntropyWorkflow:
         return start, end, step
 
     def _build_reduced_universe(self, frame_selection: FrameSelection) -> Any:
-        """Apply atom and frame selection and return the active analysis universe.
+        """Apply atom selection and return the active analysis universe.
 
         Args:
-            frame_selection: Workflow frame selection.
+            frame_selection: Workflow frame selection. Used for validation.
 
         Returns:
-            MDAnalysis Universe reduced according to the current migration-stage
-            policy.
+            MDAnalysis Universe after atom selection. Frames are not physically
+            sliced; selected-frame access is handled by FrameSource.
+
+        Raises:
+            ValueError: If no frames are selected.
         """
-        selection = self._args.selection_string
-
-        start = frame_selection.source_start
-        end = frame_selection.source_stop_exclusive
-        step = frame_selection.infer_source_step()
-
-        if start is None or end is None:
+        if frame_selection.n_frames == 0:
             raise ValueError("Frame selection is empty.")
 
+        selection = self._args.selection_string
+
         if selection == "all":
-            reduced_atoms = self._universe
-        else:
-            reduced_atoms = self._universe_operations.select_atoms(
-                self._universe,
-                selection,
-            )
-            name = f"{len(reduced_atoms.trajectory)}_frame_dump_atom_selection"
-            self._run_manager.write_universe(reduced_atoms, name)
+            return self._universe
 
-        reduced_frames = self._universe_operations.select_frames(
-            reduced_atoms,
-            start,
-            end,
-            step,
+        reduced_atoms = self._universe_operations.select_atoms(
+            self._universe,
+            selection,
         )
+        name = f"{len(reduced_atoms.trajectory)}_frame_dump_atom_selection"
+        self._run_manager.write_universe(reduced_atoms, name)
 
-        name = f"{len(reduced_frames.trajectory)}_frame_dump_frame_selection"
-        self._run_manager.write_universe(reduced_frames, name)
-
-        expected = frame_selection.n_frames
-        actual = len(reduced_frames.trajectory)
-        if actual != expected:
-            raise ValueError(
-                f"FrameSelection/reduced_universe mismatch: expected {expected} "
-                f"frames, got {actual}."
-            )
-
-        return reduced_frames
+        return reduced_atoms
 
     def _detect_levels(self, reduced_universe: Any) -> Any:
         """Detect hierarchy levels for each molecule in the reduced universe.
@@ -390,8 +373,8 @@ class EntropyWorkflow:
             else "not water"
         )
 
-        logger.debug(f"WaterEntropy: molecule_data= {self._reporter.molecule_data}")
-        logger.debug(f"WaterEntropy: residue_data= {self._reporter.residue_data}")
+        logger.debug("WaterEntropy: molecule_data= %s", self._reporter.molecule_data)
+        logger.debug("WaterEntropy: residue_data= %s", self._reporter.residue_data)
 
     def _finalize_molecule_results(self) -> None:
         """Aggregate group totals and persist results to JSON.

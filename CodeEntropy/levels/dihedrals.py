@@ -558,16 +558,17 @@ class ConformationStateBuilder:
         return states, num_flexible
 
     def _run_dihedrals(self, dihedrals: list[Any], frame_selection: FrameSelection):
-        """Run MDAnalysis dihedral analysis over selected analysis frames.
+        """Run MDAnalysis dihedral analysis over selected absolute frames.
 
         Args:
             dihedrals: Dihedral AtomGroups.
-            frame_selection: FrameSelection for the active analysis universe.
+            frame_selection: Absolute trajectory frame selection.
 
         Returns:
             MDAnalysis Dihedral analysis result.
 
         Notes:
+            ``Dihedral.run(start, stop, step)`` uses absolute trajectory bounds.
             The returned ``results.angles`` array is indexed locally from zero.
         """
         if not dihedrals:
@@ -578,27 +579,26 @@ class ConformationStateBuilder:
 
     @staticmethod
     def _analysis_frame_count(frame_selection: FrameSelection) -> int:
-        """Return the number of active analysis frames."""
-        return len(frame_selection.analysis_indices)
+        """Return the number of selected frames."""
+        return frame_selection.n_frames
 
     @staticmethod
     def _analysis_run_bounds(frame_selection: FrameSelection) -> tuple[int, int, int]:
-        """Return MDAnalysis run bounds for the active analysis universe.
+        """Return MDAnalysis run bounds for selected absolute frames.
 
         Args:
-            frame_selection: FrameSelection.
+            frame_selection: Absolute trajectory frame selection.
 
         Returns:
-            Tuple of ``(start, stop, step)`` in analysis-index space.
+            Tuple of ``(start, stop, step)`` in source-trajectory index space.
 
         Raises:
             ValueError: If the selection is empty.
         """
-        indices = frame_selection.analysis_indices
-        if not indices:
+        start = frame_selection.source_start
+        stop = frame_selection.source_stop_exclusive
+
+        if start is None or stop is None:
             raise ValueError("Frame selection is empty.")
 
-        start = indices[0]
-        stop = indices[-1] + 1
-        step = frame_selection.infer_analysis_step()
-        return start, stop, step
+        return start, stop, frame_selection.infer_source_step()
