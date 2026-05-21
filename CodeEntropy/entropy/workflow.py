@@ -229,24 +229,6 @@ class EntropyWorkflow:
         )
         step = 1 if self._args.step is None else int(self._args.step)
 
-        if step <= 0:
-            raise ValueError(f"Trajectory step must be positive, got {step}")
-
-        if start < 0:
-            raise ValueError(f"Trajectory start must be non-negative, got {start}")
-
-        if end < start:
-            raise ValueError(
-                f"Trajectory end must be greater than or equal to start, "
-                f"got start={start}, end={end}"
-            )
-
-        if end > n_total:
-            raise ValueError(
-                f"Trajectory end {end} is outside trajectory bounds for trajectory "
-                f"with {n_total} frames."
-            )
-
         return start, end, step
 
     def _build_reduced_universe(self, frame_selection: FrameSelection) -> Any:
