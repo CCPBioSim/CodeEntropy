@@ -362,15 +362,16 @@ class UniverseOperations:
             kind: One of ``"positions"``, ``"forces"``, or ``"dimensions"``.
 
         Returns:
-            Time series with shape:
-                - positions: ``(n_frames, n_atoms, 3)``
-                - forces: ``(n_frames, n_atoms, 3)``
-                - dimensions: ``(n_frames, 6)`` or reader-dependent box shape
+            NumPy array containing the requested data for all trajectory frames.
 
         Raises:
             ValueError: If ``kind`` is unknown.
             NoDataError: If ``kind`` is ``"forces"`` and forces are unavailable.
         """
+        valid_kinds = {"positions", "forces", "dimensions"}
+        if kind not in valid_kinds:
+            raise ValueError(f"Unknown timeseries kind: {kind}")
+
         universe = atomgroup.universe
         values: list[np.ndarray] = []
 
@@ -381,10 +382,8 @@ class UniverseOperations:
                 values.append(atomgroup.positions.copy())
             elif kind == "forces":
                 values.append(atomgroup.forces.copy())
-            elif kind == "dimensions":
-                values.append(universe.dimensions.copy())
             else:
-                raise ValueError(f"Unknown timeseries kind: {kind}")
+                values.append(universe.dimensions.copy())
 
         return np.asarray(values)
 
