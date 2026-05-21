@@ -60,26 +60,41 @@ def test_run_static_stage_calls_nodes_in_topological_sort_order():
 def test_run_frame_stage_iterates_selected_frames_and_reduces_each():
     dag = LevelDAG()
 
-    ts0 = MagicMock(frame=10)
-    ts1 = MagicMock(frame=11)
-    u = MagicMock()
-    u.trajectory = [ts0, ts1]
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = [10, 11]
 
-    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1, "n_frames": 2}
+    shared = {
+        "frame_source": frame_source,
+        "n_frames": 2,
+    }
 
-    dag._frame_dag = MagicMock()
-    dag._frame_dag.execute_frame.side_effect = [
+    frame_outputs = [
         {
             "force": {"ua": {}, "res": {}, "poly": {}},
             "torque": {"ua": {}, "res": {}, "poly": {}},
-        }
-    ] * 2
+        },
+        {
+            "force": {"ua": {}, "res": {}, "poly": {}},
+            "torque": {"ua": {}, "res": {}, "poly": {}},
+        },
+    ]
+
+    dag._frame_dag = MagicMock()
+    dag._frame_dag.execute_frame.side_effect = frame_outputs
     dag._reduce_one_frame = MagicMock()
 
     dag._run_frame_stage(shared)
 
+    assert shared["n_frames"] == 2
+    frame_source.iter_indices.assert_called_once()
+
     assert dag._frame_dag.execute_frame.call_count == 2
+    dag._frame_dag.execute_frame.assert_any_call(shared, 10)
+    dag._frame_dag.execute_frame.assert_any_call(shared, 11)
+
     assert dag._reduce_one_frame.call_count == 2
+    dag._reduce_one_frame.assert_any_call(shared, frame_outputs[0])
+    dag._reduce_one_frame.assert_any_call(shared, frame_outputs[1])
 
 
 def test_incremental_mean_handles_non_copyable_values():
@@ -289,18 +304,21 @@ def test_run_static_stage_falls_back_when_node_does_not_accept_progress():
 def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
     dag = LevelDAG()
 
-    ts0 = MagicMock(frame=10)
-    ts1 = MagicMock(frame=11)
-    u = MagicMock()
-    u.trajectory = [ts0, ts1]
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = [10, 11]
 
-    shared = {"reduced_universe": u, "start": 0, "end": 2, "step": 1, "n_frames": 2}
+    shared = {
+        "frame_source": frame_source,
+        "n_frames": 2,
+    }
 
-    dag._frame_dag = MagicMock()
-    dag._frame_dag.execute_frame.return_value = {
+    frame_out = {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
     }
+
+    dag._frame_dag = MagicMock()
+    dag._frame_dag.execute_frame.return_value = frame_out
     dag._reduce_one_frame = MagicMock()
 
     progress = MagicMock()
@@ -308,27 +326,45 @@ def test_run_frame_stage_with_progress_creates_task_and_updates_titles():
 
     dag._run_frame_stage(shared, progress=progress)
 
-    progress.add_task.assert_called_once()
+    progress.add_task.assert_called_once_with(
+        "[green]Frame processing",
+        total=2,
+        title="Initializing",
+    )
+
+    assert progress.update.call_count == 2
+    progress.update.assert_any_call(77, title="Frame 10")
+    progress.update.assert_any_call(77, title="Frame 11")
+
     assert progress.advance.call_count == 2
+    progress.advance.assert_any_call(77)
+
+    assert dag._frame_dag.execute_frame.call_count == 2
+    dag._frame_dag.execute_frame.assert_any_call(shared, 10)
+    dag._frame_dag.execute_frame.assert_any_call(shared, 11)
+
+    assert dag._reduce_one_frame.call_count == 2
+    dag._reduce_one_frame.assert_any_call(shared, frame_out)
 
 
-def test_run_frame_stage_with_negative_end_computes_total_frames():
+def test_run_frame_stage_progress_total_comes_from_frame_source_indices():
     dag = LevelDAG()
 
-    ts_list = [MagicMock(frame=i) for i in range(10)]
-    u = MagicMock()
-    u.trajectory = ts_list
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = list(range(10))
 
     shared = {
-        "reduced_universe": u,
-        "n_frames": 10,
+        "frame_source": frame_source,
+        "n_frames": 0,
     }
 
-    dag._frame_dag = MagicMock()
-    dag._frame_dag.execute_frame.return_value = {
+    frame_out = {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
     }
+
+    dag._frame_dag = MagicMock()
+    dag._frame_dag.execute_frame.return_value = frame_out
     dag._reduce_one_frame = MagicMock()
 
     progress = MagicMock()
@@ -336,8 +372,15 @@ def test_run_frame_stage_with_negative_end_computes_total_frames():
 
     dag._run_frame_stage(shared, progress=progress)
 
-    progress.add_task.assert_called_once()
-    _, kwargs = progress.add_task.call_args
-    assert kwargs["total"] == 10
+    progress.add_task.assert_called_once_with(
+        "[green]Frame processing",
+        total=10,
+        title="Initializing",
+    )
 
+    assert shared["n_frames"] == 10
+    frame_source.iter_indices.assert_called_once()
+
+    assert dag._frame_dag.execute_frame.call_count == 10
+    assert dag._reduce_one_frame.call_count == 10
     assert progress.advance.call_count == 10

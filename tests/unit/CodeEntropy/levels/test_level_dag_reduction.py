@@ -69,23 +69,38 @@ def test_reduce_forcetorque_no_key_is_noop():
     assert shared["forcetorque_covariances"]["res"][0] is None
 
 
-def test_run_frame_stage_calls_execute_frame_for_each_ts(simple_ts_list):
+def test_run_frame_stage_calls_execute_frame_for_each_frame_index():
     dag = LevelDAG()
 
-    u = MagicMock()
-    u.trajectory = simple_ts_list
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = list(range(10))
 
-    shared = {"reduced_universe": u, "start": 0, "end": 10, "step": 1, "n_frames": 10}
+    shared = {
+        "frame_source": frame_source,
+        "n_frames": 10,
+    }
 
-    dag._frame_dag = MagicMock()
-    dag._frame_dag.execute_frame.side_effect = lambda shared_data, frame_index: {
+    frame_out = {
         "force": {"ua": {}, "res": {}, "poly": {}},
         "torque": {"ua": {}, "res": {}, "poly": {}},
     }
+
+    dag._frame_dag = MagicMock()
+    dag._frame_dag.execute_frame.side_effect = lambda shared_data, frame_index: (
+        frame_out
+    )
 
     dag._reduce_one_frame = MagicMock()
 
     dag._run_frame_stage(shared)
 
+    frame_source.iter_indices.assert_called_once()
+
     assert dag._frame_dag.execute_frame.call_count == 10
     assert dag._reduce_one_frame.call_count == 10
+
+    for frame_index in range(10):
+        dag._frame_dag.execute_frame.assert_any_call(shared, frame_index)
+
+    for call in dag._reduce_one_frame.call_args_list:
+        assert call.args == (shared, frame_out)

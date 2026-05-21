@@ -26,71 +26,124 @@ def _fake_progress_bar(*_args, **_kwargs):
     yield _FakeProgress()
 
 
+def _make_frame_source(indices):
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = list(indices)
+    return frame_source
+
+
 def test_raises_error_unknown_search_type():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
-    n_frames = 2
-    search_type = "weird"
+    frame_source = _make_frame_source([0, 1])
 
-    with pytest.raises(ValueError):
-        neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    with pytest.raises(ValueError, match="unknown search_type"):
+        neighbors.get_neighbors(
+            universe=universe,
+            levels=levels,
+            groups=groups,
+            frame_source=frame_source,
+            search_type="weird",
+        )
 
 
 def test_average_number_neighbors_RAD():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
-    n_frames = 2
-    search_type = "RAD"
+    frame_source = _make_frame_source([0, 1])
 
     neighbors._search.get_RAD_neighbors = MagicMock(side_effect=[[1, 2, 3], [1, 3]])
 
-    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="RAD",
+    )
 
     assert result == {0: np.float64(2.5)}
+    assert neighbors._search.get_RAD_neighbors.call_args_list == [
+        call(
+            universe=universe,
+            mol_id=0,
+            frame_source=frame_source,
+            frame_index=0,
+        ),
+        call(
+            universe=universe,
+            mol_id=0,
+            frame_source=frame_source,
+            frame_index=1,
+        ),
+    ]
 
 
 def test_average_number_neighbors_grid():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
-    n_frames = 2
-    search_type = "grid"
+    frame_source = _make_frame_source([0, 1])
 
     neighbors._search.get_grid_neighbors = MagicMock(side_effect=[[1, 2, 3], [1, 3]])
 
-    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="grid",
+    )
 
     assert result == {0: np.float64(2.5)}
+    assert neighbors._search.get_grid_neighbors.call_args_list == [
+        call(
+            universe=universe,
+            mol_id=0,
+            highest_level="united_atom",
+            frame_source=frame_source,
+            frame_index=0,
+        ),
+        call(
+            universe=universe,
+            mol_id=0,
+            highest_level="united_atom",
+            frame_source=frame_source,
+            frame_index=1,
+        ),
+    ]
 
 
 def test_average_number_neighbors_RAD_multiple():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0, 1]}
-    n_frames = 2
-    search_type = "RAD"
+    frame_source = _make_frame_source([0, 1])
 
     neighbors._search.get_RAD_neighbors = MagicMock(
         side_effect=[[1, 2, 3, 5], [1, 3], [2, 3, 4, 5], [3, 5]]
     )
 
-    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="RAD",
+    )
 
     assert result == {0: np.float64(3.0)}
+    assert neighbors._search.get_RAD_neighbors.call_count == 4
 
 
 def test_get_symmetry_number_res():

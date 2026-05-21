@@ -36,11 +36,24 @@ def test_execute_frame_runs_nodes_in_topological_order_and_returns_frame_covaria
 
     b.run.side_effect = _b_run
 
-    out = fg.execute_frame(shared_data={"S": 1}, frame_index=3)
+    frame_source = MagicMock()
+    shared_data = {
+        "frame_source": frame_source,
+    }
+
+    out = fg.execute_frame(shared_data=shared_data, frame_index=3)
 
     assert out == {"ok": True}
+    frame_source.seek.assert_called_once_with(3)
+
     assert a.run.call_count == 1
     assert b.run.call_count == 1
+
+    a_ctx = a.run.call_args.args[0]
+    b_ctx = b.run.call_args.args[0]
+
+    assert a_ctx is b_ctx
+    assert a_ctx["frame_index"] == 3
 
 
 def test_build_adds_frame_covariance_node():
