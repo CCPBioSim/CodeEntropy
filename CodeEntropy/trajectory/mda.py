@@ -9,9 +9,10 @@ coordinates from one trajectory with forces sourced from a second trajectory.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import MDAnalysis as mda
-from MDAnalysis.analysis.base import AnalysisFromFunction
+import numpy as np
 from MDAnalysis.coordinates.memory import MemoryReader
 from MDAnalysis.exceptions import NoDataError
 
@@ -38,72 +39,136 @@ class UniverseOperations:
         end: int | None = None,
         step: int = 1,
     ) -> mda.Universe:
-        """Create a reduced universe by dropping frames according to user selection.
+        """Create a reduced universe from explicit frame bounds.
 
         Args:
-            u: A Universe object with topology, coordinates and (optionally) forces.
-            start: Frame index to start analysis. If None, defaults to 0.
-            end: Frame index to stop analysis (Python slicing semantics). If None,
-                defaults to the full trajectory length.
-            step: Step size between frames.
+            u: Universe with topology, coordinates and optionally forces.
+            start: Inclusive start frame. If None, defaults to 0.
+            end: Exclusive stop frame. If None, defaults to full trajectory length.
+            step: Frame stride.
 
         Returns:
-            A reduced universe containing the selected frames, with coordinates,
-            forces (if present) and unit cell dimensions loaded into memory.
+            A reduced in-memory universe containing the selected frames.
+
+        Raises:
+            ValueError: If ``step`` is not positive or no frames are selected.
         """
         if start is None:
             start = 0
         if end is None:
             end = len(u.trajectory)
 
-        select_atom = u.select_atoms("all", updating=True)
+        if step <= 0:
+            raise ValueError(f"Frame step must be positive, got {step}")
 
-        coordinates = self._extract_timeseries(select_atom, kind="positions")[
-            start:end:step
-        ]
-        forces = self._extract_timeseries(select_atom, kind="forces")[start:end:step]
-        dimensions = self._extract_timeseries(select_atom, kind="dimensions")[
-            start:end:step
-        ]
+        frame_indices = tuple(range(int(start), int(end), int(step)))
+        return self.select_frame_indices(u, frame_indices)
 
-        u2 = mda.Merge(select_atom)
-        u2.load_new(
-            coordinates,
-            format=MemoryReader,
-            forces=forces,
-            dimensions=dimensions,
-        )
-
-        logger.debug(f"MDAnalysis.Universe - reduced universe (frame-selected): {u2}")
-        return u2
-
-    def select_atoms(self, u: mda.Universe, select_string: str = "all") -> mda.Universe:
-        """Create a reduced universe by dropping atoms according to user selection.
+    def select_frame_indices(
+        self,
+        u: mda.Universe,
+        frame_indices: tuple[int, ...] | list[int],
+    ) -> mda.Universe:
+        """Create a reduced universe from explicit trajectory frame indices.
 
         Args:
-            u: A Universe object with topology, coordinates and (optionally) forces.
-            select_string: MDAnalysis `select_atoms` selection string.
+            u: Universe with topology, coordinates and optionally forces.
+            frame_indices: Explicit trajectory frame indices to extract.
 
         Returns:
-            A reduced universe containing only the selected atoms. Coordinates,
-            forces (if present) and dimensions are loaded into memory.
+            A reduced in-memory universe containing the selected frames.
+
+        Raises:
+            ValueError: If ``frame_indices`` is empty.
+        """
+        if not frame_indices:
+            raise ValueError(
+                "Cannot build a reduced universe from an empty frame list."
+            )
+
+        select_atom = u.select_atoms("all", updating=True)
+        reduced = self._build_memory_universe_from_atomgroup(select_atom, frame_indices)
+
+        logger.debug(
+            "MDAnalysis.Universe - reduced universe (frame-selected): %s", reduced
+        )
+        return reduced
+
+    def select_atoms(self, u: mda.Universe, select_string: str = "all") -> mda.Universe:
+        """Create a reduced universe by selecting atoms.
+
+        Args:
+            u: Universe with topology, coordinates and optionally forces.
+            select_string: MDAnalysis selection string.
+
+        Returns:
+            A reduced universe containing only the selected atoms. Coordinates, forces
+            if present, and dimensions are loaded into memory.
         """
         select_atom = u.select_atoms(select_string, updating=True)
+        frame_indices = tuple(range(len(u.trajectory)))
 
-        coordinates = self._extract_timeseries(select_atom, kind="positions")
-        forces = self._extract_timeseries(select_atom, kind="forces")
-        dimensions = self._extract_timeseries(select_atom, kind="dimensions")
+        reduced = self._build_memory_universe_from_atomgroup(select_atom, frame_indices)
 
-        u2 = mda.Merge(select_atom)
-        u2.load_new(
-            coordinates,
-            format=MemoryReader,
-            forces=forces,
-            dimensions=dimensions,
+        logger.debug(
+            "MDAnalysis.Universe - reduced universe (atom-selected): %s", reduced
+        )
+        return reduced
+
+    def _build_memory_universe_from_atomgroup(
+        self,
+        atomgroup,
+        frame_indices: tuple[int, ...] | list[int],
+    ) -> mda.Universe:
+        """Build an in-memory Universe for an AtomGroup over explicit frames.
+
+        Args:
+            atomgroup: MDAnalysis AtomGroup to copy into the new universe.
+            frame_indices: Explicit trajectory frame indices to extract.
+
+        Returns:
+            In-memory MDAnalysis Universe.
+
+        Raises:
+            ValueError: If no frames are provided.
+        """
+        if not frame_indices:
+            raise ValueError("Cannot build a memory universe from an empty frame list.")
+
+        universe = atomgroup.universe
+
+        coordinates: list[np.ndarray] = []
+        forces: list[np.ndarray] | None = []
+        dimensions: list[np.ndarray] = []
+
+        for frame_index in frame_indices:
+            universe.trajectory[int(frame_index)]
+
+            coordinates.append(atomgroup.positions.copy())
+            dimensions.append(universe.dimensions.copy())
+
+            if forces is not None:
+                try:
+                    forces.append(atomgroup.forces.copy())
+                except NoDataError:
+                    forces = None
+
+        merged = mda.Merge(atomgroup)
+
+        load_kwargs: dict[str, Any] = {
+            "format": MemoryReader,
+            "dimensions": np.asarray(dimensions),
+        }
+
+        if forces is not None:
+            load_kwargs["forces"] = np.asarray(forces)
+
+        merged.load_new(
+            np.asarray(coordinates),
+            **load_kwargs,
         )
 
-        logger.debug(f"MDAnalysis.Universe - reduced universe (atom-selected): {u2}")
-        return u2
+        return merged
 
     def extract_fragment(
         self, universe: mda.Universe, molecule_id: int
@@ -289,67 +354,38 @@ class UniverseOperations:
 
         return new_universe
 
-    def _extract_timeseries(self, atomgroup, *, kind: str):
-        """Extract a time series array for the requested kind from an AtomGroup.
+    def _extract_timeseries(self, atomgroup, *, kind: str) -> np.ndarray:
+        """Extract a time series array using explicit frame indexing.
 
         Args:
-            atomgroup: MDAnalysis AtomGroup (may be updating).
-            kind: One of {"positions", "forces", "dimensions"}.
+            atomgroup: MDAnalysis AtomGroup.
+            kind: One of ``"positions"``, ``"forces"``, or ``"dimensions"``.
 
         Returns:
-            Time series with shape:
-              - positions: (n_frames, n_atoms, 3)
-              - forces: (n_frames, n_atoms, 3) if available, else raises NoDataError
-              - dimensions: (n_frames, 6) or (n_frames, 3) depending on reader
+            NumPy array containing the requested data for all trajectory frames.
 
         Raises:
-            ValueError: If kind is not one of the supported values.
-            NoDataError: If kind is "forces" and the trajectory does not provide
-                forces via the configured reader.
+            ValueError: If ``kind`` is unknown.
+            NoDataError: If ``kind`` is ``"forces"`` and forces are unavailable.
         """
-        if kind == "positions":
-            func = self._positions_copy
-        elif kind == "forces":
-            func = self._forces_copy
-        elif kind == "dimensions":
-            func = self._dimensions_copy
-        else:
+        valid_kinds = {"positions", "forces", "dimensions"}
+        if kind not in valid_kinds:
             raise ValueError(f"Unknown timeseries kind: {kind}")
 
-        return AnalysisFromFunction(func, atomgroup).run().results["timeseries"]
+        universe = atomgroup.universe
+        values: list[np.ndarray] = []
 
-    def _positions_copy(self, ag):
-        """Return a copy of positions for AnalysisFromFunction.
+        for frame_index in range(len(universe.trajectory)):
+            universe.trajectory[int(frame_index)]
 
-        Args:
-            ag: MDAnalysis AtomGroup.
+            if kind == "positions":
+                values.append(atomgroup.positions.copy())
+            elif kind == "forces":
+                values.append(atomgroup.forces.copy())
+            else:
+                values.append(universe.dimensions.copy())
 
-        Returns:
-            Copy of ag.positions.
-        """
-        return ag.positions.copy()
-
-    def _forces_copy(self, ag):
-        """Return a copy of forces for AnalysisFromFunction.
-
-        Args:
-            ag: MDAnalysis AtomGroup.
-
-        Returns:
-            Copy of ag.forces.
-        """
-        return ag.forces.copy()
-
-    def _dimensions_copy(self, ag):
-        """Return a copy of box dimensions for AnalysisFromFunction.
-
-        Args:
-            ag: MDAnalysis AtomGroup.
-
-        Returns:
-            Copy of ag.dimensions.
-        """
-        return ag.dimensions.copy()
+        return np.asarray(values)
 
     def _extract_force_timeseries_with_fallback(
         self,

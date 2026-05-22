@@ -1,8 +1,16 @@
 """Dihedral state assignment for conformational entropy.
 
-This module converts dihedral angle time series into discrete conformational
-state labels. The resulting state labels are used downstream to compute
-conformational entropy.
+This module converts selected-frame dihedral angle time series into discrete
+conformational state labels. The resulting state labels are used downstream to
+compute configurational entropy.
+
+Frame-index contract:
+    - ``FrameSelection.analysis_indices`` are used for MDAnalysis trajectory access
+      in the active analysis universe.
+    - ``Dihedral(...).run(start, stop, step)`` uses frame bounds in the active
+      analysis-universe index space.
+    - ``dihedral_results.results.angles`` is always indexed locally from zero.
+      Never use an absolute/source frame index directly into that result array.
 """
 
 from __future__ import annotations
@@ -28,18 +36,17 @@ class DihedralDefinitions:
         """Return dihedral AtomGroups for a container at a given level.
 
         Args:
-            data_container: MDAnalysis container (AtomGroup/Universe).
-            level: Either "united_atom" or "residue".
+            data_container: MDAnalysis container.
+            level: Either ``"united_atom"`` or ``"residue"``.
 
         Returns:
-            List of AtomGroups (each representing a dihedral definition).
+            List of AtomGroups, each representing a dihedral definition.
         """
         atom_groups: list[Any] = []
 
         if level == "united_atom":
-            dihedrals = data_container.dihedrals
-            for d in dihedrals:
-                atom_groups.append(d.atoms)
+            for dihedral in data_container.dihedrals:
+                atom_groups.append(dihedral.atoms)
 
         if level == "residue":
             num_residues = len(data_container.residues)
@@ -59,7 +66,7 @@ class DihedralDefinitions:
                     )
                     atom_groups.append(atom1 + atom2 + atom3 + atom4)
 
-        logger.debug(f"Level: {level}, Dihedrals: {atom_groups}")
+        logger.debug("Level: %s, Dihedrals: %s", level, atom_groups)
         return atom_groups
 
     def method_res_points(self, data_container: Any, level: str) -> list[Any]:

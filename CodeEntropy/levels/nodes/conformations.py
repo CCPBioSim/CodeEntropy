@@ -1,9 +1,9 @@
 """Compute conformational states for configurational entropy calculations.
 
-This module defines a static DAG node that scans the trajectory and builds
-conformational state descriptors (united-atom and residue level). The resulting
-states are stored in `shared_data` for later use by configurational entropy
-calculations.
+This module defines a static DAG node that scans the selected trajectory frames
+and builds conformational state descriptors (united-atom and residue level).
+The resulting states are stored in ``shared_data`` for later use by
+configurational entropy calculations.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from CodeEntropy.levels.conformations import ConformationStateBuilder
+from CodeEntropy.trajectory.frames import FrameSelection
 
 SharedData = dict[str, Any]
 ConformationalStates = dict[str, Any]
@@ -23,7 +24,7 @@ class ConformationalStateConfig:
     """Configuration for conformational state construction.
 
     Attributes:
-        n_frames: Number of frames to be analyised.
+        n_frames: Number of frames to be analysed.
         bin_width: Histogram bin width in degrees.
     """
 
@@ -36,13 +37,19 @@ class ComputeConformationalStatesNode:
 
     Produces:
         shared_data["conformational_states"] = {"ua": states_ua, "res": states_res}
-        shared_data["flexible_dihedrals"] = {"ua: flexible_ua, "res": flexible_res}
+        shared_data["flexible_dihedrals"] = {"ua": flexible_ua, "res": flexible_res}
 
     Where:
-        - states_ua is a dict keyed by (group_id, local_residue_id)
-        - states_res is a list-like structure indexed by group_id (or equivalent)
-        - flexible_ua is a dict keyed by (group_id, local_residue_id)
-        - flexible_res is a list-like structure indexed by group_id (or equivalent)
+        - states_ua is a dict keyed by ``(group_id, local_residue_id)``.
+        - states_res is a list-like structure indexed by group id.
+        - flexible_ua is a dict keyed by ``(group_id, local_residue_id)``.
+        - flexible_res is a list-like structure indexed by group id.
+
+    Notes:
+        Frame selection is provided through ``shared_data["frame_selection"]``.
+        During the current migration stage, that selection uses local
+        analysis-universe frame indices because the workflow still physically
+        frame-slices the universe.
     """
 
     def __init__(self, universe_operations: Any) -> None:
@@ -50,7 +57,7 @@ class ComputeConformationalStatesNode:
 
         Args:
             universe_operations: Object providing universe selection utilities used
-                by `ConformationStateBuilder`.
+                by ``ConformationStateBuilder``.
         """
         self._dihedral_analysis = ConformationStateBuilder(
             universe_operations=universe_operations
@@ -63,19 +70,20 @@ class ComputeConformationalStatesNode:
 
         Args:
             shared_data: Shared data dictionary. Requires:
-                - "reduced_universe"
-                - "levels"
-                - "groups"
-                - "n_frames"
-                - "args" with attribute "bin_width"
+                - ``"reduced_universe"``
+                - ``"levels"``
+                - ``"groups"``
+                - ``"frame_selection"``
+                - ``"args"`` with attribute ``bin_width``
             progress: Optional progress sink provided by ResultsReporter.progress().
 
         Returns:
-            Dict containing "conformational_states" (also written into shared_data).
+            Dict containing ``"conformational_states"``.
         """
         u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
+        frame_selection: FrameSelection = shared_data["frame_selection"]
         bin_width = int(shared_data["args"].bin_width)
         conf_type = shared_data["args"].conf_type
 
@@ -86,18 +94,17 @@ class ComputeConformationalStatesNode:
                 groups=groups,
                 bin_width=bin_width,
                 conf_type=conf_type,
+                frame_selection=frame_selection,
                 progress=progress,
             )
         )
 
-        # Get state information into shared_data
         conformational_states: ConformationalStates = {
             "ua": states_ua,
             "res": states_res,
         }
         shared_data["conformational_states"] = conformational_states
 
-        # Get flexible_dihedral data into shared_data
         flexible_states: FlexibleStates = {
             "ua": flexible_ua,
             "res": flexible_res,

@@ -26,71 +26,124 @@ def _fake_progress_bar(*_args, **_kwargs):
     yield _FakeProgress()
 
 
+def _make_frame_source(indices):
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = list(indices)
+    return frame_source
+
+
 def test_raises_error_unknown_search_type():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
-    n_frames = 2
-    search_type = "weird"
+    frame_source = _make_frame_source([0, 1])
 
-    with pytest.raises(ValueError):
-        neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    with pytest.raises(ValueError, match="unknown search_type"):
+        neighbors.get_neighbors(
+            universe=universe,
+            levels=levels,
+            groups=groups,
+            frame_source=frame_source,
+            search_type="weird",
+        )
 
 
 def test_average_number_neighbors_RAD():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
-    n_frames = 2
-    search_type = "RAD"
+    frame_source = _make_frame_source([0, 1])
 
     neighbors._search.get_RAD_neighbors = MagicMock(side_effect=[[1, 2, 3], [1, 3]])
 
-    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="RAD",
+    )
 
     assert result == {0: np.float64(2.5)}
+    assert neighbors._search.get_RAD_neighbors.call_args_list == [
+        call(
+            universe=universe,
+            mol_id=0,
+            frame_source=frame_source,
+            frame_index=0,
+        ),
+        call(
+            universe=universe,
+            mol_id=0,
+            frame_source=frame_source,
+            frame_index=1,
+        ),
+    ]
 
 
 def test_average_number_neighbors_grid():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0]}
-    n_frames = 2
-    search_type = "grid"
+    frame_source = _make_frame_source([0, 1])
 
     neighbors._search.get_grid_neighbors = MagicMock(side_effect=[[1, 2, 3], [1, 3]])
 
-    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="grid",
+    )
 
     assert result == {0: np.float64(2.5)}
+    assert neighbors._search.get_grid_neighbors.call_args_list == [
+        call(
+            universe=universe,
+            mol_id=0,
+            highest_level="united_atom",
+            frame_source=frame_source,
+            frame_index=0,
+        ),
+        call(
+            universe=universe,
+            mol_id=0,
+            highest_level="united_atom",
+            frame_source=frame_source,
+            frame_index=1,
+        ),
+    ]
 
 
 def test_average_number_neighbors_RAD_multiple():
     neighbors = Neighbors()
 
     universe = MagicMock()
-    universe.trajectory.__len__.return_value = 2
     levels = {0: ["united_atom"]}
     groups = {0: [0, 1]}
-    n_frames = 2
-    search_type = "RAD"
+    frame_source = _make_frame_source([0, 1])
 
     neighbors._search.get_RAD_neighbors = MagicMock(
         side_effect=[[1, 2, 3, 5], [1, 3], [2, 3, 4, 5], [3, 5]]
     )
 
-    result = neighbors.get_neighbors(universe, levels, groups, n_frames, search_type)
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="RAD",
+    )
 
     assert result == {0: np.float64(3.0)}
+    assert neighbors._search.get_RAD_neighbors.call_count == 4
 
 
 def test_get_symmetry_number_res():
@@ -491,3 +544,76 @@ def test_get_rdkit_mol_returns_correct_heavy_and_hydrogen_counts():
     assert rdkit_out is rdkit_mol
     assert number_heavy == 1
     assert number_hydrogen == 2
+
+
+def test_get_neighbors_returns_zero_for_each_group_when_no_frames_selected():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    levels = {
+        0: ["united_atom"],
+        1: ["residue"],
+    }
+    groups = {
+        0: [0],
+        1: [1],
+    }
+
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = []
+
+    neighbors._search.get_RAD_neighbors = MagicMock()
+    neighbors._search.get_grid_neighbors = MagicMock()
+
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="RAD",
+    )
+
+    assert result == {
+        0: 0.0,
+        1: 0.0,
+    }
+
+    frame_source.iter_indices.assert_called_once()
+    neighbors._search.get_RAD_neighbors.assert_not_called()
+    neighbors._search.get_grid_neighbors.assert_not_called()
+
+
+def test_get_rdkit_mol_falls_back_to_inferrer_none_when_convert_to_raises():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+
+    universe.atoms.elements = ["C", "H"]
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.return_value = dummy
+    dummy.__len__.return_value = 0
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 1
+    rdkit_mol.GetNumAtoms.return_value = 4
+
+    molecule.convert_to.side_effect = [
+        RuntimeError("constraint bond issue"),
+        rdkit_mol,
+    ]
+
+    result = neighbors._get_rdkit_mol(universe, mol_id=0)
+
+    assert result == (rdkit_mol, 1, 3)
+
+    molecule.select_atoms.assert_called_once_with("prop mass < 0.1")
+    molecule.convert_to.assert_has_calls(
+        [
+            call("RDKIT", force=True),
+            call("RDKIT", force=True, inferrer=None),
+        ]
+    )
+    universe.guess_TopologyAttrs.assert_not_called()

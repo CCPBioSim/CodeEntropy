@@ -18,6 +18,7 @@ Subpackages
    CodeEntropy.levels
    CodeEntropy.molecules
    CodeEntropy.results
+   CodeEntropy.trajectory
 
 Submodules
 ----------
