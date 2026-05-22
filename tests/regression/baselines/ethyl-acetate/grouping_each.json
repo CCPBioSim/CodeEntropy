@@ -1,33 +1,4 @@
 {
-  "args": {
-    "top_traj_file": [
-      "/home/runner/work/CodeEntropy/CodeEntropy/.testdata/ethyl-acetate/molecules.top",
-      "/home/runner/work/CodeEntropy/CodeEntropy/.testdata/ethyl-acetate/trajectory.crd"
-    ],
-    "force_file": "/home/runner/work/CodeEntropy/CodeEntropy/.testdata/ethyl-acetate/forces.frc",
-    "file_format": "MDCRD",
-    "kcal_force_units": true,
-    "selection_string": "resid 1:10",
-    "start": 0,
-    "end": 1,
-    "step": 1,
-    "bin_width": 30,
-    "temperature": 298.0,
-    "verbose": false,
-    "output_file": "/tmp/pytest-of-runner/pytest-0/popen-gw0/test_regression_matches_baseli12/job001/output_file.json",
-    "force_partitioning": 0.5,
-    "water_entropy": true,
-    "grouping": "each",
-    "combined_forcetorque": true,
-    "customised_axes": true,
-    "search_type": "grid"
-  },
-  "provenance": {
-    "python": "3.14.5",
-    "platform": "Linux-6.17.0-1013-azure-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.2.4",
-    "git_sha": "48c46cb0cacfcf2971dfa797a1ccfba0a8350c29"
-  },
   "groups": {
     "0": {
       "components": {
