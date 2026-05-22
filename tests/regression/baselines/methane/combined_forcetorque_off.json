@@ -1,10 +1,10 @@
 {
   "args": {
     "top_traj_file": [
-      "/home/ogo12949/CodeEntropy/.testdata/methane/molecules.top",
-      "/home/ogo12949/CodeEntropy/.testdata/methane/trajectory.crd"
+      "/home/runner/work/CodeEntropy/CodeEntropy/.testdata/methane/molecules.top",
+      "/home/runner/work/CodeEntropy/CodeEntropy/.testdata/methane/trajectory.crd"
     ],
-    "force_file": "/home/ogo12949/CodeEntropy/.testdata/methane/forces.frc",
+    "force_file": "/home/runner/work/CodeEntropy/CodeEntropy/.testdata/methane/forces.frc",
     "file_format": "MDCRD",
     "kcal_force_units": true,
     "selection_string": "resid 1:10",
@@ -14,7 +14,7 @@
     "bin_width": 30,
     "temperature": 112.0,
     "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw12/test_regression_matches_baseli3/job001/output_file.json",
+    "output_file": "/tmp/pytest-of-runner/pytest-0/popen-gw1/test_regression_matches_baseli11/job001/output_file.json",
     "force_partitioning": 0.5,
     "water_entropy": true,
     "grouping": "molecules",
@@ -23,10 +23,10 @@
     "search_type": "grid"
   },
   "provenance": {
-    "python": "3.13.5",
-    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.1",
-    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
+    "python": "3.14.5",
+    "platform": "Linux-6.17.0-1013-azure-x86_64-with-glibc2.39",
+    "codeentropy_version": "2.2.4",
+    "git_sha": "48c46cb0cacfcf2971dfa797a1ccfba0a8350c29"
   },
   "groups": {
     "0": {
