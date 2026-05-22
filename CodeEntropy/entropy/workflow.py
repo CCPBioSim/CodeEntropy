@@ -179,7 +179,6 @@ class EntropyWorkflow:
             "n_frames": frame_selection.n_frames,
             "frame_selection": frame_selection,
             "frame_source": frame_source,
-            # Compatibility aliases. These are absolute trajectory frame indices.
             "frame_indices": list(frame_selection.indices),
             "source_frame_indices": list(frame_selection.indices),
         }
