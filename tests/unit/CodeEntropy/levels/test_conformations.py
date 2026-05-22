@@ -345,6 +345,7 @@ def test_identify_peaks_initialises_phi_res_dict_before_processing_residue_dihed
         bin_width=30.0,
         level_list=["residue"],
         frame_selection=frame_selection,
+        conf_type="res_bonds",
     )
 
     assert peaks_ua == [[], [], [], []]

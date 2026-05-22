@@ -66,7 +66,6 @@ class DihedralDefinitions:
                     )
                     atom_groups.append(atom1 + atom2 + atom3 + atom4)
 
-        logger.debug("Level: %s, Dihedrals: %s", level, atom_groups)
         return atom_groups
 
     def method_res_points(self, data_container: Any, level: str) -> list[Any]:
@@ -113,7 +112,6 @@ class DihedralDefinitions:
                     atom4 = point[index]
                     atom_groups.append(atom1 + atom2 + atom3 + atom4)
 
-        logger.debug(f"Level: {level}, Dihedrals: {atom_groups}")
         return atom_groups
 
     def method_ua_backbone(self, data_container: Any, level: str) -> list[Any]:

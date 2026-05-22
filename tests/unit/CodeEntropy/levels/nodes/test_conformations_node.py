@@ -52,5 +52,6 @@ def test_compute_conformational_states_node_runs_and_writes_shared_data():
         groups=shared["groups"],
         bin_width=10,
         frame_selection=frame_selection,
+        conf_type="res_bonds",
         progress=None,
     )
