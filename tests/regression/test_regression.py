@@ -51,6 +51,18 @@ def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return groups
 
 
+def _baseline_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Build the persisted regression baseline payload.
+
+    Baselines intentionally store only grouped entropy results, not runtime
+    arguments or provenance, so they remain stable across machines and runs.
+    """
+    return {
+        "groups": _group_index(payload),
+    }
+
+
 def _compare_grouped(
     *,
     got_payload: dict[str, Any],
@@ -148,7 +160,8 @@ def test_regression_matches_baseline(
         options.
 
     Raises:
-        AssertionError: If the output does not match the baseline or baseline is missing
+        AssertionError: If the output does not match the baseline or
+        baseline is missing.
     """
     system = case.system
     config_path = case.config_path
@@ -176,7 +189,9 @@ def test_regression_matches_baseline(
 
     if request.config.getoption("--update-baselines"):
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
-        baseline_path.write_text(json.dumps(run.payload, indent=2))
+        baseline_path.write_text(
+            json.dumps(_baseline_payload(run.payload), indent=2) + "\n"
+        )
         pytest.skip(f"Updated baseline for {system}")
 
     _compare_grouped(
