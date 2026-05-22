@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from MDAnalysis.exceptions import NoDataError
 
-from CodeEntropy.levels.mda import UniverseOperations
+from CodeEntropy.trajectory.mda import UniverseOperations
 
 
 class _FakeAF:
@@ -88,7 +88,7 @@ def test_select_frames_defaults_start_end_and_slices(monkeypatch):
 
     merged = MagicMock()
     merged.load_new = MagicMock()
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
 
     out = ops.select_frames(u, start=None, end=None, step=2)
 
@@ -107,7 +107,7 @@ def test_merge_forces_scales_kcal(monkeypatch):
     u_force.select_atoms.return_value = MagicMock()
 
     monkeypatch.setattr(
-        "CodeEntropy.levels.mda.mda.Universe", MagicMock(side_effect=[u, u_force])
+        "CodeEntropy.trajectory.mda.mda.Universe", MagicMock(side_effect=[u, u_force])
     )
 
     ops._extract_timeseries = MagicMock(
@@ -122,7 +122,7 @@ def test_merge_forces_scales_kcal(monkeypatch):
 
     merged = MagicMock()
     merged.load_new = MagicMock()
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
 
     out = ops.merge_forces(
         tprfile="tpr",
@@ -147,7 +147,7 @@ def test_convert_lammps_transforms_forces_and_energies(monkeypatch):
             transformations_captured.extend(kwargs["transformations"])
         return mock_universe
 
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Universe", capture_universe)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Universe", capture_universe)
 
     ops.convert_lammps("tpr", "trr", "LAMMPSDUMP")
 
@@ -176,7 +176,7 @@ def test_convert_lammps_fallback_on_keyerror(monkeypatch):
             transformations_captured.extend(kwargs["transformations"])
         return MagicMock()
 
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Universe", mock_universe)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Universe", mock_universe)
 
     ops.convert_lammps("tpr", "trr", "LAMMPSDUMP")
 
@@ -206,7 +206,7 @@ def test_select_atoms_builds_merged_universe_and_loads_timeseries(monkeypatch):
     merged = MagicMock()
     merged.load_new = MagicMock()
 
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
 
     out = ops.select_atoms(u, "name CA")
 
@@ -367,7 +367,7 @@ def test_build_memory_universe_from_atomgroup_omits_forces_when_force_data_missi
     merged = MagicMock()
     merged.load_new = MagicMock()
 
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
 
     out = ops._build_memory_universe_from_atomgroup(atomgroup, frame_indices=[0, 2])
 
