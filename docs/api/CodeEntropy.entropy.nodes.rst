@@ -14,4 +14,5 @@ Submodules
 
    CodeEntropy.entropy.nodes.aggregate
    CodeEntropy.entropy.nodes.configurational
+   CodeEntropy.entropy.nodes.orientational
    CodeEntropy.entropy.nodes.vibrational

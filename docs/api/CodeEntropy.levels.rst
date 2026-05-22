@@ -27,4 +27,5 @@ Submodules
    CodeEntropy.levels.hierarchy
    CodeEntropy.levels.level_dag
    CodeEntropy.levels.linalg
-   CodeEntropy.levels.mda
+   CodeEntropy.levels.neighbors
+   CodeEntropy.levels.search

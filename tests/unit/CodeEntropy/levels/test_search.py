@@ -11,6 +11,12 @@ def search():
     return Search()
 
 
+def _make_frame_source():
+    frame_source = MagicMock()
+    frame_source.seek = MagicMock()
+    return frame_source
+
+
 def test_apply_pbc_wraps_positive():
     vec = np.array([11.0, 0.0, 0.0])
     dimensions = np.array([10.0, 10.0, 10.0])
@@ -50,7 +56,6 @@ def test_get_distances_applies_pbc(search):
 
 def test_update_cache_initializes_and_skips_on_same_frame(search):
     universe = MagicMock()
-    universe.trajectory.ts.frame = 0
     universe.dimensions = np.array([10.0, 10.0, 10.0])
 
     frag1 = MagicMock()
@@ -61,15 +66,17 @@ def test_update_cache_initializes_and_skips_on_same_frame(search):
 
     universe.atoms.fragments = [frag1, frag2]
 
-    search._update_cache(universe)
+    search._update_cache(universe, frame_index=0)
 
     assert search._cached_frame == 0
     assert search._cached_coms.shape == (2, 3)
 
     old = search._cached_coms.copy()
-    search._update_cache(universe)
+    search._update_cache(universe, frame_index=0)
 
     assert np.array_equal(old, search._cached_coms)
+    assert frag1.center_of_mass.call_count == 1
+    assert frag2.center_of_mass.call_count == 1
 
 
 def test_update_cache_updates_on_new_frame(search):
@@ -78,21 +85,17 @@ def test_update_cache_updates_on_new_frame(search):
     frag = MagicMock()
     frag.center_of_mass.return_value = np.array([0.0, 0.0, 0.0])
     universe.atoms.fragments = [frag]
-
     universe.dimensions = np.array([10.0, 10.0, 10.0])
 
-    universe.trajectory.ts.frame = 0
-    search._update_cache(universe)
-
-    universe.trajectory.ts.frame = 1
-    search._update_cache(universe)
+    search._update_cache(universe, frame_index=0)
+    search._update_cache(universe, frame_index=1)
 
     assert search._cached_frame == 1
+    assert frag.center_of_mass.call_count == 2
 
 
 def test_get_RAD_neighbors_returns_array(search):
     universe = MagicMock()
-    universe.trajectory.ts.frame = 0
     universe.dimensions = np.array([10.0, 10.0, 10.0])
 
     frag1 = MagicMock()
@@ -104,15 +107,21 @@ def test_get_RAD_neighbors_returns_array(search):
     frag3.center_of_mass.return_value = np.array([2.0, 0.0, 0.0])
 
     universe.atoms.fragments = [frag1, frag2, frag3]
+    frame_source = _make_frame_source()
 
-    result = search.get_RAD_neighbors(universe, mol_id=0, timestep=0)
+    result = search.get_RAD_neighbors(
+        universe=universe,
+        mol_id=0,
+        frame_source=frame_source,
+        frame_index=0,
+    )
 
+    frame_source.seek.assert_called_once_with(0)
     assert isinstance(result, np.ndarray)
 
 
 def test_rad_pbc_path_triggers_wrapping(search):
     universe = MagicMock()
-    universe.trajectory.ts.frame = 0
     universe.dimensions = np.array([10.0, 10.0, 10.0])
 
     frag1 = MagicMock()
@@ -122,9 +131,16 @@ def test_rad_pbc_path_triggers_wrapping(search):
     frag2.center_of_mass.return_value = np.array([9.5, 0.0, 0.0])
 
     universe.atoms.fragments = [frag1, frag2]
+    frame_source = _make_frame_source()
 
-    result = search.get_RAD_neighbors(universe, mol_id=0, timestep=0)
+    result = search.get_RAD_neighbors(
+        universe=universe,
+        mol_id=0,
+        frame_source=frame_source,
+        frame_index=0,
+    )
 
+    frame_source.seek.assert_called_once_with(0)
     assert isinstance(result, np.ndarray)
 
 
@@ -133,7 +149,6 @@ def test_get_grid_neighbors_united_atom(search):
 
     fragment = MagicMock()
     fragment.indices = [10, 11]
-
     universe.atoms.fragments = [fragment]
 
     molecule_atom_group = MagicMock()
@@ -142,8 +157,9 @@ def test_get_grid_neighbors_united_atom(search):
     search_result = MagicMock()
     diff_result = MagicMock()
     diff_result.fragindices = np.array([1, 2])
-
     search_result.__sub__.return_value = diff_result
+
+    frame_source = _make_frame_source()
 
     with patch(
         "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch.search",
@@ -151,15 +167,17 @@ def test_get_grid_neighbors_united_atom(search):
         return_value=search_result,
     ) as mock_search:
         result = search.get_grid_neighbors(
-            universe,
+            universe=universe,
             mol_id=0,
             highest_level="united_atom",
-            timestep=0,
+            frame_source=frame_source,
+            frame_index=0,
         )
 
-        mock_search.assert_called_once()
-        universe.select_atoms.assert_called_once_with("index 10:11")
-        assert np.array_equal(result, np.array([1, 2]))
+    frame_source.seek.assert_called_once_with(0)
+    mock_search.assert_called_once()
+    universe.select_atoms.assert_called_once_with("index 10:11")
+    assert np.array_equal(result, np.array([1, 2]))
 
 
 def test_get_grid_neighbors_residue(search):
@@ -168,7 +186,6 @@ def test_get_grid_neighbors_residue(search):
     fragment = MagicMock()
     fragment.indices = [4, 5, 6]
     fragment.residues = MagicMock()
-
     universe.atoms.fragments = [fragment]
 
     molecule_atom_group = MagicMock()
@@ -178,8 +195,9 @@ def test_get_grid_neighbors_residue(search):
     diff_result = MagicMock()
     diff_result.atoms = MagicMock()
     diff_result.atoms.fragindices = np.array([7, 8, 9])
-
     search_result.__sub__.return_value = diff_result
+
+    frame_source = _make_frame_source()
 
     with patch(
         "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch.search",
@@ -187,15 +205,17 @@ def test_get_grid_neighbors_residue(search):
         return_value=search_result,
     ) as mock_search:
         result = search.get_grid_neighbors(
-            universe,
+            universe=universe,
             mol_id=0,
             highest_level="other",
-            timestep=0,
+            frame_source=frame_source,
+            frame_index=0,
         )
 
-        mock_search.assert_called_once()
-        universe.select_atoms.assert_called_once_with("index 4:6")
-        assert np.array_equal(result, np.array([7, 8, 9]))
+    frame_source.seek.assert_called_once_with(0)
+    mock_search.assert_called_once()
+    universe.select_atoms.assert_called_once_with("index 4:6")
+    assert np.array_equal(result, np.array([7, 8, 9]))
 
 
 def test_get_grid_neighbors_selection_string(search):
@@ -203,9 +223,10 @@ def test_get_grid_neighbors_selection_string(search):
 
     fragment = MagicMock()
     fragment.indices = [3, 7]
-
     universe.atoms.fragments = [fragment]
     universe.select_atoms.return_value = MagicMock()
+
+    frame_source = _make_frame_source()
 
     with patch(
         "CodeEntropy.levels.search.mda.lib.NeighborSearch.AtomNeighborSearch.search",
@@ -213,12 +234,14 @@ def test_get_grid_neighbors_selection_string(search):
         return_value=MagicMock(),
     ):
         search.get_grid_neighbors(
-            universe,
+            universe=universe,
             mol_id=0,
             highest_level="united_atom",
-            timestep=0,
+            frame_source=frame_source,
+            frame_index=0,
         )
 
+    frame_source.seek.assert_called_once_with(0)
     universe.select_atoms.assert_called_once_with("index 3:7")
 
 

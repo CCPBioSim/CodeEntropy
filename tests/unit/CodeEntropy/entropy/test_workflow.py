@@ -2,7 +2,10 @@ import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from CodeEntropy.entropy.workflow import EntropyWorkflow
+from CodeEntropy.trajectory.frames import FrameSelection
 
 
 def _make_wf(args):
@@ -15,6 +18,15 @@ def _make_wf(args):
         dihedral_analysis=MagicMock(),
         universe_operations=MagicMock(),
     )
+
+
+def _make_frame_selection(
+    start: int = 0,
+    end: int = 5,
+    step: int = 1,
+) -> FrameSelection:
+    """Build a FrameSelection for workflow unit tests."""
+    return FrameSelection.from_bounds(start=start, stop=end, step=step)
 
 
 def test_execute_calls_level_dag_and_entropy_graph_and_logs_tables():
@@ -143,18 +155,16 @@ def test_get_trajectory_bounds_end_minus_one_uses_trajectory_length():
     assert (start, end, step) == (0, 10, 2)
 
 
-def test_get_number_frames_matches_python_slice_math():
-    wf = EntropyWorkflow(
-        run_manager=MagicMock(),
-        args=MagicMock(),
-        universe=MagicMock(),
-        reporter=MagicMock(),
-        group_molecules=MagicMock(),
-        dihedral_analysis=MagicMock(),
-        universe_operations=MagicMock(),
-    )
-    assert wf._get_number_frames(0, 10, 1) == 10
-    assert wf._get_number_frames(0, 10, 2) == 5
+def test_frame_selection_matches_python_slice_math():
+    """FrameSelection uses Python range semantics for selected frames."""
+    selection_unit_step = _make_frame_selection(start=0, end=10, step=1)
+    selection_stride_two = _make_frame_selection(start=0, end=10, step=2)
+
+    assert selection_unit_step.n_frames == 10
+    assert selection_unit_step.indices == tuple(range(0, 10, 1))
+
+    assert selection_stride_two.n_frames == 5
+    assert selection_stride_two.indices == tuple(range(0, 10, 2))
 
 
 def test_finalize_results_called_even_if_empty():
@@ -195,7 +205,7 @@ def test_split_water_groups_returns_empty_when_none():
     assert water == {}
 
 
-def test_build_reduced_universe_non_all_selects_and_writes_universe():
+def test_build_reduced_universe_non_all_selects_atoms_and_writes_universe():
     args = SimpleNamespace(
         selection_string="protein",
         grouping="molecules",
@@ -209,14 +219,10 @@ def test_build_reduced_universe_non_all_selects_and_writes_universe():
     universe.trajectory = list(range(3))
 
     reduced = MagicMock()
-    reduced.trajectory = list(range(2))
-
-    reduced2 = MagicMock()
-    reduced2.trajectory = list(range(2))
+    reduced.trajectory = list(range(3))
 
     uops = MagicMock()
     uops.select_atoms.return_value = reduced
-    uops.select_frames.return_value = reduced2
 
     run_manager = MagicMock()
     reporter = MagicMock()
@@ -231,16 +237,59 @@ def test_build_reduced_universe_non_all_selects_and_writes_universe():
         universe_operations=uops,
     )
 
-    out = wf._build_reduced_universe()
+    frame_selection = _make_frame_selection(start=0, end=3, step=1)
 
-    assert out is reduced2
+    out = wf._build_reduced_universe(frame_selection)
+
+    assert out is reduced
     uops.select_atoms.assert_called_once_with(universe, "protein")
-    uops.select_frames.assert_called_once_with(reduced, 0, 3, 1)
+    uops.select_frames.assert_not_called()
+    run_manager.write_universe.assert_called_once_with(
+        reduced,
+        f"{len(reduced.trajectory)}_frame_dump_atom_selection",
+    )
+
+
+def test_build_reduced_universe_raises_when_frame_selection_empty():
+    args = SimpleNamespace(
+        selection_string="all",
+        grouping="molecules",
+        start=0,
+        end=0,
+        step=1,
+        water_entropy=False,
+        output_file="out.json",
+    )
+
+    universe = MagicMock()
+    uops = MagicMock()
+    run_manager = MagicMock()
+
+    wf = EntropyWorkflow(
+        run_manager=run_manager,
+        args=args,
+        universe=universe,
+        reporter=MagicMock(),
+        group_molecules=MagicMock(),
+        dihedral_analysis=MagicMock(),
+        universe_operations=uops,
+    )
+
+    frame_selection = FrameSelection(indices=())
+
+    with pytest.raises(ValueError, match="Frame selection is empty"):
+        wf._build_reduced_universe(frame_selection)
+
+    uops.select_atoms.assert_not_called()
+    uops.select_frames.assert_not_called()
+    run_manager.write_universe.assert_not_called()
 
 
 def test_compute_water_entropy_updates_selection_string_and_calls_internal_method():
     args = SimpleNamespace(
-        selection_string="all", water_entropy=True, temperature=298.0
+        selection_string="all",
+        water_entropy=True,
+        temperature=298.0,
     )
     wf = EntropyWorkflow(
         run_manager=MagicMock(),
@@ -252,20 +301,20 @@ def test_compute_water_entropy_updates_selection_string_and_calls_internal_metho
         universe_operations=MagicMock(),
     )
 
-    traj = SimpleNamespace(start=0, end=5, step=1)
+    frame_selection = _make_frame_selection(start=0, end=5, step=1)
     water_groups = {9: [1, 2]}
 
     with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
         inst = WaterCls.return_value
         inst.calculate_and_log = MagicMock()
 
-        wf._compute_water_entropy(traj, water_groups)
+        wf._compute_water_entropy(frame_selection, water_groups)
 
     inst.calculate_and_log.assert_called_once_with(
         universe=wf._universe,
-        start=traj.start,
-        end=traj.end,
-        step=traj.step,
+        start=0,
+        end=5,
+        step=1,
         group_id=9,
     )
     assert wf._args.selection_string == "not water"
@@ -307,28 +356,29 @@ def test_build_reduced_universe_all_returns_original_universe():
         output_file="out.json",
     )
     universe = MagicMock()
-
-    reduced = MagicMock()
-    reduced.trajectory = list(range(2))
-
-    reduced2 = MagicMock()
-    reduced2.trajectory = list(range(2))
+    universe.trajectory = list(range(2))
 
     uops = MagicMock()
-    uops.select_atoms.return_value = reduced
-    uops.select_frames.return_value = reduced2
-
     run_manager = MagicMock()
+
     wf = EntropyWorkflow(
-        run_manager, args, universe, MagicMock(), MagicMock(), MagicMock(), uops
+        run_manager=run_manager,
+        args=args,
+        universe=universe,
+        reporter=MagicMock(),
+        group_molecules=MagicMock(),
+        dihedral_analysis=MagicMock(),
+        universe_operations=uops,
     )
 
-    out = wf._build_reduced_universe()
+    frame_selection = _make_frame_selection(start=0, end=2, step=1)
 
-    assert out is reduced2
+    out = wf._build_reduced_universe(frame_selection)
+
+    assert out is universe
     uops.select_atoms.assert_not_called()
-    uops.select_frames.assert_called_once()
-    run_manager.write_universe.assert_called_once()
+    uops.select_frames.assert_not_called()
+    run_manager.write_universe.assert_not_called()
 
 
 def test_split_water_groups_partitions_correctly():
@@ -374,32 +424,92 @@ def test_split_water_groups_partitions_correctly():
 
 def test_compute_water_entropy_instantiates_waterentropy_and_updates_selection_string():
     args = SimpleNamespace(
-        selection_string="all", water_entropy=True, temperature=298.0
+        selection_string="all",
+        water_entropy=True,
+        temperature=298.0,
     )
     universe = MagicMock()
     reporter = MagicMock()
+
     wf = EntropyWorkflow(
-        MagicMock(), args, universe, reporter, MagicMock(), MagicMock(), MagicMock()
+        MagicMock(),
+        args,
+        universe,
+        reporter,
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
     )
 
-    traj = SimpleNamespace(start=0, end=5, step=1, n_frames=5)
+    frame_selection = _make_frame_selection(start=0, end=5, step=1)
     water_groups = {9: [0]}
 
     with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
         inst = WaterCls.return_value
         inst.calculate_and_log = MagicMock()
 
-        wf._compute_water_entropy(traj, water_groups)
+        wf._compute_water_entropy(frame_selection, water_groups)
 
     WaterCls.assert_called_once_with(args, reporter)
     inst.calculate_and_log.assert_called_once_with(
         universe=universe,
-        start=traj.start,
-        end=traj.end,
-        step=traj.step,
+        start=0,
+        end=5,
+        step=1,
         group_id=9,
     )
     assert args.selection_string == "not water"
+
+
+def test_compute_water_entropy_returns_when_no_water_groups():
+    args = SimpleNamespace(
+        selection_string="all",
+        water_entropy=True,
+        temperature=298.0,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+    frame_selection = FrameSelection.from_bounds(start=0, stop=5, step=1)
+
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
+
+
+def test_compute_water_entropy_returns_when_water_entropy_disabled():
+    args = SimpleNamespace(
+        selection_string="all",
+        water_entropy=False,
+        temperature=298.0,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+    frame_selection = FrameSelection.from_bounds(start=0, stop=5, step=1)
+
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={9: [0]})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
+
+
+def test_compute_water_entropy_returns_when_frame_selection_empty():
+    args = SimpleNamespace(
+        selection_string="all",
+        water_entropy=True,
+        temperature=298.0,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+    frame_selection = FrameSelection(indices=())
+
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={9: [0]})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
 
 
 def test_detect_levels_calls_hierarchy_builder():
@@ -426,11 +536,13 @@ def test_compute_water_entropy_returns_early_when_disabled_or_empty_groups():
     )
     wf = _make_wf(args)
 
-    traj = SimpleNamespace(start=0, end=5, step=1, n_frames=5)
+    frame_selection = _make_frame_selection(start=0, end=5, step=1)
 
-    # empty water groups OR water_entropy disabled -> early return
-    wf._compute_water_entropy(traj, water_groups={})
-    # no exception and no side effects expected
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
 
 
 def test_finalize_molecule_results_skips_group_total_rows():

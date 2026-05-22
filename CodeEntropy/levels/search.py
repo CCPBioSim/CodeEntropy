@@ -135,27 +135,28 @@ class Search:
         self._cached_coms = None
         self._cached_dimensions = None
 
-    def _update_cache(self, universe):
-        """
-        Update cached MDAnalysis data if the simulation frame has changed.
+    def _update_cache(self, universe, frame_index: int) -> None:
+        """Update cached MDAnalysis data for a specific selected frame.
 
         Args:
-            universe (MDAnalysis.Universe):
-                MDAnalysis universe object containing the system.
-        """
-        current_frame = universe.trajectory.ts.frame
+            universe: MDAnalysis universe object containing the active analysis system.
+            frame_index: Frame index in the active analysis-universe index space.
 
-        if self._cached_frame == current_frame:
+        Returns:
+            None.
+        """
+        frame_index = int(frame_index)
+
+        if self._cached_frame == frame_index:
             return
 
         fragments = universe.atoms.fragments
-
         coms = np.array([frag.center_of_mass() for frag in fragments])
 
         self._cached_fragments = fragments
         self._cached_coms = coms
         self._cached_dimensions = universe.dimensions[:3]
-        self._cached_frame = current_frame
+        self._cached_frame = frame_index
 
     def _get_distances(self, coms, i_coords, dimensions):
         """
@@ -192,35 +193,32 @@ class Search:
 
         return np.sqrt((delta * delta).sum(axis=1))
 
-    def get_RAD_neighbors(self, universe, mol_id, timestep):
-        """
-        Find RAD neighbors of a given molecule.
+    def get_RAD_neighbors(self, universe, mol_id, frame_source, frame_index):
+        """Find RAD neighbours of a molecule at one selected frame.
 
         Args:
-            universe (MDAnalysis.Universe):
-                The MDAnalysis universe of the system.
-            mol_id (int):
-                Index of the central molecule.
+            universe: MDAnalysis universe object for the active analysis system.
+            mol_id: Index of the central molecule.
+            frame_source: FrameSource controlling selected trajectory access.
+            frame_index: Frame index in the active analysis-universe index space.
 
         Returns:
-            np.ndarray:
-                Indices of neighboring molecules identified via the RAD method.
+            Indices of neighbouring molecules identified by RAD.
         """
-        universe.trajectory[timestep]
-        self._update_cache(universe)
+        frame_index = int(frame_index)
+        frame_source.seek(frame_index)
+        self._update_cache(universe, frame_index)
 
         fragments = self._cached_fragments
         coms = self._cached_coms
         dimensions = self._cached_dimensions
 
         number_molecules = len(fragments)
-
         central_position = coms[mol_id]
 
         distances_array = self._get_distances(coms, central_position, dimensions)
 
         indices = np.arange(number_molecules)
-
         mask = indices != mol_id
         filtered_indices = indices[mask]
         filtered_distances = distances_array[mask]
@@ -240,26 +238,24 @@ class Search:
 
         return neighbor_indices
 
-    def get_grid_neighbors(self, universe, mol_id, highest_level, timestep):
-        """
-        Find neighbors using MDAnalysis grid-based neighbor search.
-
-        For small molecules (united_atom), atom-level search is used.
-        For larger molecules, residue-level search is used.
+    def get_grid_neighbors(
+        self, universe, mol_id, highest_level, frame_source, frame_index
+    ):
+        """Find neighbours using MDAnalysis grid search at one selected frame.
 
         Args:
-            universe (MDAnalysis.Universe):
-                MDAnalysis universe object for the system.
-            mol_id (int):
-                Index of the molecule of interest.
-            highest_level (str):
-                Molecule level ("united_atom" or other).
+            universe: MDAnalysis universe object for the active analysis system.
+            mol_id: Index of the molecule of interest.
+            highest_level: Molecule level, e.g. ``"united_atom"`` or ``"residue"``.
+            frame_source: FrameSource controlling selected trajectory access.
+            frame_index: Frame index in the active analysis-universe index space.
 
         Returns:
-            np.ndarray:
-                Fragment indices of neighboring molecules.
+            Fragment indices of neighbouring molecules.
         """
-        universe.trajectory[timestep]
+        frame_index = int(frame_index)
+        frame_source.seek(frame_index)
+
         fragments = universe.atoms.fragments
         fragment = fragments[mol_id]
 

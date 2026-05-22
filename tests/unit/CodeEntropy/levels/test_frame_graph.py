@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from CodeEntropy.levels.frame_dag import FrameGraph
 
 
@@ -36,11 +38,24 @@ def test_execute_frame_runs_nodes_in_topological_order_and_returns_frame_covaria
 
     b.run.side_effect = _b_run
 
-    out = fg.execute_frame(shared_data={"S": 1}, frame_index=3)
+    frame_source = MagicMock()
+    shared_data = {
+        "frame_source": frame_source,
+    }
+
+    out = fg.execute_frame(shared_data=shared_data, frame_index=3)
 
     assert out == {"ok": True}
+    frame_source.seek.assert_called_once_with(3)
+
     assert a.run.call_count == 1
     assert b.run.call_count == 1
+
+    a_ctx = a.run.call_args.args[0]
+    b_ctx = b.run.call_args.args[0]
+
+    assert a_ctx is b_ctx
+    assert a_ctx["frame_index"] == 3
 
 
 def test_build_adds_frame_covariance_node():
@@ -48,3 +63,25 @@ def test_build_adds_frame_covariance_node():
     fg.build()
     assert "frame_covariance" in fg._nodes
     assert "frame_covariance" in fg._graph.nodes
+
+
+def test_execute_frame_reraises_index_error_with_analysis_bounds_message():
+    fg = FrameGraph()
+
+    frame_source = MagicMock()
+    frame_source.seek.side_effect = IndexError("bad frame")
+    frame_source.universe.trajectory = [object(), object()]
+
+    shared_data = {
+        "frame_source": frame_source,
+    }
+
+    with pytest.raises(
+        IndexError,
+        match="Frame index 5 is outside analysis trajectory bounds for trajectory "
+        "with 2 frames",
+    ) as exc_info:
+        fg.execute_frame(shared_data=shared_data, frame_index=5)
+
+    frame_source.seek.assert_called_once_with(5)
+    assert isinstance(exc_info.value.__cause__, IndexError)
