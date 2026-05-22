@@ -348,7 +348,7 @@ def test_find_bonded_atoms_selects_heavy_and_hydrogen_groups():
     out_heavy, out_h = ax.find_bonded_atoms(atom_idx=7, system=system)
 
     system.select_atoms.assert_called_once_with("bonded index 7")
-    bonded.select_atoms.assert_any_call("mass 2 to 999")
+    bonded.select_atoms.assert_any_call("prop mass > 1.1")
     bonded.select_atoms.assert_any_call("mass 1 to 1.1")
     assert out_heavy is heavy
     assert out_h is hyd

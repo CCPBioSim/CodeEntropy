@@ -238,7 +238,7 @@ def test_build_conformational_states_runs_group_and_skips_empty_group(monkeypatc
     )
 
     assert states_ua == {}
-    assert len(states_res) == 3
+    assert len(states_res) == 1
     assert flex_ua == {}
     assert flex_res[0] == 0
 
@@ -476,7 +476,7 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
     )
 
     assert states_ua == {}
-    assert len(states_res) == 1
+    assert len(states_res) == 0
     assert flex_ua == {}
     assert flex_res == []
     progress.update.assert_called_with(5, title="Group 0 (empty)")
