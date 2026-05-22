@@ -36,9 +36,9 @@ from CodeEntropy.config.argparse import ConfigResolver
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.workflow import EntropyWorkflow
 from CodeEntropy.levels.dihedrals import ConformationStateBuilder
-from CodeEntropy.levels.mda import UniverseOperations
 from CodeEntropy.molecules.grouping import MoleculeGrouper
 from CodeEntropy.results.reporter import ResultsReporter
+from CodeEntropy.trajectory.mda import UniverseOperations
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()

@@ -52,42 +52,39 @@ class ComputeNeighborsNode:
     def run(
         self, shared_data: SharedData, *, progress: object | None = None
     ) -> SharedData:
-        """Compute conformational states and store them in shared_data.
+        """Compute neighbour and symmetry information and store it in shared_data.
 
         Args:
             shared_data: Shared data dictionary. Requires:
-                - "reduced_universe"
-                - "levels"
-                - "groups"
-                - "n_frames"
-                - "args" with attribute "bin_width"
-            progress: Optional progress sink provided by ResultsReporter.progress().
+                - ``reduced_universe``
+                - ``levels``
+                - ``groups``
+                - ``frame_source``
+                - ``args.search_type``
+            progress: Optional progress sink. Currently unused.
 
         Returns:
-            shared_data: SharedData
+            The mutated shared data dictionary.
         """
         u = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
-        n_frames = int(shared_data["n_frames"])
+        frame_source = shared_data["frame_source"]
         search_type = shared_data["args"].search_type
 
-        # Get average number of neighbors
         number_neighbors = self._neighbor_analysis.get_neighbors(
             universe=u,
             levels=levels,
             groups=groups,
-            n_frames=n_frames,
+            frame_source=frame_source,
             search_type=search_type,
         )
 
-        # Get symmetry numbers and linearity
         symmetry_number, linear = self._neighbor_analysis.get_symmetry(
             universe=u,
             groups=groups,
         )
 
-        # Add information to shared_data
         shared_data["neighbors"] = number_neighbors
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear

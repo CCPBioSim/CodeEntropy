@@ -67,19 +67,44 @@ class FrameGraph:
         return self
 
     def execute_frame(self, shared_data: dict[str, Any], frame_index: int) -> Any:
-        """Execute the frame DAG for a single trajectory frame.
+        """Execute the frame DAG for one selected analysis frame.
+
+        FrameGraph owns trajectory positioning for frame-local execution. Higher-level
+        orchestration passes explicit frame indices but must not rely on hidden
+        MDAnalysis cursor state.
 
         Args:
-            shared_data: Shared workflow data dict.
-            frame_index: Absolute trajectory frame index.
+            shared_data: Shared workflow data dictionary. Must contain
+                ``"frame_source"``.
+            frame_index: Frame index valid for the active analysis universe. During
+                this migration stage this is local to the frame-reduced universe.
 
         Returns:
-            Frame-local covariance payload produced by FrameCovarianceNode.
+            Frame-local covariance payload produced by ``FrameCovarianceNode``.
+
+        Raises:
+            KeyError: If ``"frame_source"`` is missing from ``shared_data``.
+            IndexError: If ``frame_index`` is outside trajectory bounds.
         """
-        ctx = self._make_frame_ctx(shared_data=shared_data, frame_index=frame_index)
+        frame_source = shared_data["frame_source"]
+        frame_index = int(frame_index)
+
+        try:
+            frame_source.seek(frame_index)
+        except IndexError as exc:
+            n_frames = len(frame_source.universe.trajectory)
+            raise IndexError(
+                f"Frame index {frame_index} is outside analysis trajectory bounds "
+                f"for trajectory with {n_frames} frames."
+            ) from exc
+
+        ctx = self._make_frame_ctx(
+            shared_data=shared_data,
+            frame_index=frame_index,
+        )
 
         for node_name in nx.topological_sort(self._graph):
-            logger.debug(f"[FrameGraph] running {node_name} @ frame={frame_index}")
+            logger.debug("[FrameGraph] running %s @ frame=%s", node_name, frame_index)
             self._nodes[node_name].run(ctx)
 
         return ctx["frame_covariance"]

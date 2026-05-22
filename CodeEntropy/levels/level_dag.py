@@ -153,55 +153,54 @@ class LevelDAG:
             self._static_graph.add_edge(dep, name)
 
     def _run_frame_stage(
-        self, shared_data: dict[str, Any], *, progress: _RichProgressSink | None = None
+        self,
+        shared_data: dict[str, Any],
+        *,
+        progress: _RichProgressSink | None = None,
     ) -> None:
         """Execute the per-frame DAG stage and reduce frame outputs.
 
-        This method iterates over the selected trajectory frames, executes the
-        frame-local DAG for each frame, and reduces the resulting outputs into the
-        shared accumulators stored in `shared_data`.
+        This method iterates over explicit frame indices provided by
+        ``shared_data["frame_source"]``. During this migration stage, those indices
+        are local indices into the physically frame-reduced analysis universe. After
+        physical frame slicing is removed, they will be absolute source-trajectory
+        indices.
 
-        Progress reporting is optional. If a progress sink is provided, a task is
-        always created. When the total number of frames cannot be determined, the
-        task is created with total=None (indeterminate).
+        FrameGraph owns trajectory positioning. LevelDAG only chooses which frame
+        indices to process and reduces each frame-local output into shared
+        accumulators.
 
         Args:
-            shared_data: Shared data dictionary. Must contain:
-                - "reduced_universe": MDAnalysis Universe providing the trajectory.
-                - "start", "end", "step": frame slicing parameters.
-                - any additional keys required by the frame DAG and reducer.
-            progress: Optional progress sink (e.g., from ResultsReporter.progress()).
-                Must expose add_task(), update(), and advance().
+            shared_data: Shared data dictionary. Must contain ``frame_source``.
+            progress: Optional progress sink.
 
         Returns:
-            None. Mutates `shared_data` in-place via reduction.
-
-        Notes:
-            The task title shows the current frame index being processed.
+            None. Mutates ``shared_data`` in-place via reduction.
         """
-        u = shared_data["reduced_universe"]
-        n_frames = shared_data["n_frames"]
+        frame_source = shared_data["frame_source"]
+        frame_indices = [
+            int(frame_index) for frame_index in frame_source.iter_indices()
+        ]
+        shared_data["n_frames"] = len(frame_indices)
 
         task: TaskID | None = None
-        total_frames: int | None = None
 
         if progress is not None:
-            try:
-                total_frames = n_frames
-            except Exception:
-                total_frames = None
-
             task = progress.add_task(
                 "[green]Frame processing",
-                total=total_frames,
+                total=len(frame_indices),
                 title="Initializing",
             )
 
-        for ts in u.trajectory:
+        for frame_index in frame_indices:
             if progress is not None and task is not None:
-                progress.update(task, title=f"Frame {ts.frame}")
+                progress.update(task, title=f"Frame {frame_index}")
 
-            frame_out = self._frame_dag.execute_frame(shared_data, ts.frame)
+            frame_out = self._frame_dag.execute_frame(
+                shared_data,
+                frame_index,
+            )
+
             self._reduce_one_frame(shared_data, frame_out)
 
             if progress is not None and task is not None:
