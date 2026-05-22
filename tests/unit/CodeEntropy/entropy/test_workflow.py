@@ -2,6 +2,8 @@ import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from CodeEntropy.entropy.workflow import EntropyWorkflow
 from CodeEntropy.trajectory.frames import FrameSelection
 
@@ -248,6 +250,41 @@ def test_build_reduced_universe_non_all_selects_atoms_and_writes_universe():
     )
 
 
+def test_build_reduced_universe_raises_when_frame_selection_empty():
+    args = SimpleNamespace(
+        selection_string="all",
+        grouping="molecules",
+        start=0,
+        end=0,
+        step=1,
+        water_entropy=False,
+        output_file="out.json",
+    )
+
+    universe = MagicMock()
+    uops = MagicMock()
+    run_manager = MagicMock()
+
+    wf = EntropyWorkflow(
+        run_manager=run_manager,
+        args=args,
+        universe=universe,
+        reporter=MagicMock(),
+        group_molecules=MagicMock(),
+        dihedral_analysis=MagicMock(),
+        universe_operations=uops,
+    )
+
+    frame_selection = FrameSelection(indices=())
+
+    with pytest.raises(ValueError, match="Frame selection is empty"):
+        wf._build_reduced_universe(frame_selection)
+
+    uops.select_atoms.assert_not_called()
+    uops.select_frames.assert_not_called()
+    run_manager.write_universe.assert_not_called()
+
+
 def test_compute_water_entropy_updates_selection_string_and_calls_internal_method():
     args = SimpleNamespace(
         selection_string="all",
@@ -422,6 +459,57 @@ def test_compute_water_entropy_instantiates_waterentropy_and_updates_selection_s
         group_id=9,
     )
     assert args.selection_string == "not water"
+
+
+def test_compute_water_entropy_returns_when_no_water_groups():
+    args = SimpleNamespace(
+        selection_string="all",
+        water_entropy=True,
+        temperature=298.0,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+    frame_selection = FrameSelection.from_bounds(start=0, stop=5, step=1)
+
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
+
+
+def test_compute_water_entropy_returns_when_water_entropy_disabled():
+    args = SimpleNamespace(
+        selection_string="all",
+        water_entropy=False,
+        temperature=298.0,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+    frame_selection = FrameSelection.from_bounds(start=0, stop=5, step=1)
+
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={9: [0]})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
+
+
+def test_compute_water_entropy_returns_when_frame_selection_empty():
+    args = SimpleNamespace(
+        selection_string="all",
+        water_entropy=True,
+        temperature=298.0,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+    frame_selection = FrameSelection(indices=())
+
+    with patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls:
+        wf._compute_water_entropy(frame_selection, water_groups={9: [0]})
+
+    WaterCls.assert_not_called()
+    assert args.selection_string == "all"
 
 
 def test_detect_levels_calls_hierarchy_builder():

@@ -544,3 +544,76 @@ def test_get_rdkit_mol_returns_correct_heavy_and_hydrogen_counts():
     assert rdkit_out is rdkit_mol
     assert number_heavy == 1
     assert number_hydrogen == 2
+
+
+def test_get_neighbors_returns_zero_for_each_group_when_no_frames_selected():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    levels = {
+        0: ["united_atom"],
+        1: ["residue"],
+    }
+    groups = {
+        0: [0],
+        1: [1],
+    }
+
+    frame_source = MagicMock()
+    frame_source.iter_indices.return_value = []
+
+    neighbors._search.get_RAD_neighbors = MagicMock()
+    neighbors._search.get_grid_neighbors = MagicMock()
+
+    result = neighbors.get_neighbors(
+        universe=universe,
+        levels=levels,
+        groups=groups,
+        frame_source=frame_source,
+        search_type="RAD",
+    )
+
+    assert result == {
+        0: 0.0,
+        1: 0.0,
+    }
+
+    frame_source.iter_indices.assert_called_once()
+    neighbors._search.get_RAD_neighbors.assert_not_called()
+    neighbors._search.get_grid_neighbors.assert_not_called()
+
+
+def test_get_rdkit_mol_falls_back_to_inferrer_none_when_convert_to_raises():
+    neighbors = Neighbors()
+
+    universe = MagicMock()
+    molecule = MagicMock()
+    dummy = MagicMock()
+
+    universe.atoms.elements = ["C", "H"]
+    universe.atoms.fragments = [molecule]
+
+    molecule.select_atoms.return_value = dummy
+    dummy.__len__.return_value = 0
+
+    rdkit_mol = MagicMock()
+    rdkit_mol.GetNumHeavyAtoms.return_value = 1
+    rdkit_mol.GetNumAtoms.return_value = 4
+
+    molecule.convert_to.side_effect = [
+        RuntimeError("constraint bond issue"),
+        rdkit_mol,
+    ]
+
+    result = neighbors._get_rdkit_mol(universe, mol_id=0)
+
+    assert result == (rdkit_mol, 1, 3)
+
+    molecule.select_atoms.assert_called_once_with("prop mass < 0.1")
+    molecule.convert_to.assert_has_calls(
+        [
+            call("RDKIT", force=True),
+            call("RDKIT", force=True, inferrer=None),
+        ]
+    )
+    universe.guess_TopologyAttrs.assert_not_called()

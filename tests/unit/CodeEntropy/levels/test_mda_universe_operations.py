@@ -298,3 +298,112 @@ def test_extract_timeseries_dimensions_branch_uses_dimensions_copy():
     assert out.shape == (2, 6)
     assert np.allclose(out[0], universe.dimensions)
     assert universe.trajectory.seen == [0, 1]
+
+
+def test_select_frames_raises_when_step_is_zero():
+    ops = UniverseOperations()
+
+    u = MagicMock()
+    u.trajectory = list(range(5))
+
+    with pytest.raises(ValueError, match="Frame step must be positive, got 0"):
+        ops.select_frames(u, start=0, end=5, step=0)
+
+    u.select_atoms.assert_not_called()
+
+
+def test_select_frames_raises_when_step_is_negative():
+    ops = UniverseOperations()
+
+    u = MagicMock()
+    u.trajectory = list(range(5))
+
+    with pytest.raises(ValueError, match="Frame step must be positive, got -1"):
+        ops.select_frames(u, start=0, end=5, step=-1)
+
+    u.select_atoms.assert_not_called()
+
+
+def test_build_memory_universe_from_atomgroup_raises_when_frame_indices_empty():
+    ops = UniverseOperations()
+
+    atomgroup = MagicMock()
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot build a memory universe from an empty frame list",
+    ):
+        ops._build_memory_universe_from_atomgroup(atomgroup, frame_indices=[])
+
+
+def test_build_memory_universe_from_atomgroup_omits_forces_when_force_data_missing(
+    monkeypatch,
+):
+    ops = UniverseOperations()
+
+    class _FakeTrajectory:
+        def __init__(self):
+            self.seen = []
+
+        def __getitem__(self, frame_index):
+            self.seen.append(frame_index)
+            return frame_index
+
+    class _FakeAtomGroup:
+        def __init__(self, universe):
+            self.universe = universe
+            self.positions = np.array([[1.0, 2.0, 3.0]], dtype=float)
+
+        @property
+        def forces(self):
+            raise NoDataError("no forces")
+
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory()
+    universe.dimensions = np.array([10.0, 10.0, 10.0, 90.0, 90.0, 90.0])
+
+    atomgroup = _FakeAtomGroup(universe)
+
+    merged = MagicMock()
+    merged.load_new = MagicMock()
+
+    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+
+    out = ops._build_memory_universe_from_atomgroup(atomgroup, frame_indices=[0, 2])
+
+    assert out is merged
+    assert universe.trajectory.seen == [0, 2]
+
+    merged.load_new.assert_called_once()
+    _, kwargs = merged.load_new.call_args
+
+    assert "forces" not in kwargs
+    assert "dimensions" in kwargs
+
+
+def test_convert_lammps_raises_for_non_lammpsdump_format():
+    ops = UniverseOperations()
+
+    with pytest.raises(
+        ValueError,
+        match="Incorrect file format: TRR, LAMMPSDUMP expected",
+    ):
+        ops.convert_lammps(
+            tprfile="topology.tpr",
+            trrfile="trajectory.trr",
+            fileformat="TRR",
+        )
+
+
+def test_select_frame_indices_raises_when_frame_indices_empty():
+    ops = UniverseOperations()
+
+    u = MagicMock()
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot build a reduced universe from an empty frame list",
+    ):
+        ops.select_frame_indices(u, frame_indices=[])
+
+    u.select_atoms.assert_not_called()

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from CodeEntropy.levels.dihedrals import ConformationStateBuilder
 from CodeEntropy.trajectory.frames import FrameSelection
@@ -311,6 +312,44 @@ def test_identify_peaks_handles_multiple_dihedrals():
     assert dt._process_histogram.call_count == 2
 
 
+def test_identify_peaks_initialises_phi_res_dict_before_processing_residue_dihedrals():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    mol = MagicMock()
+    mol.residues = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    uops.extract_fragment.return_value = mol
+
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+
+    dihedrals = ["D0"]
+    dihedral_results = MagicMock()
+    processed_phi = {0: [10.0, 20.0]}
+
+    dt._get_dihedrals = MagicMock(return_value=dihedrals)
+    dt._run_dihedrals = MagicMock(return_value=dihedral_results)
+    dt._process_dihedral_phi = MagicMock(return_value=processed_phi)
+    dt._process_histogram = MagicMock(return_value=[[15.0]])
+
+    peaks_ua, peaks_res = dt._identify_peaks(
+        data_container=MagicMock(),
+        molecules=[0],
+        bin_width=30.0,
+        level_list=["residue"],
+        frame_selection=frame_selection,
+    )
+
+    assert peaks_ua == [[], [], [], []]
+    assert peaks_res == [[15.0]]
+
+    dt._process_dihedral_phi.assert_called_once_with(
+        dihedral_results=dihedral_results,
+        num_dihedrals=1,
+        number_frames=2,
+        phi_values={},
+    )
+
+
 def test_assign_states_filters_out_empty_state_strings_when_no_dihedrals():
     uops = MagicMock()
     dt = ConformationStateBuilder(universe_operations=uops)
@@ -562,3 +601,23 @@ def test_process_dihedral_phi_negative():
 
     assert len(phi_values) == 3
     assert phi_values[0] == [0, 357]
+
+
+def test_run_dihedrals_raises_when_no_dihedrals():
+    dt = ConformationStateBuilder(universe_operations=MagicMock())
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+
+    with pytest.raises(
+        ValueError, match="Cannot run Dihedral analysis with no dihedrals"
+    ):
+        dt._run_dihedrals(
+            dihedrals=[],
+            frame_selection=frame_selection,
+        )
+
+
+def test_analysis_run_bounds_raises_when_frame_selection_empty():
+    frame_selection = FrameSelection(indices=())
+
+    with pytest.raises(ValueError, match="Frame selection is empty"):
+        ConformationStateBuilder._analysis_run_bounds(frame_selection)

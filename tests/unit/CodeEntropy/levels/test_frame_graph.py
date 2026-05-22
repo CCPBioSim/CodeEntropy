@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from CodeEntropy.levels.frame_dag import FrameGraph
 
 
@@ -61,3 +63,25 @@ def test_build_adds_frame_covariance_node():
     fg.build()
     assert "frame_covariance" in fg._nodes
     assert "frame_covariance" in fg._graph.nodes
+
+
+def test_execute_frame_reraises_index_error_with_analysis_bounds_message():
+    fg = FrameGraph()
+
+    frame_source = MagicMock()
+    frame_source.seek.side_effect = IndexError("bad frame")
+    frame_source.universe.trajectory = [object(), object()]
+
+    shared_data = {
+        "frame_source": frame_source,
+    }
+
+    with pytest.raises(
+        IndexError,
+        match="Frame index 5 is outside analysis trajectory bounds for trajectory "
+        "with 2 frames",
+    ) as exc_info:
+        fg.execute_frame(shared_data=shared_data, frame_index=5)
+
+    frame_source.seek.assert_called_once_with(5)
+    assert isinstance(exc_info.value.__cause__, IndexError)
