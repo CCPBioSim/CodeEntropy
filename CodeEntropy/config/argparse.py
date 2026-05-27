@@ -151,6 +151,21 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Type of neighbor search to use."
         "Default RAD; grid search is also available",
     ),
+    "parallel_frames": ArgSpec(
+        type=bool,
+        default=False,
+        help="Execute frame-local covariance calculations in parallel using Dask.",
+    ),
+    "use_dask": ArgSpec(
+        type=bool,
+        default=False,
+        help="Enable local Dask frame parallelism.",
+    ),
+    "dask_workers": ArgSpec(
+        type=int,
+        default=None,
+        help="Number of local Dask worker processes.",
+    ),
 }
 
 
@@ -385,6 +400,7 @@ class ConfigResolver:
         self._check_input_bin_width(args)
         self._check_input_temperature(args)
         self._check_input_force_partitioning(args)
+        self._check_parallel_frame_options(args)
 
     @staticmethod
     def _check_input_start(u: Any, args: argparse.Namespace) -> None:
@@ -443,3 +459,14 @@ class ConfigResolver:
                 args.force_partitioning,
                 default_value,
             )
+
+    @staticmethod
+    def _check_parallel_frame_options(args: argparse.Namespace) -> None:
+        """Validate local Dask parallel-frame options."""
+        dask_workers = getattr(args, "dask_workers", None)
+        if dask_workers is not None and dask_workers < 1:
+            raise ValueError("'dask_workers' must be at least 1 if provided.")
+
+        dask_threads = getattr(args, "dask_threads_per_worker", 1)
+        if dask_threads < 1:
+            raise ValueError("'dask_threads_per_worker' must be at least 1.")
