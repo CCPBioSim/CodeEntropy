@@ -33,6 +33,7 @@ from rich.table import Table
 from rich.text import Text
 
 from CodeEntropy.config.argparse import ConfigResolver
+from CodeEntropy.core.dusk_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.workflow import EntropyWorkflow
 from CodeEntropy.levels.dihedrals import ConformationStateBuilder
@@ -223,8 +224,9 @@ class CodeEntropyRunner:
 
         This method:
         - Sets up logging and prints the splash screen
-        - Loads YAML config from CWD and parses CLI args
+        - Loads YAML configuration from CWD and parses CLI args
         - Merges args with YAML per-run config
+        - Optionally submits a master SLURM job and exits
         - Builds the MDAnalysis Universe (with optional force merging)
         - Validates user parameters
         - Constructs dependencies and executes EntropyWorkflow
@@ -265,6 +267,10 @@ class CodeEntropyRunner:
                 logging.getLogger("commands").info(command)
 
                 self._validate_required_args(args)
+
+                if getattr(args, "submit", False):
+                    HPCDaskManager(args).submit_master()
+                    return
 
                 self.print_args_table(args)
 

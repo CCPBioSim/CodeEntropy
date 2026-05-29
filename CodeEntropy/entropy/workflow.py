@@ -24,6 +24,7 @@ from typing import Any
 
 import pandas as pd
 
+from CodeEntropy.core.dusk_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.graph import EntropyGraph
 from CodeEntropy.entropy.water import WaterEntropy
@@ -135,18 +136,26 @@ class EntropyWorkflow:
     def _configure_parallel_frame_execution(self, shared_data: SharedData) -> None:
         """Attach a Dask client to shared_data if parallel frames are requested.
 
-        This is intentionally small and local-Dask focused. If no parallel option is
-        enabled, shared_data is left unchanged and LevelDAG runs sequentially.
+        Supports:
+            - Local Dask via --parallel_frames true / --use_dask true
+            - SLURM-backed Dask via --hpc true
         """
         use_parallel = bool(
             getattr(self._args, "parallel_frames", False)
             or getattr(self._args, "use_dask", False)
+            or getattr(self._args, "hpc", False)
         )
 
         if not use_parallel:
             return
 
         if "dask_client" in shared_data:
+            shared_data["parallel_frames"] = True
+            return
+
+        if getattr(self._args, "hpc", False):
+            client = HPCDaskManager(self._args).configure_cluster()
+            shared_data["dask_client"] = client
             shared_data["parallel_frames"] = True
             return
 

@@ -171,6 +171,76 @@ ARG_SPECS: dict[str, ArgSpec] = {
         default=1,
         help="Threads per local Dask worker. Use 1 for MDAnalysis trajectory safety.",
     ),
+    "hpc": ArgSpec(
+        type=bool,
+        default=False,
+        help="Use a SLURM-backed Dask cluster for parallel frame execution.",
+    ),
+    "hpc_account": ArgSpec(
+        type=str,
+        default=None,
+        help="SLURM account/project code.",
+    ),
+    "hpc_qos": ArgSpec(
+        type=str,
+        default=None,
+        help="Optional SLURM QoS.",
+    ),
+    "hpc_constraint": ArgSpec(
+        type=str,
+        default=None,
+        help="Optional SLURM node constraint.",
+    ),
+    "hpc_queue": ArgSpec(
+        type=str,
+        default=None,
+        help="SLURM partition/queue.",
+    ),
+    "hpc_cores": ArgSpec(
+        type=int,
+        default=1,
+        help="Number of CPU cores per Dask worker job.",
+    ),
+    "hpc_processes": ArgSpec(
+        type=int,
+        default=1,
+        help="Number of Dask worker processes per SLURM job.",
+    ),
+    "hpc_memory": ArgSpec(
+        type=str,
+        default="4GB",
+        help="Memory requested per Dask worker job.",
+    ),
+    "hpc_walltime": ArgSpec(
+        type=str,
+        default="01:00:00",
+        help="Walltime for each Dask worker job, formatted as HH:MM:SS.",
+    ),
+    "hpc_nodes": ArgSpec(
+        type=int,
+        default=1,
+        help="Number of SLURM Dask worker jobs to launch.",
+    ),
+    "submit": ArgSpec(
+        type=bool,
+        default=False,
+        help="Submit a master SLURM job instead of running immediately.",
+    ),
+    "conda_path": ArgSpec(
+        type=str,
+        default="conda",
+        help="Path to conda executable used by SLURM worker prologue.",
+    ),
+    "conda_exec": ArgSpec(
+        type=str,
+        default="conda",
+        help="Conda-compatible executable to use, usually conda or mamba.",
+    ),
+    "conda_env": ArgSpec(
+        type=str,
+        default=None,
+        help="Conda environment name to activate on Dask workers.",
+    ),
 }
 
 

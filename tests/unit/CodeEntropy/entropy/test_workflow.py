@@ -898,3 +898,29 @@ def test_conda_path_exits_when_missing():
     with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(SystemExit):
             wf._conda_path()
+
+
+def test_configure_parallel_frame_execution_uses_hpc_dask_manager():
+    args = SimpleNamespace(
+        parallel_frames=False,
+        use_dask=False,
+        hpc=True,
+        dask_workers=2,
+        dask_threads_per_worker=1,
+        output_file="out.json",
+    )
+    wf = _make_wf(args)
+
+    shared_data = {}
+    client = MagicMock()
+
+    with patch("CodeEntropy.entropy.workflow.HPCDaskManager") as HPCDaskManagerCls:
+        HPCDaskManagerCls.return_value.configure_cluster.return_value = client
+
+        wf._configure_parallel_frame_execution(shared_data)
+
+    HPCDaskManagerCls.assert_called_once_with(args)
+    HPCDaskManagerCls.return_value.configure_cluster.assert_called_once()
+
+    assert shared_data["dask_client"] is client
+    assert shared_data["parallel_frames"] is True
