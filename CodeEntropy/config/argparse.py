@@ -166,6 +166,11 @@ ARG_SPECS: dict[str, ArgSpec] = {
         default=None,
         help="Number of local Dask worker processes.",
     ),
+    "dask_threads_per_worker": ArgSpec(
+        type=int,
+        default=1,
+        help="Threads per local Dask worker. Use 1 for MDAnalysis trajectory safety.",
+    ),
 }
 
 

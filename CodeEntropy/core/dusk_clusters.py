@@ -137,9 +137,13 @@ class HPCDaskManager:
 
         This generates a temporary SLURM script and submits it via `sbatch`.
         """
-        cli = sys.argv[1:]
+        cli = list(sys.argv[1:])
         if "--submit" in cli:
-            cli.remove("--submit")
+            idx = cli.index("--submit")
+            cli.pop(idx)
+
+            if idx < len(cli) and str(cli[idx]).lower() in {"true", "false"}:
+                cli.pop(idx)
 
         script_name = "WE-master-submit.sh"
 

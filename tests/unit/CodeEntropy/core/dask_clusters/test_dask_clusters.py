@@ -219,6 +219,9 @@ def test_submit_master_writes_expected_script_conda(check_output):
     assert "conda activate codeentropy" in script
     assert "srun CodeEntropy" in script
     assert "--submit" not in script
+    assert "srun CodeEntropy" in script
+    assert " --submit " not in script
+    assert not script.rstrip().endswith(" true")
 
     os.remove("WE-master-submit.sh")
 

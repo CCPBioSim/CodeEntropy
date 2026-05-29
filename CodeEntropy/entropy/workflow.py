@@ -161,7 +161,7 @@ class EntropyWorkflow:
         shared_data["dask_client"] = Client(
             processes=True,
             n_workers=getattr(self._args, "dask_workers", None),
-            threads_per_worker=1,
+            threads_per_worker=getattr(self._args, "dask_threads_per_worker", 1),
         )
         shared_data["parallel_frames"] = True
 
