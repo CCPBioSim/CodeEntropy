@@ -5,6 +5,7 @@ import pytest
 
 def test_validate_inputs_valid_does_not_raise(resolver, dummy_universe, make_args):
     args = make_args()
+
     resolver.validate_inputs(dummy_universe, args)
 
 
@@ -57,3 +58,51 @@ def test_check_input_force_partitioning_non_default_logs_warning(
         resolver._check_input_force_partitioning(args)
 
     assert "differs from the default" in caplog.text
+
+
+def test_check_parallel_frame_options_valid_does_not_raise(resolver, make_args):
+    args = make_args(
+        dask_workers=2,
+        dask_threads_per_worker=1,
+    )
+
+    resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_allows_dask_workers_none(resolver, make_args):
+    args = make_args(
+        dask_workers=None,
+        dask_threads_per_worker=1,
+    )
+
+    resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_dask_workers_less_than_one(
+    resolver, make_args
+):
+    args = make_args(
+        dask_workers=0,
+        dask_threads_per_worker=1,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'dask_workers' must be at least 1 if provided.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_dask_threads_less_than_one(
+    resolver, make_args
+):
+    args = make_args(
+        dask_workers=None,
+        dask_threads_per_worker=0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'dask_threads_per_worker' must be at least 1.",
+    ):
+        resolver._check_parallel_frame_options(args)
