@@ -204,7 +204,7 @@ def test_submit_master_writes_expected_script_conda(check_output):
     with mock.patch.object(sys, "argv", cli):
         manager.submit_master()
 
-    with open("WE-master-submit.sh", encoding="utf-8") as file:
+    with open("CodeEntropy-master-submit.sh", encoding="utf-8") as file:
         script = file.read()
 
     assert "#SBATCH --job-name=codeentropy-master" in script
@@ -223,7 +223,7 @@ def test_submit_master_writes_expected_script_conda(check_output):
     assert " --submit " not in script
     assert not script.rstrip().endswith(" true")
 
-    os.remove("WE-master-submit.sh")
+    os.remove("CodeEntropy-master-submit.sh")
 
 
 @mock.patch("subprocess.check_output")
@@ -262,7 +262,7 @@ def test_submit_master_writes_expected_script_mamba(check_output):
     with mock.patch.object(sys, "argv", cli):
         manager.submit_master()
 
-    with open("WE-master-submit.sh", encoding="utf-8") as file:
+    with open("CodeEntropy-master-submit.sh", encoding="utf-8") as file:
         script = file.read()
 
     assert 'eval "$(/path/to/conda shell.bash hook)"' in script
@@ -271,7 +271,7 @@ def test_submit_master_writes_expected_script_mamba(check_output):
     assert "srun CodeEntropy" in script
     assert "--submit" not in script
 
-    os.remove("WE-master-submit.sh")
+    os.remove("CodeEntropy-master-submit.sh")
 
 
 @mock.patch("CodeEntropy.core.dask_clusters.Client")
@@ -341,7 +341,7 @@ def test_submit_master_prints_called_process_error_output(check_output, capsys):
 
     check_output.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd=["bash", "-c", "sbatch WE-master-submit.sh"],
+        cmd=["bash", "-c", "sbatch CodeEntropy-master-submit.sh"],
         output=error_output,
     )
 
@@ -384,9 +384,9 @@ def test_submit_master_prints_called_process_error_output(check_output, capsys):
 
         assert "sbatch: error: invalid partition" in captured.out
         check_output.assert_called_once_with(
-            ["bash", "-c", "sbatch WE-master-submit.sh"]
+            ["bash", "-c", "sbatch CodeEntropy-master-submit.sh"]
         )
 
     finally:
-        if os.path.exists("WE-master-submit.sh"):
-            os.remove("WE-master-submit.sh")
+        if os.path.exists("CodeEntropy-master-submit.sh"):
+            os.remove("CodeEntropy-master-submit.sh")
