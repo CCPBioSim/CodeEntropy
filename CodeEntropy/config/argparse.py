@@ -151,6 +151,96 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Type of neighbor search to use."
         "Default RAD; grid search is also available",
     ),
+    "parallel_frames": ArgSpec(
+        type=bool,
+        default=False,
+        help="Execute frame-local covariance calculations in parallel using Dask.",
+    ),
+    "use_dask": ArgSpec(
+        type=bool,
+        default=False,
+        help="Enable local Dask frame parallelism.",
+    ),
+    "dask_workers": ArgSpec(
+        type=int,
+        default=None,
+        help="Number of local Dask worker processes.",
+    ),
+    "dask_threads_per_worker": ArgSpec(
+        type=int,
+        default=1,
+        help="Threads per local Dask worker. Use 1 for MDAnalysis trajectory safety.",
+    ),
+    "hpc": ArgSpec(
+        type=bool,
+        default=False,
+        help="Use a SLURM-backed Dask cluster for parallel frame execution.",
+    ),
+    "hpc_account": ArgSpec(
+        type=str,
+        default=None,
+        help="SLURM account/project code.",
+    ),
+    "hpc_qos": ArgSpec(
+        type=str,
+        default=None,
+        help="Optional SLURM QoS.",
+    ),
+    "hpc_constraint": ArgSpec(
+        type=str,
+        default=None,
+        help="Optional SLURM node constraint.",
+    ),
+    "hpc_queue": ArgSpec(
+        type=str,
+        default=None,
+        help="SLURM partition/queue.",
+    ),
+    "hpc_cores": ArgSpec(
+        type=int,
+        default=1,
+        help="Number of CPU cores per Dask worker job.",
+    ),
+    "hpc_processes": ArgSpec(
+        type=int,
+        default=1,
+        help="Number of Dask worker processes per SLURM job.",
+    ),
+    "hpc_memory": ArgSpec(
+        type=str,
+        default="4GB",
+        help="Memory requested per Dask worker job.",
+    ),
+    "hpc_walltime": ArgSpec(
+        type=str,
+        default="01:00:00",
+        help="Walltime for each Dask worker job, formatted as HH:MM:SS.",
+    ),
+    "hpc_nodes": ArgSpec(
+        type=int,
+        default=1,
+        help="Number of SLURM Dask worker jobs to launch.",
+    ),
+    "submit": ArgSpec(
+        type=bool,
+        default=False,
+        help="Submit a master SLURM job instead of running immediately.",
+    ),
+    "conda_path": ArgSpec(
+        type=str,
+        default="conda",
+        help="Path to conda executable used by SLURM worker prologue.",
+    ),
+    "conda_exec": ArgSpec(
+        type=str,
+        default="conda",
+        help="Conda-compatible executable to use, usually conda or mamba.",
+    ),
+    "conda_env": ArgSpec(
+        type=str,
+        default=None,
+        help="Conda environment name to activate on Dask workers.",
+    ),
 }
 
 
@@ -385,6 +475,7 @@ class ConfigResolver:
         self._check_input_bin_width(args)
         self._check_input_temperature(args)
         self._check_input_force_partitioning(args)
+        self._check_parallel_frame_options(args)
 
     @staticmethod
     def _check_input_start(u: Any, args: argparse.Namespace) -> None:
@@ -443,3 +534,50 @@ class ConfigResolver:
                 args.force_partitioning,
                 default_value,
             )
+
+    @staticmethod
+    def _check_parallel_frame_options(args: argparse.Namespace) -> None:
+        """Validate local Dask, HPC Dask, and submit-related options."""
+        dask_workers = getattr(args, "dask_workers", None)
+        if dask_workers is not None and dask_workers < 1:
+            raise ValueError("'dask_workers' must be at least 1 if provided.")
+
+        dask_threads = getattr(args, "dask_threads_per_worker", 1)
+        if dask_threads < 1:
+            raise ValueError("'dask_threads_per_worker' must be at least 1.")
+
+        using_hpc = bool(getattr(args, "hpc", False))
+        submitting = bool(getattr(args, "submit", False))
+
+        if submitting and not using_hpc:
+            raise ValueError("'submit' requires 'hpc' to be enabled.")
+
+        if not using_hpc and not submitting:
+            return
+
+        if not getattr(args, "hpc_queue", None):
+            raise ValueError("'hpc_queue' must be provided when using HPC Dask.")
+
+        if getattr(args, "hpc_nodes", 1) < 1:
+            raise ValueError("'hpc_nodes' must be at least 1.")
+
+        if getattr(args, "hpc_cores", 1) < 1:
+            raise ValueError("'hpc_cores' must be at least 1.")
+
+        if getattr(args, "hpc_processes", 1) < 1:
+            raise ValueError("'hpc_processes' must be at least 1.")
+
+        if not getattr(args, "hpc_memory", None):
+            raise ValueError("'hpc_memory' must be provided when using HPC Dask.")
+
+        if not getattr(args, "hpc_walltime", None):
+            raise ValueError("'hpc_walltime' must be provided when using HPC Dask.")
+
+        if not getattr(args, "conda_env", None):
+            raise ValueError("'conda_env' must be provided when using HPC Dask.")
+
+        if not getattr(args, "conda_path", None):
+            raise ValueError("'conda_path' must be provided when using HPC Dask.")
+
+        if not getattr(args, "conda_exec", None):
+            raise ValueError("'conda_exec' must be provided when using HPC Dask.")

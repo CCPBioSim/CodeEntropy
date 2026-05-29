@@ -22,6 +22,7 @@ from typing import Any
 
 import pandas as pd
 
+from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.graph import EntropyGraph
 from CodeEntropy.entropy.water import WaterEntropy
@@ -116,12 +117,60 @@ class EntropyWorkflow:
             frame_selection=frame_selection,
         )
 
-        with self._reporter.progress(transient=False) as p:
-            self._run_level_dag(shared_data, progress=p)
-            self._run_entropy_graph(shared_data, progress=p)
+        self._configure_parallel_frame_execution(shared_data)
+
+        try:
+            with self._reporter.progress(transient=False) as p:
+                self._run_level_dag(shared_data, progress=p)
+                self._run_entropy_graph(shared_data, progress=p)
+        finally:
+            client = shared_data.get("dask_client")
+            if client is not None:
+                client.close()
 
         self._finalize_molecule_results()
         self._reporter.log_tables()
+
+    def _configure_parallel_frame_execution(self, shared_data: SharedData) -> None:
+        """Attach a Dask client to shared_data if parallel frames are requested.
+
+        Supports:
+            - Local Dask via --parallel_frames true / --use_dask true
+            - SLURM-backed Dask via --hpc true
+        """
+        use_parallel = bool(
+            getattr(self._args, "parallel_frames", False)
+            or getattr(self._args, "use_dask", False)
+            or getattr(self._args, "hpc", False)
+        )
+
+        if not use_parallel:
+            return
+
+        if "dask_client" in shared_data:
+            shared_data["parallel_frames"] = True
+            return
+
+        if getattr(self._args, "hpc", False):
+            client = HPCDaskManager(self._args).configure_cluster()
+            shared_data["dask_client"] = client
+            shared_data["parallel_frames"] = True
+            return
+
+        try:
+            from dask.distributed import Client
+        except ImportError as exc:
+            raise RuntimeError(
+                "Parallel frame execution was requested, but dask.distributed "
+                "is not installed."
+            ) from exc
+
+        shared_data["dask_client"] = Client(
+            processes=True,
+            n_workers=getattr(self._args, "dask_workers", None),
+            threads_per_worker=getattr(self._args, "dask_threads_per_worker", 1),
+        )
+        shared_data["parallel_frames"] = True
 
     def _build_frame_selection(self) -> FrameSelection:
         """Build the workflow frame selection.

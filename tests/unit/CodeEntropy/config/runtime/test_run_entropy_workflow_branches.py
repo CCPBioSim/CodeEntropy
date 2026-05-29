@@ -156,3 +156,45 @@ def test_run_entropy_workflow_logs_when_args_cannot_be_serialized(runner, monkey
         "Run arguments at failure could not be serialized" in str(call.args[0])
         for call in error_spy.call_args_list
     )
+
+
+def test_run_entropy_workflow_submit_calls_submit_master_and_returns(runner):
+    runner._logging_config = MagicMock()
+    runner._config_manager = MagicMock()
+    runner._reporter = MagicMock()
+    runner.show_splash = MagicMock()
+    runner.print_args_table = MagicMock()
+    runner._build_universe = MagicMock()
+
+    run_logger = MagicMock()
+    runner._logging_config.configure.return_value = run_logger
+
+    runner._config_manager.load_config.return_value = {"run1": {}}
+
+    args = SimpleNamespace(
+        output_file="out.json",
+        verbose=False,
+        submit=True,
+        top_traj_file=["topology.tpr", "trajectory.trr"],
+        selection_string="all",
+        force_file=None,
+        file_format=None,
+        kcal_force_units=False,
+    )
+
+    parser = MagicMock()
+    parser.parse_known_args.return_value = (args, [])
+    runner._config_manager.build_parser.return_value = parser
+    runner._config_manager.resolve.return_value = args
+    runner._config_manager.validate_inputs = MagicMock()
+
+    with patch("CodeEntropy.config.runtime.HPCDaskManager") as HPCDaskManagerCls:
+        runner.run_entropy_workflow()
+
+    HPCDaskManagerCls.assert_called_once_with(args)
+    HPCDaskManagerCls.return_value.submit_master.assert_called_once()
+
+    runner.print_args_table.assert_not_called()
+    runner._build_universe.assert_not_called()
+    runner._config_manager.validate_inputs.assert_not_called()
+    runner._logging_config.export_console.assert_not_called()

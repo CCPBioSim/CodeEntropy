@@ -44,6 +44,32 @@ def make_args():
 
 
 @pytest.fixture()
+def make_valid_hpc_args(make_args):
+    """Factory to build a valid HPC/Dask args object for validation tests."""
+
+    def _make(**overrides):
+        base = dict(
+            dask_workers=None,
+            dask_threads_per_worker=1,
+            hpc=True,
+            submit=False,
+            hpc_queue="standard",
+            hpc_nodes=1,
+            hpc_cores=1,
+            hpc_processes=1,
+            hpc_memory="4GB",
+            hpc_walltime="01:00:00",
+            conda_env="codeentropy",
+            conda_path="conda",
+            conda_exec="conda",
+        )
+        base.update(overrides)
+        return make_args(**base)
+
+    return _make
+
+
+@pytest.fixture()
 def empty_cli_args(resolver):
     """Argparse Namespace with all parser defaults."""
     parser = resolver.build_parser()

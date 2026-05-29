@@ -186,9 +186,10 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - Enable verbose output.
      - ``False``
      - ``bool``
-   * - ``--outfile``
-     - Name of the JSON output file to write results to (filename only). Defaults to ``outfile.json``.
-     - ``outfile.json``
+   * - ``--output_file``
+     - Name of the JSON output file to write results to (filename only). Defaults to
+       ``output_file.json``.
+     - ``output_file.json``
      - ``str``
    * - ``--force_partitioning``
      - Factor for partitioning forces when there are weak correlations.
@@ -202,22 +203,285 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - How to group molecules for averaging.
      - ``molecules``
      - ``str``
-   * - ``--kcal_force_units``
-     - Set input units as kcal/mol
-     - ``False``
-     - ``bool``
    * - ``--combined_forcetorque``
-     - Use the combined force-torque covariance matrix for the highest level to match the 2019 paper
+     - Use the combined force-torque covariance matrix for the highest level to match the
+       2019 paper.
      - ``True``
      - ``bool``
    * - ``--customised_axes``
-     - Use custom bonded axes to get COM, MOI and PA that match the 2019 paper
+     - Use custom bonded axes to get COM, MOI and PA that match the 2019 paper.
      - ``True``
      - ``bool``
    * - ``--search_type``
-     - Method for finding neighbouring molecules
+     - Method for finding neighbouring molecules.
      - ``RAD``
      - ``str``
+   * - ``--parallel_frames``
+     - Execute frame-local covariance calculations in parallel. When enabled, frame-level
+       work is submitted to Dask and reduced in the parent process.
+     - ``False``
+     - ``bool``
+   * - ``--use_dask``
+     - Enable local Dask frame parallelism. This is useful for running frame-level work
+       across local worker processes.
+     - ``False``
+     - ``bool``
+   * - ``--dask_workers``
+     - Number of local Dask worker processes to use for parallel frame execution. If unset,
+       Dask chooses a default.
+     - ``None``
+     - ``int``
+   * - ``--dask_threads_per_worker``
+     - Number of threads per local Dask worker. ``1`` is recommended for trajectory safety
+       with MDAnalysis.
+     - ``1``
+     - ``int``
+   * - ``--hpc``
+     - Use a SLURM-backed Dask cluster for parallel frame execution.
+     - ``False``
+     - ``bool``
+   * - ``--submit``
+     - Submit a master SLURM job and exit instead of running immediately in the current
+       process. This is intended for HPC batch submission.
+     - ``False``
+     - ``bool``
+   * - ``--hpc_queue``
+     - SLURM partition or queue to use for Dask worker jobs.
+     - ``None``
+     - ``str``
+   * - ``--hpc_nodes``
+     - Number of SLURM Dask worker jobs to launch.
+     - ``1``
+     - ``int``
+   * - ``--hpc_cores``
+     - Number of CPU cores requested per Dask worker job.
+     - ``1``
+     - ``int``
+   * - ``--hpc_processes``
+     - Number of Dask worker processes per SLURM job.
+     - ``1``
+     - ``int``
+   * - ``--hpc_memory``
+     - Memory requested per Dask worker job, for example ``4GB`` or ``16GB``.
+     - ``4GB``
+     - ``str``
+   * - ``--hpc_walltime``
+     - Walltime requested for each Dask worker job, formatted as ``HH:MM:SS``.
+     - ``01:00:00``
+     - ``str``
+   * - ``--hpc_account``
+     - Optional SLURM account or project code.
+     - ``None``
+     - ``str``
+   * - ``--hpc_qos``
+     - Optional SLURM QoS value.
+     - ``None``
+     - ``str``
+   * - ``--hpc_constraint``
+     - Optional SLURM node constraint.
+     - ``None``
+     - ``str``
+   * - ``--conda_path``
+     - Path to the conda executable used in the SLURM worker prologue.
+     - ``conda``
+     - ``str``
+   * - ``--conda_exec``
+     - Conda-compatible executable to use for environment activation, usually ``conda`` or
+       ``mamba``.
+     - ``conda``
+     - ``str``
+   * - ``--conda_env``
+     - Conda environment name to activate on SLURM workers.
+     - ``None``
+     - ``str``
+
+Parallel Frame Execution
+------------------------
+
+CodeEntropy can optionally process trajectory frames in parallel using Dask. This is
+most useful for larger trajectories where the frame-local covariance calculations are
+one of the slowest parts of the workflow.
+
+The parallel implementation works as a map/reduce workflow:
+
+* each Dask worker processes one frame at a time;
+* each worker returns a frame-local covariance result;
+* the parent process reduces those frame-local results into the final running
+  covariance averages;
+* the entropy graph runs after frame reduction has completed.
+
+This means workers do not directly modify the shared covariance accumulators. The
+parent process remains responsible for reduction, which keeps the parallel execution
+consistent with the sequential workflow.
+
+Local Dask Execution
+^^^^^^^^^^^^^^^^^^^^
+
+For local workstation or laptop use, enable ``parallel_frames`` and ``use_dask`` in
+``config.yaml``:
+
+.. code-block:: yaml
+
+  ---
+
+  run1:
+    top_traj_file: ["md_A4_dna.tpr", "md_A4_dna_xf.trr"]
+    selection_string: "all"
+    start: 0
+    end: 100
+    step: 1
+
+    parallel_frames: true
+    use_dask: true
+    dask_workers: 4
+    dask_threads_per_worker: 1
+
+The recommended value for ``dask_threads_per_worker`` is ``1``. This keeps each worker
+process independent and avoids thread-safety issues when reading trajectory data.
+
+The same run can also be started from the command line:
+
+.. code-block:: bash
+
+   CodeEntropy \
+     --parallel_frames true \
+     --use_dask true \
+     --dask_workers 4 \
+     --dask_threads_per_worker 1
+
+For very small systems or short trajectories, local Dask may not be faster than the
+sequential path because there is overhead in starting workers and transferring frame
+data. It is best suited to larger calculations with many frames.
+
+SLURM / HPC Dask Execution
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On a SLURM-based HPC system, CodeEntropy can create a Dask cluster using SLURM worker
+jobs. This is enabled with ``hpc: true``.
+
+Example ``config.yaml``:
+
+.. code-block:: yaml
+
+  ---
+
+  run1:
+    top_traj_file: ["1AKI_prod_new.tpr", "1AKI_prod_new.trr"]
+    selection_string: "all"
+    start: 0
+    end: 500
+    step: 1
+
+    parallel_frames: true
+    hpc: true
+
+    hpc_queue: standard
+    hpc_nodes: 4
+    hpc_cores: 8
+    hpc_processes: 1
+    hpc_memory: 16GB
+    hpc_walltime: "02:00:00"
+
+    hpc_account: null
+    hpc_qos: null
+    hpc_constraint: null
+
+    conda_path: conda
+    conda_exec: conda
+    conda_env: codeentropy
+
+The important HPC options are:
+
+* ``hpc_queue``: SLURM partition or queue.
+* ``hpc_nodes``: number of Dask worker jobs to launch.
+* ``hpc_cores``: number of CPU cores requested per Dask worker job.
+* ``hpc_processes``: number of Dask worker processes per SLURM job.
+* ``hpc_memory``: memory requested per Dask worker job.
+* ``hpc_walltime``: walltime requested for each worker job.
+* ``conda_env``: environment to activate on the worker jobs.
+
+Submitting a Master SLURM Job
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you want CodeEntropy to submit a master SLURM job and then exit, set
+``submit: true`` as well as ``hpc: true``:
+
+.. code-block:: yaml
+
+  ---
+
+  run1:
+    top_traj_file: ["1AKI_prod.tpr", "1AKI_prod.trr"]
+    selection_string: "all"
+    start: 0
+    end: 500
+    step: 1
+
+    submit: true
+    parallel_frames: true
+    hpc: true
+
+    hpc_queue: standard
+    hpc_nodes: 4
+    hpc_cores: 8
+    hpc_processes: 1
+    hpc_memory: 16GB
+    hpc_walltime: "02:00:00"
+
+    hpc_account: null
+    hpc_qos: null
+    hpc_constraint: null
+
+    conda_path: conda
+    conda_exec: conda
+    conda_env: codeentropy
+
+Run CodeEntropy from the working directory containing ``config.yaml``:
+
+.. code-block:: bash
+
+   CodeEntropy
+
+In submit mode, CodeEntropy writes and submits a master SLURM script, then exits from
+the current process. The submitted master job starts CodeEntropy again on the cluster,
+where the SLURM-backed Dask workers are then launched.
+
+Choosing a Parallel Mode
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use sequential execution for small tests and debugging:
+
+.. code-block:: yaml
+
+  parallel_frames: false
+  use_dask: false
+  hpc: false
+  submit: false
+
+Use local Dask when running on a workstation:
+
+.. code-block:: yaml
+
+  parallel_frames: true
+  use_dask: true
+  dask_workers: 4
+  dask_threads_per_worker: 1
+
+Use HPC Dask when running inside an allocated HPC session or batch job:
+
+.. code-block:: yaml
+
+  parallel_frames: true
+  hpc: true
+
+Use submit mode when you want CodeEntropy to create and submit the master SLURM job
+for you:
+
+.. code-block:: yaml
+
+  submit: true
+  parallel_frames: true
+  hpc: true
 
 Averaging
 ---------
