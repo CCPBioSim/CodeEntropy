@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 import types
 from types import SimpleNamespace
@@ -603,7 +602,9 @@ def test_configure_parallel_frame_execution_creates_local_dask_client():
     args = SimpleNamespace(
         parallel_frames=True,
         use_dask=False,
+        hpc=False,
         dask_workers=3,
+        dask_threads_per_worker=1,
         output_file="out.json",
     )
     wf = _make_wf(args)
@@ -639,7 +640,9 @@ def test_configure_parallel_frame_execution_raises_when_dask_missing():
     args = SimpleNamespace(
         parallel_frames=True,
         use_dask=False,
+        hpc=False,
         dask_workers=2,
+        dask_threads_per_worker=1,
         output_file="out.json",
     )
     wf = _make_wf(args)
@@ -841,71 +844,12 @@ def test_execute_closes_dask_client_in_finally():
     client.close.assert_called_once()
 
 
-def test_conda_env_returns_active_environment():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {"CONDA_DEFAULT_ENV": "codeentropy"}, clear=False):
-        assert wf._conda_env() == "codeentropy"
-
-
-def test_conda_env_exits_when_missing():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(SystemExit):
-            wf._conda_env()
-
-
-def test_conda_exec_returns_mamba_when_mamba_env_present():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {"MAMBA_EXE": "/path/to/mamba"}, clear=True):
-        assert wf._conda_exec() == "mamba"
-
-
-def test_conda_exec_returns_conda_when_conda_env_present():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {"CONDA_EXE": "/path/to/conda"}, clear=True):
-        assert wf._conda_exec() == "conda"
-
-
-def test_conda_exec_exits_when_no_conda_or_mamba_present():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(SystemExit):
-            wf._conda_exec()
-
-
-def test_conda_path_returns_conda_exe():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {"CONDA_EXE": "/path/to/conda"}, clear=True):
-        assert wf._conda_path() == "/path/to/conda"
-
-
-def test_conda_path_exits_when_missing():
-    args = SimpleNamespace(output_file="out.json")
-    wf = _make_wf(args)
-
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(SystemExit):
-            wf._conda_path()
-
-
 def test_configure_parallel_frame_execution_uses_hpc_dask_manager():
     args = SimpleNamespace(
         parallel_frames=False,
         use_dask=False,
         hpc=True,
-        dask_workers=2,
+        dask_workers=None,
         dask_threads_per_worker=1,
         output_file="out.json",
     )

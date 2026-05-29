@@ -269,6 +269,7 @@ class CodeEntropyRunner:
                 self._validate_required_args(args)
 
                 if getattr(args, "submit", False):
+                    self._config_manager._check_parallel_frame_options(args)
                     HPCDaskManager(args).submit_master()
                     return
 

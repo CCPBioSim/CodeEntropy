@@ -537,7 +537,7 @@ class ConfigResolver:
 
     @staticmethod
     def _check_parallel_frame_options(args: argparse.Namespace) -> None:
-        """Validate local Dask parallel-frame options."""
+        """Validate local Dask, HPC Dask, and submit-related options."""
         dask_workers = getattr(args, "dask_workers", None)
         if dask_workers is not None and dask_workers < 1:
             raise ValueError("'dask_workers' must be at least 1 if provided.")
@@ -545,3 +545,39 @@ class ConfigResolver:
         dask_threads = getattr(args, "dask_threads_per_worker", 1)
         if dask_threads < 1:
             raise ValueError("'dask_threads_per_worker' must be at least 1.")
+
+        using_hpc = bool(getattr(args, "hpc", False))
+        submitting = bool(getattr(args, "submit", False))
+
+        if submitting and not using_hpc:
+            raise ValueError("'submit' requires 'hpc' to be enabled.")
+
+        if not using_hpc and not submitting:
+            return
+
+        if not getattr(args, "hpc_queue", None):
+            raise ValueError("'hpc_queue' must be provided when using HPC Dask.")
+
+        if getattr(args, "hpc_nodes", 1) < 1:
+            raise ValueError("'hpc_nodes' must be at least 1.")
+
+        if getattr(args, "hpc_cores", 1) < 1:
+            raise ValueError("'hpc_cores' must be at least 1.")
+
+        if getattr(args, "hpc_processes", 1) < 1:
+            raise ValueError("'hpc_processes' must be at least 1.")
+
+        if not getattr(args, "hpc_memory", None):
+            raise ValueError("'hpc_memory' must be provided when using HPC Dask.")
+
+        if not getattr(args, "hpc_walltime", None):
+            raise ValueError("'hpc_walltime' must be provided when using HPC Dask.")
+
+        if not getattr(args, "conda_env", None):
+            raise ValueError("'conda_env' must be provided when using HPC Dask.")
+
+        if not getattr(args, "conda_path", None):
+            raise ValueError("'conda_path' must be provided when using HPC Dask.")
+
+        if not getattr(args, "conda_exec", None):
+            raise ValueError("'conda_exec' must be provided when using HPC Dask.")

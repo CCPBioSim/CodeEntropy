@@ -60,10 +60,14 @@ def test_check_input_force_partitioning_non_default_logs_warning(
     assert "differs from the default" in caplog.text
 
 
-def test_check_parallel_frame_options_valid_does_not_raise(resolver, make_args):
+def test_check_parallel_frame_options_valid_local_dask_does_not_raise(
+    resolver, make_args
+):
     args = make_args(
         dask_workers=2,
         dask_threads_per_worker=1,
+        hpc=False,
+        submit=False,
     )
 
     resolver._check_parallel_frame_options(args)
@@ -73,7 +77,25 @@ def test_check_parallel_frame_options_allows_dask_workers_none(resolver, make_ar
     args = make_args(
         dask_workers=None,
         dask_threads_per_worker=1,
+        hpc=False,
+        submit=False,
     )
+
+    resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_valid_hpc_does_not_raise(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args()
+
+    resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_valid_hpc_submit_does_not_raise(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(submit=True)
 
     resolver._check_parallel_frame_options(args)
 
@@ -84,6 +106,8 @@ def test_check_parallel_frame_options_raises_when_dask_workers_less_than_one(
     args = make_args(
         dask_workers=0,
         dask_threads_per_worker=1,
+        hpc=False,
+        submit=False,
     )
 
     with pytest.raises(
@@ -99,10 +123,153 @@ def test_check_parallel_frame_options_raises_when_dask_threads_less_than_one(
     args = make_args(
         dask_workers=None,
         dask_threads_per_worker=0,
+        hpc=False,
+        submit=False,
     )
 
     with pytest.raises(
         ValueError,
         match="'dask_threads_per_worker' must be at least 1.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_submit_without_hpc(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc=False,
+        submit=True,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'submit' requires 'hpc' to be enabled.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_hpc_queue_missing(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc_queue=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'hpc_queue' must be provided when using HPC Dask.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_hpc_nodes_less_than_one(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc_nodes=0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'hpc_nodes' must be at least 1.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_hpc_cores_less_than_one(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc_cores=0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'hpc_cores' must be at least 1.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_hpc_processes_less_than_one(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc_processes=0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'hpc_processes' must be at least 1.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_hpc_memory_missing(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc_memory=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'hpc_memory' must be provided when using HPC Dask.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_hpc_walltime_missing(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        hpc_walltime=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'hpc_walltime' must be provided when using HPC Dask.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_conda_env_missing(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        conda_env=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'conda_env' must be provided when using HPC Dask.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_conda_path_missing(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        conda_path=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'conda_path' must be provided when using HPC Dask.",
+    ):
+        resolver._check_parallel_frame_options(args)
+
+
+def test_check_parallel_frame_options_raises_when_conda_exec_missing(
+    resolver, make_valid_hpc_args
+):
+    args = make_valid_hpc_args(
+        conda_exec=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'conda_exec' must be provided when using HPC Dask.",
     ):
         resolver._check_parallel_frame_options(args)

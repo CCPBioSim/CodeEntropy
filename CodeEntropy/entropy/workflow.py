@@ -16,8 +16,6 @@ The manager intentionally delegates calculations to dedicated components.
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
@@ -452,35 +450,3 @@ class EntropyWorkflow:
             args=self._args,
             include_raw_tables=False,
         )
-
-    def _conda_env(self):
-        """Determine the activated conda/mamba environment."""
-        try:
-            return os.environ["CONDA_DEFAULT_ENV"]
-        except KeyError:
-            logging.error("Please activate your conda/mamba environment")
-            sys.exit(1)
-
-    def _conda_exec(self):
-        """Determine the conda/mamba executable."""
-        try:
-            os.environ["MAMBA_EXE"]
-            return "mamba"
-        except KeyError:
-            try:
-                os.environ["CONDA_EXE"]
-                return "conda"
-            except KeyError:
-                logging.error(
-                    "Cannot determine your conda executable, "
-                    "make sure they are initialised."
-                )
-                sys.exit(1)
-
-    def _conda_path(self):
-        """Determine the conda path"""
-        try:
-            return os.environ["CONDA_EXE"]
-        except KeyError:
-            logging.error("Please make sure you have conda/mamba set up correctly.")
-            sys.exit(1)
