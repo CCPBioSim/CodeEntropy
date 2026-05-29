@@ -145,7 +145,7 @@ class HPCDaskManager:
             if idx < len(cli) and str(cli[idx]).lower() in {"true", "false"}:
                 cli.pop(idx)
 
-        script_name = "WE-master-submit.sh"
+        script_name = "CodeEntropy-master-submit.sh"
 
         with open(script_name, "w", encoding="utf-8") as f:
             f.write("#!/bin/bash --login\n\n")

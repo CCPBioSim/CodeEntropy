@@ -33,7 +33,7 @@ from rich.table import Table
 from rich.text import Text
 
 from CodeEntropy.config.argparse import ConfigResolver
-from CodeEntropy.core.dusk_clusters import HPCDaskManager
+from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.workflow import EntropyWorkflow
 from CodeEntropy.levels.dihedrals import ConformationStateBuilder

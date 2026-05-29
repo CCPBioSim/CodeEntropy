@@ -6,7 +6,7 @@ import subprocess
 import sys
 from unittest import mock
 
-from CodeEntropy.core.dusk_clusters import HPCDaskManager
+from CodeEntropy.core.dask_clusters import HPCDaskManager
 
 
 def args_helper(args_list):
@@ -274,8 +274,8 @@ def test_submit_master_writes_expected_script_mamba(check_output):
     os.remove("WE-master-submit.sh")
 
 
-@mock.patch("CodeEntropy.core.dusk_clusters.Client")
-@mock.patch("CodeEntropy.core.dusk_clusters.SLURMCluster")
+@mock.patch("CodeEntropy.core.dask_clusters.Client")
+@mock.patch("CodeEntropy.core.dask_clusters.SLURMCluster")
 @mock.patch.object(HPCDaskManager, "system_network_interface")
 def test_configure_cluster_writes_job_script(
     system_network_interface,

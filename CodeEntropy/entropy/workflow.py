@@ -22,7 +22,7 @@ from typing import Any
 
 import pandas as pd
 
-from CodeEntropy.core.dusk_clusters import HPCDaskManager
+from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.graph import EntropyGraph
 from CodeEntropy.entropy.water import WaterEntropy
