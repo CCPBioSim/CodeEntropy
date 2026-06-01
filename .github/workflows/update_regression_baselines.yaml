@@ -26,7 +26,6 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.14"
-          cache: pip
 
       - name: Install testing dependencies
         run: |
@@ -34,7 +33,7 @@ jobs:
           python -m pip install -e .[testing]
 
       - name: Update regression baselines
-        run: pytest tests/regression --update-baselines
+        run: pytest tests/regression --update-baselines --run-slow
 
       - name: Commit updated baselines
         uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6

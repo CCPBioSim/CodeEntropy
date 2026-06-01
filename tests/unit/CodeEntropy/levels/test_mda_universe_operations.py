@@ -1,11 +1,10 @@
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 from MDAnalysis.exceptions import NoDataError
 
-from CodeEntropy.levels.mda import UniverseOperations
+from CodeEntropy.trajectory.mda import UniverseOperations
 
 
 class _FakeAF:
@@ -21,10 +20,30 @@ class _FakeAF:
         return self
 
 
+class _FakeTrajectory:
+    def __init__(self, n_frames: int):
+        self.n_frames = n_frames
+        self.seen = []
+
+    def __len__(self):
+        return self.n_frames
+
+    def __getitem__(self, frame_index):
+        self.seen.append(frame_index)
+        return frame_index
+
+
 def test_extract_timeseries_unknown_kind_raises():
     ops = UniverseOperations()
-    with pytest.raises(ValueError):
-        ops._extract_timeseries(MagicMock(), kind="nope")
+
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory(0)
+
+    ag = MagicMock()
+    ag.universe = universe
+
+    with pytest.raises(ValueError, match="Unknown timeseries kind"):
+        ops._extract_timeseries(ag, kind="nope")
 
 
 def test_extract_force_timeseries_fallback_to_positions_when_no_forces():
@@ -58,25 +77,24 @@ def test_select_frames_defaults_start_end_and_slices(monkeypatch):
     ops = UniverseOperations()
 
     u = MagicMock()
-    u.trajectory = list(range(10))
-    u.select_atoms.return_value = MagicMock()
+    u.trajectory = _FakeTrajectory(10)
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90.0, 90.0, 90.0])
 
-    # timeseries arrays
-    ops._extract_timeseries = MagicMock(
-        side_effect=[
-            np.zeros((10, 2, 3)),  # positions
-            np.ones((10, 2, 3)),  # forces
-            np.zeros((10, 6)),  # dimensions
-        ]
-    )
+    select_atom = MagicMock()
+    select_atom.universe = u
+    select_atom.positions = np.zeros((2, 3))
+    select_atom.forces = np.ones((2, 3))
+    u.select_atoms.return_value = select_atom
 
     merged = MagicMock()
     merged.load_new = MagicMock()
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
 
     out = ops.select_frames(u, start=None, end=None, step=2)
 
     assert out is merged
+    u.select_atoms.assert_called_once_with("all", updating=True)
+    assert u.trajectory.seen == [0, 2, 4, 6, 8]
     merged.load_new.assert_called_once()
 
 
@@ -89,7 +107,7 @@ def test_merge_forces_scales_kcal(monkeypatch):
     u_force.select_atoms.return_value = MagicMock()
 
     monkeypatch.setattr(
-        "CodeEntropy.levels.mda.mda.Universe", MagicMock(side_effect=[u, u_force])
+        "CodeEntropy.trajectory.mda.mda.Universe", MagicMock(side_effect=[u, u_force])
     )
 
     ops._extract_timeseries = MagicMock(
@@ -104,7 +122,7 @@ def test_merge_forces_scales_kcal(monkeypatch):
 
     merged = MagicMock()
     merged.load_new = MagicMock()
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Merge", lambda ag: merged)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
 
     out = ops.merge_forces(
         tprfile="tpr",
@@ -129,7 +147,7 @@ def test_convert_lammps_transforms_forces_and_energies(monkeypatch):
             transformations_captured.extend(kwargs["transformations"])
         return mock_universe
 
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Universe", capture_universe)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Universe", capture_universe)
 
     ops.convert_lammps("tpr", "trr", "LAMMPSDUMP")
 
@@ -158,7 +176,7 @@ def test_convert_lammps_fallback_on_keyerror(monkeypatch):
             transformations_captured.extend(kwargs["transformations"])
         return MagicMock()
 
-    monkeypatch.setattr("CodeEntropy.levels.mda.mda.Universe", mock_universe)
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Universe", mock_universe)
 
     ops.convert_lammps("tpr", "trr", "LAMMPSDUMP")
 
@@ -175,26 +193,29 @@ def test_select_atoms_builds_merged_universe_and_loads_timeseries(monkeypatch):
     ops = UniverseOperations()
 
     u = MagicMock()
+    u.trajectory = _FakeTrajectory(2)
+
     sel = MagicMock()
+    sel.universe = u
+    sel.positions = np.zeros((3, 3))
+    sel.forces = np.ones((3, 3))
+
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90.0, 90.0, 90.0])
     u.select_atoms.return_value = sel
 
-    monkeypatch.setattr(
-        ops,
-        "_extract_timeseries",
-        lambda _sel, kind: np.zeros((2, 3)) if kind == "positions" else np.zeros((2,)),
-    )
-
     merged = MagicMock()
-    with (
-        patch("CodeEntropy.levels.mda.mda.Merge", return_value=merged) as MergeCls,
-        patch("CodeEntropy.levels.mda.MemoryReader"),
-    ):
-        out = ops.select_atoms(u, "name CA")
+    merged.load_new = MagicMock()
 
-    u.select_atoms.assert_called_once_with("name CA", updating=True)
-    MergeCls.assert_called_once_with(sel)
-    merged.load_new.assert_called_once()
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
+
+    out = ops.select_atoms(u, "name CA")
+
     assert out is merged
+    u.select_atoms.assert_called_once_with("name CA", updating=True)
+    merged.load_new.assert_called_once()
+
+    coordinates = merged.load_new.call_args.args[0]
+    assert coordinates.shape == (2, 3, 3)
 
 
 def test_extract_fragment_selects_by_resindices(monkeypatch):
@@ -218,53 +239,171 @@ def test_extract_fragment_selects_by_resindices(monkeypatch):
 def test_extract_timeseries_kind_positions_returns_xyz_array():
     uops = UniverseOperations()
 
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory(2)
+
     ag = MagicMock()
+    ag.universe = universe
     ag.positions = np.array([[1.0, 2.0, 3.0]], dtype=float)
 
-    class _FakeAnalysisFromFunction:
-        def __init__(self, func, atomgroup):
-            self.func = func
-            self.atomgroup = atomgroup
+    out = uops._extract_timeseries(atomgroup=ag, kind="positions")
 
-        def run(self):
-            return SimpleNamespace(results={"timeseries": self.func(self.atomgroup)})
-
-    with patch(
-        "CodeEntropy.levels.mda.AnalysisFromFunction", _FakeAnalysisFromFunction
-    ):
-        out = uops._extract_timeseries(atomgroup=ag, kind="positions")
-
-    assert out.shape == (1, 3)
-    assert np.allclose(out, np.array([[1.0, 2.0, 3.0]]))
+    assert out.shape == (2, 1, 3)
+    assert np.allclose(out[0], np.array([[1.0, 2.0, 3.0]]))
+    assert universe.trajectory.seen == [0, 1]
 
 
 def test_extract_timeseries_invalid_kind_raises_value_error():
     uops = UniverseOperations()
-    ag = MagicMock()
 
-    with pytest.raises(ValueError):
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory(0)
+
+    ag = MagicMock()
+    ag.universe = universe
+
+    with pytest.raises(ValueError, match="Unknown timeseries kind"):
         uops._extract_timeseries(atomgroup=ag, kind="not-a-kind")
 
 
 def test_extract_timeseries_forces_branch_uses_forces_copy():
     uops = UniverseOperations()
 
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory(2)
+
     ag = MagicMock()
+    ag.universe = universe
     ag.forces = np.array([[1.0, 2.0, 3.0]], dtype=float)
 
-    with patch("CodeEntropy.levels.mda.AnalysisFromFunction", _FakeAF):
-        out = uops._extract_timeseries(ag, kind="forces")
+    out = uops._extract_timeseries(ag, kind="forces")
 
-    assert np.allclose(out, ag.forces)
+    assert out.shape == (2, 1, 3)
+    assert np.allclose(out[0], ag.forces)
+    assert universe.trajectory.seen == [0, 1]
 
 
 def test_extract_timeseries_dimensions_branch_uses_dimensions_copy():
     uops = UniverseOperations()
 
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory(2)
+    universe.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90], dtype=float)
+
     ag = MagicMock()
-    ag.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90], dtype=float)
+    ag.universe = universe
 
-    with patch("CodeEntropy.levels.mda.AnalysisFromFunction", _FakeAF):
-        out = uops._extract_timeseries(ag, kind="dimensions")
+    out = uops._extract_timeseries(ag, kind="dimensions")
 
-    assert np.allclose(out, ag.dimensions)
+    assert out.shape == (2, 6)
+    assert np.allclose(out[0], universe.dimensions)
+    assert universe.trajectory.seen == [0, 1]
+
+
+def test_select_frames_raises_when_step_is_zero():
+    ops = UniverseOperations()
+
+    u = MagicMock()
+    u.trajectory = list(range(5))
+
+    with pytest.raises(ValueError, match="Frame step must be positive, got 0"):
+        ops.select_frames(u, start=0, end=5, step=0)
+
+    u.select_atoms.assert_not_called()
+
+
+def test_select_frames_raises_when_step_is_negative():
+    ops = UniverseOperations()
+
+    u = MagicMock()
+    u.trajectory = list(range(5))
+
+    with pytest.raises(ValueError, match="Frame step must be positive, got -1"):
+        ops.select_frames(u, start=0, end=5, step=-1)
+
+    u.select_atoms.assert_not_called()
+
+
+def test_build_memory_universe_from_atomgroup_raises_when_frame_indices_empty():
+    ops = UniverseOperations()
+
+    atomgroup = MagicMock()
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot build a memory universe from an empty frame list",
+    ):
+        ops._build_memory_universe_from_atomgroup(atomgroup, frame_indices=[])
+
+
+def test_build_memory_universe_from_atomgroup_omits_forces_when_force_data_missing(
+    monkeypatch,
+):
+    ops = UniverseOperations()
+
+    class _FakeTrajectory:
+        def __init__(self):
+            self.seen = []
+
+        def __getitem__(self, frame_index):
+            self.seen.append(frame_index)
+            return frame_index
+
+    class _FakeAtomGroup:
+        def __init__(self, universe):
+            self.universe = universe
+            self.positions = np.array([[1.0, 2.0, 3.0]], dtype=float)
+
+        @property
+        def forces(self):
+            raise NoDataError("no forces")
+
+    universe = MagicMock()
+    universe.trajectory = _FakeTrajectory()
+    universe.dimensions = np.array([10.0, 10.0, 10.0, 90.0, 90.0, 90.0])
+
+    atomgroup = _FakeAtomGroup(universe)
+
+    merged = MagicMock()
+    merged.load_new = MagicMock()
+
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
+
+    out = ops._build_memory_universe_from_atomgroup(atomgroup, frame_indices=[0, 2])
+
+    assert out is merged
+    assert universe.trajectory.seen == [0, 2]
+
+    merged.load_new.assert_called_once()
+    _, kwargs = merged.load_new.call_args
+
+    assert "forces" not in kwargs
+    assert "dimensions" in kwargs
+
+
+def test_convert_lammps_raises_for_non_lammpsdump_format():
+    ops = UniverseOperations()
+
+    with pytest.raises(
+        ValueError,
+        match="Incorrect file format: TRR, LAMMPSDUMP expected",
+    ):
+        ops.convert_lammps(
+            tprfile="topology.tpr",
+            trrfile="trajectory.trr",
+            fileformat="TRR",
+        )
+
+
+def test_select_frame_indices_raises_when_frame_indices_empty():
+    ops = UniverseOperations()
+
+    u = MagicMock()
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot build a reduced universe from an empty frame list",
+    ):
+        ops.select_frame_indices(u, frame_indices=[])
+
+    u.select_atoms.assert_not_called()
