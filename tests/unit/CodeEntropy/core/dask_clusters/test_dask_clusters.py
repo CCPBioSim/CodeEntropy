@@ -24,7 +24,6 @@ def args_helper(args_list):
     parser.add_argument("--hpc-nodes", type=int, default=4)
     parser.add_argument("--hpc-processes", type=int, default=20)
     parser.add_argument("--hpc-walltime", type=str, default="24:00:00")
-    parser.add_argument("--hpc-interface", type=str, default=None)
     parser.add_argument("--hpc-modules", nargs="+", default=None)
 
     parser.add_argument("--conda-env", type=str, default="codeentropy")
@@ -170,7 +169,17 @@ def test_slurm_prologues_includes_hpc_modules():
 
 
 @mock.patch("psutil.net_if_addrs")
-def test_system_network_interface_prefers_ib0(net_if_addrs):
+def test_system_network_interface_prefers_bond0(net_if_addrs):
+    net_if_addrs.return_value = {"bond0": [], "ib0": [], "eth0": []}
+
+    args = args_helper([])
+    manager = HPCDaskManager(args)
+
+    assert manager.system_network_interface() == "bond0"
+
+
+@mock.patch("psutil.net_if_addrs")
+def test_system_network_interface_prefers_ib0_when_bond0_missing(net_if_addrs):
     net_if_addrs.return_value = {"ib0": [], "eth0": []}
 
     args = args_helper([])
@@ -180,33 +189,37 @@ def test_system_network_interface_prefers_ib0(net_if_addrs):
 
 
 @mock.patch("psutil.net_if_addrs")
-def test_system_network_interface_uses_configured_interface(net_if_addrs):
-    net_if_addrs.return_value = {"lo": [], "ib0": []}
-
-    args = args_helper(["--hpc-interface", "custom0"])
-    manager = HPCDaskManager(args)
-
-    assert manager.system_network_interface() == "custom0"
-
-
-@mock.patch("psutil.net_if_addrs")
-def test_system_network_interface_falls_back_to_non_loopback_interface(net_if_addrs):
-    net_if_addrs.return_value = {"lo": [], "ens5": [], "docker0": []}
+def test_system_network_interface_prefers_hsn0_when_bond0_and_ib0_missing(
+    net_if_addrs,
+):
+    net_if_addrs.return_value = {"hsn0": [], "eth0": []}
 
     args = args_helper([])
     manager = HPCDaskManager(args)
 
-    assert manager.system_network_interface() == "ens5"
+    assert manager.system_network_interface() == "hsn0"
 
 
 @mock.patch("psutil.net_if_addrs")
-def test_system_network_interface_raises_without_non_loopback_interface(net_if_addrs):
-    net_if_addrs.return_value = {"lo": [], "docker0": [], "veth123": []}
+def test_system_network_interface_prefers_eth0_when_only_eth0_known_interface(
+    net_if_addrs,
+):
+    net_if_addrs.return_value = {"eth0": [], "eno1": []}
 
     args = args_helper([])
     manager = HPCDaskManager(args)
 
-    with pytest.raises(RuntimeError, match="Could not find a non-loopback"):
+    assert manager.system_network_interface() == "eth0"
+
+
+@mock.patch("psutil.net_if_addrs")
+def test_system_network_interface_raises_without_known_hpc_interface(net_if_addrs):
+    net_if_addrs.return_value = {"lo": [], "docker0": [], "eno1": []}
+
+    args = args_helper([])
+    manager = HPCDaskManager(args)
+
+    with pytest.raises(RuntimeError, match="Could not find a known HPC network"):
         manager.system_network_interface()
 
 
@@ -424,7 +437,7 @@ def test_configure_cluster_writes_job_script(
     slurm_cluster.assert_called_once()
     _, kwargs = slurm_cluster.call_args
     assert kwargs["interface"] == "ib0"
-    assert kwargs["scheduler_options"] == {"interface": "ib0"}
+    assert "scheduler_options" not in kwargs
 
     cluster_instance.scale.assert_called_once_with(jobs=4)
     client.assert_called_once_with(cluster_instance)

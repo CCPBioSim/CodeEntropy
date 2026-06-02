@@ -31,55 +31,40 @@ class HPCDaskManager:
 
         Some HPC systems require this variable to be unset for correct CPU binding.
         """
-        os.environ.pop("SLURM_CPU_BIND", None)
+        if "SLURM_CPU_BIND" in os.environ:
+            os.environ.pop("SLURM_CPU_BIND")
 
     def system_network_interface(self) -> str:
         """
-        Select the most appropriate network interface for HPC communication.
+        Get best candidate for HPC network interface from commonly known ones.
 
-        If args.hpc_interface is provided, that value is used directly. Otherwise,
-        commonly used HPC interfaces are preferred. Loopback and container interfaces
-        are avoided because Dask workers on other nodes cannot connect to a scheduler
-        advertised on 127.0.0.1.
-
-        Returns:
-            str: Name of selected network interface.
-
-        Raises:
-            RuntimeError: If no suitable non-loopback interface can be found.
+        This deliberately follows the WaterEntropy behaviour and only selects from
+        known HPC-safe interfaces. It avoids selecting arbitrary interfaces such as
+        eno1, which may exist on the master node but not on worker nodes.
         """
-        configured = getattr(self.args, "hpc_interface", None)
-        if configured:
-            return configured
-
-        preferred_nics = ["bond0", "ib0", "hsn0", "eth0"]
+        hpc_nics = ["bond0", "ib0", "hsn0", "eth0"]
         interfaces = list(psutil.net_if_addrs().keys())
 
-        for iface in preferred_nics:
+        for iface in hpc_nics:
             if iface in interfaces:
                 return iface
 
-        for iface in interfaces:
-            if not iface.startswith(("lo", "docker", "veth")):
-                return iface
-
         raise RuntimeError(
-            "Could not find a non-loopback network interface for Dask workers. "
-            f"Available interfaces: {interfaces}. Set 'hpc_interface' in config.yaml."
+            "Could not find a known HPC network interface. "
+            f"Available interfaces: {interfaces}. "
+            "Expected one of: bond0, ib0, hsn0, eth0."
         )
 
     def slurm_directives(self) -> tuple[list[str], list[str]]:
         """
-        Build SLURM job directives and skip list.
+        Process extra SLURM directives and directives to be skipped.
 
         Returns:
-            Tuple[List[str], List[str]]:
-                - Extra SLURM directives
-                - Directives to skip
+            Tuple containing extra directives and skipped directives.
         """
         args = self.args
+
         extra: list[str] = []
-        skip: list[str] = ["--mem"]
 
         if args.hpc_account:
             extra.append(f'--account="{args.hpc_account}"')
@@ -88,14 +73,16 @@ class HPCDaskManager:
         if args.hpc_constraint:
             extra.append(f'--constraint="{args.hpc_constraint}"')
 
+        skip = ["--mem"]
+
         return extra, skip
 
     def slurm_prologues(self) -> list[str]:
         """
-        Build SLURM job prologue commands for environment setup.
+        Process environment setup commands for the SLURM worker job script.
 
         Returns:
-            List[str]: Shell commands executed before job start.
+            List of shell commands executed before the Dask worker starts.
         """
         args = self.args
         prologue: list[str] = []
@@ -115,10 +102,10 @@ class HPCDaskManager:
 
     def configure_cluster(self) -> Client:
         """
-        Configure and launch a SLURM-backed Dask cluster.
+        Configure a SLURM-backed Dask cluster.
 
         Returns:
-            Client: Dask distributed client connected to cluster.
+            Dask distributed client connected to the SLURMCluster.
         """
         args = self.args
 
@@ -140,7 +127,6 @@ class HPCDaskManager:
             shebang="#!/bin/bash --login",
             local_directory="$PWD",
             interface=iface,
-            scheduler_options={"interface": iface},
             job_script_prologue=prologue,
         )
 
@@ -155,9 +141,9 @@ class HPCDaskManager:
 
     def submit_master(self) -> None:
         """
-        Submit a SLURM job that runs a master Dask orchestration process.
+        Submit a SLURM job that runs the master CodeEntropy process.
 
-        This generates a temporary SLURM script and submits it via `sbatch`.
+        This generates a temporary SLURM script and submits it via sbatch.
         """
         cli = list(sys.argv[1:])
         if "--submit" in cli:
