@@ -6,6 +6,8 @@ import subprocess
 import sys
 from unittest import mock
 
+import pytest
+
 from CodeEntropy.core.dask_clusters import HPCDaskManager
 
 
@@ -22,6 +24,8 @@ def args_helper(args_list):
     parser.add_argument("--hpc-nodes", type=int, default=4)
     parser.add_argument("--hpc-processes", type=int, default=20)
     parser.add_argument("--hpc-walltime", type=str, default="24:00:00")
+    parser.add_argument("--hpc-interface", type=str, default=None)
+    parser.add_argument("--hpc-modules", nargs="+", default=None)
 
     parser.add_argument("--conda-env", type=str, default="codeentropy")
     parser.add_argument("--conda-exec", type=str, default="conda")
@@ -138,6 +142,33 @@ def test_slurm_prologues_mamba():
     ]
 
 
+def test_slurm_prologues_includes_hpc_modules():
+    args = args_helper(
+        [
+            "--hpc-modules",
+            "apps/binapps/conda/miniforge3/25.9.1",
+            "gcc/12.2.0",
+            "--conda-env",
+            "codeentropy",
+            "--conda-exec",
+            "conda",
+            "--conda-path",
+            "/path/to/conda",
+        ]
+    )
+    manager = HPCDaskManager(args)
+
+    prologue = manager.slurm_prologues()
+
+    assert prologue == [
+        "module load apps/binapps/conda/miniforge3/25.9.1",
+        "module load gcc/12.2.0",
+        'eval "$(/path/to/conda shell.bash hook)"',
+        "conda activate codeentropy",
+        "export SLURM_CPU_FREQ_REQ=2250000",
+    ]
+
+
 @mock.patch("psutil.net_if_addrs")
 def test_system_network_interface_prefers_ib0(net_if_addrs):
     net_if_addrs.return_value = {"ib0": [], "eth0": []}
@@ -149,13 +180,34 @@ def test_system_network_interface_prefers_ib0(net_if_addrs):
 
 
 @mock.patch("psutil.net_if_addrs")
-def test_system_network_interface_fallback(net_if_addrs):
-    net_if_addrs.return_value = {"lo": [], "docker0": []}
+def test_system_network_interface_uses_configured_interface(net_if_addrs):
+    net_if_addrs.return_value = {"lo": [], "ib0": []}
+
+    args = args_helper(["--hpc-interface", "custom0"])
+    manager = HPCDaskManager(args)
+
+    assert manager.system_network_interface() == "custom0"
+
+
+@mock.patch("psutil.net_if_addrs")
+def test_system_network_interface_falls_back_to_non_loopback_interface(net_if_addrs):
+    net_if_addrs.return_value = {"lo": [], "ens5": [], "docker0": []}
 
     args = args_helper([])
     manager = HPCDaskManager(args)
 
-    assert manager.system_network_interface() == "lo"
+    assert manager.system_network_interface() == "ens5"
+
+
+@mock.patch("psutil.net_if_addrs")
+def test_system_network_interface_raises_without_non_loopback_interface(net_if_addrs):
+    net_if_addrs.return_value = {"lo": [], "docker0": [], "veth123": []}
+
+    args = args_helper([])
+    manager = HPCDaskManager(args)
+
+    with pytest.raises(RuntimeError, match="Could not find a non-loopback"):
+        manager.system_network_interface()
 
 
 @mock.patch("subprocess.check_output")
@@ -219,7 +271,6 @@ def test_submit_master_writes_expected_script_conda(check_output):
     assert "conda activate codeentropy" in script
     assert "srun CodeEntropy" in script
     assert "--submit" not in script
-    assert "srun CodeEntropy" in script
     assert " --submit " not in script
     assert not script.rstrip().endswith(" true")
 
@@ -274,6 +325,53 @@ def test_submit_master_writes_expected_script_mamba(check_output):
     os.remove("CodeEntropy-master-submit.sh")
 
 
+@mock.patch("subprocess.check_output")
+def test_submit_master_writes_hpc_modules(check_output):
+    check_output.return_value = b"Submitted batch job 12345\n"
+
+    args = args_helper(
+        [
+            "--hpc-modules",
+            "apps/binapps/conda/miniforge3/25.9.1",
+            "--conda-env",
+            "codeentropy",
+            "--conda-exec",
+            "conda",
+            "--conda-path",
+            "/path/to/conda",
+            "--hpc-queue",
+            "standard",
+        ]
+    )
+    manager = HPCDaskManager(args)
+
+    cli = [
+        "CodeEntropy",
+        "--top_traj_file",
+        "topology.tpr",
+        "trajectory.trr",
+        "--hpc",
+        "true",
+        "--submit",
+        "true",
+    ]
+
+    try:
+        with mock.patch.object(sys, "argv", cli):
+            manager.submit_master()
+
+        with open("CodeEntropy-master-submit.sh", encoding="utf-8") as file:
+            script = file.read()
+
+        assert "module load apps/binapps/conda/miniforge3/25.9.1" in script
+        assert 'eval "$(/path/to/conda shell.bash hook)"' in script
+        assert "conda activate codeentropy" in script
+
+    finally:
+        if os.path.exists("CodeEntropy-master-submit.sh"):
+            os.remove("CodeEntropy-master-submit.sh")
+
+
 @mock.patch("CodeEntropy.core.dask_clusters.Client")
 @mock.patch("CodeEntropy.core.dask_clusters.SLURMCluster")
 @mock.patch.object(HPCDaskManager, "system_network_interface")
@@ -324,6 +422,10 @@ def test_configure_cluster_writes_job_script(
     assert returned_client is client_instance
 
     slurm_cluster.assert_called_once()
+    _, kwargs = slurm_cluster.call_args
+    assert kwargs["interface"] == "ib0"
+    assert kwargs["scheduler_options"] == {"interface": "ib0"}
+
     cluster_instance.scale.assert_called_once_with(jobs=4)
     client.assert_called_once_with(cluster_instance)
 
