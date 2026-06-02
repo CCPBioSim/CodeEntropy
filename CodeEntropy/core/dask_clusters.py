@@ -8,7 +8,7 @@ import sys
 
 import psutil
 from dask.distributed import Client
-from dask_jobqueue.slurm import SLURMCluster
+from dask_jobqueue import SLURMCluster
 
 
 class HPCDaskManager:
@@ -37,9 +37,21 @@ class HPCDaskManager:
         """
         Select the most appropriate network interface for HPC communication.
 
+        If args.hpc_interface is provided, that value is used directly. Otherwise,
+        commonly used HPC interfaces are preferred. Loopback and container interfaces
+        are avoided because Dask workers on other nodes cannot connect to a scheduler
+        advertised on 127.0.0.1.
+
         Returns:
             str: Name of selected network interface.
+
+        Raises:
+            RuntimeError: If no suitable non-loopback interface can be found.
         """
+        configured = getattr(self.args, "hpc_interface", None)
+        if configured:
+            return configured
+
         preferred_nics = ["bond0", "ib0", "hsn0", "eth0"]
         interfaces = list(psutil.net_if_addrs().keys())
 
@@ -47,8 +59,14 @@ class HPCDaskManager:
             if iface in interfaces:
                 return iface
 
-        # fallback to first available interface
-        return interfaces[0]
+        for iface in interfaces:
+            if not iface.startswith(("lo", "docker", "veth")):
+                return iface
+
+        raise RuntimeError(
+            "Could not find a non-loopback network interface for Dask workers. "
+            f"Available interfaces: {interfaces}. Set 'hpc_interface' in config.yaml."
+        )
 
     def slurm_directives(self) -> tuple[list[str], list[str]]:
         """
@@ -81,6 +99,9 @@ class HPCDaskManager:
         """
         args = self.args
         prologue: list[str] = []
+
+        for module_name in getattr(args, "hpc_modules", None) or []:
+            prologue.append(f"module load {module_name}")
 
         prologue.append(f'eval "$({args.conda_path} shell.bash hook)"')
 
@@ -119,6 +140,7 @@ class HPCDaskManager:
             shebang="#!/bin/bash --login",
             local_directory="$PWD",
             interface=iface,
+            scheduler_options={"interface": iface},
             job_script_prologue=prologue,
         )
 
@@ -164,6 +186,10 @@ class HPCDaskManager:
                 f.write(f"#SBATCH --qos={self.args.hpc_qos}\n")
 
             f.write("\n")
+
+            for module_name in getattr(self.args, "hpc_modules", None) or []:
+                f.write(f"module load {module_name}\n")
+
             f.write(f'eval "$({self.args.conda_path} shell.bash hook)"\n')
 
             if self.args.conda_exec == "mamba":
