@@ -46,7 +46,6 @@ jobs:
   discover-systems:
     name: Discover regression systems
     if: github.event_name == 'pull_request'
-    needs: [docs, pre-commit, coverage]
     runs-on: ubuntu-24.04
     outputs:
       systems: ${{ steps.set-systems.outputs.systems }}
