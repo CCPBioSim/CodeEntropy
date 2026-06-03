@@ -46,6 +46,7 @@ jobs:
   discover-systems:
     name: Discover regression systems
     if: github.event_name == 'pull_request'
+    needs: [docs, pre-commit, coverage]
     runs-on: ubuntu-24.04
     outputs:
       systems: ${{ steps.set-systems.outputs.systems }}
@@ -73,7 +74,7 @@ jobs:
   regression-quick:
     name: Regression (fast) • ${{ matrix.system }}
     if: github.event_name == 'pull_request'
-    needs: [unit, discover-systems]
+    needs: discover-systems
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
@@ -151,6 +152,7 @@ jobs:
   pre-commit:
     name: Pre-commit
     if: github.event_name == 'pull_request'
+    needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -179,6 +181,7 @@ jobs:
 
   coverage:
     name: Coverage
+    needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
