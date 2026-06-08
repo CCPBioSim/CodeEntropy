@@ -223,7 +223,6 @@ class AxesCalculator:
             ValueError:
                 If axis construction fails.
         """
-
         index = int(index)  # bead index
         heavy_atoms = data_container.atoms.select_atoms("mass 2 to 999")
 
@@ -298,16 +297,19 @@ class AxesCalculator:
             trans_center = np.array(data_container.center_of_mass())
             trans_axes = data_container.atoms.principal_axes()
 
-        residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
-        # look for heavy atoms in residue of interest
-        heavy_atom_indices = []
-        for atom in residue_heavy_atoms:
-            heavy_atom_indices.append(atom.index)
-        # we find the nth heavy atom
-        # where n is the bead index
-        heavy_atom_index = heavy_atom_indices[index]
-        heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
-
+        if len(heavy_atoms) > 1:
+            residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
+            # look for heavy atoms in residue of interest
+            heavy_atom_indices = []
+            for atom in residue_heavy_atoms:
+                heavy_atom_indices.append(atom.index)
+            # we find the nth heavy atom
+            # where n is the bead index
+            heavy_atom_index = heavy_atom_indices[index]
+            heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
+        else:
+            # only the one heavy atom
+            heavy_atom = heavy_atoms[0]
         if trans_axes is None:
             raise ValueError("Unable to compute translation axes for UA bead.")
 
