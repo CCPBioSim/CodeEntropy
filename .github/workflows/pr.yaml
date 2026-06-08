@@ -2,6 +2,13 @@ name: Pull Request CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 concurrency:
   group: pr-${{ github.ref }}
@@ -10,6 +17,7 @@ concurrency:
 jobs:
   unit:
     name: Unit
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
@@ -37,6 +45,7 @@ jobs:
 
   discover-systems:
     name: Discover regression systems
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
       systems: ${{ steps.set-systems.outputs.systems }}
@@ -63,7 +72,8 @@ jobs:
 
   regression-quick:
     name: Regression (fast) • ${{ matrix.system }}
-    needs: [unit, discover-systems]
+    if: github.event_name == 'pull_request'
+    needs: discover-systems
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
@@ -86,7 +96,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Run fast regression tests (per system)
+      - name: Run fast regression tests
         run: |
           python -m pytest tests/regression \
             -m "not slow" \
@@ -96,7 +106,7 @@ jobs:
             -vv \
             --durations=20
 
-      - name: Upload artifacts (failure)
+      - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -107,6 +117,7 @@ jobs:
 
   docs:
     name: Docs
+    if: github.event_name == 'pull_request'
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -139,6 +150,8 @@ jobs:
 
   pre-commit:
     name: Pre-commit
+    if: github.event_name == 'pull_request'
+    needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -187,7 +200,7 @@ jobs:
 
       - name: Run coverage
         run: |
-          pytest tests/unit \
+          python -m pytest tests/unit \
             --cov CodeEntropy \
             --cov-report term-missing \
             --cov-report xml \
