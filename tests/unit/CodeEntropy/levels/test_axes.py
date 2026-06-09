@@ -117,13 +117,17 @@ def test_get_residue_axes_no_bonds_uses_custom_principal_axes(monkeypatch):
     assert np.allclose(moi, np.array([3.0, 2.0, 1.0]))
 
 
-def test_get_residue_axes_with_bonds_uses_vanilla_axes(monkeypatch):
+def test_get_residue_axes_uses_vanilla_axes(monkeypatch):
     ax = AxesCalculator()
 
     residue = MagicMock()
     residue.__len__.return_value = 1
     residue.atoms.center_of_mass.return_value = np.array([1.0, 2.0, 3.0])
     residue.center_of_mass.return_value = np.array([1.0, 2.0, 3.0])
+    residue.select_atoms.return_value = MagicMock(
+        positions=[[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]]
+    )
+    uas = MagicMock(positions=np.zeros((2, 3)))
 
     u = MagicMock()
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
@@ -135,20 +139,25 @@ def test_get_residue_axes_with_bonds_uses_vanilla_axes(monkeypatch):
             return [1]  # non-empty
         if q.startswith("resindex "):
             return residue
+        if q == "mass 2 to 999":
+            return uas
         return []
 
+    monkeypatch.setattr(ax, "get_UA_masses", lambda mol: [10.0, 12.0])
     u.select_atoms.side_effect = _select_atoms
+    residue = u.select_atoms("resindex 10")
 
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
-    monkeypatch.setattr(
-        ax, "get_vanilla_axes", lambda mol: (np.eye(3) * 2, np.array([9.0, 8.0, 7.0]))
-    )
+    eigenvalues, eigenvectors = np.linalg.eig([[48, 0, 48], [0, 96, 0], [48, 0, 48]])
+    transposed = np.transpose(eigenvectors)
+    axes = transposed[[2, 0, 1]]
+    axes[2] = -axes[2]
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=10)
+    trans, rot, center, moi = ax.get_residue_axes(u, index=10, residue=residue)
 
-    assert np.allclose(trans, np.eye(3))
-    assert np.allclose(rot, np.eye(3) * 2)
-    assert np.allclose(moi, np.array([9.0, 8.0, 7.0]))
+    assert np.allclose(trans, axes)
+    assert np.allclose(rot, axes)
+    assert np.allclose(moi, np.array([96.0, 96.0, 0.0]))
 
 
 def test_get_UA_axes_uses_principal_axes_when_single_heavy(monkeypatch):
@@ -637,6 +646,13 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
 
         def __getitem__(self, idx):
             return system_atom
+
+        def _select_atoms(q):
+            if q == "prop mass > 1.1":
+                return heavy_atoms
+            if q.startswith("index "):
+                return heavy_atom_selection
+            return _FakeAtomGroup([])
 
     data_container = MagicMock()
     data_container.atoms = _Atoms()
