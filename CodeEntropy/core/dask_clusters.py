@@ -27,12 +27,15 @@ class HPCDaskManager:
 
     def check_slurm_env(self) -> None:
         """
-        Remove SLURM_CPU_BIND from environment if present.
-
-        Some HPC systems require this variable to be unset for correct CPU binding.
+        Remove inherited SLURM environment variables that can break nested srun calls.
         """
-        if "SLURM_CPU_BIND" in os.environ:
-            os.environ.pop("SLURM_CPU_BIND")
+        for variable in (
+            "SLURM_CPU_BIND",
+            "SLURM_MEM_PER_CPU",
+            "SLURM_MEM_PER_GPU",
+            "SLURM_MEM_PER_NODE",
+        ):
+            os.environ.pop(variable, None)
 
     def system_network_interface(self) -> str:
         """
