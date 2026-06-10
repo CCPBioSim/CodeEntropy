@@ -33,6 +33,7 @@ from rich.table import Table
 from rich.text import Text
 
 from CodeEntropy.config.argparse import ConfigResolver
+from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.workflow import EntropyWorkflow
 from CodeEntropy.levels.dihedrals import ConformationStateBuilder
@@ -223,8 +224,9 @@ class CodeEntropyRunner:
 
         This method:
         - Sets up logging and prints the splash screen
-        - Loads YAML config from CWD and parses CLI args
+        - Loads YAML configuration from CWD and parses CLI args
         - Merges args with YAML per-run config
+        - Optionally submits a master SLURM job and exits
         - Builds the MDAnalysis Universe (with optional force merging)
         - Validates user parameters
         - Constructs dependencies and executes EntropyWorkflow
@@ -255,6 +257,16 @@ class CodeEntropyRunner:
                     continue
 
                 args = self._config_manager.resolve(args, run_config)
+
+                if getattr(args, "submit", False):
+                    if os.environ.get("CODEENTROPY_SUBMITTED_JOB") == "1":
+                        run_logger.info(
+                            "Already running inside submitted SLURM job; "
+                            "continuing workflow."
+                        )
+                    else:
+                        HPCDaskManager(args).submit_master()
+                        return
 
                 log_level = (
                     logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
@@ -298,6 +310,7 @@ class CodeEntropyRunner:
                 except Exception:
                     logger.error("Run arguments at failure could not be serialized")
 
+            logger.exception("Fatal error during entropy calculation")
             raise RuntimeError("CodeEntropyRunner encountered an error") from exc
 
     @staticmethod
