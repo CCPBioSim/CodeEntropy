@@ -258,6 +258,16 @@ class CodeEntropyRunner:
 
                 args = self._config_manager.resolve(args, run_config)
 
+                if getattr(args, "submit", False):
+                    if os.environ.get("CODEENTROPY_SUBMITTED_JOB") == "1":
+                        run_logger.info(
+                            "Already running inside submitted SLURM job; "
+                            "continuing workflow."
+                        )
+                    else:
+                        HPCDaskManager(args).submit_master()
+                        return
+
                 log_level = (
                     logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
                 )
@@ -267,11 +277,6 @@ class CodeEntropyRunner:
                 logging.getLogger("commands").info(command)
 
                 self._validate_required_args(args)
-
-                if getattr(args, "submit", False):
-                    self._config_manager._check_parallel_frame_options(args)
-                    HPCDaskManager(args).submit_master()
-                    return
 
                 self.print_args_table(args)
 
@@ -305,6 +310,7 @@ class CodeEntropyRunner:
                 except Exception:
                     logger.error("Run arguments at failure could not be serialized")
 
+            logger.exception("Fatal error during entropy calculation")
             raise RuntimeError("CodeEntropyRunner encountered an error") from exc
 
     @staticmethod
