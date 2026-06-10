@@ -123,6 +123,7 @@ class AxesCalculator:
             # No UAS are bonded to other residues
             # Use a custom principal axes, from a MOI tensor that uses positions of
             # heavy atoms only, but including masses of heavy atom + bonded H.
+
             moi_tensor = self.get_moment_of_inertia_tensor(
                 center_of_mass=np.array(residue.center_of_mass()),
                 positions=uas.positions,
@@ -225,7 +226,6 @@ class AxesCalculator:
         """
         index = int(index)  # bead index
         heavy_atoms = data_container.atoms.select_atoms("mass 2 to 999")
-
         # use the same customPI trans axes as the residue level
         if len(heavy_atoms) > 1:
             if len(data_container.residues) == 1:
@@ -289,15 +289,6 @@ class AxesCalculator:
                 trans_center = np.array(backbone.center_of_mass())
                 trans_axes = self.get_residue_custom_axes(edges, trans_center)
 
-        else:
-            # only one heavy atom or hydrogen molecule
-            make_whole(data_container.atoms)
-            residue = data_container
-            # trans_center is center of mass
-            trans_center = np.array(data_container.center_of_mass())
-            trans_axes = data_container.atoms.principal_axes()
-
-        if len(heavy_atoms) > 1:
             residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
             # look for heavy atoms in residue of interest
             heavy_atom_indices = []
@@ -307,18 +298,29 @@ class AxesCalculator:
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
             heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
+            rot_center = heavy_atom.positions[0]
+            rot_axes, moment_of_inertia = self.get_bonded_axes(
+                system=data_container,
+                atom=heavy_atom[0],
+                dimensions=data_container.dimensions[:3],
+            )
+
         else:
-            # only the one heavy atom
+            # 1 heavy atom in the data_container
             heavy_atom = heavy_atoms[0]
+            # trans and rot centres are centre of mass
+            rot_center = data_container.center_of_mass()
+            rot_axes, moment_of_inertia = self.get_bonded_axes(
+                system=data_container,
+                atom=heavy_atom[0],
+                dimensions=data_container.dimensions[:3],
+            )
+            trans_center = rot_center
+            # principal axes
+            trans_axes = rot_axes
+
         if trans_axes is None:
             raise ValueError("Unable to compute translation axes for UA bead.")
-
-        rot_center = heavy_atom.positions[0]
-        rot_axes, moment_of_inertia = self.get_bonded_axes(
-            system=data_container,
-            atom=heavy_atom[0],
-            dimensions=data_container.dimensions[:3],
-        )
 
         if rot_axes is None or moment_of_inertia is None:
             raise ValueError("Unable to compute bonded axes for UA bead.")
@@ -765,7 +767,6 @@ class AxesCalculator:
         """
         r = self.get_vector(center_of_mass, positions, dimensions)
         r2 = np.sum(r**2, axis=1)
-
         masses_arr = np.asarray(list(masses), dtype=float)
         moment_of_inertia_tensor = np.eye(3) * np.sum(masses_arr * r2)
         moment_of_inertia_tensor -= np.einsum("i,ij,ik->jk", masses_arr, r, r)
@@ -797,6 +798,7 @@ class AxesCalculator:
                 - principal_axes: (3, 3) principal axes (rows).
                 - moment_of_inertia: (3,) principal moments.
         """
+
         eigenvalues, eigenvectors = np.linalg.eig(moment_of_inertia_tensor)
         order = np.abs(eigenvalues).argsort()[::-1]  # descending order
         transposed = np.transpose(eigenvectors)  # columns -> rows
