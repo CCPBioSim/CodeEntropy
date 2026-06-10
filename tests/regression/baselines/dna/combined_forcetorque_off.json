@@ -5,14 +5,14 @@
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.002160679012128457,
         "residue:Transvibrational": 0.0,
-        "residue:Rovibrational": 3.376800684085249,
+        "residue:Rovibrational": 6.832779629985204,
         "polymer:Transvibrational": 21.18266215491188,
         "polymer:Rovibrational": 12.837576042626923,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 42.1581048972639
+      "total": 45.61408384316385
     },
     "1": {
       "components": {
