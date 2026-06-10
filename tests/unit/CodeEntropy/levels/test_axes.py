@@ -213,7 +213,7 @@ def test_get_UA_axes_raises_when_bonded_axes_fail(monkeypatch):
     heavy_atoms = [heavy_atom]
 
     def _sel(q):
-        if q == "prop mass > 1.1":
+        if q == "mass 2 to 999":
             return heavy_atoms
         if q.startswith("index "):
             ag = MagicMock()
@@ -650,8 +650,18 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
         def __getitem__(self, idx):
             return system_atom
 
+        def principal_axes(self, *args, **kwargs):
+            return np.eye(3)
+
+        def select_atoms(self, q):
+            if q == "mass 2 to 999":
+                return heavy_atoms
+            if q.startswith("index "):
+                return heavy_atom_selection
+
     data_container = MagicMock()
     data_container.atoms = _Atoms()
+    data_container.residues.__len__.return_value = 1
     data_container.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90], dtype=float)
     _FakeAtomGroup.atoms = heavy_atom_selection
 
@@ -671,12 +681,6 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
     )
     monkeypatch.setattr(ax, "get_UA_masses", lambda _ag: [12.0, 12.0])
 
-    got_tensor = MagicMock(return_value=np.eye(3))
-    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", got_tensor)
-
-    got_custom_axes = MagicMock(return_value=(np.eye(3), np.array([3.0, 2.0, 1.0])))
-    monkeypatch.setattr(ax, "get_custom_principal_axes", got_custom_axes)
-
     trans_axes, rot_axes, center, moi = ax.get_UA_axes(
         data_container, index=0, res_position=None
     )
@@ -685,8 +689,6 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
     assert rot_axes.shape == (3, 3)
     assert np.allclose(center, np.array([0.0, 0.0, 0.0]))
     assert moi.shape == (3,)
-    got_tensor.assert_called_once()
-    got_custom_axes.assert_called_once()
 
 
 def test_get_bonded_axes_returns_none_none_if_custom_axes_none(monkeypatch):

@@ -225,7 +225,7 @@ class AxesCalculator:
                 If axis construction fails.
         """
         index = int(index)  # bead index
-        heavy_atoms = data_container.atoms.select_atoms("mass 2 to 999")
+        heavy_atoms = data_container.select_atoms("mass 2 to 999")
         # use the same customPI trans axes as the residue level
         if len(heavy_atoms) > 1:
             if len(data_container.residues) == 1:
@@ -240,7 +240,7 @@ class AxesCalculator:
                     index_next = residue.resid + 1
                     # the .resid attribute gives 1-indexing
                     # substract 1 to match indexing later
-                    second_edge = data_container.atoms.select_atoms(
+                    second_edge = data_container.select_atoms(
                         f"resindex {residue.resid - 1} and "
                         f"bonded resindex {index_next - 1}"
                     )
@@ -254,7 +254,7 @@ class AxesCalculator:
                     residue = data_container.residues[1]
                     index_prev = residue.resid - 1
                     index_next = residue.resid + 1
-                    edge_set = data_container.atoms.select_atoms(
+                    edge_set = data_container.select_atoms(
                         f"resindex {residue.resid - 1} and "
                         f"(bonded resindex {index_next - 1} or "
                         f"resindex {index_prev - 1})"
@@ -266,7 +266,7 @@ class AxesCalculator:
                     # last resid
                     residue = data_container.residues[1]
                     index_prev = residue.resid - 1
-                    first_edge = data_container.atoms.select_atoms(
+                    first_edge = data_container.select_atoms(
                         f"resindex {residue.resid - 1} and "
                         f"bonded resindex {index_prev - 1}"
                     )
@@ -283,6 +283,7 @@ class AxesCalculator:
                             last = heavy_atom
                         else:
                             last_index -= 1
+
                     edges = [first_edge.atoms[0], last]
                     backbone = self.get_chain(residue, first_edge.atoms[0], last)
 
