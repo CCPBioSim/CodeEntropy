@@ -296,7 +296,7 @@ Create or edit ``config.yaml`` in your working directory:
   ---
 
   run1:
-    top_traj_file: ["1AKI_prod.tpr", "1AKI_prod.trr"]
+    top_traj_file: ["1AKI_prod_new.tpr", "1AKI_prod_new.trr"]
     selection_string: 'all'
     start: 0
     end: 500
@@ -317,7 +317,7 @@ Run (equivalent CLI):
 .. code-block:: bash
 
    cd /path/to/lysozyme_example
-   CodeEntropy --top_traj_file 1AKI_prod.tpr 1AKI_prod.trr --temperature 300.0 --selection_string all --start 0 --end 500 --step 1 --verbose
+   CodeEntropy --top_traj_file 1AKI_prod_new.tpr 1AKI_prod_new.trr --temperature 300.0 --selection_string all --start 0 --end 500 --step 1 --verbose
 
 
 
