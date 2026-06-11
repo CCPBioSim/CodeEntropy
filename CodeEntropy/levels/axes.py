@@ -118,7 +118,7 @@ class AxesCalculator:
 
         uas = residue.select_atoms("mass 2 to 999")
         ua_masses = self.get_UA_masses(residue)
-
+        print(f"The edge atoms: {edge_atom_set}")
         if len(edge_atom_set) == 0:
             # No UAS are bonded to other residues
             # Use a custom principal axes, from a MOI tensor that uses positions of
@@ -132,7 +132,7 @@ class AxesCalculator:
             )
             rot_axes, moment_of_inertia = self.get_custom_principal_axes(moi_tensor)
             trans_axes = rot_axes  # per original convention
-            center = np.array(residue.center_of_mass())
+            rot_center = np.array(residue.center_of_mass())
         else:
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
@@ -169,17 +169,20 @@ class AxesCalculator:
                 backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
             # get edge atoms of the residue
             # for terminal residues, this will include the C/N terminus
-            center = np.array(backbone.center_of_mass())
-            rot_axes = self.get_residue_custom_axes(edges, center)
+            backbone_center = np.zeros(3)
+            for heavy_atom in backbone:
+                backbone_center += heavy_atom.position
+            backbone_center = backbone_center / len(backbone)
+            rot_center, rot_axes = self.get_residue_custom_axes(edges, backbone_center)
 
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
-                center_of_mass=center,
+                center_of_mass=rot_center,
                 positions=uas.positions,
                 masses=ua_masses,
                 custom_rot_axes=rot_axes,
                 dimensions=data_container.dimensions[:3],
             )
-        return trans_axes, rot_axes, center, moment_of_inertia
+        return trans_axes, rot_axes, rot_center, moment_of_inertia
 
     def get_UA_axes(self, data_container, index: int, res_position):
         """Compute united-atom-level translational and rotational axes.
@@ -287,8 +290,13 @@ class AxesCalculator:
                     edges = [first_edge.atoms[0], last]
                     backbone = self.get_chain(residue, first_edge.atoms[0], last)
 
-                trans_center = np.array(backbone.center_of_mass())
-                trans_axes = self.get_residue_custom_axes(edges, trans_center)
+                backbone_center = np.zeros(3)
+                for heavy_atom in backbone:
+                    backbone_center += heavy_atom.position
+                backbone_center = backbone_center / len(backbone)
+                trans_center, trans_axes = self.get_residue_custom_axes(
+                    edges, backbone_center
+                )
 
             residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
             # look for heavy atoms in residue of interest
@@ -338,49 +346,45 @@ class AxesCalculator:
         """
         Compute rotation axes at the residue level, given
         two edge atoms of the residue (E1+E2),
-        and the rotation centre (O).
+        and the centre of geometry of backbone atoms
+        that are not edges (C).
         - x axis is O-E1
-        - y axis is O-Q (perpendicular to O-E1 in the
+        - y axis is O-C (perpendicular to O-E1 in the
         same plane as E2)
         - z axis is perpendicular to the two other axes
 
-                    Q --- E2
-                    |     |
-                    |     |
-            E1 ---- O --- P
+                    C
+                    |
+                    |
+            E1 ---- O --- E2
             Args:
                 edges: (2,3) positions of two edge atoms
-                center: (3,) coordinates of the rotation centre
+                center: (3,) coordinates of the inner backbone
+                centre of geometry
             Returns:
+                rot_center: (3,) rotation centre --
+                it lies on the E1-E2 vector
                 rot_axes: (3,3) rotation axes of residue
         """
         # x axis is O-E1
-        E1O_vector = center - edges[0].position
-        x_axis = -E1O_vector
-        # y axis is perpendicular to x
-        # in the same plane as E2
-        # look for projection of E1-E2 on E1-O (E1-P)
+        E1C_vector = center - edges[0].position
+        # look for projection of E1-O onto E1-E2 (E1-C)
         E1E2_vector = edges[1].position - edges[0].position
-        projection = (
-            np.dot(E1O_vector, E1E2_vector) / (np.linalg.norm(E1O_vector) ** 2)
-        ) * E1O_vector
-        # get the perpendicular onto E1-O (P-E2)
-        # P-E2 = P-E1 + E1-E2
-        perpendicular = E1E2_vector - projection
-        # get the perpendicular through O (Q-O)
-        # first get P-Q diagonal through paralellogram rule
-        # P- Q = P-E2 + P-O
-        diagonal = -(projection - E1O_vector) + perpendicular
-        # get the parallel of P-E2 through O
-        # OQ = OP + PQ
-        y_axis = (projection - E1O_vector) + diagonal
+        E1O_vector = (
+            np.dot(E1E2_vector, E1C_vector) / (np.linalg.norm(E1E2_vector) ** 2)
+        ) * E1E2_vector
+        x_axis = -E1O_vector
+        # O-C = O-E1 + E1-C
+        OC_vector = -E1O_vector + E1C_vector
+        y_axis = OC_vector
         z_axis = np.cross(x_axis, y_axis)
         x_axis /= np.linalg.norm(x_axis)
         y_axis /= np.linalg.norm(y_axis)
         z_axis /= np.linalg.norm(z_axis)
         rot_axes = np.array([x_axis, y_axis, z_axis])
+        rot_center = E1O_vector - edges[0].position
 
-        return rot_axes
+        return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
         """Compute UA rotational axes from bonded topology around a heavy atom.
@@ -906,6 +910,8 @@ class AxesCalculator:
             chain.append(current)
             chain_indices.append(current.index - residue.atoms.indices[0])
         chain_indices = np.flip(chain_indices)
+        # only get in between residues
+        chain_indices = chain_indices[1:-1]
         # accout for in-residue index
         chain_AtomGroup = residue.atoms[chain_indices]
         chain = chain_AtomGroup.atoms.select_atoms("all")
