@@ -383,8 +383,7 @@ class AxesCalculator:
         y_axis /= np.linalg.norm(y_axis)
         z_axis /= np.linalg.norm(z_axis)
         rot_axes = np.array([x_axis, y_axis, z_axis])
-        rot_center = E1O_vector - edges[0].position
-
+        rot_center = E1O_vector + edges[0].position
         return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
