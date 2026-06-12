@@ -1,4 +1,5 @@
 import logging
+from unittest import mock
 
 import pytest
 
@@ -75,3 +76,47 @@ def test_apply_logging_level_updates_handler_level():
         assert handler.level == logging.DEBUG
     finally:
         logger.removeHandler(handler)
+
+
+@mock.patch("CodeEntropy.config.argparse.HPCDaskManager")
+def test_apply_hpc_conda_auto_detection_uses_manager_when_hpc_enabled(
+    hpc_dask_manager,
+    make_args,
+):
+    args = make_args(hpc=True, submit=False)
+
+    manager_instance = mock.MagicMock()
+    hpc_dask_manager.return_value = manager_instance
+
+    ConfigResolver._apply_hpc_conda_auto_detection(args)
+
+    hpc_dask_manager.assert_called_once_with(args)
+    manager_instance.resolve_conda_settings.assert_called_once_with()
+
+
+@mock.patch("CodeEntropy.config.argparse.HPCDaskManager")
+def test_apply_hpc_conda_auto_detection_uses_manager_when_submit_enabled(
+    hpc_dask_manager,
+    make_args,
+):
+    args = make_args(hpc=False, submit=True)
+
+    manager_instance = mock.MagicMock()
+    hpc_dask_manager.return_value = manager_instance
+
+    ConfigResolver._apply_hpc_conda_auto_detection(args)
+
+    hpc_dask_manager.assert_called_once_with(args)
+    manager_instance.resolve_conda_settings.assert_called_once_with()
+
+
+@mock.patch("CodeEntropy.config.argparse.HPCDaskManager")
+def test_apply_hpc_conda_auto_detection_skips_when_hpc_and_submit_disabled(
+    hpc_dask_manager,
+    make_args,
+):
+    args = make_args(hpc=False, submit=False)
+
+    ConfigResolver._apply_hpc_conda_auto_detection(args)
+
+    hpc_dask_manager.assert_not_called()

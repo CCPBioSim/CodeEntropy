@@ -35,6 +35,41 @@ from CodeEntropy.results.reporter import _RichProgressSink
 logger = logging.getLogger(__name__)
 
 
+_FRAME_WORKER_EXCLUDED_SHARED_KEYS = {
+    "force_covariances",
+    "torque_covariances",
+    "forcetorque_covariances",
+    "frame_counts",
+    "forcetorque_counts",
+    "force_torque_stats",
+    "force_torque_counts",
+    "n_frames",
+    "entropy_manager",
+    "run_manager",
+    "reporter",
+    "dask_client",
+}
+
+
+def _execute_frame_worker(
+    shared_data: dict[str, Any],
+    frame_index: int,
+    universe_operations: Any | None = None,
+) -> tuple[int, Any]:
+    """Execute one frame on a Dask worker.
+
+    Args:
+        shared_data: Worker-local shared calculation inputs.
+        frame_index: Frame index to process.
+        universe_operations: Optional universe operations adapter.
+
+    Returns:
+        Tuple of frame index and frame-local covariance output.
+    """
+    frame_dag = FrameGraph(universe_operations=universe_operations).build()
+    return int(frame_index), frame_dag.execute_frame(shared_data, int(frame_index))
+
+
 class LevelDAG:
     """Execute hierarchy detection, per-frame covariance calculation, and reduction.
 
@@ -170,6 +205,10 @@ class LevelDAG:
         indices to process and reduces each frame-local output into shared
         accumulators.
 
+        If ``shared_data["dask_client"]`` exists and parallel frame execution is
+        enabled, frame-local outputs are computed on Dask workers and reduced in
+        the parent process.
+
         Args:
             shared_data: Shared data dictionary. Must contain ``frame_source``.
             progress: Optional progress sink.
@@ -192,6 +231,19 @@ class LevelDAG:
                 title="Initializing",
             )
 
+        client = shared_data.get("dask_client")
+        parallel_frames = bool(shared_data.get("parallel_frames", client is not None))
+
+        if parallel_frames and client is not None and len(frame_indices) > 1:
+            self._run_frame_stage_dask(
+                shared_data,
+                frame_indices=frame_indices,
+                client=client,
+                progress=progress,
+                task=task,
+            )
+            return
+
         for frame_index in frame_indices:
             if progress is not None and task is not None:
                 progress.update(task, title=f"Frame {frame_index}")
@@ -205,6 +257,85 @@ class LevelDAG:
 
             if progress is not None and task is not None:
                 progress.advance(task)
+
+    @staticmethod
+    def _make_frame_worker_shared_data(shared_data: dict[str, Any]) -> dict[str, Any]:
+        """Return the subset of shared data required by frame workers.
+
+        Reduction accumulators and parent orchestration/reporting objects are
+        intentionally excluded because workers should only compute frame-local
+        outputs.
+        """
+        return {
+            key: value
+            for key, value in shared_data.items()
+            if key not in _FRAME_WORKER_EXCLUDED_SHARED_KEYS
+        }
+
+    def _run_frame_stage_dask(
+        self,
+        shared_data: dict[str, Any],
+        *,
+        frame_indices: list[int],
+        client: Any,
+        progress: _RichProgressSink | None = None,
+        task: TaskID | None = None,
+    ) -> None:
+        """Execute frame-local DAG tasks in parallel using Dask.
+
+        Workers return frame-local covariance payloads. The parent process performs
+        all reductions into the shared accumulators.
+
+        Important:
+            Do not scatter/broadcast worker_shared. It contains stateful objects
+            such as frame_source / universe trajectory state. Broadcasting can reuse
+            mutable state across tasks on the same worker and make frames interfere
+            with one another.
+        """
+        try:
+            from distributed import as_completed
+        except ImportError as exc:
+            raise RuntimeError(
+                "Parallel frame execution requires dask.distributed to be installed."
+            ) from exc
+
+        worker_shared = self._make_frame_worker_shared_data(shared_data)
+
+        futures = [
+            client.submit(
+                _execute_frame_worker,
+                worker_shared,
+                frame_index,
+                self._universe_operations,
+                pure=False,
+            )
+            for frame_index in frame_indices
+        ]
+
+        completed = 0
+
+        try:
+            for future in as_completed(futures):
+                frame_index, frame_out = future.result()
+                completed += 1
+
+                if progress is not None and task is not None:
+                    progress.update(task, title=f"Frame {frame_index}")
+
+                self._reduce_one_frame(shared_data, frame_out)
+
+                if progress is not None and task is not None:
+                    progress.advance(task)
+
+            if completed != len(frame_indices):
+                raise RuntimeError(
+                    f"Parallel frame execution completed {completed} frames, "
+                    f"but expected {len(frame_indices)}."
+                )
+
+        except Exception:
+            client.cancel(futures)
+            raise
 
     @staticmethod
     def _incremental_mean(old: Any, new: Any, n: int) -> Any:
