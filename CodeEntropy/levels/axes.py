@@ -118,7 +118,7 @@ class AxesCalculator:
 
         uas = residue.select_atoms("mass 2 to 999")
         ua_masses = self.get_UA_masses(residue)
-        print(f"The edge atoms: {edge_atom_set}")
+
         if len(edge_atom_set) == 0:
             # No UAS are bonded to other residues
             # Use a custom principal axes, from a MOI tensor that uses positions of
@@ -294,6 +294,7 @@ class AxesCalculator:
                 for heavy_atom in backbone:
                     backbone_center += heavy_atom.position
                 backbone_center = backbone_center / len(backbone)
+
                 trans_center, trans_axes = self.get_residue_custom_axes(
                     edges, backbone_center
                 )
