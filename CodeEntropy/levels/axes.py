@@ -354,6 +354,8 @@ class AxesCalculator:
         same plane as E2)
         z axis is perpendicular to the two other axes
 
+        ::
+
                     C
                     |
                     |
