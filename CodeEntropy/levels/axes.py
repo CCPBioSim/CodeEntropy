@@ -349,23 +349,25 @@ class AxesCalculator:
         two edge atoms of the residue (E1+E2),
         and the centre of geometry of backbone atoms
         that are not edges (C).
-        - x axis is O-E1
-        - y axis is O-C (perpendicular to O-E1 in the
+        x axis is O-E1
+        y axis is O-C (perpendicular to O-E1 in the
         same plane as E2)
-        - z axis is perpendicular to the two other axes
+        z axis is perpendicular to the two other axes
 
                     C
                     |
                     |
             E1 ---- O --- E2
-            Args:
-                edges: (2,3) positions of two edge atoms
-                center: (3,) coordinates of the inner backbone
-                centre of geometry
-            Returns:
-                rot_center: (3,) rotation centre --
-                it lies on the E1-E2 vector
-                rot_axes: (3,3) rotation axes of residue
+
+        Args:
+            edges: (2,3) positions of two edge atoms
+            center: (3,) coordinates of the inner backbone
+            centre of geometry
+
+        Returns:
+            rot_center: (3,) rotation centre,
+            lies on the E1-E2 vector
+            rot_axes: (3,3) rotation axes of residue
         """
         # x axis is O-E1
         E1C_vector = center - edges[0].position
@@ -847,15 +849,15 @@ class AxesCalculator:
         For a given MDAnalysis AtomGroup and two given heavy atoms
         within that AtomGroup, return the
         shortest path between the two atoms.
+
         Args:
             residue: MDAnalysis AtomGroup representing
-                the residue/monomer of interest.
+            the residue/monomer of interest.
             first: First heavy atom in the chain
             last: Last heavy atom in the chain
 
-            Returns:
-                chain: MDAnalysis AtomGroup containing
-                the chain heavy atoms.
+        Returns:
+            chain: MDAnalysis AtomGroup containing chain atoms.
         """
         chain = []
         chain_indices = []
