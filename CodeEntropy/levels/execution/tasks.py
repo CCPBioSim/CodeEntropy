@@ -65,7 +65,15 @@ class FrameChunkResult:
 
 
 def make_frame_worker_shared_data(shared_data: dict[str, Any]) -> dict[str, Any]:
-    """Return the subset of shared data required by frame workers."""
+    """Build the worker-visible subset of shared workflow data.
+
+    Args:
+        shared_data: Full parent-side shared workflow data.
+
+    Returns:
+        A shallow copy excluding parent-owned accumulators, reporting objects, and
+        Dask client state.
+    """
     return {
         key: value
         for key, value in shared_data.items()
@@ -74,7 +82,16 @@ def make_frame_worker_shared_data(shared_data: dict[str, Any]) -> dict[str, Any]
 
 
 def incremental_mean_value(old: Any, new: Any, n: int) -> Any:
-    """Compute a running mean value for worker-side chunk partials."""
+    """Update a worker-local running mean.
+
+    Args:
+        old: Existing running mean, or ``None`` for the first sample.
+        new: New sample to incorporate.
+        n: One-based sample count after adding ``new``.
+
+    Returns:
+        The updated running mean value.
+    """
     if old is None:
         return new.copy() if hasattr(new, "copy") else new
     return old + (new - old) / float(n)
@@ -84,7 +101,16 @@ def reduce_frame_covariance_into_partial(
     partial: CovarianceChunkPartial,
     frame_out: dict[str, Any],
 ) -> None:
-    """Reduce one frame covariance payload into a chunk-local partial."""
+    """Reduce one frame covariance payload into a chunk partial.
+
+    Args:
+        partial: Worker-local covariance partial mutated in place.
+        frame_out: Frame covariance payload with force, torque, and optional
+            force-torque sections.
+
+    Raises:
+        KeyError: If required force or torque sections are missing.
+    """
     f_frame = frame_out["force"]
     t_frame = frame_out["torque"]
 
@@ -187,7 +213,22 @@ def execute_frame_map_output(
     frame_dag: FrameGraph,
     neighbor_helper: Neighbors | None = None,
 ) -> dict[str, Any]:
-    """Execute frame-local MAP operations for one frame."""
+    """Execute all MAP operations for one frame in serial mode.
+
+    Args:
+        shared_data: Shared workflow data required by frame covariance and neighbour
+            calculations.
+        frame_index: Frame index to execute.
+        frame_dag: Frame-local DAG used to compute covariance outputs.
+        neighbor_helper: Optional neighbour helper. A default ``Neighbors`` instance
+            is created when omitted.
+
+    Returns:
+        A MAP output containing ``covariance`` and ``neighbors`` entries.
+
+    Raises:
+        KeyError: If required shared workflow keys are missing.
+    """
     frame_index = int(frame_index)
     frame_out: dict[str, Any] = {
         "covariance": frame_dag.execute_frame(shared_data, frame_index),
@@ -214,7 +255,21 @@ def execute_frame_chunk_worker(
     worker_shared_data: dict[str, Any],
     universe_operations: Any | None = None,
 ) -> FrameChunkResult:
-    """Execute one frame chunk on a Dask worker and return compact partials."""
+    """Execute one frame chunk and return compact mergeable partials.
+
+    Args:
+        task: Frame chunk descriptor containing chunk index and selected frames.
+        worker_shared_data: Worker-visible shared workflow data.
+        universe_operations: Optional universe-operation adapter used to build the
+            worker-local frame graph.
+
+    Returns:
+        A ``FrameChunkResult`` containing covariance partials, neighbour totals,
+        neighbour sample counts, and processed frame indices.
+
+    Raises:
+        KeyError: If required worker shared-data keys are missing.
+    """
     frame_dag = FrameGraph(universe_operations=universe_operations).build()
     neighbor_helper = Neighbors()
 

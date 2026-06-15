@@ -21,27 +21,37 @@ class FrameGraph:
     """Execute the frame-local directed acyclic graph."""
 
     def __init__(self, universe_operations: Any | None = None) -> None:
+        """Initialise a frame-local DAG.
+
+        Args:
+            universe_operations: Optional universe-operation adapter retained for frame
+                graph construction consistency.
+        """
         self._universe_operations = universe_operations
         self._graph = nx.DiGraph()
         self._nodes: dict[str, Any] = {}
 
     def build(self) -> FrameGraph:
-        """Build the default frame DAG topology."""
+        """Build the default frame-local graph topology.
+
+        Returns:
+            The current ``FrameGraph`` instance for fluent construction.
+        """
         self._add("frame_covariance", FrameCovarianceNode())
         return self
 
     def execute_frame(self, shared_data: dict[str, Any], frame_index: int) -> Any:
-        """Execute the frame DAG for one selected analysis frame.
+        """Execute frame-local nodes for one selected frame.
 
         Args:
-            shared_data: Shared workflow data. Must contain ``"frame_source"``.
+            shared_data: Shared workflow data containing ``frame_source``.
             frame_index: Frame index in the active analysis frame-source space.
 
         Returns:
-            Frame-local covariance payload produced by ``FrameCovarianceNode``.
+            The frame covariance payload produced by the frame-local covariance node.
 
         Raises:
-            KeyError: If ``"frame_source"`` is missing from ``shared_data``.
+            KeyError: If ``frame_source`` is missing from ``shared_data``.
             IndexError: If ``frame_index`` is outside the active trajectory bounds.
         """
         frame_source = shared_data["frame_source"]
@@ -64,7 +74,13 @@ class FrameGraph:
         return ctx["frame_covariance"]
 
     def _add(self, name: str, node: Any, deps: list[str] | None = None) -> None:
-        """Register a frame-local node and its dependencies."""
+        """Register a frame-local node and dependency edges.
+
+        Args:
+            name: Unique node name in the frame DAG.
+            node: Node object exposing a ``run`` method.
+            deps: Optional upstream node names that must run before ``name``.
+        """
         self._nodes[name] = node
         self._graph.add_node(name)
         for dep in deps or []:
@@ -75,7 +91,16 @@ class FrameGraph:
         shared_data: dict[str, Any],
         frame_index: int,
     ) -> dict[str, Any]:
-        """Create a frame-local execution context."""
+        """Build a frame-local execution context.
+
+        Args:
+            shared_data: Shared workflow data referenced by frame-local nodes.
+            frame_index: Frame index currently being executed.
+
+        Returns:
+            A frame context dictionary containing shared data, frame index, and a
+            placeholder for frame covariance output.
+        """
         return {
             "shared": shared_data,
             "frame_index": frame_index,

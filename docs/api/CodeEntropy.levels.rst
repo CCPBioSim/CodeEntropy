@@ -12,7 +12,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   CodeEntropy.levels.execution
    CodeEntropy.levels.nodes
 
 Submodules

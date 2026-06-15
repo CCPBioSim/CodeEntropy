@@ -35,6 +35,14 @@ class FrameScheduler:
         policy: ExecutionPolicy,
         universe_operations: Any | None = None,
     ) -> None:
+        """Initialise the frame scheduler.
+
+        Args:
+            frame_dag: Built or buildable frame-local DAG used for serial execution.
+            policy: Internal execution policy for chunking and in-flight limits.
+            universe_operations: Optional universe-operation adapter forwarded to worker
+                frame graphs.
+        """
         self._frame_dag = frame_dag
         self._policy = policy
         self._universe_operations = universe_operations
@@ -47,7 +55,17 @@ class FrameScheduler:
         frame_indices: list[int],
         progress: _RichProgressSink | None = None,
     ) -> None:
-        """Execute frame-local MAP work and reduce it into ``shared_data``."""
+        """Execute frame-local MAP work and reduce outputs.
+
+        Args:
+            shared_data: Shared workflow data containing serial or Dask execution
+                inputs.
+            frame_indices: Ordered selected frame indices to execute.
+            progress: Optional progress sink used for reporting frame-stage progress.
+
+        Raises:
+            RuntimeError: If Dask execution is requested but unavailable or incomplete.
+        """
         task: TaskID | None = None
         if progress is not None:
             task = progress.add_task(
@@ -84,7 +102,14 @@ class FrameScheduler:
         progress: _RichProgressSink | None,
         task: TaskID | None,
     ) -> None:
-        """Execute frame-local MAP work serially and reduce immediately."""
+        """Execute frame MAP work serially.
+
+        Args:
+            shared_data: Shared workflow data mutated by parent-side reducers.
+            frame_indices: Ordered frame indices to process.
+            progress: Optional progress sink.
+            task: Optional progress task identifier.
+        """
         neighbor_helper = Neighbors()
 
         for frame_index in frame_indices:
@@ -111,7 +136,21 @@ class FrameScheduler:
         progress: _RichProgressSink | None,
         task: TaskID | None,
     ) -> None:
-        """Execute frame-chunk MAP tasks with bounded deterministic reduction."""
+        """Execute frame MAP work using bounded Dask futures.
+
+        Args:
+            shared_data: Shared workflow data mutated by parent-side reducers.
+            frame_indices: Ordered frame indices to process.
+            client: Dask distributed client-like object.
+            progress: Optional progress sink.
+            task: Optional progress task identifier.
+
+        Raises:
+            RuntimeError: If ``dask.distributed`` is unavailable or the number of
+                reduced frames does not match the selected frame count.
+            Exception: Propagates worker or Dask client errors after cancelling active
+                futures.
+        """
         try:
             from distributed import wait
         except ImportError as exc:
@@ -139,6 +178,12 @@ class FrameScheduler:
         pending_results: dict[int, FrameChunkResult] = {}
 
         def submit_next() -> bool:
+            """Submit the next frame-chunk task if one is available.
+
+            Returns:
+                ``True`` if a task was submitted, otherwise ``False`` when all tasks
+                    have already been submitted.
+            """
             nonlocal submitted
             try:
                 frame_task = next(frame_task_iter)
@@ -157,6 +202,11 @@ class FrameScheduler:
             return True
 
         def reduce_ready_results() -> None:
+            """Reduce completed frame chunks in deterministic chunk-index order.
+
+            Mutates enclosing scheduler state by consuming pending results, advancing
+            the next expected reduce index, and updating the completed-frame count.
+            """
             nonlocal completed, next_reduce_index
             while next_reduce_index in pending_results:
                 chunk_result = pending_results.pop(next_reduce_index)
@@ -232,7 +282,15 @@ class FrameScheduler:
         shared_data: dict[str, Any],
         frame_indices: list[int],
     ) -> list[FrameChunkTask]:
-        """Build explicit frame-chunk MAP tasks."""
+        """Build frame-chunk task descriptors.
+
+        Args:
+            shared_data: Shared workflow data used by the execution policy.
+            frame_indices: Ordered selected frame indices to split into chunks.
+
+        Returns:
+            A list of ``FrameChunkTask`` descriptors with deterministic chunk indices.
+        """
         chunk_size = self._policy.frame_chunk_size(
             shared_data,
             n_frames=len(frame_indices),

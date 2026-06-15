@@ -22,7 +22,15 @@ class ExecutionPolicy:
     max_frame_in_flight_multiplier: int = 1
 
     def requested_worker_count(self, shared_data: dict[str, Any]) -> int:
-        """Return the worker-process count requested by the current run."""
+        """Return the requested worker-process count.
+
+        Args:
+            shared_data: Shared workflow data that may contain ``args`` with local Dask
+                or HPC worker settings.
+
+        Returns:
+            The requested worker count, clamped to at least one.
+        """
         args = shared_data.get("args")
 
         dask_workers = getattr(args, "dask_workers", None)
@@ -37,7 +45,15 @@ class ExecutionPolicy:
         return 1
 
     def frame_chunk_size(self, shared_data: dict[str, Any], *, n_frames: int) -> int:
-        """Choose a deterministic frame chunk size for the current run."""
+        """Choose a deterministic frame chunk size.
+
+        Args:
+            shared_data: Shared workflow data used to infer requested worker count.
+            n_frames: Number of selected frames for the current run.
+
+        Returns:
+            The frame chunk size clamped between the policy minimum and maximum.
+        """
         n_frames = max(1, int(n_frames))
         workers = self.requested_worker_count(shared_data)
         target_chunks = max(1, workers * int(self.target_frame_chunks_per_worker))
@@ -54,7 +70,15 @@ class ExecutionPolicy:
         *,
         n_chunks: int,
     ) -> int:
-        """Choose how many frame chunks may be active at once."""
+        """Choose the maximum number of active frame-chunk tasks.
+
+        Args:
+            shared_data: Shared workflow data used to infer requested worker count.
+            n_chunks: Number of frame chunks available for submission.
+
+        Returns:
+            The number of frame-chunk tasks allowed to be active at once.
+        """
         workers = self.requested_worker_count(shared_data)
         max_in_flight = workers * int(self.max_frame_in_flight_multiplier)
         return max(1, min(int(n_chunks), int(max_in_flight)))

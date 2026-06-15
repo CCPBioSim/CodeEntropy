@@ -8,12 +8,30 @@ from CodeEntropy.levels.execution.tasks import CovarianceChunkPartial
 
 
 def stable_keys(mapping: dict[Any, Any]) -> list[Any]:
-    """Return mapping keys in a deterministic order across Python processes."""
+    """Return mapping keys in deterministic order.
+
+    Args:
+        mapping: Mapping whose keys should be ordered independently of process hash
+            randomisation.
+
+    Returns:
+        A list of keys sorted by key type name and representation.
+    """
     return sorted(mapping.keys(), key=lambda key: (type(key).__name__, repr(key)))
 
 
 def merge_means(old_mean: Any, old_n: int, new_mean: Any, new_n: int) -> Any:
-    """Merge two means with their sample counts."""
+    """Merge two running means using their sample counts.
+
+    Args:
+        old_mean: Existing mean value, or ``None`` if no samples have been seen.
+        old_n: Number of samples represented by ``old_mean``.
+        new_mean: New mean value to merge.
+        new_n: Number of samples represented by ``new_mean``.
+
+    Returns:
+        The merged mean. If ``new_n`` is zero or negative, ``old_mean`` is returned.
+    """
     if new_n <= 0:
         return old_mean
     if old_mean is None or old_n <= 0:
@@ -23,7 +41,16 @@ def merge_means(old_mean: Any, old_n: int, new_mean: Any, new_n: int) -> Any:
 
 
 def incremental_mean(old: Any, new: Any, n: int) -> Any:
-    """Compute an incremental mean."""
+    """Update a running mean with one new sample.
+
+    Args:
+        old: Existing running mean, or ``None`` for the first sample.
+        new: New sample to incorporate.
+        n: One-based sample count after adding ``new``.
+
+    Returns:
+        The updated running mean.
+    """
     if old is None:
         return new.copy() if hasattr(new, "copy") else new
     return old + (new - old) / float(n)
@@ -34,7 +61,12 @@ class NeighborReducer:
 
     @staticmethod
     def initialise(shared_data: dict[str, Any]) -> None:
-        """Initialise parent-side neighbour reduction state."""
+        """Initialise parent-side neighbour accumulators.
+
+        Args:
+            shared_data: Shared workflow data containing ``groups``. The method writes
+                ``neighbor_totals`` and ``neighbor_samples``.
+        """
         shared_data["neighbor_totals"] = {
             group_id: 0 for group_id in shared_data["groups"].keys()
         }
@@ -47,7 +79,13 @@ class NeighborReducer:
         shared_data: dict[str, Any],
         frame_neighbors: dict[int, tuple[int, int]] | None,
     ) -> None:
-        """Reduce one frame's neighbour-count payload."""
+        """Merge one frame's neighbour-count payload.
+
+        Args:
+            shared_data: Shared workflow data containing neighbour total/sample
+                accumulators.
+            frame_neighbors: Optional mapping of group id to ``(count, sample_count)``.
+        """
         if frame_neighbors is None:
             return
 
@@ -64,7 +102,13 @@ class NeighborReducer:
         neighbor_totals: dict[int, int],
         neighbor_samples: dict[int, int],
     ) -> None:
-        """Merge chunk-level neighbour totals/samples into parent accumulators."""
+        """Merge chunk-level neighbour totals and samples.
+
+        Args:
+            shared_data: Shared workflow data containing neighbour accumulators.
+            neighbor_totals: Mapping of group id to additive neighbour totals.
+            neighbor_samples: Mapping of group id to additive sample counts.
+        """
         totals = shared_data.get("neighbor_totals")
         samples = shared_data.get("neighbor_samples")
         if totals is None or samples is None:
@@ -79,7 +123,13 @@ class NeighborReducer:
 
     @staticmethod
     def finalise(shared_data: dict[str, Any]) -> None:
-        """Convert reduced neighbour totals into average neighbour counts."""
+        """Compute average neighbour counts from reduced totals.
+
+        Args:
+            shared_data: Shared workflow data containing ``groups``,
+                ``neighbor_totals``, and ``neighbor_samples``. The method writes
+                ``neighbors``.
+        """
         neighbors = {}
         for group_id in stable_keys(shared_data["groups"]):
             sample_count = shared_data["neighbor_samples"].get(group_id, 0)
@@ -100,7 +150,13 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         frame_out: dict[str, Any],
     ) -> None:
-        """Reduce one frame's covariance outputs into shared running means."""
+        """Reduce one frame covariance payload into parent accumulators.
+
+        Args:
+            shared_data: Shared workflow data containing covariance accumulators.
+            frame_out: Frame covariance payload with force, torque, and optional
+                force-torque sections.
+        """
         self._reduce_force_and_torque(shared_data, frame_out)
         self._reduce_forcetorque(shared_data, frame_out)
 
@@ -109,7 +165,12 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         partial: CovarianceChunkPartial,
     ) -> None:
-        """Merge a compact worker covariance partial into parent accumulators."""
+        """Merge a worker covariance partial into parent accumulators.
+
+        Args:
+            shared_data: Shared workflow data containing covariance accumulators.
+            partial: Compact covariance partial returned by a worker frame chunk.
+        """
         self._merge_force_and_torque_partial(shared_data, partial)
         self._merge_forcetorque_partial(shared_data, partial)
 
@@ -118,7 +179,14 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         frame_out: dict[str, Any],
     ) -> None:
-        """Reduce one serial frame's complete MAP output into parent shared_data."""
+        """Reduce a complete serial MAP output.
+
+        Args:
+            shared_data: Shared workflow data containing covariance and neighbour
+                accumulators.
+            frame_out: MAP output containing optional ``covariance`` and ``neighbors``
+                entries.
+        """
         covariance = frame_out.get("covariance")
         if covariance is not None:
             self.reduce_frame_output(shared_data, covariance)
@@ -132,6 +200,13 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         partial: CovarianceChunkPartial,
     ) -> None:
+        """Merge chunk force and torque means into parent accumulators.
+
+        Args:
+            shared_data: Shared workflow data containing force/torque accumulators,
+                frame counts, and ``group_id_to_index``.
+            partial: Worker covariance partial with force, torque, and count mappings.
+        """
         f_cov = shared_data["force_covariances"]
         t_cov = shared_data["torque_covariances"]
         counts = shared_data["frame_counts"]
@@ -183,6 +258,13 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         partial: CovarianceChunkPartial,
     ) -> None:
+        """Merge chunk force-torque block means into parent accumulators.
+
+        Args:
+            shared_data: Shared workflow data containing force-torque accumulators,
+                force-torque counts, and ``group_id_to_index``.
+            partial: Worker covariance partial with force-torque matrices and counts.
+        """
         ft_cov = shared_data["forcetorque_covariances"]
         ft_counts = shared_data["forcetorque_counts"]
         gid2i = shared_data["group_id_to_index"]
@@ -210,6 +292,13 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         frame_out: dict[str, Any],
     ) -> None:
+        """Reduce frame force and torque matrices into running means.
+
+        Args:
+            shared_data: Shared workflow data containing force/torque accumulators,
+                frame counts, and ``group_id_to_index``.
+            frame_out: Frame covariance payload with ``force`` and ``torque`` sections.
+        """
         f_cov = shared_data["force_covariances"]
         t_cov = shared_data["torque_covariances"]
         counts = shared_data["frame_counts"]
@@ -266,6 +355,14 @@ class CovarianceReducer:
         shared_data: dict[str, Any],
         frame_out: dict[str, Any],
     ) -> None:
+        """Reduce frame force-torque matrices into running means.
+
+        Args:
+            shared_data: Shared workflow data containing force-torque accumulators,
+                force-torque counts, and ``group_id_to_index``.
+            frame_out: Frame covariance payload that may contain a ``forcetorque``
+                section.
+        """
         if "forcetorque" not in frame_out:
             return
 

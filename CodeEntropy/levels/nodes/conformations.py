@@ -21,6 +21,12 @@ class ComputeConformationalStatesNode:
     """
 
     def __init__(self, universe_operations: Any | None = None) -> None:
+        """Initialise the conformational-state node.
+
+        Args:
+            universe_operations: Optional universe-operation adapter passed to the
+                underlying conformation-state builder.
+        """
         self._builder = ConformationStateBuilder(
             universe_operations=universe_operations
         )
@@ -31,7 +37,19 @@ class ComputeConformationalStatesNode:
         *,
         progress: object | None = None,
     ) -> dict[str, ConformationalStates]:
-        """Compute conformational states and store them in ``shared_data``."""
+        """Compute conformational states and store them in shared workflow data.
+
+        Args:
+            shared_data: Shared workflow data containing ``reduced_universe``,
+                ``levels``, ``groups``, ``frame_selection``, and ``args.bin_width``.
+            progress: Optional progress sink forwarded to the conformation builder.
+
+        Returns:
+            A dictionary containing the computed ``conformational_states`` mapping.
+
+        Raises:
+            KeyError: If required entries are missing from ``shared_data``.
+        """
         universe = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
