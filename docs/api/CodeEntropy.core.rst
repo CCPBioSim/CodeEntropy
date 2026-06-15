@@ -1,15 +1,29 @@
 CodeEntropy.core package
 ========================
 
-.. automodule:: CodeEntropy.core
+Submodules
+----------
+
+CodeEntropy.core.dask\_clusters module
+--------------------------------------
+
+.. automodule:: CodeEntropy.core.dask_clusters
    :members:
    :show-inheritance:
    :undoc-members:
 
-Submodules
-----------
+CodeEntropy.core.logging module
+-------------------------------
 
-.. toctree::
-   :maxdepth: 4
+.. automodule:: CodeEntropy.core.logging
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
-   CodeEntropy.core.logging
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.core
+   :members:
+   :show-inheritance:
+   :undoc-members:

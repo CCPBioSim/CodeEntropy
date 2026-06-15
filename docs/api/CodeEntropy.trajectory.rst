@@ -1,17 +1,37 @@
 CodeEntropy.trajectory package
 ==============================
 
-.. automodule:: CodeEntropy.trajectory
+Submodules
+----------
+
+CodeEntropy.trajectory.frames module
+------------------------------------
+
+.. automodule:: CodeEntropy.trajectory.frames
    :members:
    :show-inheritance:
    :undoc-members:
 
-Submodules
-----------
+CodeEntropy.trajectory.mda module
+---------------------------------
 
-.. toctree::
-   :maxdepth: 4
+.. automodule:: CodeEntropy.trajectory.mda
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
-   CodeEntropy.trajectory.frames
-   CodeEntropy.trajectory.mda
-   CodeEntropy.trajectory.source
+CodeEntropy.trajectory.source module
+------------------------------------
+
+.. automodule:: CodeEntropy.trajectory.source
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.trajectory
+   :members:
+   :show-inheritance:
+   :undoc-members:

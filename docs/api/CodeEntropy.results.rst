@@ -1,15 +1,21 @@
 CodeEntropy.results package
 ===========================
 
-.. automodule:: CodeEntropy.results
+Submodules
+----------
+
+CodeEntropy.results.reporter module
+-----------------------------------
+
+.. automodule:: CodeEntropy.results.reporter
    :members:
    :show-inheritance:
    :undoc-members:
 
-Submodules
-----------
+Module contents
+---------------
 
-.. toctree::
-   :maxdepth: 4
-
-   CodeEntropy.results.reporter
+.. automodule:: CodeEntropy.results
+   :members:
+   :show-inheritance:
+   :undoc-members:

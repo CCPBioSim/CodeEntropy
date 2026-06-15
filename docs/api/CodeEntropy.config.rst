@@ -1,16 +1,29 @@
 CodeEntropy.config package
 ==========================
 
-.. automodule:: CodeEntropy.config
+Submodules
+----------
+
+CodeEntropy.config.argparse module
+----------------------------------
+
+.. automodule:: CodeEntropy.config.argparse
    :members:
    :show-inheritance:
    :undoc-members:
 
-Submodules
-----------
+CodeEntropy.config.runtime module
+---------------------------------
 
-.. toctree::
-   :maxdepth: 4
+.. automodule:: CodeEntropy.config.runtime
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
-   CodeEntropy.config.argparse
-   CodeEntropy.config.runtime
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.config
+   :members:
+   :show-inheritance:
+   :undoc-members:

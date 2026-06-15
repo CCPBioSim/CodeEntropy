@@ -1,15 +1,21 @@
 CodeEntropy.molecules package
 =============================
 
-.. automodule:: CodeEntropy.molecules
+Submodules
+----------
+
+CodeEntropy.molecules.grouping module
+-------------------------------------
+
+.. automodule:: CodeEntropy.molecules.grouping
    :members:
    :show-inheritance:
    :undoc-members:
 
-Submodules
-----------
+Module contents
+---------------
 
-.. toctree::
-   :maxdepth: 4
-
-   CodeEntropy.molecules.grouping
+.. automodule:: CodeEntropy.molecules
+   :members:
+   :show-inheritance:
+   :undoc-members:
