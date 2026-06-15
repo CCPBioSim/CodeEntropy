@@ -18,15 +18,12 @@ Not responsible for:
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import numpy as np
 from MDAnalysis.lib.mdamath import make_whole
 
 from CodeEntropy.levels.forces import ForceTorqueCalculator
-
-logger = logging.getLogger(__name__)
 
 FrameCtx = dict[str, Any]
 Matrix = np.ndarray
