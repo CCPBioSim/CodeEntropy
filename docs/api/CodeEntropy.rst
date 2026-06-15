@@ -1,6 +1,11 @@
 CodeEntropy package
 ===================
 
+.. automodule:: CodeEntropy
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Subpackages
 -----------
 
@@ -18,18 +23,7 @@ Subpackages
 Submodules
 ----------
 
-CodeEntropy.cli module
-----------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: CodeEntropy.cli
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: CodeEntropy
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   CodeEntropy.cli
