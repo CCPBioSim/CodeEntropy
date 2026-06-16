@@ -7,16 +7,17 @@ from unittest.mock import MagicMock, call, patch
 from CodeEntropy.levels.level_dag import LevelDAG
 
 
-def test_build_registers_static_nodes_and_builds_frame_dag():
+def test_build_registers_static_nodes_and_builds_stage_dags():
     with (
         patch("CodeEntropy.levels.level_dag.DetectMoleculesNode"),
         patch("CodeEntropy.levels.level_dag.DetectLevelsNode"),
         patch("CodeEntropy.levels.level_dag.BuildBeadsNode"),
         patch("CodeEntropy.levels.level_dag.InitCovarianceAccumulatorsNode"),
-        patch("CodeEntropy.levels.level_dag.ComputeConformationalStatesNode"),
+        patch("CodeEntropy.levels.level_dag.ConformationDAG"),
     ):
         universe_operations = MagicMock()
         dag = LevelDAG(universe_operations=universe_operations)
+        dag._conformation_dag.build = MagicMock()
         dag._frame_dag.build = MagicMock()
 
         out = dag.build()
@@ -27,15 +28,19 @@ def test_build_registers_static_nodes_and_builds_frame_dag():
         "detect_levels",
         "build_beads",
         "init_covariance_accumulators",
-        "compute_conformational_states",
     }
     assert "find_neighbors" not in dag._static_nodes
+    assert "compute_conformational_states" not in dag._static_nodes
 
     assert ("detect_molecules", "detect_levels") in dag._static_graph.edges
     assert ("detect_levels", "build_beads") in dag._static_graph.edges
     assert ("detect_levels", "init_covariance_accumulators") in dag._static_graph.edges
-    assert ("detect_levels", "compute_conformational_states") in dag._static_graph.edges
+    assert (
+        "detect_levels",
+        "compute_conformational_states",
+    ) not in dag._static_graph.edges
 
+    dag._conformation_dag.build.assert_called_once()
     dag._frame_dag.build.assert_called_once()
 
 
@@ -46,6 +51,7 @@ def test_execute_sets_default_axes_manager_and_runs_workflow_stages():
     progress = MagicMock()
 
     dag._run_static_stage = MagicMock()
+    dag._run_conformation_stage = MagicMock()
     dag._initialise_neighbor_metadata = MagicMock()
     dag._run_frame_stage = MagicMock()
 
@@ -59,6 +65,10 @@ def test_execute_sets_default_axes_manager_and_runs_workflow_stages():
     assert "axes_manager" in shared_data
 
     dag._run_static_stage.assert_called_once_with(shared_data, progress=progress)
+    dag._run_conformation_stage.assert_called_once_with(
+        shared_data,
+        progress=progress,
+    )
     dag._initialise_neighbor_metadata.assert_called_once_with(shared_data)
     initialise.assert_called_once_with(shared_data)
     dag._run_frame_stage.assert_called_once_with(shared_data, progress=progress)
@@ -126,6 +136,21 @@ def test_run_static_stage_falls_back_when_node_does_not_accept_progress():
     ]
 
 
+def test_run_conformation_stage_delegates_to_conformation_dag():
+    dag = LevelDAG()
+    shared_data = {}
+    progress = MagicMock()
+
+    dag._conformation_dag.execute = MagicMock()
+
+    dag._run_conformation_stage(shared_data, progress=progress)
+
+    dag._conformation_dag.execute.assert_called_once_with(
+        shared_data,
+        progress=progress,
+    )
+
+
 def test_run_frame_stage_collects_frame_indices_and_delegates_to_scheduler():
     universe_operations = MagicMock()
     dag = LevelDAG(universe_operations=universe_operations)
@@ -183,3 +208,49 @@ def test_initialise_neighbor_metadata_falls_back_to_universe_key():
         LevelDAG._initialise_neighbor_metadata(shared_data)
 
     helper.get_symmetry.assert_called_once_with(universe=universe, groups={0: [0]})
+
+
+def test_level_dag_runs_static_conformation_then_frame(monkeypatch):
+    dag = LevelDAG(universe_operations=object())
+    calls = []
+
+    monkeypatch.setattr(
+        dag,
+        "_run_static_stage",
+        lambda shared_data, progress=None: calls.append("static"),
+    )
+    monkeypatch.setattr(
+        dag,
+        "_run_conformation_stage",
+        lambda shared_data, progress=None: calls.append("conformation"),
+    )
+    monkeypatch.setattr(
+        dag,
+        "_initialise_neighbor_metadata",
+        lambda shared_data: calls.append("neighbor_metadata"),
+    )
+    monkeypatch.setattr(
+        dag,
+        "_run_frame_stage",
+        lambda shared_data, progress=None: calls.append("frame"),
+    )
+
+    monkeypatch.setattr(
+        "CodeEntropy.levels.level_dag.NeighborReducer.initialise",
+        lambda shared_data: calls.append("neighbor_initialise"),
+    )
+    monkeypatch.setattr(
+        "CodeEntropy.levels.level_dag.NeighborReducer.finalise",
+        lambda shared_data: calls.append("neighbor_finalise"),
+    )
+
+    dag.execute({})
+
+    assert calls == [
+        "static",
+        "conformation",
+        "neighbor_metadata",
+        "neighbor_initialise",
+        "frame",
+        "neighbor_finalise",
+    ]

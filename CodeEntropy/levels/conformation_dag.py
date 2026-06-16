@@ -1,4 +1,8 @@
-"""Compute conformational states for configurational entropy calculations."""
+"""Conformational-state DAG orchestration.
+
+This module owns the conformational stage between static structural setup and
+frame-local covariance/neighbour execution.
+"""
 
 from __future__ import annotations
 
@@ -12,44 +16,34 @@ ConformationalStates = dict[str, Any]
 FlexibleStates = dict[str, Any]
 
 
-class ComputeConformationalStatesNode:
-    """Static node that computes conformational states from selected frames.
+class ConformationDAG:
+    """Execute conformational-state construction for selected trajectory frames.
 
-    Produces:
-        shared_data["conformational_states"] = {"ua": states_ua, "res": states_res}
-        shared_data["flexible_dihedrals"] = {"ua": flexible_ua, "res": flexible_res}
+    The first implementation intentionally preserves the existing serial
+    ConformationStateBuilder behaviour. Later issues can replace this internal
+    implementation with chunked map-reduce execution.
     """
 
     def __init__(self, universe_operations: Any | None = None) -> None:
-        """Initialise the conformational-state node.
-
-        Args:
-            universe_operations: Optional universe-operation adapter passed to the
-                underlying conformation-state builder.
-        """
         self._builder = ConformationStateBuilder(
             universe_operations=universe_operations
         )
 
-    def run(
+    def build(self) -> ConformationDAG:
+        """Build the conformational DAG topology.
+
+        Returns:
+            Self, to allow fluent construction.
+        """
+        return self
+
+    def execute(
         self,
         shared_data: SharedData,
         *,
         progress: object | None = None,
     ) -> dict[str, ConformationalStates]:
-        """Compute conformational states and store them in shared workflow data.
-
-        Args:
-            shared_data: Shared workflow data containing ``reduced_universe``,
-                ``levels``, ``groups``, ``frame_selection``, and ``args.bin_width``.
-            progress: Optional progress sink forwarded to the conformation builder.
-
-        Returns:
-            A dictionary containing the computed ``conformational_states`` mapping.
-
-        Raises:
-            KeyError: If required entries are missing from ``shared_data``.
-        """
+        """Compute conformational states and store them in shared workflow data."""
         universe = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
