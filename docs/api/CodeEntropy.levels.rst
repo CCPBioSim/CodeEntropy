@@ -21,6 +21,7 @@ Submodules
    :maxdepth: 4
 
    CodeEntropy.levels.axes
+   CodeEntropy.levels.conformation_dag
    CodeEntropy.levels.dihedrals
    CodeEntropy.levels.forces
    CodeEntropy.levels.frame_dag
