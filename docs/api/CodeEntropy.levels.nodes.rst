@@ -14,7 +14,6 @@ Submodules
 
    CodeEntropy.levels.nodes.accumulators
    CodeEntropy.levels.nodes.beads
-   CodeEntropy.levels.nodes.conformations
    CodeEntropy.levels.nodes.covariance
    CodeEntropy.levels.nodes.detect_levels
    CodeEntropy.levels.nodes.detect_molecules

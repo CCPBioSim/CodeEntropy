@@ -1,11 +1,11 @@
-"""Unit tests for the conformational-state static node."""
+"""Unit tests for the conformational-state DAG stage."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 
-from CodeEntropy.levels.nodes import conformations
-from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNode
+from CodeEntropy.levels import conformation_dag
+from CodeEntropy.levels.conformation_dag import ConformationDAG
 
 
 class FakeConformationStateBuilder:
@@ -43,7 +43,13 @@ class FakeConformationStateBuilder:
         )
 
 
-def test_compute_conformational_states_node_runs_and_writes_shared_data(monkeypatch):
+def test_conformation_dag_build_returns_self():
+    dag = ConformationDAG()
+
+    assert dag.build() is dag
+
+
+def test_conformation_dag_executes_builder_and_writes_shared_data(monkeypatch):
     builder_holder = {}
 
     def builder_factory(universe_operations):
@@ -52,13 +58,13 @@ def test_compute_conformational_states_node_runs_and_writes_shared_data(monkeypa
         return builder
 
     monkeypatch.setattr(
-        conformations,
+        conformation_dag,
         "ConformationStateBuilder",
         builder_factory,
     )
 
     universe_operations = object()
-    node = ComputeConformationalStatesNode(universe_operations)
+    dag = ConformationDAG(universe_operations=universe_operations)
 
     universe = object()
     frame_selection = object()
@@ -72,7 +78,7 @@ def test_compute_conformational_states_node_runs_and_writes_shared_data(monkeypa
         "args": SimpleNamespace(bin_width=30),
     }
 
-    result = node.run(shared_data, progress=progress)
+    result = dag.execute(shared_data, progress=progress)
 
     assert shared_data["conformational_states"] == {
         "ua": {"ua_key": ["state_a"]},
@@ -100,20 +106,24 @@ def test_compute_conformational_states_node_runs_and_writes_shared_data(monkeypa
     ]
 
 
-def test_compute_conformational_states_node_converts_bin_width_to_int(monkeypatch):
+def test_conformation_dag_converts_bin_width_to_int(monkeypatch):
     captured = {}
 
     class Builder:
         def __init__(self, universe_operations):
-            pass
+            self.universe_operations = universe_operations
 
         def build_conformational_states(self, **kwargs):
             captured.update(kwargs)
             return {}, [], {}, []
 
-    monkeypatch.setattr(conformations, "ConformationStateBuilder", Builder)
+    monkeypatch.setattr(
+        conformation_dag,
+        "ConformationStateBuilder",
+        Builder,
+    )
 
-    node = ComputeConformationalStatesNode()
+    dag = ConformationDAG()
     shared_data = {
         "reduced_universe": object(),
         "levels": [],
@@ -122,6 +132,6 @@ def test_compute_conformational_states_node_converts_bin_width_to_int(monkeypatc
         "args": SimpleNamespace(bin_width="45"),
     }
 
-    node.run(shared_data)
+    dag.execute(shared_data)
 
     assert captured["bin_width"] == 45
