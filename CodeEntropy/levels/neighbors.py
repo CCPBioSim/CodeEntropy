@@ -1,250 +1,190 @@
-"""Neighbours info for orientational entropy.
+"""Frame-local neighbour observables for orientational entropy.
 
-This module finds the average number of neighbors, symmetry numbers, and
-and linearity for each group.
-These are used downstream to compute the orientational entropy.
+The frame execution layer calls :class:`Neighbors` once per selected trajectory
+frame. Each call returns mergeable neighbour-count totals for every molecule
+group. Static symmetry and linearity metadata is computed separately because it
+does not vary by frame.
 """
 
-import logging
+from __future__ import annotations
 
-import numpy as np
+from typing import Any
+
 from rdkit import Chem
 
 from CodeEntropy.levels.search import Search
 
-logger = logging.getLogger(__name__)
+NeighborCounts = dict[int, tuple[int, int]]
 
 
 class Neighbors:
-    """
-    Class to find the neighbors and any related information needed for the
-    calculation of orientational entropy.
-    """
+    """Compute neighbour-count and orientational metadata observables."""
 
-    def __init__(self):
+    def __init__(self, search: Search | None = None) -> None:
+        self._search = search or Search()
+
+    def get_frame_neighbor_counts(
+        self,
+        *,
+        universe: Any,
+        levels: list[list[str]],
+        groups: dict[int, list[int]],
+        frame_source: Any,
+        frame_index: int,
+        search_type: str,
+    ) -> NeighborCounts:
+        """Return neighbour-count totals for one selected frame.
+
+        The returned ``(total, sample_count)`` pairs are intentionally additive.
+        Parent-side reducers combine them across frames and divide at finalisation.
         """
-        Initializes the Neighbors class with placeholders for data,
-        including the system trajectory, groups, and levels.
-        """
+        frame_index = int(frame_index)
+        frame_counts: NeighborCounts = {}
 
-        self._universe = None
-        self._groups = None
-        self._levels = None
-        self._search = Search()
+        for group_id, molecule_ids in groups.items():
+            if not molecule_ids:
+                frame_counts[group_id] = (0, 0)
+                continue
 
-    def get_neighbors(self, universe, levels, groups, frame_source, search_type):
-        """Find average neighbour counts for each molecule group.
+            highest_level = levels[molecule_ids[0]][-1]
+            total_neighbors = 0
+            sample_count = 0
 
-        Args:
-            universe: MDAnalysis universe object for the active analysis system.
-            levels: Level list for each molecule.
-            groups: Mapping of group id to molecule ids.
-            frame_source: FrameSource controlling selected trajectory access.
-            search_type: Neighbour search method, either ``"RAD"`` or ``"grid"``.
+            for molecule_id in molecule_ids:
+                neighbors = self._get_neighbors_for_molecule(
+                    universe=universe,
+                    molecule_id=molecule_id,
+                    highest_level=highest_level,
+                    frame_source=frame_source,
+                    frame_index=frame_index,
+                    search_type=search_type,
+                )
+                total_neighbors += len(neighbors)
+                sample_count += 1
 
-        Returns:
-            Dict mapping group id to average number of neighbours.
+            frame_counts[group_id] = (total_neighbors, sample_count)
 
-        Raises:
-            ValueError: If ``search_type`` is unknown.
-        """
-        frame_indices = [
-            int(frame_index) for frame_index in frame_source.iter_indices()
-        ]
-        n_frames = len(frame_indices)
+        return frame_counts
 
-        if n_frames <= 0:
-            return {group_id: 0.0 for group_id in groups.keys()}
+    def get_symmetry(
+        self,
+        *,
+        universe: Any,
+        groups: dict[int, list[int]],
+    ) -> tuple[dict[int, int], dict[int, bool]]:
+        """Return symmetry numbers and linearity flags for each molecule group."""
+        symmetry_number: dict[int, int] = {}
+        linear: dict[int, bool] = {}
 
-        number_neighbors = {}
-        average_number_neighbors = {}
-
-        for group_id in groups.keys():
-            molecules = groups[group_id]
-            highest_level = levels[molecules[0]][-1]
-
-            for mol_id in molecules:
-                for frame_index in frame_indices:
-                    if search_type == "RAD":
-                        neighbors = self._search.get_RAD_neighbors(
-                            universe=universe,
-                            mol_id=mol_id,
-                            frame_source=frame_source,
-                            frame_index=frame_index,
-                        )
-
-                    elif search_type == "grid":
-                        neighbors = self._search.get_grid_neighbors(
-                            universe=universe,
-                            mol_id=mol_id,
-                            highest_level=highest_level,
-                            frame_source=frame_source,
-                            frame_index=frame_index,
-                        )
-                    else:
-                        raise ValueError(f"unknown search_type {search_type}")
-
-                    number_neighbors.setdefault(group_id, []).append(len(neighbors))
-
-            number = np.sum(number_neighbors[group_id])
-            average_number_neighbors[group_id] = number / (len(molecules) * n_frames)
-            logger.debug(
-                "group: %s number neighbors %s",
-                group_id,
-                average_number_neighbors[group_id],
-            )
-
-        return average_number_neighbors
-
-    def get_symmetry(self, universe, groups):
-        """
-        Calculate symmetry number for the molecule.
-
-        This function converts the MDAnalysis instance of a molecule into
-        an RDKit object and then calculates the symmetry number and
-        determines if the molecule is linear.
-
-        Args:
-            universe: MDAnalysis object
-            mol_id: index of the molecule of interest
-
-        Returns:
-            symmetry_number: dict, symmetry number of each group
-            linear: dict, linear for each group
-        """
-        symmetry_number = {}
-        linear = {}
-
-        for group_id in groups.keys():
-            molecules = groups[group_id]
+        for group_id, molecule_ids in groups.items():
+            if not molecule_ids:
+                symmetry_number[group_id] = 0
+                linear[group_id] = False
+                continue
 
             rdkit_mol, number_heavy, number_hydrogen = self._get_rdkit_mol(
-                universe, molecules[0]
+                universe,
+                molecule_ids[0],
             )
-
             symmetry_number[group_id] = self._get_symmetry_number(
-                rdkit_mol, number_heavy, number_hydrogen
+                rdkit_mol,
+                number_heavy,
+                number_hydrogen,
             )
-
             linear[group_id] = self._get_linear(rdkit_mol, number_heavy)
-
-            logger.debug(
-                f"group: {group_id}, symmetry: {symmetry_number}, linear: {linear}"
-            )
 
         return symmetry_number, linear
 
-    def _get_rdkit_mol(self, universe, mol_id):
-        """
-        Convert molecule to rdkit object.
+    def _get_neighbors_for_molecule(
+        self,
+        *,
+        universe: Any,
+        molecule_id: int,
+        highest_level: str,
+        frame_source: Any,
+        frame_index: int,
+        search_type: str,
+    ) -> Any:
+        """Run the configured neighbour search for one molecule and frame."""
+        if search_type == "RAD":
+            return self._search.get_RAD_neighbors(
+                universe=universe,
+                mol_id=molecule_id,
+                frame_source=frame_source,
+                frame_index=frame_index,
+            )
 
-        MDAnalysis convert_to(RDKIT) needs elements.
-        We are removing dummy atoms and converting to rkdit format.
-        If there are dummy atoms you need inferrer=None otherwise you
-        get errors from it getting the valence wrong.
-        If possible it is better to use the inferrer to get the bonds
-        and hybridization correct.
-        The convert_to argument force=True forces it to continue even when
-        it cannot find hydrogens, this is needed to avoid errors for molecules
-        like carbon dioxide which do not have hydrogens.
+        if search_type == "grid":
+            return self._search.get_grid_neighbors(
+                universe=universe,
+                mol_id=molecule_id,
+                highest_level=highest_level,
+                frame_source=frame_source,
+                frame_index=frame_index,
+            )
 
-        Args:
-            universe: MDAnalysis object
-            mol_id: index of the molecule of interest
+        raise ValueError(f"unknown search_type {search_type}")
 
-        Returns:
-            rdkit_mol
-            number_heavy
-            number_hydrogen
-        """
-
+    @staticmethod
+    def _get_rdkit_mol(universe: Any, molecule_id: int) -> tuple[Any, int, int]:
+        """Convert one molecular fragment into an RDKit molecule."""
         if not hasattr(universe.atoms, "elements"):
             universe.guess_TopologyAttrs(to_guess=["elements"])
 
-        molecule = universe.atoms.fragments[mol_id]
+        molecule = universe.atoms.fragments[molecule_id]
+        dummy_atoms = molecule.select_atoms("prop mass < 0.1")
 
-        dummy = molecule.select_atoms("prop mass < 0.1")
-        if len(dummy) > 0:
-            frag = molecule.select_atoms("prop mass > 0.1")
-            rdkit_mol = frag.convert_to("RDKIT", force=True, inferrer=None)
-            logger.debug("Warning: Dummy atoms found")
+        if len(dummy_atoms) > 0:
+            fragment = molecule.select_atoms("prop mass > 0.1")
+            rdkit_mol = fragment.convert_to("RDKIT", force=True, inferrer=None)
         else:
             try:
                 rdkit_mol = molecule.convert_to("RDKIT", force=True)
             except Exception:
-                logger.debug("Warning: Constraint bonds to H atoms found")
                 rdkit_mol = molecule.convert_to("RDKIT", force=True, inferrer=None)
 
         number_heavy = rdkit_mol.GetNumHeavyAtoms()
         number_hydrogen = rdkit_mol.GetNumAtoms() - number_heavy
-
         return rdkit_mol, number_heavy, number_hydrogen
 
-    def _get_symmetry_number(self, rdkit_mol, number_heavy, number_hydrogen):
-        """
-        Calculate symmetry number for the molecule.
-
-        For larger molecules, removing the hydrogens reduces the over counting
-        of symmetry states. When there is only one heavy atom the hydrogens
-        are important to the symmetry. If there is a single heavy atom with
-        no hydrogens then the molecule is spherically symmetric.
-
-        Using the RDKit GetSubstructMatches function often works well as
-        a guess for the symmetry number, but it occasionally returns a
-        symmetry number 2x the expected value (for example, cyclohexane).
-
-        Args:
-            rdkit_mol: rdkit object for molecule of interest
-            number_heavy (int): number of heavy atoms
-            number_hydrogen (int): number of hydrogen atoms
-
-        Returns:
-            symmetry_number (int): symmetry number of molecule
-        """
-
+    @staticmethod
+    def _get_symmetry_number(
+        rdkit_mol: Any,
+        number_heavy: int,
+        number_hydrogen: int,
+    ) -> int:
+        """Calculate the molecular symmetry number used by orientational entropy."""
         if number_heavy > 1:
-            rdkit_heavy = Chem.RemoveHs(rdkit_mol)
+            heavy_atom_mol = Chem.RemoveHs(rdkit_mol)
             matches = rdkit_mol.GetSubstructMatches(
-                rdkit_heavy, uniquify=False, useChirality=True
+                heavy_atom_mol,
+                uniquify=False,
+                useChirality=True,
             )
-            symmetry_number = len(matches)
-        elif number_hydrogen > 0:
+            return len(matches)
+
+        if number_hydrogen > 0:
             matches = rdkit_mol.GetSubstructMatches(
-                rdkit_mol, uniquify=False, useChirality=True
+                rdkit_mol,
+                uniquify=False,
+                useChirality=True,
             )
-            symmetry_number = len(matches)
-        else:
-            symmetry_number = 0
+            return len(matches)
 
-        return symmetry_number
+        return 0
 
-    def _get_linear(self, rdkit_mol, number_heavy):
-        """
-        Determine if the molecule is linear.
-
-        We are not considering the hydrogens, just the united atom beads.
-        So, molecules like methanol are treated as linear since they have only
-        two united atoms.
-
-        Args:
-            rkdit_mol: rdkit object for molecule of interest
-            number_heavy (int): number of heavy atoms
-
-        Returns:
-            linear (bool): True if molecule linear
-        """
-        linear = False
+    @staticmethod
+    def _get_linear(rdkit_mol: Any, number_heavy: int) -> bool:
+        """Return whether a molecule is treated as linear."""
         if number_heavy == 1:
-            linear = False
-        elif number_heavy == 2:
-            linear = True
-        else:
-            rdkit_heavy = Chem.RemoveHs(rdkit_mol)
-            sp_count = 0
-            for x in rdkit_heavy.GetAtoms():
-                if x.GetHybridization() == Chem.HybridizationType.SP:
-                    sp_count += 1
-            if sp_count >= (number_heavy - 2):
-                linear = True
+            return False
 
-        return linear
+        if number_heavy == 2:
+            return True
+
+        heavy_atom_mol = Chem.RemoveHs(rdkit_mol)
+        sp_count = sum(
+            atom.GetHybridization() == Chem.HybridizationType.SP
+            for atom in heavy_atom_mol.GetAtoms()
+        )
+        return sp_count >= number_heavy - 2

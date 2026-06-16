@@ -18,15 +18,12 @@ Not responsible for:
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import numpy as np
 from MDAnalysis.lib.mdamath import make_whole
 
 from CodeEntropy.levels.forces import ForceTorqueCalculator
-
-logger = logging.getLogger(__name__)
 
 FrameCtx = dict[str, Any]
 Matrix = np.ndarray
@@ -49,23 +46,26 @@ class FrameCovarianceNode:
     """
 
     def __init__(self) -> None:
-        """Initialise the frame covariance node."""
+        """Initialise the frame covariance node.
+
+        Creates the force/torque calculator used by all frame-local covariance helper
+        methods.
+        """
         self._ft = ForceTorqueCalculator()
 
     def run(self, ctx: FrameCtx) -> dict[str, Any]:
-        """Compute and store per-frame force/torque (and optional FT) matrices.
+        """Compute frame-local force, torque, and optional force-torque matrices.
 
         Args:
-            ctx: Frame context dict expected to include:
-                - "shared": dict containing reduced_universe, groups, levels, beads,
-                args
-                - shared["axes_manager"] (created in static stage)
+            ctx: Frame context containing ``shared`` workflow data. The shared data must
+                provide ``reduced_universe``, ``groups``, ``levels``, ``beads``, and
+                ``args``.
 
         Returns:
-            The frame covariance payload also stored at ctx["frame_covariance"].
+            The frame covariance payload written to ``ctx["frame_covariance"]``.
 
         Raises:
-            KeyError: If ctx is missing required fields.
+            KeyError: If ``ctx`` or the shared workflow data is missing required keys.
         """
         shared = self._get_shared(ctx)
 
@@ -176,29 +176,22 @@ class FrameCovarianceNode:
         out_torque: dict[str, dict[Any, Matrix]],
         molcount: dict[tuple[int, int], int],
     ) -> None:
-        """Compute UA-level force/torque second moments for one molecule.
-
-        For each residue in the molecule, bead vectors are computed for all UA
-        beads in that residue. The resulting second-moment matrices are then
-        incrementally averaged across molecules in the same group for this frame.
+        """Compute united-atom second moments for one molecule.
 
         Args:
-            u: MDAnalysis Universe (or compatible) providing atom access.
-            mol: Molecule/fragment object providing residues/atoms.
-            mol_id: Molecule id used for bead keying.
-            group_id: Group identifier used for within-frame averaging.
-            beads: Mapping from bead keys to lists of atom indices.
-            axes_manager: Axes manager used to determine axes/centers/MOI.
-            box: Optional box vector used for PBC-aware displacements.
-            force_partitioning: Force scaling factor applied at highest level.
-            customised_axes: Whether to use customised axes methods when available.
-            is_highest: Whether the UA level is the highest level for the molecule.
-            out_force: Output accumulator for UA force second moments.
-            out_torque: Output accumulator for UA torque second moments.
-            molcount: Per-(group_id, local_res_i) molecule counters for averaging.
-
-        Returns:
-            None. Mutates out_force/out_torque and molcount in-place.
+            u: Universe-like object used to resolve bead atom indices.
+            mol: Molecule fragment containing residues and atoms.
+            mol_id: Molecule index used in bead lookup keys.
+            group_id: Molecule-group identifier used for within-frame averaging.
+            beads: Mapping of bead keys to reduced-universe atom-index arrays.
+            axes_manager: Axes helper used to build translation and rotation axes.
+            box: Optional periodic box vector.
+            force_partitioning: Force partitioning factor for highest-level vectors.
+            customised_axes: Whether customised UA axes should be used.
+            is_highest: Whether united atom is the highest active level.
+            out_force: Frame-local force second-moment accumulator, mutated in place.
+            out_torque: Frame-local torque second-moment accumulator, mutated in place.
+            molcount: Per-residue group sample counters, mutated in place.
         """
         for local_res_i, res in enumerate(mol.residues):
             bead_key = (mol_id, "united_atom", local_res_i)
@@ -247,34 +240,24 @@ class FrameCovarianceNode:
         molcount: dict[int, int],
         combined: bool,
     ) -> None:
-        """Compute residue-level force/torque (and optional FT) moments for one
-        molecule.
-
-        Residue bead vectors are constructed for the molecule and used to compute
-        per-frame force and torque second-moment matrices. Outputs are then
-        incrementally averaged across molecules in the same group for this frame.
-        If combined FT matrices are enabled and this is the highest level, a
-        force-torque block matrix is also constructed and averaged.
+        """Compute residue-level second moments for one molecule.
 
         Args:
-            u: MDAnalysis Universe (or compatible) providing atom access.
-            mol: Molecule/fragment object providing atoms/residues.
-            mol_id: Molecule id used for bead keying.
-            group_id: Group identifier used for within-frame averaging.
-            beads: Mapping from bead keys to lists of atom indices.
-            axes_manager: Axes manager used to determine axes/centers/MOI.
-            box: Optional box vector used for PBC-aware displacements.
-            customised_axes: Whether to use customised axes methods when available.
-            force_partitioning: Force scaling factor applied at highest level.
-            is_highest: Whether residue level is the highest level for the molecule.
-            out_force: Output accumulator for residue force second moments.
-            out_torque: Output accumulator for residue torque second moments.
-            out_ft: Optional output accumulator for residue combined FT matrices.
-            molcount: Per-group molecule counter for within-frame averaging.
-            combined: Whether combined force-torque matrices are enabled.
-
-        Returns:
-            None. Mutates output dictionaries and molcount in-place.
+            u: Universe-like object used to resolve bead atom indices.
+            mol: Molecule fragment containing residues and atoms.
+            mol_id: Molecule index used in bead lookup keys.
+            group_id: Molecule-group identifier used for within-frame averaging.
+            beads: Mapping of bead keys to reduced-universe atom-index arrays.
+            axes_manager: Axes helper used to build translation and rotation axes.
+            box: Optional periodic box vector.
+            customised_axes: Whether customised residue axes should be used.
+            force_partitioning: Force partitioning factor for highest-level vectors.
+            is_highest: Whether residue is the highest active level.
+            out_force: Frame-local force second-moment accumulator, mutated in place.
+            out_torque: Frame-local torque second-moment accumulator, mutated in place.
+            out_ft: Optional combined force-torque accumulator, mutated in place.
+            molcount: Per-group sample counters, mutated in place.
+            combined: Whether combined force-torque matrices should be produced.
         """
         bead_key = (mol_id, "residue")
         bead_idx_list = beads.get(bead_key, [])
@@ -328,34 +311,23 @@ class FrameCovarianceNode:
         molcount: dict[int, int],
         combined: bool,
     ) -> None:
-        """Compute polymer-level force/torque (and optional FT) moments for one
-        molecule.
-
-        Polymer level uses a single bead. Translation/rotation axes, center, and
-        principal moments of inertia are computed, then used to build the
-        generalized force and torque vectors. Outputs are incrementally averaged
-        across molecules in the same group for this frame. If combined FT matrices
-        are enabled and this is the highest level, a force-torque block matrix is
-        also constructed and averaged.
+        """Compute polymer-level second moments for one molecule.
 
         Args:
-            u: MDAnalysis Universe (or compatible) providing atom access.
-            mol: Molecule/fragment object providing atoms.
-            mol_id: Molecule id used for bead keying.
-            group_id: Group identifier used for within-frame averaging.
-            beads: Mapping from bead keys to lists of atom indices.
-            axes_manager: Axes manager used to determine axes/centers/MOI.
-            box: Optional box vector used for PBC-aware displacements.
-            force_partitioning: Force scaling factor applied at highest level.
-            is_highest: Whether polymer level is the highest level for the molecule.
-            out_force: Output accumulator for polymer force second moments.
-            out_torque: Output accumulator for polymer torque second moments.
-            out_ft: Optional output accumulator for polymer combined FT matrices.
-            molcount: Per-group molecule counter for within-frame averaging.
-            combined: Whether combined force-torque matrices are enabled.
-
-        Returns:
-            None. Mutates output dictionaries and molcount in-place.
+            u: Universe-like object used to resolve bead atom indices.
+            mol: Molecule fragment containing atoms.
+            mol_id: Molecule index used in bead lookup keys.
+            group_id: Molecule-group identifier used for within-frame averaging.
+            beads: Mapping of bead keys to reduced-universe atom-index arrays.
+            axes_manager: Axes helper used to build translation and rotation axes.
+            box: Optional periodic box vector.
+            force_partitioning: Force partitioning factor for highest-level vectors.
+            is_highest: Whether polymer is the highest active level.
+            out_force: Frame-local force second-moment accumulator, mutated in place.
+            out_torque: Frame-local torque second-moment accumulator, mutated in place.
+            out_ft: Optional combined force-torque accumulator, mutated in place.
+            molcount: Per-group sample counters, mutated in place.
+            combined: Whether combined force-torque matrices should be produced.
         """
         bead_key = (mol_id, "polymer")
         bead_idx_list = beads.get(bead_key, [])
@@ -420,20 +392,19 @@ class FrameCovarianceNode:
         customised_axes: bool,
         is_highest: bool,
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
-        """Build force/torque vectors for UA-level beads of one residue.
+        """Build force and torque vectors for united-atom beads.
 
         Args:
-            bead_groups: List of UA bead AtomGroups for the residue.
-            residue_atoms: AtomGroup for the residue atoms (used for axes when vanilla).
-            axes_manager: Axes manager used to determine axes/centers/MOI.
-            box: Optional box vector used for PBC-aware displacements.
-            force_partitioning: Force scaling factor applied at highest level.
-            customised_axes: Whether to use customised axes methods when available.
-            is_highest: Whether UA level is the highest level for the molecule.
+            bead_groups: Atom groups representing UA beads in a residue.
+            residue_atoms: Atom group for the parent residue.
+            axes_manager: Axes helper used to select axes, centres, and moments.
+            box: Optional periodic box vector.
+            force_partitioning: Force partitioning factor for highest-level vectors.
+            customised_axes: Whether customised UA axes should be used.
+            is_highest: Whether UA is the highest active level.
 
         Returns:
-            A tuple (force_vecs, torque_vecs), each a list of (3,) vectors ordered
-            by UA bead index within the residue.
+            A tuple containing lists of force vectors and torque vectors.
         """
         force_vecs: list[np.ndarray] = []
         torque_vecs: list[np.ndarray] = []
@@ -484,20 +455,19 @@ class FrameCovarianceNode:
         force_partitioning: float,
         is_highest: bool,
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
-        """Build force/torque vectors for residue-level beads of one molecule.
+        """Build force and torque vectors for residue beads.
 
         Args:
-            mol: Molecule/fragment object providing residues/atoms.
-            bead_groups: List of residue bead AtomGroups for the molecule.
-            axes_manager: Axes manager used to determine axes/centers/MOI.
-            box: Optional box vector used for PBC-aware displacements.
-            customised_axes: Whether to use customised axes methods when available.
-            force_partitioning: Force scaling factor applied at highest level.
-            is_highest: Whether residue level is the highest level for the molecule.
+            mol: Molecule fragment containing residues and atoms.
+            bead_groups: Atom groups representing residue beads.
+            axes_manager: Axes helper used to select axes, centres, and moments.
+            box: Optional periodic box vector.
+            customised_axes: Whether customised residue axes should be used.
+            force_partitioning: Force partitioning factor for highest-level vectors.
+            is_highest: Whether residue is the highest active level.
 
         Returns:
-            A tuple (force_vecs, torque_vecs), each a list of (3,) vectors ordered
-            by residue index within the molecule.
+            A tuple containing lists of force vectors and torque vectors.
         """
         force_vecs: list[np.ndarray] = []
         torque_vecs: list[np.ndarray] = []
@@ -542,21 +512,17 @@ class FrameCovarianceNode:
         axes_manager: Any,
         customised_axes: bool,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Get translation/rotation axes, center and MOI for a residue bead.
+        """Return axes, centre, and inertia data for a residue bead.
 
         Args:
-            mol: Molecule/fragment object providing residues/atoms.
-            bead: Residue bead AtomGroup.
-            local_res_i: Residue index within the molecule.
-            axes_manager: Axes manager used to determine axes/centers/MOI.
-            customised_axes: Whether to use customised axes methods when available.
+            mol: Molecule fragment containing residues and atoms.
+            bead: Atom group representing the residue bead.
+            local_res_i: Residue index local to ``mol``.
+            axes_manager: Axes helper used to select axes, centres, and moments.
+            customised_axes: Whether customised residue axes should be used.
 
         Returns:
-            Tuple (trans_axes, rot_axes, center, moi) where:
-              - trans_axes: (3, 3) translation axes
-              - rot_axes: (3, 3) rotation axes
-              - center: (3,) center of mass
-              - moi: (3,) principal moments of inertia
+            A tuple of translation axes, rotation axes, centre, and moments of inertia.
         """
         if customised_axes:
             res = mol.residues[local_res_i]
@@ -582,16 +548,15 @@ class FrameCovarianceNode:
         bead: Any,
         axes_manager: Any,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Get translation/rotation axes, center and MOI for a polymer bead.
+        """Return axes, centre, and inertia data for a polymer bead.
 
         Args:
-            mol: Molecule/fragment object providing atoms.
-            bead: Polymer bead AtomGroup.
-            axes_manager: Axes manager used to determine axes/centers/MOI.
+            mol: Molecule fragment containing atoms.
+            bead: Atom group representing the polymer bead.
+            axes_manager: Axes helper used to select axes, centres, and moments.
 
         Returns:
-            Tuple (trans_axes, rot_axes, center, moi) with shapes (3,3), (3,3), (3,),
-            and (3,) respectively.
+            A tuple of translation axes, rotation axes, centre, and moments of inertia.
         """
         make_whole(mol.atoms)
         make_whole(bead)
@@ -609,16 +574,16 @@ class FrameCovarianceNode:
 
     @staticmethod
     def _get_shared(ctx: FrameCtx) -> dict[str, Any]:
-        """Fetch shared context from a frame context dict.
+        """Return shared workflow data from a frame context.
 
         Args:
-            ctx: Frame context dictionary expected to contain a "shared" key.
+            ctx: Frame-local context dictionary.
 
         Returns:
-            The shared context dict stored at ctx["shared"].
+            The shared workflow data stored at ``ctx["shared"]``.
 
         Raises:
-            KeyError: If "shared" is not present in ctx.
+            KeyError: If ``ctx`` does not contain a ``shared`` entry.
         """
         if "shared" not in ctx:
             raise KeyError("FrameCovarianceNode expects ctx['shared'].")
@@ -626,14 +591,13 @@ class FrameCovarianceNode:
 
     @staticmethod
     def _try_get_box(u: Any) -> np.ndarray | None:
-        """Extract a (3,) box vector from an MDAnalysis universe when available.
+        """Extract periodic box lengths from a universe-like object.
 
         Args:
-            u: MDAnalysis Universe (or compatible) that may expose dimensions.
+            u: Universe-like object that may expose ``dimensions``.
 
         Returns:
-            A numpy array of shape (3,) containing box lengths, or None if not
-            available.
+            A three-element NumPy array of box lengths, or ``None`` if unavailable.
         """
         try:
             return np.asarray(u.dimensions[:3], dtype=float)
@@ -642,15 +606,15 @@ class FrameCovarianceNode:
 
     @staticmethod
     def _inc_mean(old: np.ndarray | None, new: np.ndarray, n: int) -> np.ndarray:
-        """Compute an incremental mean (streaming average).
+        """Update a running mean with one new sample.
 
         Args:
-            old: Previous running mean value, or None for the first sample.
+            old: Existing running mean, or ``None`` for the first sample.
             new: New sample to incorporate.
-            n: 1-based sample count after adding the new sample.
+            n: One-based sample count after adding ``new``.
 
         Returns:
-            Updated running mean.
+            The updated running mean.
         """
         if old is None:
             return new.copy()
@@ -660,21 +624,18 @@ class FrameCovarianceNode:
     def _build_ft_block(
         force_vecs: list[np.ndarray], torque_vecs: list[np.ndarray]
     ) -> np.ndarray:
-        """Build a combined force-torque block matrix for a frame.
-
-        For each bead i, create a 6-vector [Fi, Ti]. The block matrix is built
-        from outer products of these 6-vectors.
+        """Build a combined force-torque block matrix.
 
         Args:
-            force_vecs: List of per-bead force vectors, each of shape (3,).
-            torque_vecs: List of per-bead torque vectors, each of shape (3,).
+            force_vecs: Per-bead force vectors with length three.
+            torque_vecs: Per-bead torque vectors with length three.
 
         Returns:
-            A block matrix of shape (6N, 6N) where N is the number of beads.
+            A block matrix with shape ``(6N, 6N)`` for ``N`` bead vectors.
 
         Raises:
-            ValueError: If force_vecs and torque_vecs have different lengths, if no
-                bead vectors are provided, or if any input vector is not length 3.
+            ValueError: If the vector lists differ in length, are empty, or contain
+                vectors that are not length three.
         """
         if len(force_vecs) != len(torque_vecs):
             raise ValueError("force_vecs and torque_vecs must have the same length.")

@@ -1,56 +1,127 @@
+"""Unit tests for the conformational-state static node."""
+
+from __future__ import annotations
+
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
+from CodeEntropy.levels.nodes import conformations
 from CodeEntropy.levels.nodes.conformations import ComputeConformationalStatesNode
-from CodeEntropy.trajectory.frames import FrameSelection
 
 
-def test_compute_conformational_states_node_runs_and_writes_shared_data():
-    uops = MagicMock()
-    node = ComputeConformationalStatesNode(universe_operations=uops)
+class FakeConformationStateBuilder:
+    """Test double for ConformationStateBuilder."""
 
-    frame_selection = FrameSelection.from_bounds(start=0, stop=10, step=1)
+    def __init__(self, universe_operations):
+        self.universe_operations = universe_operations
+        self.calls = []
 
-    node._dihedral_analysis.build_conformational_states = MagicMock(
-        return_value=(
-            {"ua_key": ["0", "1"]},
-            [["00", "01"]],
-            {"ua_key": [0]},
-            [0],
+    def build_conformational_states(
+        self,
+        *,
+        data_container,
+        levels,
+        groups,
+        bin_width,
+        frame_selection,
+        progress=None,
+    ):
+        self.calls.append(
+            {
+                "data_container": data_container,
+                "levels": levels,
+                "groups": groups,
+                "bin_width": bin_width,
+                "frame_selection": frame_selection,
+                "progress": progress,
+            }
         )
+        return (
+            {"ua_key": ["state_a"]},
+            [["res_state"]],
+            {"ua_key": 1},
+            [1],
+        )
+
+
+def test_compute_conformational_states_node_runs_and_writes_shared_data(monkeypatch):
+    builder_holder = {}
+
+    def builder_factory(universe_operations):
+        builder = FakeConformationStateBuilder(universe_operations)
+        builder_holder["builder"] = builder
+        return builder
+
+    monkeypatch.setattr(
+        conformations,
+        "ConformationStateBuilder",
+        builder_factory,
     )
 
-    shared = {
-        "reduced_universe": MagicMock(),
-        "levels": {0: ["united_atom"]},
+    universe_operations = object()
+    node = ComputeConformationalStatesNode(universe_operations)
+
+    universe = object()
+    frame_selection = object()
+    progress = object()
+
+    shared_data = {
+        "reduced_universe": universe,
+        "levels": [["united_atom", "residue"]],
         "groups": {0: [0]},
         "frame_selection": frame_selection,
-        "args": SimpleNamespace(bin_width=10),
+        "args": SimpleNamespace(bin_width=30),
     }
 
-    out = node.run(shared)
+    result = node.run(shared_data, progress=progress)
 
-    assert out == {
-        "conformational_states": {
-            "ua": {"ua_key": ["0", "1"]},
-            "res": [["00", "01"]],
+    assert shared_data["conformational_states"] == {
+        "ua": {"ua_key": ["state_a"]},
+        "res": [["res_state"]],
+    }
+    assert shared_data["flexible_dihedrals"] == {
+        "ua": {"ua_key": 1},
+        "res": [1],
+    }
+    assert result == {
+        "conformational_states": shared_data["conformational_states"],
+    }
+
+    builder = builder_holder["builder"]
+    assert builder.universe_operations is universe_operations
+    assert builder.calls == [
+        {
+            "data_container": universe,
+            "levels": [["united_atom", "residue"]],
+            "groups": {0: [0]},
+            "bin_width": 30,
+            "frame_selection": frame_selection,
+            "progress": progress,
         }
+    ]
+
+
+def test_compute_conformational_states_node_converts_bin_width_to_int(monkeypatch):
+    captured = {}
+
+    class Builder:
+        def __init__(self, universe_operations):
+            pass
+
+        def build_conformational_states(self, **kwargs):
+            captured.update(kwargs)
+            return {}, [], {}, []
+
+    monkeypatch.setattr(conformations, "ConformationStateBuilder", Builder)
+
+    node = ComputeConformationalStatesNode()
+    shared_data = {
+        "reduced_universe": object(),
+        "levels": [],
+        "groups": {},
+        "frame_selection": object(),
+        "args": SimpleNamespace(bin_width="45"),
     }
 
-    assert shared["conformational_states"] == {
-        "ua": {"ua_key": ["0", "1"]},
-        "res": [["00", "01"]],
-    }
-    assert shared["flexible_dihedrals"] == {
-        "ua": {"ua_key": [0]},
-        "res": [0],
-    }
+    node.run(shared_data)
 
-    node._dihedral_analysis.build_conformational_states.assert_called_once_with(
-        data_container=shared["reduced_universe"],
-        levels=shared["levels"],
-        groups=shared["groups"],
-        bin_width=10,
-        frame_selection=frame_selection,
-        progress=None,
-    )
+    assert captured["bin_width"] == 45
