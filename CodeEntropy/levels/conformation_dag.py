@@ -17,12 +17,7 @@ FlexibleStates = dict[str, Any]
 
 
 class ConformationDAG:
-    """Execute conformational-state construction for selected trajectory frames.
-
-    The first implementation intentionally preserves the existing serial
-    ConformationStateBuilder behaviour. Later issues can replace this internal
-    implementation with chunked map-reduce execution.
-    """
+    """Execute conformational-state construction for selected trajectory frames."""
 
     def __init__(self, universe_operations: Any | None = None) -> None:
         self._builder = ConformationStateBuilder(
@@ -43,7 +38,15 @@ class ConformationDAG:
         *,
         progress: object | None = None,
     ) -> dict[str, ConformationalStates]:
-        """Compute conformational states and store them in shared workflow data."""
+        """Compute conformational states and store them in shared workflow data.
+
+        Args:
+            shared_data: Shared workflow data containing ``reduced_universe``,
+                ``levels``, ``groups``, ``frame_selection``, and ``args.bin_width``.
+            progress: Optional progress sink forwarded to the conformation builder.
+        Returns:
+            A dictionary containing the computed ``conformational_states`` mapping.
+        """
         universe = shared_data["reduced_universe"]
         levels = shared_data["levels"]
         groups = shared_data["groups"]
