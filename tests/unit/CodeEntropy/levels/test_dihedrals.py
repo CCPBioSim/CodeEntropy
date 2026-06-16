@@ -1,39 +1,41 @@
-import contextlib
+from __future__ import annotations
+
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
 
-from CodeEntropy.levels.dihedrals import ConformationStateBuilder
+from CodeEntropy.levels.dihedrals import (
+    ConformationStateBuilder,
+    ConformationStateData,
+    DihedralAngleData,
+    DihedralPeakData,
+)
 from CodeEntropy.trajectory.frames import FrameSelection
 
 
 class _AddableAG:
+    """Minimal addable AtomGroup test double."""
+
     def __init__(self, name: str):
+        """Initialize the fake AtomGroup.
+
+        Args:
+            name: Human-readable identifier used in composed names.
+        """
         self.name = name
 
-    def __add__(self, other: "_AddableAG") -> "_AddableAG":
+    def __add__(self, other: _AddableAG) -> _AddableAG:
+        """Return a composed fake AtomGroup.
+
+        Args:
+            other: Fake AtomGroup to combine with this object.
+
+        Returns:
+            New fake AtomGroup containing a composed name.
+        """
         return _AddableAG(f"({self.name}+{other.name})")
-
-
-class _FakeProgress:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def add_task(self, *args, **kwargs):
-        return 1
-
-    def advance(self, *args, **kwargs):
-        return None
-
-
-@contextlib.contextmanager
-def _fake_progress_bar(*_args, **_kwargs):
-    yield _FakeProgress()
 
 
 def _make_frame_selection(
@@ -41,7 +43,16 @@ def _make_frame_selection(
     stop: int = 2,
     step: int = 1,
 ) -> FrameSelection:
-    """Build a FrameSelection for dihedral unit tests."""
+    """Build a FrameSelection for dihedral unit tests.
+
+    Args:
+        start: Inclusive source-frame start.
+        stop: Exclusive source-frame stop.
+        step: Source-frame step.
+
+    Returns:
+        FrameSelection covering the requested bounds.
+    """
     return FrameSelection.from_bounds(start=start, stop=stop, step=step)
 
 
@@ -109,7 +120,7 @@ def test_get_dihedrals_residue_builds_one_dihedral_when_4_residues():
     assert mol.select_atoms.call_count == 4
 
 
-def test_identify_peaks_sets_empty_outputs_when_no_dihedrals():
+def test_collect_dihedral_angle_data_sets_empty_outputs_when_no_dihedrals():
     uops = MagicMock()
     dt = ConformationStateBuilder(universe_operations=uops)
 
@@ -123,16 +134,149 @@ def test_identify_peaks_sets_empty_outputs_when_no_dihedrals():
 
     frame_selection = _make_frame_selection(start=0, stop=2, step=1)
 
-    peaks_ua, peaks_res = dt._identify_peaks(
+    angle_data = dt._collect_dihedral_angle_data(
         data_container=MagicMock(),
+        molecules=[0],
+        level_list=["united_atom", "residue"],
+        frame_selection=frame_selection,
+    )
+
+    assert angle_data.num_residues == 1
+    assert angle_data.num_dihedrals_ua == [0]
+    assert angle_data.num_dihedrals_res == 0
+    assert angle_data.phi_ua == {0: []}
+    assert angle_data.phi_res == []
+
+
+def test_collect_dihedral_angle_data_wraps_negative_angles():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    mol = MagicMock()
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
+    uops.extract_fragment.return_value = mol
+
+    dihedrals = ["D0"]
+    angles = np.array([[-10.0], [10.0]], dtype=float)
+
+    dt._select_heavy_residue = MagicMock(return_value=mol)
+    dt._get_dihedrals = MagicMock(return_value=dihedrals)
+
+    class _FakeDihedral:
+        def __init__(self, _dihedrals):
+            pass
+
+        def run(self, *args, **kwargs):
+            return SimpleNamespace(results=SimpleNamespace(angles=angles))
+
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+
+    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
+        angle_data = dt._collect_dihedral_angle_data(
+            data_container=MagicMock(),
+            molecules=[0],
+            level_list=["united_atom", "residue"],
+            frame_selection=frame_selection,
+        )
+
+    assert angle_data.phi_ua[0][0] == [350.0, 10.0]
+    assert angle_data.phi_res[0] == [350.0, 10.0]
+
+
+def test_build_peak_data_returns_empty_outputs_when_no_angles():
+    dt = ConformationStateBuilder(universe_operations=MagicMock())
+
+    angle_data = DihedralAngleData(
+        num_residues=1,
+        num_dihedrals_ua=[0],
+        num_dihedrals_res=0,
+        phi_ua={0: []},
+        phi_res=[],
+    )
+
+    peak_data = dt._build_peak_data(
+        angle_data=angle_data,
+        level_list=["united_atom", "residue"],
+        bin_width=30.0,
+    )
+
+    assert peak_data == DihedralPeakData(peaks_ua=[[]], peaks_res=[])
+
+
+def test_build_peak_data_calls_process_histogram_for_ua_and_residue():
+    dt = ConformationStateBuilder(universe_operations=MagicMock())
+
+    angle_data = DihedralAngleData(
+        num_residues=1,
+        num_dihedrals_ua=[1],
+        num_dihedrals_res=1,
+        phi_ua={0: {0: [10.0, 20.0]}},
+        phi_res={0: [30.0, 40.0]},
+    )
+
+    dt._process_histogram = MagicMock(side_effect=[["ua_peak"], ["res_peak"]])
+
+    peak_data = dt._build_peak_data(
+        angle_data=angle_data,
+        level_list=["united_atom", "residue"],
+        bin_width=30.0,
+    )
+
+    assert peak_data.peaks_ua == [["ua_peak"]]
+    assert peak_data.peaks_res == ["res_peak"]
+    assert dt._process_histogram.call_args_list == [
+        call(
+            num_dihedrals=1,
+            phi_values={0: [10.0, 20.0]},
+            bin_width=30.0,
+        ),
+        call(
+            num_dihedrals=1,
+            phi_values={0: [30.0, 40.0]},
+            bin_width=30.0,
+        ),
+    ]
+
+
+def test_identify_peaks_delegates_to_angle_collection_and_peak_building():
+    dt = ConformationStateBuilder(universe_operations=MagicMock())
+
+    angle_data = DihedralAngleData(
+        num_residues=1,
+        num_dihedrals_ua=[1],
+        num_dihedrals_res=1,
+        phi_ua={0: {0: [10.0]}},
+        phi_res={0: [10.0]},
+    )
+    peak_data = DihedralPeakData(peaks_ua=[[[10.0]]], peaks_res=[[10.0]])
+
+    dt._collect_dihedral_angle_data = MagicMock(return_value=angle_data)
+    dt._build_peak_data = MagicMock(return_value=peak_data)
+
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+
+    peaks_ua, peaks_res = dt._identify_peaks(
+        data_container="universe",
         molecules=[0],
         bin_width=30.0,
         level_list=["united_atom", "residue"],
         frame_selection=frame_selection,
     )
 
-    assert peaks_ua == [[]]
-    assert peaks_res == []
+    assert peaks_ua == peak_data.peaks_ua
+    assert peaks_res == peak_data.peaks_res
+    dt._collect_dihedral_angle_data.assert_called_once_with(
+        data_container="universe",
+        molecules=[0],
+        level_list=["united_atom", "residue"],
+        frame_selection=frame_selection,
+    )
+    dt._build_peak_data.assert_called_once_with(
+        angle_data=angle_data,
+        level_list=["united_atom", "residue"],
+        bin_width=30.0,
+    )
 
 
 def test_identify_peaks_wraps_negative_angles_and_calls_process_histogram():
@@ -183,6 +327,154 @@ def test_find_histogram_peaks_hits_interior_and_wraparound_last_bin():
         20.0,
         40.0,
     ]
+
+
+def test_calculate_group_state_data_initialises_then_extends_for_multiple_molecules():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    mol = MagicMock()
+    mol.residues = [MagicMock()]
+    mol.residues[0].atoms.indices = np.array([0, 1, 2, 3], dtype=int)
+    uops.extract_fragment.return_value = mol
+
+    dihedrals = ["D0"]
+    angles = np.array([[5.0], [15.0]], dtype=float)
+    peaks = [[5.0, 15.0]]
+
+    dt._select_heavy_residue = MagicMock(return_value=mol)
+    dt._get_dihedrals = MagicMock(return_value=dihedrals)
+
+    class _FakeDihedral:
+        def __init__(self, _dihedrals):
+            pass
+
+        def run(self, *args, **kwargs):
+            return SimpleNamespace(results=SimpleNamespace(angles=angles))
+
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+
+    with patch("CodeEntropy.levels.dihedrals.Dihedral", _FakeDihedral):
+        state_data = dt._calculate_group_state_data(
+            data_container=MagicMock(),
+            group_id=0,
+            molecules=[0, 1],
+            level_list=["united_atom", "residue"],
+            peaks_ua=[peaks],
+            peaks_res=peaks,
+            frame_selection=frame_selection,
+        )
+
+    assert state_data.states_ua_updates[(0, 0)] == ["0", "1", "0", "1"]
+    assert state_data.flexible_ua_updates[(0, 0)] == 1
+    assert state_data.state_res == ["0", "1", "0", "1"]
+    assert state_data.flex_res == 1
+
+
+def test_merge_group_state_data_initialises_final_accumulators():
+    states_ua = {}
+    states_res = []
+    flexible_ua = {}
+    flexible_res = []
+
+    state_data = ConformationStateData(
+        state_res=["0", "1"],
+        flex_res=1,
+        states_ua_updates={(0, 0): ["0", "1"]},
+        flexible_ua_updates={(0, 0): 1},
+    )
+
+    ConformationStateBuilder._merge_group_state_data(
+        state_data=state_data,
+        states_ua=states_ua,
+        states_res=states_res,
+        flexible_ua=flexible_ua,
+        flexible_res=flexible_res,
+    )
+
+    assert states_ua == {(0, 0): ["0", "1"]}
+    assert states_res == [["0", "1"]]
+    assert flexible_ua == {(0, 0): 1}
+    assert flexible_res == [1]
+
+
+def test_merge_group_state_data_extends_existing_ua_states():
+    states_ua = {(0, 0): ["0"]}
+    states_res = []
+    flexible_ua = {(0, 0): 1}
+    flexible_res = []
+
+    state_data = ConformationStateData(
+        state_res=["1"],
+        flex_res=0,
+        states_ua_updates={(0, 0): ["1"], (0, 1): ["2"]},
+        flexible_ua_updates={(0, 0): 2, (0, 1): 0},
+    )
+
+    ConformationStateBuilder._merge_group_state_data(
+        state_data=state_data,
+        states_ua=states_ua,
+        states_res=states_res,
+        flexible_ua=flexible_ua,
+        flexible_res=flexible_res,
+    )
+
+    assert states_ua[(0, 0)] == ["0", "1"]
+    assert states_ua[(0, 1)] == ["2"]
+    assert flexible_ua[(0, 0)] == 2
+    assert flexible_ua[(0, 1)] == 0
+    assert states_res == [["1"]]
+    assert flexible_res == [0]
+
+
+def test_assign_states_delegates_to_calculation_and_merge():
+    dt = ConformationStateBuilder(universe_operations=MagicMock())
+
+    state_data = ConformationStateData(
+        state_res=["0"],
+        flex_res=1,
+        states_ua_updates={(0, 0): ["0"]},
+        flexible_ua_updates={(0, 0): 1},
+    )
+    dt._calculate_group_state_data = MagicMock(return_value=state_data)
+    dt._merge_group_state_data = MagicMock()
+
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+    states_ua = {}
+    states_res = []
+    flexible_ua = {}
+    flexible_res = []
+
+    dt._assign_states(
+        data_container="universe",
+        group_id=0,
+        molecules=[0],
+        level_list=["united_atom"],
+        peaks_ua=[[[10.0]]],
+        peaks_res=[],
+        states_ua=states_ua,
+        states_res=states_res,
+        flexible_ua=flexible_ua,
+        flexible_res=flexible_res,
+        frame_selection=frame_selection,
+    )
+
+    dt._calculate_group_state_data.assert_called_once_with(
+        data_container="universe",
+        group_id=0,
+        molecules=[0],
+        level_list=["united_atom"],
+        peaks_ua=[[[10.0]]],
+        peaks_res=[],
+        frame_selection=frame_selection,
+    )
+    dt._merge_group_state_data.assert_called_once_with(
+        state_data=state_data,
+        states_ua=states_ua,
+        states_res=states_res,
+        flexible_ua=flexible_ua,
+        flexible_res=flexible_res,
+    )
 
 
 def test_assign_states_initialises_then_extends_for_multiple_molecules():
@@ -310,6 +602,43 @@ def test_identify_peaks_handles_multiple_dihedrals():
     assert out_ua == [[1, 2]]
     assert out_res == [1, 2]
     assert dt._process_histogram.call_count == 2
+
+
+def test_collect_dihedral_angle_data_initialises_phi_res_dict_before_processing():
+    uops = MagicMock()
+    dt = ConformationStateBuilder(universe_operations=uops)
+
+    mol = MagicMock()
+    mol.residues = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    uops.extract_fragment.return_value = mol
+
+    frame_selection = _make_frame_selection(start=0, stop=2, step=1)
+
+    dihedrals = ["D0"]
+    dihedral_results = MagicMock()
+    processed_phi = {0: [10.0, 20.0]}
+
+    dt._get_dihedrals = MagicMock(return_value=dihedrals)
+    dt._run_dihedrals = MagicMock(return_value=dihedral_results)
+    dt._process_dihedral_phi = MagicMock(return_value=processed_phi)
+
+    angle_data = dt._collect_dihedral_angle_data(
+        data_container=MagicMock(),
+        molecules=[0],
+        level_list=["residue"],
+        frame_selection=frame_selection,
+    )
+
+    assert angle_data.num_residues == 4
+    assert angle_data.phi_res == processed_phi
+    assert angle_data.num_dihedrals_res == 1
+
+    dt._process_dihedral_phi.assert_called_once_with(
+        dihedral_results=dihedral_results,
+        num_dihedrals=1,
+        number_frames=2,
+        phi_values={},
+    )
 
 
 def test_identify_peaks_initialises_phi_res_dict_before_processing_residue_dihedrals():
