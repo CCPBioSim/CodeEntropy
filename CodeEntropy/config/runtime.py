@@ -36,7 +36,9 @@ from CodeEntropy.config.argparse import ConfigResolver
 from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.workflow import EntropyWorkflow
-from CodeEntropy.levels.dihedrals import ConformationStateBuilder
+from CodeEntropy.levels.dihedrals.conformational_state_builder import (
+    ConformationStateBuilder,
+)
 from CodeEntropy.molecules.grouping import MoleculeGrouper
 from CodeEntropy.results.reporter import ResultsReporter
 from CodeEntropy.trajectory.mda import UniverseOperations
