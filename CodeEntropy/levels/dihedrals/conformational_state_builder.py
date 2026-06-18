@@ -108,8 +108,9 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         if chunk_size < 1:
             raise ValueError("chunk_size must be >= 1")
 
+        number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
-        states_res: list[list[str]] = []
+        states_res: list[list[str]] = [[] for _ in range(number_groups)]
         flexible_ua: dict[UAKey, int] = {}
         flexible_res: list[int] = []
 
@@ -130,8 +131,6 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
 
         for group_id, molecules in groups.items():
             if not molecules:
-                states_res.append([])
-
                 if progress is not None and task is not None:
                     progress.update(task, title=f"Group {group_id} (empty)")
                     progress.advance(task)

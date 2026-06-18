@@ -179,7 +179,7 @@ def test_chunked_serial_group_flow_calls_domain_phases_in_order():
     )
 
     assert states_ua == {(0, 0): ["0"]}
-    assert states_res == [[]]
+    assert states_res == [[], []]
     assert flexible_ua == {(0, 0): 0}
     assert flexible_res == [0]
     builder._discover_group_dihedral_topology.assert_called_once_with(
