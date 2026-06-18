@@ -115,12 +115,24 @@ class DihedralAngleCollector(DihedralTopologyDiscovery):
             FrameSelection containing exactly the chunk frame indices.
 
         Raises:
-            ValueError: If the chunk is empty.
+            ValueError: If the chunk is empty, not strictly increasing, or not
+                regularly strided.
         """
         if not frame_indices:
             raise ValueError("Cannot build a frame selection from an empty chunk.")
 
-        return FrameSelection(indices=tuple(int(index) for index in frame_indices))
+        indices = tuple(int(index) for index in frame_indices)
+
+        if len(indices) > 1:
+            step = indices[1] - indices[0]
+            if step <= 0:
+                raise ValueError("Frame chunk indices must be strictly increasing.")
+
+            for previous, current in zip(indices, indices[1:], strict=False):
+                if current - previous != step:
+                    raise ValueError("Frame chunk indices must be regularly strided.")
+
+        return FrameSelection(indices=indices)
 
     def _collect_angle_observable(
         self,

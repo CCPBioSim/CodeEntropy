@@ -1,8 +1,9 @@
-"""Conformational-state builder for dihedral analysis.
+"""Public conformational-state builder for dihedral analysis.
 
-This module builds the conformational state builder which is splits
-domain-specific helpers for topology discovery, angle observation,
-peak detection, and state assignment.
+This module keeps the stable ``ConformationStateBuilder`` entry point used by
+``ConformationDAG`` while the implementation is split across domain-specific
+helpers for topology discovery, angle observation, peak detection, and state
+assignment.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
     """Build conformational state labels from selected-frame dihedral angles."""
 
     def __init__(self, universe_operations: Any) -> None:
-        """Initialize the analysis helper.
+        """Initialise the analysis helper.
 
         Args:
             universe_operations: Object providing helper methods:
@@ -107,18 +108,16 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         if chunk_size < 1:
             raise ValueError("chunk_size must be >= 1")
 
-        number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
-        states_res: list[list[str]] = [[] for _ in range(number_groups)]
+        states_res: list[list[str]] = []
         flexible_ua: dict[UAKey, int] = {}
         flexible_res: list[int] = []
 
         task: TaskID | None = None
         if progress is not None:
-            total = max(1, len(groups))
             task = progress.add_task(
                 "[green]Conformational states",
-                total=total,
+                total=max(1, len(groups)),
                 title="Initializing",
             )
 
@@ -126,20 +125,24 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
             if progress is not None and task is not None:
                 progress.update(task, title="No groups")
                 progress.advance(task)
+
             return states_ua, states_res, flexible_ua, flexible_res
 
-        for group_id in groups.keys():
-            molecules = groups[group_id]
+        for group_id, molecules in groups.items():
             if not molecules:
+                states_res.append([])
+
                 if progress is not None and task is not None:
                     progress.update(task, title=f"Group {group_id} (empty)")
                     progress.advance(task)
+
                 continue
 
             if progress is not None and task is not None:
                 progress.update(task, title=f"Group {group_id}")
 
             level_list = levels[molecules[0]]
+
             topologies = self._discover_group_dihedral_topology(
                 data_container=data_container,
                 group_id=group_id,
@@ -163,11 +166,13 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
                 )
                 for task_item in tasks
             ]
+
             peak_data = self._reduce_angle_observables_to_peak_data(
                 observables=observables,
                 level_list=level_list,
                 bin_width=bin_width,
             )
+
             state_partials = [
                 self._assign_state_partial_from_observable(
                     observable=observable,
@@ -178,7 +183,9 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
                 )
                 for observable in observables
             ]
+
             state_data = self._reduce_state_partials(state_partials)
+
             self._merge_group_state_data(
                 state_data=state_data,
                 states_ua=states_ua,

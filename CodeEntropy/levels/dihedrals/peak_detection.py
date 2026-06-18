@@ -127,7 +127,7 @@ class ConformationPeakDetector(DihedralAngleCollector):
         num_residues = first.num_residues
         num_dihedrals_ua = [0 for _ in range(num_residues)]
         hist_ua: HistogramContainer = {}
-        hist_res: HistogramValues | list[Any] = {}
+        hist_res: HistogramValues | list[Any] = []
         num_dihedrals_res = 0
 
         if "united_atom" in level_list:
