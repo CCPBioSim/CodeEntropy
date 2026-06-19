@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from CodeEntropy.levels.dihedrals import ConformationStateBuilder
+from CodeEntropy.levels.dihedrals.conformational_state_builder import (
+    ConformationStateBuilder,
+)
+from CodeEntropy.levels.execution.policy import ExecutionPolicy
 from CodeEntropy.trajectory.frames import FrameSelection
 
 SharedData = dict[str, Any]
@@ -20,9 +23,16 @@ class ConformationDAG:
     """Execute conformational-state construction for selected trajectory frames."""
 
     def __init__(self, universe_operations: Any | None = None) -> None:
+        """Initialize the conformational DAG.
+
+        Args:
+            universe_operations: Optional universe-operation adapter passed to the
+                underlying conformation-state builder.
+        """
         self._builder = ConformationStateBuilder(
             universe_operations=universe_operations
         )
+        self._policy = ExecutionPolicy()
 
     def build(self) -> ConformationDAG:
         """Build the conformational DAG topology.
@@ -44,6 +54,7 @@ class ConformationDAG:
             shared_data: Shared workflow data containing ``reduced_universe``,
                 ``levels``, ``groups``, ``frame_selection``, and ``args.bin_width``.
             progress: Optional progress sink forwarded to the conformation builder.
+
         Returns:
             A dictionary containing the computed ``conformational_states`` mapping.
         """
@@ -52,6 +63,10 @@ class ConformationDAG:
         groups = shared_data["groups"]
         frame_selection: FrameSelection = shared_data["frame_selection"]
         bin_width = int(shared_data["args"].bin_width)
+        chunk_size = self._policy.frame_chunk_size(
+            shared_data,
+            n_frames=frame_selection.n_frames,
+        )
 
         states_ua, states_res, flexible_ua, flexible_res = (
             self._builder.build_conformational_states(
@@ -61,6 +76,7 @@ class ConformationDAG:
                 bin_width=bin_width,
                 frame_selection=frame_selection,
                 progress=progress,
+                chunk_size=chunk_size,
             )
         )
 

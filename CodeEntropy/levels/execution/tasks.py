@@ -282,10 +282,7 @@ def execute_frame_chunk_worker(
         frame_covariance = frame_dag.execute_frame(worker_shared_data, frame_index)
         reduce_frame_covariance_into_partial(covariance_partial, frame_covariance)
 
-        universe = worker_shared_data.get(
-            "reduced_universe",
-            worker_shared_data.get("universe"),
-        )
+        universe = get_worker_frame_universe(worker_shared_data)
         frame_neighbors = neighbor_helper.get_frame_neighbor_counts(
             universe=universe,
             levels=worker_shared_data["levels"],
@@ -308,3 +305,26 @@ def execute_frame_chunk_worker(
         neighbor_samples=neighbor_samples,
         frame_indices=task.frame_indices,
     )
+
+
+def get_worker_frame_universe(worker_shared_data: dict[str, Any]) -> Any:
+    """Return the universe object that should be used for frame-local work.
+
+    Args:
+        worker_shared_data: Worker-visible shared workflow data.
+
+    Returns:
+        The universe object to use for frame-local neighbour calculations.
+
+    Raises:
+        KeyError: If no usable universe is available.
+    """
+    frame_source = worker_shared_data.get("frame_source")
+    frame_source_universe = getattr(frame_source, "universe", None)
+    if frame_source_universe is not None:
+        return frame_source_universe
+
+    if "reduced_universe" in worker_shared_data:
+        return worker_shared_data["reduced_universe"]
+
+    return worker_shared_data["universe"]

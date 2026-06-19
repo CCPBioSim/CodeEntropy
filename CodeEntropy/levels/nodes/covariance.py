@@ -69,7 +69,11 @@ class FrameCovarianceNode:
         """
         shared = self._get_shared(ctx)
 
-        u = shared["reduced_universe"]
+        frame_source = shared.get("frame_source")
+        if frame_source is None:
+            u = shared["reduced_universe"]
+        else:
+            u = frame_source.universe
         groups = shared["groups"]
         levels = shared["levels"]
         beads = shared["beads"]
