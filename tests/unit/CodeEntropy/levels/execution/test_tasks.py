@@ -13,6 +13,7 @@ from CodeEntropy.levels.execution.tasks import (
     FrameChunkTask,
     execute_frame_chunk_worker,
     execute_frame_map_output,
+    get_worker_frame_universe,
     incremental_mean_value,
     make_frame_worker_shared_data,
     reduce_frame_covariance_into_partial,
@@ -431,3 +432,39 @@ def test_execute_frame_chunk_worker_falls_back_to_universe_and_adds_new_neighbor
     assert result.frame_indices == ("5",)
     assert result.neighbor_totals == {0: 0, 99: 3}
     assert result.neighbor_samples == {0: 0, 99: 2}
+
+
+def test_get_worker_frame_universe_prefers_frame_source_universe():
+    frame_source = SimpleNamespace(universe="positioned-universe")
+    worker_shared_data = {
+        "frame_source": frame_source,
+        "reduced_universe": "stale-reduced-universe",
+        "universe": "fallback-universe",
+    }
+
+    result = get_worker_frame_universe(worker_shared_data)
+
+    assert result == "positioned-universe"
+
+
+def test_get_worker_frame_universe_falls_back_to_reduced_universe():
+    worker_shared_data = {
+        "frame_source": "mock-frame-source",
+        "reduced_universe": "reduced-universe",
+        "universe": "fallback-universe",
+    }
+
+    result = get_worker_frame_universe(worker_shared_data)
+
+    assert result == "reduced-universe"
+
+
+def test_get_worker_frame_universe_falls_back_to_universe():
+    worker_shared_data = {
+        "frame_source": "mock-frame-source",
+        "universe": "fallback-universe",
+    }
+
+    result = get_worker_frame_universe(worker_shared_data)
+
+    assert result == "fallback-universe"
