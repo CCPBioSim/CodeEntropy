@@ -282,10 +282,7 @@ def execute_frame_chunk_worker(
         frame_covariance = frame_dag.execute_frame(worker_shared_data, frame_index)
         reduce_frame_covariance_into_partial(covariance_partial, frame_covariance)
 
-        universe = worker_shared_data.get(
-            "reduced_universe",
-            worker_shared_data.get("universe"),
-        )
+        universe = worker_shared_data["frame_source"].universe
         frame_neighbors = neighbor_helper.get_frame_neighbor_counts(
             universe=universe,
             levels=worker_shared_data["levels"],
