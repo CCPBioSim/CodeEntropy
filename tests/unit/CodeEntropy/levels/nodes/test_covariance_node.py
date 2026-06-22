@@ -415,7 +415,7 @@ def test_build_ua_vectors_uses_customised_axes():
 
     force_vecs, torque_vecs = node._build_ua_vectors(
         bead_groups=[FakeAtomGroup("ua")],
-        residue_atoms=FakeAtomGroup("res"),
+        residue_group=FakeAtomGroup("res"),
         axes_manager=axes_manager,
         box=None,
         force_partitioning=0.5,
@@ -441,7 +441,7 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         node._build_ua_vectors(
             bead_groups=[FakeAtomGroup("ua")],
-            residue_atoms=FakeAtomGroup("res"),
+            residue_group=FakeAtomGroup("res"),
             axes_manager=axes_manager,
             box=None,
             force_partitioning=0.5,
