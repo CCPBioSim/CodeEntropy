@@ -439,6 +439,7 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
     FakeAtomGroup.atoms = FakeAtomGroup
+    FakeAtomGroup.atoms.principal_axes.return_value = np.eye(3)
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         node._build_ua_vectors(
