@@ -322,7 +322,7 @@ class AxesCalculator:
             rot_center = data_container.center_of_mass()
             rot_axes, moment_of_inertia = self.get_bonded_axes(
                 system=data_container,
-                atom=heavy_atom[0],
+                atom=heavy_atom,
                 dimensions=data_container.dimensions[:3],
             )
             trans_center = rot_center
