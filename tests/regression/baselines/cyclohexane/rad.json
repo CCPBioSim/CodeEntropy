@@ -2,7 +2,7 @@
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 11.726471858700231,
+        "united_atom:Transvibrational": 11.65610486557721,
         "united_atom:Rovibrational": 47.71088602161552,
         "residue:FTmat-Transvibrational": 70.3922327806972,
         "residue:FTmat-Rovibrational": 63.44920824648768,
@@ -10,7 +10,7 @@
         "residue:Conformational": 0.0,
         "residue:Orientational": 14.049324060636614
       },
-      "total": 208.61700217483278
+      "total": 208.54663518170975
     }
   }
 }
