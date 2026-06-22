@@ -716,22 +716,3 @@ def test_get_bonded_axes_returns_none_none_if_custom_axes_none(monkeypatch):
 
     assert custom_axes is None
     assert moi is None
-
-
-"""
-def test_get_chain(monkeypatch):
-    ax = AxesCalculator()
-
-    atom = _FakeAtom(index=7, mass=12.0, position=[0, 0, 0])
-    system = MagicMock()
-    dimensions = np.array([10.0, 10.0, 10.0], dtype=float)
-
-
-    monkeypatch.setattr(
-        ax, "get_chain", lambda _idx, _sys: (first,middle,last)
-    )
-
-
-    assert
-    assert
-"""
