@@ -147,16 +147,6 @@ def test_extract_topology_fragment_uses_lightweight_atomgroup_helper() -> None:
     universe_operations.extract_fragment.assert_not_called()
 
 
-def test_extract_topology_fragment_falls_back_to_existing_extract_fragment() -> None:
-    class LegacyUniverseOperations:
-        def extract_fragment(self, data_container: Any, molecule_id: Any) -> str:
-            return f"fragment-{data_container}-{molecule_id}"
-
-    discovery = _make_discovery(LegacyUniverseOperations())
-
-    assert discovery._extract_topology_fragment("universe", 2) == "fragment-universe-2"
-
-
 def test_select_heavy_residue_builds_expected_selections() -> None:
     discovery = _make_discovery()
 

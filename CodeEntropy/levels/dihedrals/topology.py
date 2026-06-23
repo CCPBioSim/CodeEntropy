@@ -101,17 +101,12 @@ class DihedralTopologyDiscovery:
             molecule_id: Fragment index identifying the molecule to extract.
 
         Returns:
-            MDAnalysis AtomGroup for the selected molecule when lightweight
-            extraction is available; otherwise, the fallback fragment object
-            returned by ``extract_fragment``.
+            MDAnalysis AtomGroup for the selected molecule
         """
-        if hasattr(self._universe_operations, "extract_fragment_atomgroup"):
-            return self._universe_operations.extract_fragment_atomgroup(
-                data_container,
-                int(molecule_id),
-            )
-
-        return self._universe_operations.extract_fragment(data_container, molecule_id)
+        return self._universe_operations.extract_fragment_atomgroup(
+            data_container,
+            int(molecule_id),
+        )
 
     def _select_heavy_residue(self, mol: Any, res_id: int) -> Any:
         """Select heavy atoms in a residue by residue index.
