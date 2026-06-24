@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from CodeEntropy.levels.axes import AxesCalculator
-from CodeEntropy.levels.nodes.axes_topology import UAAxesTopology
+from CodeEntropy.levels.nodes.axes_topology import ResidueAxesTopology, UAAxesTopology
 
 
 class _FakeAtom:
@@ -749,6 +749,109 @@ def _ua_topology(
         residue_heavy_indices=np.asarray(residue_heavy_indices, dtype=int),
         residue_ua_masses=np.asarray(residue_ua_masses, dtype=float),
     )
+
+
+def _residue_topology(
+    *,
+    residue_heavy_indices=(1,),
+    residue_ua_masses=(12.0,),
+    has_neighbor_bonds=False,
+):
+    """Build a small cached residue topology fixture."""
+    return ResidueAxesTopology(
+        residue_heavy_indices=np.asarray(residue_heavy_indices, dtype=int),
+        residue_ua_masses=np.asarray(residue_ua_masses, dtype=float),
+        has_neighbor_bonds=bool(has_neighbor_bonds),
+    )
+
+
+def test_get_residue_axes_from_topology_no_neighbor_bonds_uses_cached_indices(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [1.0, 2.0, 3.0])
+    other_heavy = _FakeAtom(3, 14.0, [4.0, 5.0, 6.0])
+    universe = _FakeUniverse({1: heavy_atom, 3: other_heavy})
+    mol = MagicMock()
+    residue_atoms = MagicMock()
+    residue_atoms.center_of_mass.return_value = np.array([9.0, 8.0, 7.0])
+    topology = _residue_topology(
+        residue_heavy_indices=(1, 3),
+        residue_ua_masses=(13.0, 14.0),
+        has_neighbor_bonds=False,
+    )
+
+    get_tensor = MagicMock(return_value=np.eye(3))
+    get_principal = MagicMock(return_value=(np.eye(3) * 2.0, np.array([3.0, 2.0, 1.0])))
+
+    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", get_tensor)
+    monkeypatch.setattr(ax, "get_custom_principal_axes", get_principal)
+
+    box = np.array([20.0, 30.0, 40.0])
+    trans_axes, rot_axes, center, moi = ax.get_residue_axes_from_topology(
+        u=universe,
+        mol=mol,
+        residue_atoms=residue_atoms,
+        topology=topology,
+        box=box,
+    )
+
+    np.testing.assert_allclose(trans_axes, np.eye(3) * 2.0)
+    np.testing.assert_allclose(rot_axes, np.eye(3) * 2.0)
+    np.testing.assert_allclose(center, np.array([9.0, 8.0, 7.0]))
+    np.testing.assert_allclose(moi, np.array([3.0, 2.0, 1.0]))
+
+    tensor_kwargs = get_tensor.call_args.kwargs
+    np.testing.assert_allclose(
+        tensor_kwargs["center_of_mass"],
+        np.array([9.0, 8.0, 7.0]),
+    )
+    np.testing.assert_allclose(
+        tensor_kwargs["positions"],
+        np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+    )
+    np.testing.assert_allclose(tensor_kwargs["masses"], np.array([13.0, 14.0]))
+    np.testing.assert_allclose(tensor_kwargs["dimensions"], box)
+    get_principal.assert_called_once()
+
+
+def test_get_residue_axes_from_topology_neighbor_bonds_uses_vanilla_axes(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    universe = _FakeUniverse(
+        {},
+        dimensions=[11.0, 12.0, 13.0, 90.0, 90.0, 90.0],
+    )
+    mol = MagicMock()
+    mol.atoms.principal_axes.return_value = np.eye(3) * 5.0
+    residue_atoms = MagicMock()
+    residue_atoms.center_of_mass.return_value = np.array([1.0, 2.0, 3.0])
+    topology = _residue_topology(has_neighbor_bonds=True)
+
+    make_whole = MagicMock()
+    get_vanilla = MagicMock(return_value=(np.eye(3) * 6.0, np.array([6.0, 5.0, 4.0])))
+
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", make_whole)
+    monkeypatch.setattr(ax, "get_vanilla_axes", get_vanilla)
+
+    trans_axes, rot_axes, center, moi = ax.get_residue_axes_from_topology(
+        u=universe,
+        mol=mol,
+        residue_atoms=residue_atoms,
+        topology=topology,
+        box=None,
+    )
+
+    make_whole.assert_called_once_with(mol.atoms)
+    mol.atoms.principal_axes.assert_called_once()
+    get_vanilla.assert_called_once_with(residue_atoms)
+    np.testing.assert_allclose(trans_axes, np.eye(3) * 5.0)
+    np.testing.assert_allclose(rot_axes, np.eye(3) * 6.0)
+    np.testing.assert_allclose(center, np.array([1.0, 2.0, 3.0]))
+    np.testing.assert_allclose(moi, np.array([6.0, 5.0, 4.0]))
 
 
 def test_get_UA_axes_from_topology_multiple_heavy_uses_cached_indices_and_box(
