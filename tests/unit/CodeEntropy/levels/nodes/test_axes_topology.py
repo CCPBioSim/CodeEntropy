@@ -1,5 +1,3 @@
-"""Atomic unit tests for static axes-topology construction."""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
