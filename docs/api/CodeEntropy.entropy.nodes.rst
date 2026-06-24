@@ -1,11 +1,6 @@
 CodeEntropy.entropy.nodes package
 =================================
 
-.. automodule:: CodeEntropy.entropy.nodes
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Submodules
 ----------
 
@@ -16,3 +11,11 @@ Submodules
    CodeEntropy.entropy.nodes.configurational
    CodeEntropy.entropy.nodes.orientational
    CodeEntropy.entropy.nodes.vibrational
+
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.entropy.nodes
+   :members:
+   :show-inheritance:
+   :undoc-members:

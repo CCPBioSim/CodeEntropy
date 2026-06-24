@@ -1,17 +1,15 @@
 CodeEntropy.levels package
 ==========================
 
-.. automodule:: CodeEntropy.levels
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Subpackages
 -----------
 
 .. toctree::
    :maxdepth: 4
 
+   CodeEntropy.levels.dihedrals
+   CodeEntropy.levels.execution
+   CodeEntropy.levels.graph
    CodeEntropy.levels.nodes
 
 Submodules
@@ -21,12 +19,16 @@ Submodules
    :maxdepth: 4
 
    CodeEntropy.levels.axes
-   CodeEntropy.levels.conformation_dag
-   CodeEntropy.levels.dihedrals
    CodeEntropy.levels.forces
-   CodeEntropy.levels.frame_dag
    CodeEntropy.levels.hierarchy
-   CodeEntropy.levels.level_dag
    CodeEntropy.levels.linalg
    CodeEntropy.levels.neighbors
    CodeEntropy.levels.search
+
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.levels
+   :members:
+   :show-inheritance:
+   :undoc-members:
