@@ -12,6 +12,7 @@ def test_build_registers_static_nodes_and_builds_stage_dags():
         patch("CodeEntropy.levels.level_dag.DetectMoleculesNode"),
         patch("CodeEntropy.levels.level_dag.DetectLevelsNode"),
         patch("CodeEntropy.levels.level_dag.BuildBeadsNode"),
+        patch("CodeEntropy.levels.level_dag.BuildAxesTopologyNode"),
         patch("CodeEntropy.levels.level_dag.InitCovarianceAccumulatorsNode"),
         patch("CodeEntropy.levels.level_dag.ConformationDAG"),
     ):
@@ -27,6 +28,7 @@ def test_build_registers_static_nodes_and_builds_stage_dags():
         "detect_molecules",
         "detect_levels",
         "build_beads",
+        "build_axes_topology",
         "init_covariance_accumulators",
     }
     assert "find_neighbors" not in dag._static_nodes
@@ -34,6 +36,7 @@ def test_build_registers_static_nodes_and_builds_stage_dags():
 
     assert ("detect_molecules", "detect_levels") in dag._static_graph.edges
     assert ("detect_levels", "build_beads") in dag._static_graph.edges
+    assert ("build_beads", "build_axes_topology") in dag._static_graph.edges
     assert ("detect_levels", "init_covariance_accumulators") in dag._static_graph.edges
     assert (
         "detect_levels",

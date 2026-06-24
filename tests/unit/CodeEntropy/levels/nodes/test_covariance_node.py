@@ -88,6 +88,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
     mol = FakeMolecule()
     universe = FakeUniverse([mol], dimensions=np.array([10.0, 20.0, 30.0, 90.0]))
     axes_manager = object()
+    axes_topology = object()
 
     ctx = {
         "shared": {
@@ -97,6 +98,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
             "beads": {},
             "args": _args(combined_forcetorque=True, customised_axes=True),
             "axes_manager": axes_manager,
+            "axes_topology": axes_topology,
         }
     }
 
@@ -115,6 +117,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
     assert ua_kwargs["mol_id"] == 0
     assert ua_kwargs["group_id"] == 7
     assert ua_kwargs["axes_manager"] is axes_manager
+    assert ua_kwargs["axes_topology"] is axes_topology
     assert ua_kwargs["force_partitioning"] == 0.5
     assert ua_kwargs["customised_axes"] is True
     assert ua_kwargs["is_highest"] is False
@@ -165,6 +168,7 @@ def test_process_united_atom_updates_outputs_and_molcount():
         group_id=7,
         beads={(0, "united_atom", 0): [np.array([0])]},
         axes_manager="axes",
+        axes_topology=None,
         box=None,
         force_partitioning=0.5,
         customised_axes=False,
@@ -192,6 +196,7 @@ def test_process_united_atom_returns_when_no_beads_or_empty_atom_groups():
         group_id=7,
         beads={},
         axes_manager=None,
+        axes_topology=None,
         box=None,
         force_partitioning=0.5,
         customised_axes=False,
@@ -213,6 +218,7 @@ def test_process_united_atom_returns_when_no_beads_or_empty_atom_groups():
         group_id=7,
         beads={(0, "united_atom", 0): [np.array([0])]},
         axes_manager=None,
+        axes_topology=None,
         box=None,
         force_partitioning=0.5,
         customised_axes=False,
@@ -414,9 +420,13 @@ def test_build_ua_vectors_uses_customised_axes():
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
 
     force_vecs, torque_vecs = node._build_ua_vectors(
+        u=FakeUniverse([]),
+        mol_id=0,
+        local_res_i=0,
         bead_groups=[FakeAtomGroup("ua")],
         residue_atoms=FakeAtomGroup("res"),
         axes_manager=axes_manager,
+        axes_topology=None,
         box=None,
         force_partitioning=0.5,
         customised_axes=True,
@@ -426,6 +436,49 @@ def test_build_ua_vectors_uses_customised_axes():
     assert len(force_vecs) == 1
     assert len(torque_vecs) == 1
     axes_manager.get_UA_axes.assert_called_once()
+
+
+def test_build_ua_vectors_uses_cached_axes_topology_when_available():
+    node = FrameCovarianceNode()
+    axes_manager = MagicMock()
+
+    u = FakeUniverse([])
+    ua_topology = object()
+    axes_topology = SimpleNamespace(ua={(3, 4, 0): ua_topology})
+
+    axes_manager.get_UA_axes_from_topology.return_value = (
+        np.eye(3),
+        2.0 * np.eye(3),
+        np.ones(3),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
+    node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+
+    force_vecs, torque_vecs = node._build_ua_vectors(
+        u=u,
+        mol_id=3,
+        local_res_i=4,
+        bead_groups=[FakeAtomGroup("ua")],
+        residue_atoms=FakeAtomGroup("res"),
+        axes_manager=axes_manager,
+        axes_topology=axes_topology,
+        box=None,
+        force_partitioning=0.5,
+        customised_axes=True,
+        is_highest=True,
+    )
+
+    assert len(force_vecs) == 1
+    assert len(torque_vecs) == 1
+
+    called_kwargs = axes_manager.get_UA_axes_from_topology.call_args.kwargs
+    assert called_kwargs["u"] is u
+    assert called_kwargs["topology"] is ua_topology
+    assert called_kwargs["box"] is None
+    assert called_kwargs["residue_atoms"].name == "res"
+
+    axes_manager.get_UA_axes.assert_not_called()
 
 
 def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
@@ -440,9 +493,13 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
             residue_atoms=FakeAtomGroup("res"),
             axes_manager=axes_manager,
+            axes_topology=None,
             box=None,
             force_partitioning=0.5,
             customised_axes=False,

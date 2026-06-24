@@ -59,9 +59,7 @@ class DihedralTopologyDiscovery:
         topologies: list[MoleculeDihedralTopology] = []
 
         for molecule_order, molecule_id in enumerate(molecules):
-            mol = self._universe_operations.extract_fragment(
-                data_container, molecule_id
-            )
+            mol = self._extract_topology_fragment(data_container, molecule_id)
             num_residues = len(mol.residues)
             ua_dihedrals_by_residue: dict[int, list[Any]] = {}
             residue_dihedrals: list[Any] = []
@@ -90,6 +88,26 @@ class DihedralTopologyDiscovery:
 
         return topologies
 
+    def _extract_topology_fragment(self, data_container: Any, molecule_id: Any) -> Any:
+        """Return a molecule fragment for topology discovery.
+
+        This uses the lightweight AtomGroup extraction helper when available so
+        static conformational topology discovery does not create a standalone
+        in-memory universe or copy trajectory frames. The fallback preserves
+        compatibility with older ``UniverseOperations`` implementations.
+
+        Args:
+            data_container: Source MDAnalysis universe or universe-like container.
+            molecule_id: Fragment index identifying the molecule to extract.
+
+        Returns:
+            MDAnalysis AtomGroup for the selected molecule
+        """
+        return self._universe_operations.extract_fragment_atomgroup(
+            data_container,
+            int(molecule_id),
+        )
+
     def _select_heavy_residue(self, mol: Any, res_id: int) -> Any:
         """Select heavy atoms in a residue by residue index.
 
@@ -100,13 +118,15 @@ class DihedralTopologyDiscovery:
         Returns:
             AtomGroup containing heavy atoms in the residue selection.
         """
-        selection1 = mol.residues[res_id].atoms.indices[0]
-        selection2 = mol.residues[res_id].atoms.indices[-1]
+        residue_atoms = mol.residues[int(res_id)].atoms
+        selection1 = residue_atoms.indices[0]
+        selection2 = residue_atoms.indices[-1]
 
-        res_container = self._universe_operations.select_atoms(
-            mol, f"index {selection1}:{selection2}"
+        res_container = mol.select_atoms(
+            f"index {selection1}:{selection2}",
+            updating=False,
         )
-        return self._universe_operations.select_atoms(res_container, "prop mass > 1.1")
+        return res_container.select_atoms("prop mass > 1.1", updating=False)
 
     def _get_dihedrals(self, data_container: Any, level: str) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
@@ -121,26 +141,93 @@ class DihedralTopologyDiscovery:
         atom_groups: list[Any] = []
 
         if level == "united_atom":
+            selected_indices = {int(index) for index in data_container.indices}
+
             for dihedral in data_container.dihedrals:
-                atom_groups.append(dihedral.atoms)
+                dihedral_atoms = dihedral.atoms
+                dihedral_indices = {int(index) for index in dihedral_atoms.indices}
+
+                if len(dihedral_atoms) == 4 and dihedral_indices.issubset(
+                    selected_indices
+                ):
+                    atom_groups.append(dihedral_atoms)
 
         if level == "residue":
             num_residues = len(data_container.residues)
             if num_residues >= 4:
                 for residue in range(4, num_residues + 1):
-                    atom1 = data_container.select_atoms(
-                        f"resindex {residue - 4} and bonded resindex {residue - 3}"
+                    residue1 = data_container.residues[residue - 4]
+                    residue2 = data_container.residues[residue - 3]
+                    residue3 = data_container.residues[residue - 2]
+                    residue4 = data_container.residues[residue - 1]
+
+                    atom1 = self._atoms_in_source_bonded_to_target(
+                        residue1,
+                        residue2,
                     )
-                    atom2 = data_container.select_atoms(
-                        f"resindex {residue - 3} and bonded resindex {residue - 4}"
+                    atom2 = self._atoms_in_source_bonded_to_target(
+                        residue2,
+                        residue1,
                     )
-                    atom3 = data_container.select_atoms(
-                        f"resindex {residue - 2} and bonded resindex {residue - 1}"
+                    atom3 = self._atoms_in_source_bonded_to_target(
+                        residue3,
+                        residue4,
                     )
-                    atom4 = data_container.select_atoms(
-                        f"resindex {residue - 1} and bonded resindex {residue - 2}"
+                    atom4 = self._atoms_in_source_bonded_to_target(
+                        residue4,
+                        residue3,
                     )
-                    atom_groups.append(atom1 + atom2 + atom3 + atom4)
+
+                    dihedral_atoms = atom1 + atom2 + atom3 + atom4
+
+                    if len(dihedral_atoms) == 4:
+                        atom_groups.append(dihedral_atoms)
+                    else:
+                        logger.debug(
+                            "Skipping residue-level dihedral for local residues "
+                            "%s-%s-%s-%s because it produced %d atoms.",
+                            residue - 4,
+                            residue - 3,
+                            residue - 2,
+                            residue - 1,
+                            len(dihedral_atoms),
+                        )
 
         logger.debug("Level: %s, Dihedrals: %s", level, atom_groups)
         return atom_groups
+
+    @staticmethod
+    def _atoms_in_source_bonded_to_target(
+        source_residue: Any,
+        target_residue: Any,
+    ) -> Any:
+        """Return source-residue atoms bonded to atoms in a target residue.
+
+        This helper is used when constructing residue-level dihedral definitions
+        from lightweight molecule AtomGroups. It selects atoms from the source
+        residue that are bonded to any atom in the target residue without using
+        global ``resindex`` selection strings.
+
+        Args:
+            source_residue: Residue whose atoms should be tested for bonds.
+            target_residue: Adjacent residue providing the target bonded atoms.
+
+        Returns:
+            MDAnalysis AtomGroup containing atoms from ``source_residue`` that are
+            bonded to at least one atom in ``target_residue``. If no matching
+            atoms are found, an empty AtomGroup is returned.
+        """
+        source_atoms = source_residue.atoms
+        target_indices = {int(index) for index in target_residue.atoms.indices}
+        selected_indices: list[int] = []
+
+        for atom in source_atoms:
+            bonded_atoms = getattr(atom, "bonded_atoms", None)
+            if bonded_atoms is None:
+                continue
+
+            bonded_indices = {int(index) for index in bonded_atoms.indices}
+            if bonded_indices.intersection(target_indices):
+                selected_indices.append(int(atom.index))
+
+        return source_atoms.universe.atoms[selected_indices]
