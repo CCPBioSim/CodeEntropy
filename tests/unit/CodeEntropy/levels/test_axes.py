@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from CodeEntropy.levels.axes import AxesCalculator
+from CodeEntropy.levels.nodes.axes_topology import UAAxesTopology
 
 
 class _FakeAtom:
@@ -699,3 +700,396 @@ def test_get_bonded_axes_returns_none_none_if_custom_axes_none(monkeypatch):
 
     assert custom_axes is None
     assert moi is None
+
+
+class _FakeIndexedAtoms:
+    """Container supporting ``u.atoms[index]`` and ``u.atoms[index_array]``."""
+
+    def __init__(self, atom_map):
+        self._atom_map = dict(atom_map)
+
+    def __getitem__(self, index):
+        if isinstance(index, np.ndarray):
+            return _FakeAtomGroup([self._atom_map[int(i)] for i in index])
+        if isinstance(index, (list, tuple)):
+            return _FakeAtomGroup([self._atom_map[int(i)] for i in index])
+        return self._atom_map[int(index)]
+
+
+class _FakeUniverse:
+    """Small universe-like object with indexed atoms and dimensions."""
+
+    def __init__(self, atom_map, dimensions=None):
+        self.atoms = _FakeIndexedAtoms(atom_map)
+        self.dimensions = np.asarray(
+            dimensions
+            if dimensions is not None
+            else [10.0, 10.0, 10.0, 90.0, 90.0, 90.0],
+            dtype=float,
+        )
+
+
+def _ua_topology(
+    *,
+    heavy_atom_index=1,
+    ua_atom_indices=(1,),
+    ua_all_atom_indices=(1,),
+    bonded_heavy_indices=(),
+    bonded_light_indices=(),
+    residue_heavy_indices=(1,),
+    residue_ua_masses=(12.0,),
+):
+    """Build a small cached UA topology fixture."""
+    return UAAxesTopology(
+        heavy_atom_index=int(heavy_atom_index),
+        ua_atom_indices=np.asarray(ua_atom_indices, dtype=int),
+        ua_all_atom_indices=np.asarray(ua_all_atom_indices, dtype=int),
+        bonded_heavy_indices=np.asarray(bonded_heavy_indices, dtype=int),
+        bonded_light_indices=np.asarray(bonded_light_indices, dtype=int),
+        residue_heavy_indices=np.asarray(residue_heavy_indices, dtype=int),
+        residue_ua_masses=np.asarray(residue_ua_masses, dtype=float),
+    )
+
+
+def test_get_UA_axes_from_topology_multiple_heavy_uses_cached_indices_and_box(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [1.0, 2.0, 3.0])
+    other_heavy = _FakeAtom(3, 14.0, [4.0, 5.0, 6.0])
+    universe = _FakeUniverse({1: heavy_atom, 3: other_heavy})
+    residue_atoms = MagicMock()
+    residue_atoms.center_of_mass.return_value = np.array([9.0, 8.0, 7.0])
+
+    topology = _ua_topology(
+        heavy_atom_index=1,
+        residue_heavy_indices=(1, 3),
+        residue_ua_masses=(13.0, 14.0),
+    )
+
+    get_tensor = MagicMock(return_value=np.eye(3))
+    get_principal = MagicMock(return_value=(np.eye(3) * 2.0, np.array([3.0, 2.0, 1.0])))
+    get_bonded = MagicMock(return_value=(np.eye(3) * 4.0, np.array([1.0, 1.0, 1.0])))
+
+    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", get_tensor)
+    monkeypatch.setattr(ax, "get_custom_principal_axes", get_principal)
+    monkeypatch.setattr(ax, "get_bonded_axes_from_topology", get_bonded)
+
+    box = np.array([20.0, 30.0, 40.0])
+    trans_axes, rot_axes, center, moi = ax.get_UA_axes_from_topology(
+        u=universe,
+        residue_atoms=residue_atoms,
+        topology=topology,
+        box=box,
+    )
+
+    np.testing.assert_allclose(trans_axes, np.eye(3) * 2.0)
+    np.testing.assert_allclose(rot_axes, np.eye(3) * 4.0)
+    np.testing.assert_allclose(center, heavy_atom.position)
+    np.testing.assert_allclose(moi, np.array([1.0, 1.0, 1.0]))
+
+    get_tensor.assert_called_once()
+    tensor_kwargs = get_tensor.call_args.kwargs
+    np.testing.assert_allclose(
+        tensor_kwargs["center_of_mass"], np.array([9.0, 8.0, 7.0])
+    )
+    np.testing.assert_allclose(
+        tensor_kwargs["positions"], np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    )
+    np.testing.assert_allclose(tensor_kwargs["masses"], np.array([13.0, 14.0]))
+    np.testing.assert_allclose(tensor_kwargs["dimensions"], box)
+
+    get_principal.assert_called_once()
+    np.testing.assert_allclose(get_principal.call_args.args[0], np.eye(3))
+    get_bonded.assert_called_once_with(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=topology,
+        dimensions=box,
+    )
+
+
+def test_get_UA_axes_from_topology_single_heavy_uses_residue_principal_axes(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [1.0, 0.0, 0.0])
+    universe = _FakeUniverse(
+        {1: heavy_atom}, dimensions=[11.0, 12.0, 13.0, 90.0, 90.0, 90.0]
+    )
+    residue_atoms = MagicMock()
+    residue_atoms.principal_axes.return_value = np.eye(3) * 5.0
+
+    topology = _ua_topology(heavy_atom_index=1, residue_heavy_indices=(1,))
+
+    make_whole = MagicMock()
+    get_bonded = MagicMock(return_value=(np.eye(3) * 6.0, np.array([6.0, 5.0, 4.0])))
+
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", make_whole)
+    monkeypatch.setattr(ax, "get_bonded_axes_from_topology", get_bonded)
+
+    trans_axes, rot_axes, center, moi = ax.get_UA_axes_from_topology(
+        u=universe,
+        residue_atoms=residue_atoms,
+        topology=topology,
+        box=None,
+    )
+
+    make_whole.assert_called_once_with(residue_atoms)
+    residue_atoms.principal_axes.assert_called_once()
+    np.testing.assert_allclose(trans_axes, np.eye(3) * 5.0)
+    np.testing.assert_allclose(rot_axes, np.eye(3) * 6.0)
+    np.testing.assert_allclose(center, heavy_atom.position)
+    np.testing.assert_allclose(moi, np.array([6.0, 5.0, 4.0]))
+
+    called_kwargs = get_bonded.call_args.kwargs
+    np.testing.assert_allclose(
+        called_kwargs["dimensions"], np.array([11.0, 12.0, 13.0])
+    )
+
+
+def test_get_UA_axes_from_topology_raises_when_cached_bonded_axes_fail(monkeypatch):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [1.0, 0.0, 0.0])
+    universe = _FakeUniverse({1: heavy_atom})
+    residue_atoms = MagicMock()
+    residue_atoms.principal_axes.return_value = np.eye(3)
+    topology = _ua_topology(heavy_atom_index=1, residue_heavy_indices=(1,))
+
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    monkeypatch.setattr(
+        ax, "get_bonded_axes_from_topology", lambda **kwargs: (None, None)
+    )
+
+    with pytest.raises(ValueError, match="cached UA bead"):
+        ax.get_UA_axes_from_topology(
+            u=universe,
+            residue_atoms=residue_atoms,
+            topology=topology,
+            box=None,
+        )
+
+
+def test_get_bonded_axes_from_topology_non_heavy_returns_none_none():
+    ax = AxesCalculator()
+    light_atom = _FakeAtom(1, 1.0, [0.0, 0.0, 0.0])
+
+    custom_axes, moi = ax.get_bonded_axes_from_topology(
+        u=MagicMock(),
+        heavy_atom=light_atom,
+        topology=_ua_topology(heavy_atom_index=1),
+        dimensions=np.array([10.0, 10.0, 10.0]),
+    )
+
+    assert custom_axes is None
+    assert moi is None
+
+
+def test_get_bonded_axes_from_topology_no_bonded_heavy_uses_vanilla_axes(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [0.0, 0.0, 0.0])
+    hydrogen = _FakeAtom(2, 1.0, [1.0, 0.0, 0.0])
+    universe = _FakeUniverse({1: heavy_atom, 2: hydrogen})
+    topology = _ua_topology(
+        heavy_atom_index=1,
+        ua_atom_indices=(1, 2),
+        ua_all_atom_indices=(1, 2),
+        bonded_heavy_indices=(),
+        bonded_light_indices=(2,),
+    )
+
+    get_vanilla = MagicMock(return_value=(np.eye(3) * 7.0, np.array([7.0, 8.0, 9.0])))
+    get_custom_moi = MagicMock()
+    get_flipped = MagicMock(return_value=np.eye(3) * -7.0)
+
+    monkeypatch.setattr(ax, "get_vanilla_axes", get_vanilla)
+    monkeypatch.setattr(ax, "get_custom_moment_of_inertia", get_custom_moi)
+    monkeypatch.setattr(ax, "get_flipped_axes", get_flipped)
+
+    custom_axes, moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=topology,
+        dimensions=np.array([10.0, 10.0, 10.0]),
+    )
+
+    np.testing.assert_allclose(custom_axes, np.eye(3) * -7.0)
+    np.testing.assert_allclose(moi, np.array([7.0, 8.0, 9.0]))
+    get_vanilla.assert_called_once()
+    get_custom_moi.assert_not_called()
+    get_flipped.assert_called_once()
+
+
+def test_get_bonded_axes_from_topology_one_heavy_no_light_uses_custom_axes(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [0.0, 0.0, 0.0])
+    bonded_heavy = _FakeAtom(3, 12.0, [1.0, 0.0, 0.0])
+    universe = _FakeUniverse({1: heavy_atom, 3: bonded_heavy})
+    topology = _ua_topology(
+        heavy_atom_index=1,
+        ua_atom_indices=(1,),
+        ua_all_atom_indices=(1, 3),
+        bonded_heavy_indices=(3,),
+        bonded_light_indices=(),
+    )
+
+    get_custom_axes = MagicMock(return_value=np.eye(3) * 2.0)
+    get_custom_moi = MagicMock(return_value=np.array([2.0, 3.0, 4.0]))
+    get_flipped = MagicMock(return_value=np.eye(3) * 3.0)
+
+    monkeypatch.setattr(ax, "get_custom_axes", get_custom_axes)
+    monkeypatch.setattr(ax, "get_custom_moment_of_inertia", get_custom_moi)
+    monkeypatch.setattr(ax, "get_flipped_axes", get_flipped)
+
+    custom_axes, moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=topology,
+        dimensions=np.array([10.0, 10.0, 10.0]),
+    )
+
+    np.testing.assert_allclose(custom_axes, np.eye(3) * 3.0)
+    np.testing.assert_allclose(moi, np.array([2.0, 3.0, 4.0]))
+
+    kwargs = get_custom_axes.call_args.kwargs
+    np.testing.assert_allclose(kwargs["a"], heavy_atom.position)
+    np.testing.assert_allclose(kwargs["b_list"][0], bonded_heavy.position)
+    np.testing.assert_allclose(kwargs["c"], np.zeros(3))
+    get_custom_moi.assert_called_once()
+    get_flipped.assert_called_once()
+
+
+def test_get_bonded_axes_from_topology_one_heavy_with_light_uses_light_as_c(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [0.0, 0.0, 0.0])
+    bonded_heavy = _FakeAtom(3, 12.0, [1.0, 0.0, 0.0])
+    bonded_light = _FakeAtom(2, 1.0, [0.0, 1.0, 0.0])
+    universe = _FakeUniverse({1: heavy_atom, 2: bonded_light, 3: bonded_heavy})
+    topology = _ua_topology(
+        heavy_atom_index=1,
+        ua_atom_indices=(1, 2),
+        ua_all_atom_indices=(1, 3, 2),
+        bonded_heavy_indices=(3,),
+        bonded_light_indices=(2,),
+    )
+
+    get_custom_axes = MagicMock(return_value=np.eye(3))
+    monkeypatch.setattr(ax, "get_custom_axes", get_custom_axes)
+    monkeypatch.setattr(
+        ax,
+        "get_custom_moment_of_inertia",
+        lambda **kwargs: np.array([1.0, 2.0, 3.0]),
+    )
+    monkeypatch.setattr(ax, "get_flipped_axes", lambda ua, axes, com, dims: axes)
+
+    custom_axes, moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=topology,
+        dimensions=np.array([10.0, 10.0, 10.0]),
+    )
+
+    np.testing.assert_allclose(custom_axes, np.eye(3))
+    np.testing.assert_allclose(moi, np.array([1.0, 2.0, 3.0]))
+    np.testing.assert_allclose(
+        get_custom_axes.call_args.kwargs["c"], bonded_light.position
+    )
+
+
+def test_get_bonded_axes_from_topology_two_heavy_uses_heavy_positions_as_b_list(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [0.0, 0.0, 0.0])
+    bonded_heavy_0 = _FakeAtom(3, 12.0, [1.0, 0.0, 0.0])
+    bonded_heavy_1 = _FakeAtom(4, 12.0, [0.0, 1.0, 0.0])
+    universe = _FakeUniverse(
+        {
+            1: heavy_atom,
+            3: bonded_heavy_0,
+            4: bonded_heavy_1,
+        }
+    )
+    topology = _ua_topology(
+        heavy_atom_index=1,
+        ua_atom_indices=(1,),
+        ua_all_atom_indices=(1, 3, 4),
+        bonded_heavy_indices=(3, 4),
+        bonded_light_indices=(),
+    )
+
+    get_custom_axes = MagicMock(return_value=np.eye(3) * 4.0)
+    monkeypatch.setattr(ax, "get_custom_axes", get_custom_axes)
+    monkeypatch.setattr(
+        ax,
+        "get_custom_moment_of_inertia",
+        lambda **kwargs: np.array([4.0, 5.0, 6.0]),
+    )
+    monkeypatch.setattr(ax, "get_flipped_axes", lambda ua, axes, com, dims: axes)
+
+    custom_axes, moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=topology,
+        dimensions=np.array([10.0, 10.0, 10.0]),
+    )
+
+    np.testing.assert_allclose(custom_axes, np.eye(3) * 4.0)
+    np.testing.assert_allclose(moi, np.array([4.0, 5.0, 6.0]))
+    np.testing.assert_allclose(
+        get_custom_axes.call_args.kwargs["b_list"],
+        np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+    )
+    np.testing.assert_allclose(
+        get_custom_axes.call_args.kwargs["c"],
+        bonded_heavy_1.position,
+    )
+
+
+def test_get_bonded_axes_from_topology_returns_none_when_custom_axes_none(
+    monkeypatch,
+):
+    ax = AxesCalculator()
+
+    heavy_atom = _FakeAtom(1, 12.0, [0.0, 0.0, 0.0])
+    bonded_heavy = _FakeAtom(3, 12.0, [1.0, 0.0, 0.0])
+    universe = _FakeUniverse({1: heavy_atom, 3: bonded_heavy})
+    topology = _ua_topology(
+        heavy_atom_index=1,
+        ua_atom_indices=(1,),
+        ua_all_atom_indices=(1, 3),
+        bonded_heavy_indices=(3,),
+        bonded_light_indices=(),
+    )
+
+    get_custom_moi = MagicMock()
+    get_flipped = MagicMock()
+
+    monkeypatch.setattr(ax, "get_custom_axes", lambda **kwargs: None)
+    monkeypatch.setattr(ax, "get_custom_moment_of_inertia", get_custom_moi)
+    monkeypatch.setattr(ax, "get_flipped_axes", get_flipped)
+
+    custom_axes, moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=topology,
+        dimensions=np.array([10.0, 10.0, 10.0]),
+    )
+
+    assert custom_axes is None
+    assert moi is None
+    get_custom_moi.assert_not_called()
+    get_flipped.assert_not_called()
