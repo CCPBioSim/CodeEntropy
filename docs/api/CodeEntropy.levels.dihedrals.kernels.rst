@@ -1,7 +1,7 @@
-CodeEntropy.levels.conformation\_dag module
+CodeEntropy.levels.dihedrals.kernels module
 ===========================================
 
-.. automodule:: CodeEntropy.levels.conformation_dag
+.. automodule:: CodeEntropy.levels.dihedrals.kernels
    :members:
    :show-inheritance:
    :undoc-members:

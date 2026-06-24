@@ -16,7 +16,7 @@ from CodeEntropy.levels.execution.tasks import (
     execute_frame_map_output,
     make_frame_worker_shared_data,
 )
-from CodeEntropy.levels.frame_dag import FrameGraph
+from CodeEntropy.levels.graph.frame_dag import FrameGraph
 from CodeEntropy.levels.neighbors import Neighbors
 from CodeEntropy.results.reporter import _RichProgressSink
 
