@@ -7,6 +7,7 @@ import numpy as np
 from CodeEntropy.levels.nodes.axes_topology import (
     AxesTopology,
     BuildAxesTopologyNode,
+    ResidueAxesTopology,
     UAAxesTopology,
 )
 
@@ -62,10 +63,14 @@ class FakeResidue:
 
 
 class FakeMolecule:
-    """Small molecule-like object with residues."""
+    """Small molecule-like object with residues and selections."""
 
-    def __init__(self, residues):
+    def __init__(self, residues, select_map=None):
         self.residues = residues
+        self._select_map = dict(select_map or {})
+
+    def select_atoms(self, selection):
+        return self._select_map.get(selection, FakeAtomGroup([]))
 
 
 class FakeAtoms:
@@ -140,10 +145,23 @@ def test_ua_axes_topology_dataclass_preserves_arrays():
     np.testing.assert_allclose(topology.residue_ua_masses, np.array([13.0, 12.0, 14.0]))
 
 
-def test_axes_topology_defaults_to_empty_ua_mapping():
+def test_residue_axes_topology_dataclass_preserves_arrays():
+    topology = ResidueAxesTopology(
+        residue_heavy_indices=np.array([1, 3, 4]),
+        residue_ua_masses=np.array([13.0, 12.0, 14.0]),
+        has_neighbor_bonds=True,
+    )
+
+    np.testing.assert_array_equal(topology.residue_heavy_indices, np.array([1, 3, 4]))
+    np.testing.assert_allclose(topology.residue_ua_masses, np.array([13.0, 12.0, 14.0]))
+    assert topology.has_neighbor_bonds is True
+
+
+def test_axes_topology_defaults_to_empty_mappings():
     topology = AxesTopology()
 
     assert topology.ua == {}
+    assert topology.residue == {}
 
 
 def test_run_writes_empty_topology_when_customised_axes_disabled():
@@ -154,7 +172,70 @@ def test_run_writes_empty_topology_when_customised_axes_disabled():
 
     assert isinstance(result["axes_topology"], AxesTopology)
     assert result["axes_topology"].ua == {}
+    assert result["axes_topology"].residue == {}
     assert shared_data["axes_topology"] is result["axes_topology"]
+
+
+def test_run_builds_residue_topology_for_residue_levels():
+    node = BuildAxesTopologyNode()
+    universe, molecule, heavy, hydrogen, bonded_heavy, other_residue_heavy = (
+        _single_molecule_universe()
+    )
+    neighbor_query = "(resindex -1 or resindex 1) and bonded resid 0"
+    molecule._select_map[neighbor_query] = FakeAtomGroup([bonded_heavy])
+    shared_data = {
+        "args": _args(customised_axes=True),
+        "reduced_universe": universe,
+        "levels": [["residue"]],
+        "beads": {(0, "residue"): [np.array([1, 2, 3, 4])]},
+    }
+
+    result = node.run(shared_data)
+
+    axes_topology = result["axes_topology"]
+    assert axes_topology.ua == {}
+    assert set(axes_topology.residue) == {(0, 0)}
+
+    residue_topology = axes_topology.residue[(0, 0)]
+    np.testing.assert_array_equal(
+        residue_topology.residue_heavy_indices,
+        np.array([heavy.index, bonded_heavy.index, other_residue_heavy.index]),
+    )
+    np.testing.assert_allclose(
+        residue_topology.residue_ua_masses,
+        np.array([13.0, 12.0, 14.0]),
+    )
+    assert residue_topology.has_neighbor_bonds is True
+
+
+def test_add_residue_topology_skips_when_no_residue_beads():
+    node = BuildAxesTopologyNode()
+    _, molecule, _, _, _, _ = _single_molecule_universe()
+    out = {}
+
+    node._add_residue_topology(
+        mol=molecule,
+        mol_id=0,
+        beads={},
+        out=out,
+    )
+
+    assert out == {}
+
+
+def test_has_neighbor_bonds_uses_original_residue_selection():
+    node = BuildAxesTopologyNode()
+    query = "(resindex 0 or resindex 2) and bonded resid 1"
+    molecule = FakeMolecule([], select_map={query: FakeAtomGroup([FakeAtom(1, 12.0)])})
+
+    assert node._has_neighbor_bonds(mol=molecule, local_res_i=1) is True
+
+
+def test_has_neighbor_bonds_returns_false_for_empty_selection():
+    node = BuildAxesTopologyNode()
+    molecule = FakeMolecule([])
+
+    assert node._has_neighbor_bonds(mol=molecule, local_res_i=1) is False
 
 
 def test_run_builds_ua_topology_for_united_atom_levels():

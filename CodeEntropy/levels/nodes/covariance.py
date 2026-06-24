@@ -129,6 +129,7 @@ class FrameCovarianceNode:
                         group_id=group_id,
                         beads=beads,
                         axes_manager=axes_manager,
+                        axes_topology=axes_topology,
                         box=box,
                         customised_axes=customised_axes,
                         force_partitioning=fp,
@@ -242,6 +243,7 @@ class FrameCovarianceNode:
         group_id: int,
         beads: dict[Any, list[Any]],
         axes_manager: Any,
+        axes_topology: Any | None,
         box: np.ndarray | None,
         customised_axes: bool,
         force_partitioning: float,
@@ -261,6 +263,7 @@ class FrameCovarianceNode:
             group_id: Molecule-group identifier used for within-frame averaging.
             beads: Mapping of bead keys to reduced-universe atom-index arrays.
             axes_manager: Axes helper used to build translation and rotation axes.
+            axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             customised_axes: Whether customised residue axes should be used.
             force_partitioning: Force partitioning factor for highest-level vectors.
@@ -281,9 +284,12 @@ class FrameCovarianceNode:
             return
 
         force_vecs, torque_vecs = self._build_residue_vectors(
+            u=u,
             mol=mol,
+            mol_id=mol_id,
             bead_groups=bead_groups,
             axes_manager=axes_manager,
+            axes_topology=axes_topology,
             box=box,
             customised_axes=customised_axes,
             force_partitioning=force_partitioning,
@@ -481,9 +487,12 @@ class FrameCovarianceNode:
     def _build_residue_vectors(
         self,
         *,
+        u: Any,
         mol: Any,
+        mol_id: int,
         bead_groups: list[Any],
         axes_manager: Any,
+        axes_topology: Any | None,
         box: np.ndarray | None,
         customised_axes: bool,
         force_partitioning: float,
@@ -492,9 +501,12 @@ class FrameCovarianceNode:
         """Build force and torque vectors for residue beads.
 
         Args:
+            u: Universe-like object used to resolve cached atom indices.
             mol: Molecule fragment containing residues and atoms.
+            mol_id: Molecule index used in axes-topology lookup keys.
             bead_groups: Atom groups representing residue beads.
             axes_manager: Axes helper used to select axes, centres, and moments.
+            axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             customised_axes: Whether customised residue axes should be used.
             force_partitioning: Force partitioning factor for highest-level vectors.
@@ -508,10 +520,14 @@ class FrameCovarianceNode:
 
         for local_res_i, bead in enumerate(bead_groups):
             trans_axes, rot_axes, center, moi = self._get_residue_axes(
+                u=u,
                 mol=mol,
+                mol_id=mol_id,
                 bead=bead,
                 local_res_i=local_res_i,
                 axes_manager=axes_manager,
+                axes_topology=axes_topology,
+                box=box,
                 customised_axes=customised_axes,
             )
 
@@ -540,19 +556,27 @@ class FrameCovarianceNode:
     def _get_residue_axes(
         self,
         *,
+        u: Any,
         mol: Any,
+        mol_id: int,
         bead: Any,
         local_res_i: int,
         axes_manager: Any,
+        axes_topology: Any | None,
+        box: np.ndarray | None,
         customised_axes: bool,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Return axes, centre, and inertia data for a residue bead.
 
         Args:
+            u: Universe-like object used to resolve cached atom indices.
             mol: Molecule fragment containing residues and atoms.
+            mol_id: Molecule index used in axes-topology lookup keys.
             bead: Atom group representing the residue bead.
             local_res_i: Residue index local to ``mol``.
             axes_manager: Axes helper used to select axes, centres, and moments.
+            axes_topology: Optional cached axes topology generated during static setup.
+            box: Optional periodic box vector.
             customised_axes: Whether customised residue axes should be used.
 
         Returns:
@@ -560,6 +584,19 @@ class FrameCovarianceNode:
         """
         if customised_axes:
             res = mol.residues[local_res_i]
+            residue_topology = None
+            if axes_topology is not None:
+                residue_topology = axes_topology.residue.get((mol_id, local_res_i))
+
+            if residue_topology is not None:
+                return axes_manager.get_residue_axes_from_topology(
+                    u=u,
+                    mol=mol,
+                    residue_atoms=res.atoms,
+                    topology=residue_topology,
+                    box=box,
+                )
+
             return axes_manager.get_residue_axes(mol, local_res_i, residue=res.atoms)
 
         make_whole(mol.atoms)

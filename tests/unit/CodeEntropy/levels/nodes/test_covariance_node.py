@@ -1,5 +1,3 @@
-"""Atomic unit tests for frame-local covariance construction."""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -121,6 +119,9 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
     assert ua_kwargs["force_partitioning"] == 0.5
     assert ua_kwargs["customised_axes"] is True
     assert ua_kwargs["is_highest"] is False
+
+    res_kwargs = node._process_residue.call_args.kwargs
+    assert res_kwargs["axes_topology"] is axes_topology
 
 
 def test_run_omits_forcetorque_when_combined_is_false():
@@ -255,6 +256,7 @@ def test_process_residue_updates_outputs_and_combined_ft():
         group_id=7,
         beads={(0, "residue"): [np.array([0])]},
         axes_manager="axes",
+        axes_topology=None,
         box=None,
         customised_axes=True,
         force_partitioning=0.5,
@@ -284,6 +286,7 @@ def test_process_residue_returns_when_no_beads_or_empty_groups():
         group_id=7,
         beads={},
         axes_manager=None,
+        axes_topology=None,
         box=None,
         customised_axes=False,
         force_partitioning=0.5,
@@ -305,6 +308,7 @@ def test_process_residue_returns_when_no_beads_or_empty_groups():
         group_id=7,
         beads={(0, "residue"): [np.array([0])]},
         axes_manager=None,
+        axes_topology=None,
         box=None,
         customised_axes=False,
         force_partitioning=0.5,
@@ -522,9 +526,12 @@ def test_build_residue_vectors_uses_residue_axes():
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
 
     force_vecs, torque_vecs = node._build_residue_vectors(
+        u=FakeUniverse([mol]),
         mol=mol,
+        mol_id=0,
         bead_groups=[FakeAtomGroup("res")],
         axes_manager=axes_manager,
+        axes_topology=None,
         box=None,
         customised_axes=True,
         force_partitioning=0.5,
@@ -536,6 +543,34 @@ def test_build_residue_vectors_uses_residue_axes():
     node._get_residue_axes.assert_called_once()
 
 
+def test_get_residue_axes_customised_uses_cached_topology_when_available():
+    node = FrameCovarianceNode()
+    mol = FakeMolecule(n_residues=1)
+    axes_manager = MagicMock()
+    expected = (np.eye(3), np.eye(3) * 2.0, np.zeros(3), np.ones(3))
+    residue_topology = object()
+    axes_topology = SimpleNamespace(residue={(3, 0): residue_topology})
+    axes_manager.get_residue_axes_from_topology.return_value = expected
+
+    result = node._get_residue_axes(
+        u=FakeUniverse([mol]),
+        mol=mol,
+        mol_id=3,
+        bead=FakeAtomGroup("res"),
+        local_res_i=0,
+        axes_manager=axes_manager,
+        axes_topology=axes_topology,
+        box=None,
+        customised_axes=True,
+    )
+
+    assert result == expected
+    called_kwargs = axes_manager.get_residue_axes_from_topology.call_args.kwargs
+    assert called_kwargs["topology"] is residue_topology
+    assert called_kwargs["residue_atoms"] is mol.residues[0].atoms
+    axes_manager.get_residue_axes.assert_not_called()
+
+
 def test_get_residue_axes_customised_delegates_to_axes_manager():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
@@ -545,10 +580,14 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
 
     assert (
         node._get_residue_axes(
+            u=FakeUniverse([mol]),
             mol=mol,
+            mol_id=0,
             bead=FakeAtomGroup("res"),
             local_res_i=0,
             axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
             customised_axes=True,
         )
         == expected
@@ -573,10 +612,14 @@ def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         trans_axes, rot_axes, center, moi = node._get_residue_axes(
+            u=FakeUniverse([mol]),
             mol=mol,
+            mol_id=0,
             bead=bead,
             local_res_i=0,
             axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
             customised_axes=False,
         )
 
