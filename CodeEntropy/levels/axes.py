@@ -135,6 +135,64 @@ class AxesCalculator:
 
         return trans_axes, rot_axes, center, moment_of_inertia
 
+    def get_residue_axes_from_topology(
+        self,
+        *,
+        u,
+        mol,
+        residue_atoms,
+        topology,
+        box: np.ndarray | None,
+    ):
+        """Compute residue axes using cached static topology.
+
+        This is the cached-index equivalent of ``get_residue_axes``. It keeps
+        all frame-dependent numerical work frame-local, but avoids repeated
+        MDAnalysis selections for residue heavy atoms, UA masses, and neighbour
+        bond discovery.
+
+        Args:
+            u: Current-frame universe used to resolve cached atom indices.
+            mol: Current-frame molecule fragment.
+            residue_atoms: AtomGroup for the residue in the current frame.
+            topology: Cached ``ResidueAxesTopology`` for this residue.
+            box: Current periodic box lengths. If omitted, ``u.dimensions`` is used.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                - trans_axes: Translational axes, shape ``(3, 3)``.
+                - rot_axes: Rotational axes, shape ``(3, 3)``.
+                - center: Residue centre, shape ``(3,)``.
+                - moment_of_inertia: Principal moments, shape ``(3,)``.
+        """
+        dimensions = (
+            np.asarray(box, dtype=float)
+            if box is not None
+            else np.asarray(u.dimensions[:3], dtype=float)
+        )
+
+        center = residue_atoms.center_of_mass(unwrap=True)
+
+        if not topology.has_neighbor_bonds:
+            heavy_atoms = u.atoms[topology.residue_heavy_indices]
+            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
+                center_of_mass=center,
+                positions=heavy_atoms.positions,
+                masses=topology.residue_ua_masses,
+                dimensions=dimensions,
+            )
+            rot_axes, moment_of_inertia = self.get_custom_principal_axes(
+                moment_of_inertia_tensor
+            )
+            trans_axes = rot_axes
+        else:
+            make_whole(mol.atoms)
+            trans_axes = mol.atoms.principal_axes()
+            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue_atoms)
+            center = residue_atoms.center_of_mass(unwrap=True)
+
+        return trans_axes, rot_axes, center, moment_of_inertia
+
     def get_UA_axes(self, data_container, index: int):
         """Compute united-atom-level translational and rotational axes.
 

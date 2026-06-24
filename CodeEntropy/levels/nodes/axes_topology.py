@@ -1,9 +1,9 @@
 """Build static axes-topology metadata for frame covariance calculations.
 
 This module caches topology-only atom-index relationships needed by customised
-united-atom axes calculations. The cache avoids repeated MDAnalysis selection
-parsing inside the frame-local covariance loop while preserving frame-dependent
-positions, forces, centres, axes, torques, and moments of inertia.
+axes calculations. The cache avoids repeated MDAnalysis selection parsing inside
+the frame-local covariance loop while preserving frame-dependent positions,
+forces, centres, axes, torques, and moments of inertia.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 UAKey = tuple[int, int, int]
+ResidueKey = tuple[int, int]
 
 
 @dataclass(frozen=True)
@@ -45,15 +46,34 @@ class UAAxesTopology:
 
 
 @dataclass(frozen=True)
+class ResidueAxesTopology:
+    """Static topology required to compute customised residue axes.
+
+    Attributes:
+        residue_heavy_indices: Heavy atom indices in the residue.
+        residue_ua_masses: UA masses for heavy atoms in the residue.
+        has_neighbor_bonds: Whether the residue is bonded to a neighbouring
+            residue according to the original customised residue-axis selection.
+    """
+
+    residue_heavy_indices: np.ndarray
+    residue_ua_masses: np.ndarray
+    has_neighbor_bonds: bool
+
+
+@dataclass(frozen=True)
 class AxesTopology:
     """Cached axes topology for frame covariance calculations.
 
     Attributes:
         ua: Mapping from ``(mol_id, local_residue_id, ua_id)`` to cached
             united-atom axes topology.
+        residue: Mapping from ``(mol_id, local_residue_id)`` to cached
+            residue axes topology.
     """
 
     ua: dict[UAKey, UAAxesTopology] = field(default_factory=dict)
+    residue: dict[ResidueKey, ResidueAxesTopology] = field(default_factory=dict)
 
 
 class BuildAxesTopologyNode:
@@ -86,23 +106,75 @@ class BuildAxesTopologyNode:
         beads = shared_data["beads"]
 
         ua_topology: dict[UAKey, UAAxesTopology] = {}
+        residue_topology: dict[ResidueKey, ResidueAxesTopology] = {}
         fragments = u.atoms.fragments
 
         for mol_id, level_list in enumerate(levels):
-            if "united_atom" not in level_list:
-                continue
+            mol = fragments[mol_id]
 
-            self._add_ua_topology(
-                u=u,
-                mol=fragments[mol_id],
-                mol_id=mol_id,
-                beads=beads,
-                out=ua_topology,
-            )
+            if "residue" in level_list:
+                self._add_residue_topology(
+                    mol=mol,
+                    mol_id=mol_id,
+                    beads=beads,
+                    out=residue_topology,
+                )
 
-        topology = AxesTopology(ua=ua_topology)
+            if "united_atom" in level_list:
+                self._add_ua_topology(
+                    u=u,
+                    mol=mol,
+                    mol_id=mol_id,
+                    beads=beads,
+                    out=ua_topology,
+                )
+
+        topology = AxesTopology(ua=ua_topology, residue=residue_topology)
         shared_data["axes_topology"] = topology
         return {"axes_topology": topology}
+
+    def _add_residue_topology(
+        self,
+        *,
+        mol: Any,
+        mol_id: int,
+        beads: dict[Any, list[np.ndarray]],
+        out: dict[ResidueKey, ResidueAxesTopology],
+    ) -> None:
+        """Cache static residue axes topology for one molecule.
+
+        Args:
+            mol: Molecule AtomGroup.
+            mol_id: Molecule index.
+            beads: Bead-index mapping produced by ``BuildBeadsNode``.
+            out: Output residue topology mapping mutated in place.
+        """
+        bead_key = (mol_id, "residue")
+        bead_idx_list = beads.get(bead_key, [])
+        if not bead_idx_list:
+            return
+
+        for local_res_i, residue in enumerate(mol.residues):
+            if local_res_i >= len(bead_idx_list):
+                continue
+
+            residue_atoms = residue.atoms
+            residue_heavy = residue_atoms.select_atoms("mass 2 to 999")
+            residue_heavy_indices = residue_heavy.indices.astype(int, copy=True)
+            residue_ua_masses = np.asarray(
+                self._get_ua_masses_from_topology(residue_atoms),
+                dtype=float,
+            )
+            has_neighbor_bonds = self._has_neighbor_bonds(
+                mol=mol,
+                local_res_i=local_res_i,
+            )
+
+            out[(mol_id, local_res_i)] = ResidueAxesTopology(
+                residue_heavy_indices=residue_heavy_indices,
+                residue_ua_masses=residue_ua_masses,
+                has_neighbor_bonds=has_neighbor_bonds,
+            )
 
     def _add_ua_topology(
         self,
@@ -176,6 +248,27 @@ class BuildAxesTopologyNode:
                     residue_heavy_indices=residue_heavy_indices,
                     residue_ua_masses=residue_ua_masses,
                 )
+
+    @staticmethod
+    def _has_neighbor_bonds(*, mol: Any, local_res_i: int) -> bool:
+        """Return whether a residue is bonded to neighbouring residues.
+
+        Args:
+            mol: Molecule AtomGroup used for the original bonded-neighbour
+                selection.
+            local_res_i: Residue index local to ``mol``.
+
+        Returns:
+            True when the residue has bonded atoms in the previous or next
+            residue according to the original customised residue-axis query.
+        """
+        index_prev = local_res_i - 1
+        index_next = local_res_i + 1
+        atom_set = mol.select_atoms(
+            f"(resindex {index_prev} or resindex {index_next}) "
+            f"and bonded resid {local_res_i}"
+        )
+        return len(atom_set) > 0
 
     @staticmethod
     def _split_bonded_atoms(atom: Any) -> tuple[Any, Any]:
