@@ -79,6 +79,7 @@ class FrameCovarianceNode:
         beads = shared["beads"]
         args = shared["args"]
         axes_manager = shared.get("axes_manager")
+        axes_topology = shared.get("axes_topology")
 
         fp = float(args.force_partitioning)
         combined = bool(getattr(args, "combined_forcetorque", False))
@@ -110,6 +111,7 @@ class FrameCovarianceNode:
                         group_id=group_id,
                         beads=beads,
                         axes_manager=axes_manager,
+                        axes_topology=axes_topology,
                         box=box,
                         force_partitioning=fp,
                         customised_axes=customised_axes,
@@ -172,6 +174,7 @@ class FrameCovarianceNode:
         group_id: int,
         beads: dict[Any, list[Any]],
         axes_manager: Any,
+        axes_topology: Any | None,
         box: np.ndarray | None,
         force_partitioning: float,
         customised_axes: bool,
@@ -189,6 +192,7 @@ class FrameCovarianceNode:
             group_id: Molecule-group identifier used for within-frame averaging.
             beads: Mapping of bead keys to reduced-universe atom-index arrays.
             axes_manager: Axes helper used to build translation and rotation axes.
+            axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             force_partitioning: Force partitioning factor for highest-level vectors.
             customised_axes: Whether customised UA axes should be used.
@@ -208,9 +212,13 @@ class FrameCovarianceNode:
                 continue
 
             force_vecs, torque_vecs = self._build_ua_vectors(
+                u=u,
+                mol_id=mol_id,
+                local_res_i=local_res_i,
                 residue_atoms=res.atoms,
                 bead_groups=bead_groups,
                 axes_manager=axes_manager,
+                axes_topology=axes_topology,
                 box=box,
                 force_partitioning=force_partitioning,
                 customised_axes=customised_axes,
@@ -388,9 +396,13 @@ class FrameCovarianceNode:
     def _build_ua_vectors(
         self,
         *,
+        u: Any,
+        mol_id: int,
+        local_res_i: int,
         bead_groups: list[Any],
         residue_atoms: Any,
         axes_manager: Any,
+        axes_topology: Any | None,
         box: np.ndarray | None,
         force_partitioning: float,
         customised_axes: bool,
@@ -399,9 +411,13 @@ class FrameCovarianceNode:
         """Build force and torque vectors for united-atom beads.
 
         Args:
+            u: Universe-like object used to resolve cached atom indices.
+            mol_id: Molecule index used in axes-topology lookup keys.
+            local_res_i: Local residue index used in axes-topology lookup keys.
             bead_groups: Atom groups representing UA beads in a residue.
             residue_atoms: Atom group for the parent residue.
             axes_manager: Axes helper used to select axes, centres, and moments.
+            axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             force_partitioning: Force partitioning factor for highest-level vectors.
             customised_axes: Whether customised UA axes should be used.
@@ -415,9 +431,23 @@ class FrameCovarianceNode:
 
         for ua_i, bead in enumerate(bead_groups):
             if customised_axes:
-                trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
-                    residue_atoms, ua_i
-                )
+                ua_topology = None
+                if axes_topology is not None:
+                    ua_topology = axes_topology.ua.get((mol_id, local_res_i, ua_i))
+
+                if ua_topology is not None:
+                    trans_axes, rot_axes, center, moi = (
+                        axes_manager.get_UA_axes_from_topology(
+                            u=u,
+                            residue_atoms=residue_atoms,
+                            topology=ua_topology,
+                            box=box,
+                        )
+                    )
+                else:
+                    trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
+                        residue_atoms, ua_i
+                    )
             else:
                 make_whole(residue_atoms)
                 make_whole(bead)
