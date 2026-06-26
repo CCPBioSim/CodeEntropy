@@ -2,22 +2,17 @@ name: Pull Request CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
-  checks: write
-  pull-requests: write
 
 concurrency:
-  group: pr-${{ github.ref }}
+  group: pr-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   unit:
     name: Unit
-    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
@@ -40,12 +35,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Pytest (unit) • ${{ matrix.os }}, ${{ matrix.python-version }}
+      - name: Pytest unit • ${{ matrix.os }}, ${{ matrix.python-version }}
         run: python -m pytest tests/unit
 
   discover-systems:
     name: Discover regression systems
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
       systems: ${{ steps.set-systems.outputs.systems }}
@@ -68,11 +62,10 @@ jobs:
         id: set-systems
         run: |
           SYSTEMS=$(python -m tests.regression.list_systems)
-          echo "systems=$SYSTEMS" >> $GITHUB_OUTPUT
+          echo "systems=$SYSTEMS" >> "$GITHUB_OUTPUT"
 
   regression-quick:
-    name: Regression (fast) • ${{ matrix.system }}
-    if: github.event_name == 'pull_request'
+    name: Regression fast • ${{ matrix.system }}
     needs: discover-systems
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -117,7 +110,6 @@ jobs:
 
   docs:
     name: Docs
-    if: github.event_name == 'pull_request'
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -150,7 +142,6 @@ jobs:
 
   pre-commit:
     name: Pre-commit
-    if: github.event_name == 'pull_request'
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -183,6 +174,12 @@ jobs:
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+
+    permissions:
+      contents: read
+      checks: write
+      statuses: write
+      pull-requests: write
 
     steps:
       - name: Checkout
