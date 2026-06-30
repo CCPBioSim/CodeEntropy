@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-DEFAULT_TESTDATA_BASE_URL = "https://www.ccpbiosim.ac.uk/file-store/codeentropy-testing"
+DEFAULT_TESTDATA_BASE_URL = "https://file-store.ccpbiosim.org/codeentropy-testing"
 
 
 @dataclass(frozen=True)
