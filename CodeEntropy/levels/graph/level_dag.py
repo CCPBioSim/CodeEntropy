@@ -12,13 +12,14 @@ from typing import Any
 import networkx as nx
 
 from CodeEntropy.levels.axes import AxesCalculator
-from CodeEntropy.levels.conformation_dag import ConformationDAG
 from CodeEntropy.levels.execution.policy import ExecutionPolicy
 from CodeEntropy.levels.execution.reducers import NeighborReducer
 from CodeEntropy.levels.execution.scheduler import FrameScheduler
-from CodeEntropy.levels.frame_dag import FrameGraph
+from CodeEntropy.levels.graph.conformation_dag import ConformationDAG
+from CodeEntropy.levels.graph.frame_dag import FrameGraph
 from CodeEntropy.levels.neighbors import Neighbors
 from CodeEntropy.levels.nodes.accumulators import InitCovarianceAccumulatorsNode
+from CodeEntropy.levels.nodes.axes_topology import BuildAxesTopologyNode
 from CodeEntropy.levels.nodes.beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
@@ -49,6 +50,11 @@ class LevelDAG:
         self._add_static("detect_molecules", DetectMoleculesNode())
         self._add_static("detect_levels", DetectLevelsNode(), deps=["detect_molecules"])
         self._add_static("build_beads", BuildBeadsNode(), deps=["detect_levels"])
+        self._add_static(
+            "build_axes_topology",
+            BuildAxesTopologyNode(),
+            deps=["build_beads"],
+        )
         self._add_static(
             "init_covariance_accumulators",
             InitCovarianceAccumulatorsNode(),

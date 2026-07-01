@@ -515,7 +515,7 @@ Example 1: DNA Fragment (Smallest / Fastest)
 
 Data files:
 
-`DNA fragment example (~1MB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/dna_example.tar>`_
+`DNA fragment example (~1MB) <https://file-store.ccpbiosim.org/codeentropy-examples/dna_example.tar>`_
 
 Create or edit ``config.yaml`` in your working directory:
 
@@ -551,7 +551,7 @@ Example 2: Lysozyme (Larger / Slower)
 
 Data files:
 
-`Lysozyme example (~1.2GB) <https://ccpbiosim.ac.uk/file-store/codeentropy-examples/lysozyme_example.tar>`_
+`Lysozyme example (~1.2GB) <https://file-store.ccpbiosim.org/codeentropy-examples/lysozyme_example.tar>`_
 
 Create or edit ``config.yaml`` in your working directory:
 

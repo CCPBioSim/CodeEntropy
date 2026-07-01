@@ -25,7 +25,8 @@ class UniverseOperations:
     This helper provides methods to:
       - Build reduced universes by selecting subsets of frames or atoms.
       - Extract a single fragment (molecule) into a standalone universe.
-      - Merge coordinates from one trajectory with forces from another trajectory.
+      - Merge coordinates from one trajectory with forces sourced from another
+            trajectory.
     """
 
     def __init__(self) -> None:
@@ -185,6 +186,25 @@ class UniverseOperations:
         frag = universe.atoms.fragments[molecule_id]
         selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
         return self.select_atoms(universe, selection_string)
+
+    def extract_fragment_atomgroup(self, universe: mda.Universe, molecule_id: int):
+        """Return a molecule fragment as an AtomGroup.
+
+        This helper mirrors the atom-index range used by ``extract_fragment`` but
+        avoids building a standalone in-memory universe. It is intended for
+        topology discovery paths where only the static atom selection is needed
+        and trajectory coordinates do not need to be copied.
+
+        Args:
+            universe: Source MDAnalysis universe.
+            molecule_id: Fragment index in ``universe.atoms.fragments``.
+
+        Returns:
+            MDAnalysis AtomGroup containing the atoms in the selected fragment.
+        """
+        frag = universe.atoms.fragments[int(molecule_id)]
+        selection_string = f"index {frag.indices[0]}:{frag.indices[-1]}"
+        return universe.select_atoms(selection_string, updating=False)
 
     def convert_lammps(
         self,

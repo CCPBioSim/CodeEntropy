@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from CodeEntropy.levels.frame_dag import FrameGraph
+from CodeEntropy.levels.graph.frame_dag import FrameGraph
 
 
 def test_make_frame_ctx_has_required_keys():
