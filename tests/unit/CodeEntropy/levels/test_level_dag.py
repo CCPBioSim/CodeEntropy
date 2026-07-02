@@ -4,17 +4,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, call, patch
 
-from CodeEntropy.levels.graph.level_dag import LevelDAG
+from CodeEntropy.levels.level_dag import LevelDAG
 
 
 def test_build_registers_static_nodes_and_builds_stage_dags():
     with (
-        patch("CodeEntropy.levels.graph.level_dag.DetectMoleculesNode"),
-        patch("CodeEntropy.levels.graph.level_dag.DetectLevelsNode"),
-        patch("CodeEntropy.levels.graph.level_dag.BuildBeadsNode"),
-        patch("CodeEntropy.levels.graph.level_dag.BuildAxesTopologyNode"),
-        patch("CodeEntropy.levels.graph.level_dag.InitCovarianceAccumulatorsNode"),
-        patch("CodeEntropy.levels.graph.level_dag.ConformationDAG"),
+        patch("CodeEntropy.levels.level_dag.DetectMoleculesNode"),
+        patch("CodeEntropy.levels.level_dag.DetectLevelsNode"),
+        patch("CodeEntropy.levels.level_dag.BuildBeadsNode"),
+        patch("CodeEntropy.levels.level_dag.InitCovarianceAccumulatorsNode"),
+        patch("CodeEntropy.levels.level_dag.ConformationDAG"),
     ):
         universe_operations = MagicMock()
         dag = LevelDAG(universe_operations=universe_operations)
@@ -28,7 +27,6 @@ def test_build_registers_static_nodes_and_builds_stage_dags():
         "detect_molecules",
         "detect_levels",
         "build_beads",
-        "build_axes_topology",
         "init_covariance_accumulators",
     }
     assert "find_neighbors" not in dag._static_nodes
@@ -36,7 +34,6 @@ def test_build_registers_static_nodes_and_builds_stage_dags():
 
     assert ("detect_molecules", "detect_levels") in dag._static_graph.edges
     assert ("detect_levels", "build_beads") in dag._static_graph.edges
-    assert ("build_beads", "build_axes_topology") in dag._static_graph.edges
     assert ("detect_levels", "init_covariance_accumulators") in dag._static_graph.edges
     assert (
         "detect_levels",
@@ -59,12 +56,8 @@ def test_execute_sets_default_axes_manager_and_runs_workflow_stages():
     dag._run_frame_stage = MagicMock()
 
     with (
-        patch(
-            "CodeEntropy.levels.graph.level_dag.NeighborReducer.initialise"
-        ) as initialise,
-        patch(
-            "CodeEntropy.levels.graph.level_dag.NeighborReducer.finalise"
-        ) as finalise,
+        patch("CodeEntropy.levels.level_dag.NeighborReducer.initialise") as initialise,
+        patch("CodeEntropy.levels.level_dag.NeighborReducer.finalise") as finalise,
     ):
         out = dag.execute(shared_data, progress=progress)
 
@@ -168,7 +161,7 @@ def test_run_frame_stage_collects_frame_indices_and_delegates_to_scheduler():
 
     shared_data = {"frame_source": frame_source}
 
-    with patch("CodeEntropy.levels.graph.level_dag.FrameScheduler") as Scheduler:
+    with patch("CodeEntropy.levels.level_dag.FrameScheduler") as Scheduler:
         scheduler = Scheduler.return_value
 
         dag._run_frame_stage(shared_data, progress=progress)
@@ -193,7 +186,7 @@ def test_initialise_neighbor_metadata_writes_symmetry_and_linearity():
     groups = {0: [0], 1: [1]}
     shared_data = {"reduced_universe": universe, "groups": groups}
 
-    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+    with patch("CodeEntropy.levels.level_dag.Neighbors") as Neighbors:
         helper = Neighbors.return_value
         helper.get_symmetry.return_value = ({0: 12, 1: 2}, {0: False, 1: True})
 
@@ -208,7 +201,7 @@ def test_initialise_neighbor_metadata_falls_back_to_universe_key():
     universe = object()
     shared_data = {"universe": universe, "groups": {0: [0]}}
 
-    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+    with patch("CodeEntropy.levels.level_dag.Neighbors") as Neighbors:
         helper = Neighbors.return_value
         helper.get_symmetry.return_value = ({0: 1}, {0: False})
 
@@ -243,11 +236,11 @@ def test_level_dag_runs_static_conformation_then_frame(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "CodeEntropy.levels.graph.level_dag.NeighborReducer.initialise",
+        "CodeEntropy.levels.level_dag.NeighborReducer.initialise",
         lambda shared_data: calls.append("neighbor_initialise"),
     )
     monkeypatch.setattr(
-        "CodeEntropy.levels.graph.level_dag.NeighborReducer.finalise",
+        "CodeEntropy.levels.level_dag.NeighborReducer.finalise",
         lambda shared_data: calls.append("neighbor_finalise"),
     )
 

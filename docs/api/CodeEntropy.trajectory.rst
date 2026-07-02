@@ -1,6 +1,11 @@
 CodeEntropy.trajectory package
 ==============================
 
+.. automodule:: CodeEntropy.trajectory
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Submodules
 ----------
 
@@ -10,11 +15,3 @@ Submodules
    CodeEntropy.trajectory.frames
    CodeEntropy.trajectory.mda
    CodeEntropy.trajectory.source
-
-Module contents
----------------
-
-.. automodule:: CodeEntropy.trajectory
-   :members:
-   :show-inheritance:
-   :undoc-members:

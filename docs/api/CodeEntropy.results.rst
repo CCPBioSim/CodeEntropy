@@ -1,6 +1,11 @@
 CodeEntropy.results package
 ===========================
 
+.. automodule:: CodeEntropy.results
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Submodules
 ----------
 
@@ -8,11 +13,3 @@ Submodules
    :maxdepth: 4
 
    CodeEntropy.results.reporter
-
-Module contents
----------------
-
-.. automodule:: CodeEntropy.results
-   :members:
-   :show-inheritance:
-   :undoc-members:

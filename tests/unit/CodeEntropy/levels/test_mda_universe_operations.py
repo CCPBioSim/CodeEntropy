@@ -1,5 +1,4 @@
-from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -408,19 +407,3 @@ def test_select_frame_indices_raises_when_frame_indices_empty():
         ops.select_frame_indices(u, frame_indices=[])
 
     u.select_atoms.assert_not_called()
-
-
-def test_extract_fragment_atomgroup_returns_lightweight_range_selection() -> None:
-    universe = Mock()
-    universe.atoms.fragments = [
-        SimpleNamespace(indices=[10, 11, 12, 13]),
-    ]
-    universe.select_atoms.return_value = "fragment_atomgroup"
-
-    result = UniverseOperations().extract_fragment_atomgroup(universe, 0)
-
-    assert result == "fragment_atomgroup"
-    universe.select_atoms.assert_called_once_with(
-        "index 10:13",
-        updating=False,
-    )

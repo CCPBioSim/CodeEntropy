@@ -1,6 +1,11 @@
 CodeEntropy.entropy package
 ===========================
 
+.. automodule:: CodeEntropy.entropy
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Subpackages
 -----------
 
@@ -21,11 +26,3 @@ Submodules
    CodeEntropy.entropy.vibrational
    CodeEntropy.entropy.water
    CodeEntropy.entropy.workflow
-
-Module contents
----------------
-
-.. automodule:: CodeEntropy.entropy
-   :members:
-   :show-inheritance:
-   :undoc-members:

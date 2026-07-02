@@ -1,6 +1,11 @@
 CodeEntropy.molecules package
 =============================
 
+.. automodule:: CodeEntropy.molecules
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Submodules
 ----------
 
@@ -8,11 +13,3 @@ Submodules
    :maxdepth: 4
 
    CodeEntropy.molecules.grouping
-
-Module contents
----------------
-
-.. automodule:: CodeEntropy.molecules
-   :members:
-   :show-inheritance:
-   :undoc-members:
