@@ -106,12 +106,12 @@ class AxesCalculator:
         index_prev = index - 1
         index_next = index + 1
         if residue is None:
-            residue = data_container.select_atoms(f"resindex {index}")
+            residue = data_container.atoms.select_atoms(f"resindex {index}")
             # residue of interest
         if len(residue) == 0:
             raise ValueError(f"Empty residue selection for resindex={index}")
         edge_atom_set = data_container.atoms.select_atoms(
-            f" resindex {index} and "
+            f"resindex {index} and "
             f"(bonded resindex {index_prev} or "
             f"resindex {index_next})"
         )
