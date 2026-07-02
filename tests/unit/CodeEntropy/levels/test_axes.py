@@ -716,3 +716,39 @@ def test_get_bonded_axes_returns_none_none_if_custom_axes_none(monkeypatch):
 
     assert custom_axes is None
     assert moi is None
+
+
+def test_get_residue_axes_custom_path(monkeypatch):
+    ax = AxesCalculator()
+
+    edge_atoms = _FakeAtomGroup(
+        [_FakeAtom(8, 12.0, [1, 0, 0]), _FakeAtom(10, 14.0, [0, 0, 0])],
+        positions=np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=float),
+    )
+
+    backbone_center = np.array([0.0, 1.0, 0.0])
+    rot_center, rot_axes = ax.get_residue_custom_axes(
+        [edge_atoms[0], edge_atoms[1]], backbone_center
+    )
+
+    assert rot_center.shape == (3,)
+    assert rot_axes.shape == (3, 3)
+
+
+def test_get_custom_residue_moment_of_inertia(monkeypatch):
+    ax = AxesCalculator()
+    heavy_atoms = _FakeAtomGroup(
+        [_FakeAtom(0, 12.0, [1, 2, 1]), _FakeAtom(1, 12.0, [2, 1, 1])],
+        positions=np.array([[1, 2, 1], [2, 1, 1]], dtype=float),
+    )
+    dimensions = np.array([10.0, 10.0, 10.0], dtype=float)
+
+    moi = ax.get_custom_residue_moment_of_inertia(
+        center_of_mass=np.array([1, 1, 1]),
+        positions=heavy_atoms.positions,
+        masses=heavy_atoms.masses,
+        custom_rot_axes=np.eye(3),
+        dimensions=dimensions,
+    )
+
+    assert moi.shape == (3,)
