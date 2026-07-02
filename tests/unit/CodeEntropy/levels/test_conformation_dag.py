@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from CodeEntropy.levels.conformation_dag import ConformationDAG
+from CodeEntropy.levels.graph.conformation_dag import ConformationDAG
 from CodeEntropy.trajectory.frames import FrameSelection
 
 

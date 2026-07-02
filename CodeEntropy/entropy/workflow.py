@@ -26,8 +26,8 @@ from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.graph import EntropyGraph
 from CodeEntropy.entropy.water import WaterEntropy
+from CodeEntropy.levels.graph.level_dag import LevelDAG
 from CodeEntropy.levels.hierarchy import HierarchyBuilder
-from CodeEntropy.levels.level_dag import LevelDAG
 from CodeEntropy.trajectory.frames import FrameSelection
 from CodeEntropy.trajectory.source import FrameSource
 

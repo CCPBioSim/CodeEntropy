@@ -1,11 +1,6 @@
 CodeEntropy.config package
 ==========================
 
-.. automodule:: CodeEntropy.config
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Submodules
 ----------
 
@@ -14,3 +9,11 @@ Submodules
 
    CodeEntropy.config.argparse
    CodeEntropy.config.runtime
+
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.config
+   :members:
+   :show-inheritance:
+   :undoc-members:

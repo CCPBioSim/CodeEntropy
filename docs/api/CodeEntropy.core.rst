@@ -1,11 +1,6 @@
 CodeEntropy.core package
 ========================
 
-.. automodule:: CodeEntropy.core
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Submodules
 ----------
 
@@ -14,3 +9,11 @@ Submodules
 
    CodeEntropy.core.dask_clusters
    CodeEntropy.core.logging
+
+Module contents
+---------------
+
+.. automodule:: CodeEntropy.core
+   :members:
+   :show-inheritance:
+   :undoc-members:

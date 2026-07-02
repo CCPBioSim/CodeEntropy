@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from CodeEntropy.levels.frame_dag import FrameGraph
+from CodeEntropy.levels.graph.frame_dag import FrameGraph
 from CodeEntropy.levels.neighbors import Neighbors
 
 FRAME_WORKER_EXCLUDED_SHARED_KEYS = {
