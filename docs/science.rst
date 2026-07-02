@@ -72,9 +72,9 @@ For the polymer level, the translational and rotational axes are defined as the 
 
 For the residue level, there are two situations.
 When the residue is not bonded to any other residues, the translational and rotational axes are the principal axes of the molecule.
-When the residue is part of a larger polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the positions of edge atoms in a residue (i.e. heavy atoms bonded to atoms in a neighbouring residue) and average position of all inner backbone (defined as the shortest path between the edge atoms, not including them) heavy atoms.
+When the residue is part of a larger polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the average position of the bonds to neighbouring residues.
 
-For the united atom level, the translational axes are the same as the rotational axes at the residue level and the rotational axes are defined from the average position of the bonds to neighbouring heavy atoms.
+For the united atom level, the translational axes are defined as the principal axes of the residue and the rotational axes are defined from the average position of the bonds to neighbouring heavy atoms.
 If there are no bonds to other heavy atoms, the principal axes of the molecule are used.
 
 Conformational Entropy
