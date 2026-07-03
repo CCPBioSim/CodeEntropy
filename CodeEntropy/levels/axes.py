@@ -61,7 +61,9 @@ class AxesCalculator:
         self._rot_axes = None
         self._number_of_beads = None
 
-    def get_residue_axes(self, data_container, index: int, residue=None):
+    def get_residue_axes(
+        self, data_container, index: int, relative_index: int, residue=None
+    ):
         """Compute residue-level translational and rotational axes.
 
         The translational and rotational axes at the residue level.
@@ -86,6 +88,9 @@ class AxesCalculator:
                 Molecule and trajectory data (the fragment/molecule container).
             index (int):
                 Residue index (resindex) within `data_container`.
+            relative_index (int):
+                Index of first residue within 'data_container'.
+                This is used to obtain index in MDA Universe for atom selections.
             residue (MDAnalysis.AtomGroup, optional):
                 If provided, this residue selection will be used rather than
                 selecting again.
@@ -103,15 +108,20 @@ class AxesCalculator:
         """
         # TODO refine selection so that it will work for branched polymers
         # match indexing to MDAnalysis indexing
-        index_prev = index - 1
-        index_next = index + 1
+
+        index_prev = index + relative_index - 1
+        index_next = index + relative_index + 1
+
         if residue is None:
-            residue = data_container.select_atoms(f"resindex {index}")
+            residue = data_container.select_atoms(f"resindex {index + relative_index}")
             # residue of interest
         if len(residue) == 0:
-            raise ValueError(f"Empty residue selection for resindex={index}")
+            raise ValueError(
+                f"Empty residue selection for resindex={index + relative_index}"
+            )
+
         edge_atom_set = data_container.atoms.select_atoms(
-            f"resindex {index} and "
+            f"resindex {index + relative_index} and "
             f"(bonded resindex {index_prev} or "
             f"resindex {index_next})"
         )
@@ -137,7 +147,7 @@ class AxesCalculator:
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            residue = data_container.residues[index]
+
             if len(edge_atom_set) == 1:
                 if index == 0:
                     # first residue
@@ -162,6 +172,7 @@ class AxesCalculator:
                         else:
                             last_index -= 1
                     edges = [edge_atom_set[0], last]
+
                     backbone = self.get_chain(residue, edge_atom_set[0], last)
             else:
                 # residue has two bonds to other residues
@@ -227,7 +238,8 @@ class AxesCalculator:
             ValueError:
                 If axis construction fails.
         """
-        index = int(index)  # bead index
+
+        index = int(index)  # UA bead index
         heavy_atoms = data_container.select_atoms("mass 2 to 999")
         # use the same customPI trans axes as the residue level
         if len(heavy_atoms) > 1:
@@ -240,14 +252,14 @@ class AxesCalculator:
                 # residue of interest has at least one neighbour
                 if res_position == -1:
                     residue = data_container.residues[0]
-                    index_next = residue.resid + 1
-                    # the .resid attribute gives 1-indexing
-                    # substract 1 to match indexing later
+                    resindex = residue.resindex
+                    resindex_next = resindex + 1
+
                     second_edge = data_container.select_atoms(
-                        f"resindex {residue.resid - 1} and "
-                        f"bonded resindex {index_next - 1}"
+                        f"resindex {resindex} and bonded resindex {resindex_next}"
                     )
-                    edges = [residue.atoms[0], second_edge.atoms[0]]
+
+                    edges = [residue.atoms[0], second_edge[0]]
                     backbone = self.get_chain(
                         residue, residue.atoms[0], second_edge.atoms[0]
                     )
@@ -255,24 +267,29 @@ class AxesCalculator:
                 elif res_position == 0:
                     # between 2 residues
                     residue = data_container.residues[1]
-                    index_prev = residue.resid - 1
-                    index_next = residue.resid + 1
+                    resindex = residue.resindex
+                    resindex_next = resindex + 1
+                    resindex_prev = resindex - 1
+                    # always going to have resindex 1 in data_container
                     edge_set = data_container.select_atoms(
-                        f"resindex {residue.resid - 1} and "
-                        f"(bonded resindex {index_next - 1} or "
-                        f"resindex {index_prev - 1})"
+                        f"resindex {resindex} and "
+                        f"(bonded resindex {resindex_prev} or "
+                        f"resindex {resindex_next})"
                     )
+
                     edges = [edge_set[0], edge_set[1]]
                     backbone = self.get_chain(residue, edge_set[0], edge_set[1])
 
                 else:
                     # last resid
+                    # always resindex 1 in data_container
                     residue = data_container.residues[1]
-                    index_prev = residue.resid - 1
+                    resindex = residue.resindex
+                    resindex_prev = resindex - 1
                     first_edge = data_container.select_atoms(
-                        f"resindex {residue.resid - 1} and "
-                        f"bonded resindex {index_prev - 1}"
+                        f"resindex {resindex} and bonded resindex {resindex_prev}"
                     )
+
                     last_index = len(heavy_atoms) - 1
                     last = None
                     # look for last heavy atom

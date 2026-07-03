@@ -199,24 +199,37 @@ class FrameCovarianceNode:
         """
 
         for local_res_i, res in enumerate(mol.residues):
+            # local_res_i is relative to first atom in molecule
+
             if len(mol.residues) > 1:
                 # there are multiple residues in the molecule
                 # build residue group here
                 if local_res_i == 0:
                     # first residue
+                    relative_id = res.resindex
+                    # index relative to first in mda universe
                     res_position = -1
-                    res_next = mol.residues[1]
-                    residue_group = res + res_next
+                    residue_group = mol.select_atoms(
+                        f"resindex {local_res_i + relative_id} "
+                        f"or resindex {local_res_i + 1 + relative_id}"
+                    ).residues
+
                 elif local_res_i == len(mol.residues) - 1:
                     # last residue
                     res_position = 1
-                    res_prev = mol.residues[-2]
-                    residue_group = res + res_prev
+                    residue_group = mol.select_atoms(
+                        f"resindex {local_res_i - 1 + relative_id} "
+                        f"or resindex {local_res_i + relative_id}"
+                    ).residues
+
                 else:
                     res_position = 0
-                    res_prev = mol.residues[local_res_i - 1]
-                    res_next = mol.residues[local_res_i + 1]
-                    residue_group = res_prev + res + res_next
+                    residue_group = mol.select_atoms(
+                        f"resindex {local_res_i - 1 + relative_id} "
+                        f"or resindex {local_res_i + relative_id} "
+                        f"or resindex {local_res_i + 1 + relative_id}"
+                    ).residues
+
             else:
                 # only one residue
                 res_position = None
@@ -511,10 +524,13 @@ class FrameCovarianceNode:
         force_vecs: list[np.ndarray] = []
         torque_vecs: list[np.ndarray] = []
 
+        relative_res_i = mol.residues[0].resindex
+
         for local_res_i, bead in enumerate(bead_groups):
             trans_axes, rot_axes, center, moi = self._get_residue_axes(
                 mol=mol,
                 bead=bead,
+                relative_res_i=relative_res_i,
                 local_res_i=local_res_i,
                 axes_manager=axes_manager,
                 customised_axes=customised_axes,
@@ -548,6 +564,7 @@ class FrameCovarianceNode:
         mol: Any,
         bead: Any,
         local_res_i: int,
+        relative_res_i: int,
         axes_manager: Any,
         customised_axes: bool,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -565,7 +582,9 @@ class FrameCovarianceNode:
         """
         if customised_axes:
             res = mol.residues[local_res_i]
-            return axes_manager.get_residue_axes(mol, local_res_i, residue=res.atoms)
+            return axes_manager.get_residue_axes(
+                mol, local_res_i, relative_res_i, residue=res.atoms
+            )
 
         make_whole(mol.atoms)
         make_whole(bead)
