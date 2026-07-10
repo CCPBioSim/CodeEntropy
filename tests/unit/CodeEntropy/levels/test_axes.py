@@ -75,7 +75,7 @@ def test_get_residue_axes_empty_residue_raises():
     u.select_atoms.return_value = []
 
     with pytest.raises(ValueError):
-        ax.get_residue_axes(u, index=5)
+        ax.get_residue_axes(u, index=5, relative_index=0)
 
 
 def test_get_residue_axes_no_bonds_uses_custom_principal_axes(monkeypatch):
@@ -109,7 +109,7 @@ def test_get_residue_axes_no_bonds_uses_custom_principal_axes(monkeypatch):
         lambda moi: (np.eye(3), np.array([3.0, 2.0, 1.0])),
     )
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=7)
+    trans, rot, center, moi = ax.get_residue_axes(u, index=7, relative_index=0)
 
     assert np.allclose(trans, np.eye(3))
     assert np.allclose(rot, np.eye(3))
@@ -153,7 +153,9 @@ def test_get_residue_axes_uses_vanilla_axes(monkeypatch):
     axes = transposed[[2, 0, 1]]
     axes[2] = -axes[2]
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=10, residue=residue)
+    trans, rot, center, moi = ax.get_residue_axes(
+        u, index=10, relative_index=0, residue=residue
+    )
 
     assert np.allclose(trans, axes)
     assert np.allclose(rot, axes)
@@ -508,7 +510,7 @@ def test_get_residue_axes_no_bonds_custom_path(monkeypatch):
         lambda moi: (np.eye(3), np.array([3.0, 2.0, 1.0])),
     )
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=7)
+    trans, rot, center, moi = ax.get_residue_axes(u, index=7, relative_index=0)
 
     assert trans.shape == (3, 3)
     assert rot.shape == (3, 3)
@@ -543,7 +545,9 @@ def test_get_residue_axes_vanilla_path(monkeypatch):
         lambda mol: (np.eye(3) * 2, np.array([9.0, 8.0, 7.0])),
     )
 
-    trans, rot, center, moi = ax.get_residue_axes(u, index=10, residue=residue)
+    trans, rot, center, moi = ax.get_residue_axes(
+        u, index=10, relative_index=0, residue=residue
+    )
 
     assert np.allclose(trans, np.eye(3) * 2)
     assert np.allclose(rot, np.eye(3) * 2)
@@ -632,13 +636,13 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
 
     heavy_atoms = _FakeAtomGroup(
         [
-            _FakeAtom(0, 12.0, [0, 0, 0]),
-            _FakeAtom(1, 12.0, [1, 0, 0]),
+            _atom(index=0, mass=12.0, pos=[0, 0, 0]),
+            _atom(index=1, mass=12.0, pos=[1, 0, 0]),
         ],
         positions=np.array([[0, 0, 0], [1, 0, 0]], dtype=float),
     )
 
-    system_atom = _FakeAtom(index=0, mass=12.0, position=[0, 0, 0])
+    system_atom = _atom(index=0, mass=12.0, pos=[0, 0, 0])
     heavy_atom_selection = _FakeAtomGroup(
         [system_atom], positions=np.array([[0, 0, 0]], dtype=float)
     )
@@ -657,7 +661,7 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
             if q == "mass 2 to 999":
                 return heavy_atoms
             if q.startswith("index "):
-                return heavy_atom_selection
+                return heavy_atom_selection[0]
 
     data_container = MagicMock()
     data_container.atoms = _Atoms()
@@ -752,3 +756,103 @@ def test_get_custom_residue_moment_of_inertia(monkeypatch):
     )
 
     assert moi.shape == (3,)
+
+
+"""
+def test_get_residue_bonded_axes_2neighbours(monkeypatch):
+    ax = AxesCalculator()
+    u = MagicMock()
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
+    residue = MagicMock(resindex = 1)
+    residue.__len__.return_value = 1
+    residue.resindex = 1
+
+    edge_atom_set = _FakeAtomGroup(
+        [_atom(index= 8, mass = 12.0, pos = [1, 0, 0]),
+         _atom(index = 10, mass= 14.0, pos = [0,0,0]) ],
+        positions=np.array([[1.0, 0.0, 0.0],
+        [0.0,0.0,0.0]], dtype=float),
+    )
+    backbone_atom = _atom (index = 9, mass = 12.0, pos = [0,1,0])
+
+
+    def _select_atoms(q):
+        if q == "resindex "+str(residue.resindex):
+            return residue
+        elif q.startswith("resindex "):
+            return edge_atom_set
+
+    u.atoms.select_atoms.side_effect = _select_atoms
+    u.select_atoms.side_effect = _select_atoms
+
+    residue.principal_axes.return_value = np.eye(3)
+    monkeypatch.setattr(ax,"get_chain", backbone_atom)
+    monkeypatch.setattr(ax, "get_custom_residue_moment_of_inertia", np.array([1,1,1]))
+
+    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
+        data_container= u,
+        index = 1,
+        relative_index = 0,
+        residue = residue
+    )
+
+    assert len(edge_atom_set)==2
+    assert np.allclose(trans_axes,np.eye(3))
+    assert rot_axes.shape == (3,3)
+    assert rot_center.shape == (3,)
+    assert np.allclose(moi, np.array([1,1,1]))
+"""
+
+
+def test_get_ua_axes_bonded_axes_2neighbours(monkeypatch):
+    ax = AxesCalculator()
+    residue_group = MagicMock()
+    residue_group.__len__ = 3
+    residue = residue_group.residues[1]
+
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=3, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=5, mass=12.0, pos=(0, 1, 0)),
+            _atom(index=7, mass=12.0, pos=(0, 0, 1)),
+        ],
+        positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=float),
+    )
+
+    edge_atoms = _FakeAtomGroup(
+        [
+            _atom(index=3, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=7, mass=12.0, pos=(0, 0, 1)),
+        ],
+        positions=np.array([[1, 0, 0], [0, 0, 1]], dtype=float),
+    )
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            # return heavy atoms group
+            return heavy_atoms
+        if q.startswith("resindex "):
+            return edge_atoms
+        if q.startswith("index "):
+            return heavy_atoms[1]
+
+    residue_group.select_atoms.side_effect = _select_atoms
+    residue.atoms.select_atoms.side_effect = _select_atoms
+    monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: heavy_atoms[1])
+    monkeypatch.setattr(
+        ax,
+        "get_bonded_axes",
+        lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 2.0, 3.0])),
+    )
+
+    trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
+        data_container=residue_group, index=1, res_position=0
+    )
+
+    assert trans_axes.shape == (3, 3)
+    assert rot_axes.shape == (3, 3)
+    assert moi.shape == (3,)
+    assert rot_center.shape == (3,)
+
+
+# def test_get_chain(monkeypatch):

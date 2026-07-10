@@ -248,6 +248,7 @@ class AxesCalculator:
                 residue = data_container
                 trans_center = data_container.atoms.center_of_mass(unwrap=True)
                 trans_axes = data_container.atoms.principal_axes()
+                residue_heavy_atoms = heavy_atoms
             else:
                 # residue of interest has at least one neighbour
                 if res_position == -1:
@@ -270,7 +271,8 @@ class AxesCalculator:
                     resindex = residue.resindex
                     resindex_next = resindex + 1
                     resindex_prev = resindex - 1
-                    # always going to have resindex 1 in data_container
+                    residue = data_container.residues[1]
+
                     edge_set = data_container.select_atoms(
                         f"resindex {resindex} and "
                         f"(bonded resindex {resindex_prev} or "
@@ -283,7 +285,6 @@ class AxesCalculator:
                 else:
                     # last resid
                     # always resindex 1 in data_container
-                    residue = data_container.residues[1]
                     resindex = residue.resindex
                     resindex_prev = resindex - 1
                     first_edge = data_container.select_atoms(
@@ -315,8 +316,8 @@ class AxesCalculator:
                 trans_center, trans_axes = self.get_residue_custom_axes(
                     edges, backbone_center
                 )
+                residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
 
-            residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
             # look for heavy atoms in residue of interest
             heavy_atom_indices = []
             for atom in residue_heavy_atoms:
@@ -325,10 +326,10 @@ class AxesCalculator:
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
             heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
-            rot_center = heavy_atom.positions[0]
+            rot_center = heavy_atom.position
             rot_axes, moment_of_inertia = self.get_bonded_axes(
                 system=data_container,
-                atom=heavy_atom[0],
+                atom=heavy_atom,
                 dimensions=data_container.dimensions[:3],
             )
 
