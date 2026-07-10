@@ -458,9 +458,12 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
     axes_manager.get_vanilla_axes.assert_called_once()
 
 
-def test_build_residue_vectors_uses_residue_axes():
+def test_build_residue_vectors_uses_residue_axes(monkeypatch):
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
+    residue = MagicMock()
+    mol.residues = [residue]
+    monkeypatch.setattr(residue, "resindex", lambda resindex: 0)
     axes_manager = MagicMock()
 
     node._get_residue_axes = MagicMock(
@@ -496,6 +499,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
             mol=mol,
             bead=FakeAtomGroup("res"),
             local_res_i=0,
+            relative_res_i=0,
             axes_manager=axes_manager,
             customised_axes=True,
         )
@@ -504,6 +508,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
 
     axes_manager.get_residue_axes.assert_called_once_with(
         mol,
+        0,
         0,
         residue=mol.residues[0].atoms,
     )
@@ -524,6 +529,7 @@ def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
             mol=mol,
             bead=bead,
             local_res_i=0,
+            relative_res_i=0,
             axes_manager=axes_manager,
             customised_axes=False,
         )
