@@ -5,7 +5,7 @@
     "group:monorepos",
     "group:recommended"
   ],
-  "enabledManagers": ["pep621"],
+  "enabledManagers": ["pep621", "github-actions"],
   "pep621": {
     "enabled": true
   },
