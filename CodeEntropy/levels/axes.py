@@ -271,7 +271,6 @@ class AxesCalculator:
                     resindex = residue.resindex
                     resindex_next = resindex + 1
                     resindex_prev = resindex - 1
-                    residue = data_container.residues[1]
 
                     edge_set = data_container.select_atoms(
                         f"resindex {resindex} and "
@@ -285,6 +284,7 @@ class AxesCalculator:
                 else:
                     # last resid
                     # always resindex 1 in data_container
+                    residue = data_container.residues[1]
                     resindex = residue.resindex
                     resindex_prev = resindex - 1
                     first_edge = data_container.select_atoms(
@@ -325,7 +325,8 @@ class AxesCalculator:
             # we find the nth heavy atom
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
-            heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")
+            heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")[0]
+            print(f"The heavy atom is: {heavy_atom}")
             rot_center = heavy_atom.position
             rot_axes, moment_of_inertia = self.get_bonded_axes(
                 system=data_container,
@@ -877,10 +878,10 @@ class AxesCalculator:
             last: Last heavy atom in the chain
 
         Returns:
-            chain: MDAnalysis AtomGroup containing chain atoms.
+            chain: Array containing chain atoms.
         """
+
         chain = []
-        chain_indices = []
         # at the beggining we've only visited the first atom
         visited_dict = {first: True}
         # keep the previous atom to trace back the path
@@ -894,6 +895,7 @@ class AxesCalculator:
         for atom in remaining_heavy_atoms:
             visited_dict[atom] = False
         current = first
+
         while not visited_dict[last]:
             # we haven't found a path to the last residue
             next_to_visit.pop(0)
@@ -901,13 +903,16 @@ class AxesCalculator:
             bonded_atoms = residue.atoms.select_atoms(
                 f"(mass 2 to 999) and bonded index {current.index}"
             )
+
             if last in bonded_atoms:
                 # we found a path to the last atom
                 visited_dict[last] = True
                 chain.append(last)
                 prev[last] = current
+
             else:
                 for bonded_atom in bonded_atoms:
+                    print(f"The bonded atom of bonded_atoms: {bonded_atom}")
                     # look for unvisited bonded atoms to the current atom we're visiting
                     if not visited_dict[bonded_atom]:
                         # we're going to want to visit the atoms
@@ -924,17 +929,15 @@ class AxesCalculator:
         # most likely will coincide with first
         # but this will work even if it doesn't
         # accout for in-residue index
-        chain_indices = [last.index - residue.atoms.indices[0]]
         # start from last atom in chain
         while chain[-1] != first:
             # we haven't yet returned to the first atom
             current = prev[current]
             chain.append(current)
-            chain_indices.append(current.index - residue.atoms.indices[0])
-        chain_indices = np.flip(chain_indices)
+
+        chain = np.flip(chain)
         # only get in between residues
-        chain_indices = chain_indices[1:-1]
+        chain = chain[1:-1]
         # accout for in-residue index
-        chain_AtomGroup = residue.atoms[chain_indices]
-        chain = chain_AtomGroup.atoms.select_atoms("all")
+        print(f"The chain is: {chain}")
         return chain
