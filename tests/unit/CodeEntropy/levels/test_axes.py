@@ -661,7 +661,7 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
             if q == "mass 2 to 999":
                 return heavy_atoms
             if q.startswith("index "):
-                return heavy_atom_selection[0]
+                return [heavy_atom_selection[0]]
 
     data_container = MagicMock()
     data_container.atoms = _Atoms()
@@ -758,50 +758,47 @@ def test_get_custom_residue_moment_of_inertia(monkeypatch):
     assert moi.shape == (3,)
 
 
-"""
 def test_get_residue_bonded_axes_2neighbours(monkeypatch):
     ax = AxesCalculator()
     u = MagicMock()
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
-    residue = MagicMock(resindex = 1)
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    residue = u.select_atoms("resindex 1")
     residue.__len__.return_value = 1
-    residue.resindex = 1
 
     edge_atom_set = _FakeAtomGroup(
-        [_atom(index= 8, mass = 12.0, pos = [1, 0, 0]),
-         _atom(index = 10, mass= 14.0, pos = [0,0,0]) ],
-        positions=np.array([[1.0, 0.0, 0.0],
-        [0.0,0.0,0.0]], dtype=float),
+        [
+            _atom(index=8, mass=12.0, pos=[1, 0, 0]),
+            _atom(index=10, mass=14.0, pos=[0, 0, 0]),
+        ],
+        positions=np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=float),
     )
-    backbone_atom = _atom (index = 9, mass = 12.0, pos = [0,1,0])
-
+    backbone_atom = _atom(index=9, mass=12.0, pos=[0, 1, 0])
 
     def _select_atoms(q):
-        if q == "resindex "+str(residue.resindex):
-            return residue
-        elif q.startswith("resindex "):
+        if q.endswith("(bonded resindex 0 or resindex 2)"):
             return edge_atom_set
 
     u.atoms.select_atoms.side_effect = _select_atoms
-    u.select_atoms.side_effect = _select_atoms
-
-    residue.principal_axes.return_value = np.eye(3)
-    monkeypatch.setattr(ax,"get_chain", backbone_atom)
-    monkeypatch.setattr(ax, "get_custom_residue_moment_of_inertia", np.array([1,1,1]))
-
-    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
-        data_container= u,
-        index = 1,
-        relative_index = 0,
-        residue = residue
+    u.atoms.principal_axes.return_value = np.eye(3)
+    monkeypatch.setattr(ax, "get_chain", backbone_atom)
+    monkeypatch.setattr(
+        ax,
+        "get_custom_residue_moment_of_inertia",
+        lambda center_of_mass, positions, masses, custom_rot_axes, dimensions: np.array(
+            [1, 1, 1]
+        ),
     )
 
-    assert len(edge_atom_set)==2
-    assert np.allclose(trans_axes,np.eye(3))
-    assert rot_axes.shape == (3,3)
+    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
+        u, index=1, relative_index=0
+    )
+
+    assert len(edge_atom_set) == 2
+    assert np.allclose(trans_axes, np.eye(3))
+    assert rot_axes.shape == (3, 3)
     assert rot_center.shape == (3,)
-    assert np.allclose(moi, np.array([1,1,1]))
-"""
+    assert np.allclose(moi, np.array([1, 1, 1]))
 
 
 def test_get_ua_axes_bonded_axes_2neighbours(monkeypatch):
@@ -834,7 +831,7 @@ def test_get_ua_axes_bonded_axes_2neighbours(monkeypatch):
         if q.startswith("resindex "):
             return edge_atoms
         if q.startswith("index "):
-            return heavy_atoms[1]
+            return [heavy_atoms[1]]
 
     residue_group.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
@@ -855,4 +852,36 @@ def test_get_ua_axes_bonded_axes_2neighbours(monkeypatch):
     assert rot_center.shape == (3,)
 
 
-# def test_get_chain(monkeypatch):
+def test_get_chain(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 5
+    heavy_atoms = [
+        _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+        _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+        _atom(index=2, mass=12.0, pos=(0, 0, 1)),
+        _atom(index=3, mass=12.0, pos=(0, 1, 1)),
+        _atom(index=4, mass=12.0, pos=(1, 0, 1)),
+    ]
+
+    def _select_atoms(q):
+        if q.endswith("bonded index 0"):
+            return [heavy_atoms[1]]
+        elif q.endswith("bonded index 1"):
+            return [heavy_atoms[0], heavy_atoms[2]]
+        elif q.endswith("bonded index 2"):
+            return [heavy_atoms[1], heavy_atoms[3]]
+        elif q.endswith("bonded index 3"):
+            return [heavy_atoms[2], heavy_atoms[4]]
+        elif q.endswith("bonded index 4"):
+            return [heavy_atoms[3]]
+        elif q.endswith("not index 0"):
+            return heavy_atoms[1:]
+
+    residue.atoms.select_atoms.side_effect = _select_atoms
+    residue.atoms.indices = np.arange(5)
+    print(f"The indices in our residue: {residue.atoms.indices}")
+
+    chain = ax.get_chain(residue=residue, first=heavy_atoms[0], last=heavy_atoms[-1])
+
+    assert len(chain) == 3

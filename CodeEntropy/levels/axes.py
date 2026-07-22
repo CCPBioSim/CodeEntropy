@@ -147,6 +147,7 @@ class AxesCalculator:
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
+            print(f"The principal axes are: {trans_axes}")
 
             if len(edge_atom_set) == 1:
                 if index == 0:
@@ -326,7 +327,6 @@ class AxesCalculator:
             # where n is the bead index
             heavy_atom_index = heavy_atom_indices[index]
             heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")[0]
-            print(f"The heavy atom is: {heavy_atom}")
             rot_center = heavy_atom.position
             rot_axes, moment_of_inertia = self.get_bonded_axes(
                 system=data_container,
@@ -912,7 +912,6 @@ class AxesCalculator:
 
             else:
                 for bonded_atom in bonded_atoms:
-                    print(f"The bonded atom of bonded_atoms: {bonded_atom}")
                     # look for unvisited bonded atoms to the current atom we're visiting
                     if not visited_dict[bonded_atom]:
                         # we're going to want to visit the atoms
@@ -939,5 +938,4 @@ class AxesCalculator:
         # only get in between residues
         chain = chain[1:-1]
         # accout for in-residue index
-        print(f"The chain is: {chain}")
         return chain
