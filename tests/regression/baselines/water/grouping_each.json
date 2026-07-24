@@ -3,92 +3,92 @@
     "0": {
       "components": {
         "united_atom:Transvibrational": 14.945907953805552,
-        "united_atom:Rovibrational": 1.8947243953648254,
+        "united_atom:Rovibrational": 1.94076792014105,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 16.840632349170377
+      "total": 16.8866758739466
     },
     "1": {
       "components": {
-        "united_atom:Transvibrational": 8.111522208287779,
-        "united_atom:Rovibrational": 0.9607747968334215,
+        "united_atom:Transvibrational": 8.11152220828778,
+        "united_atom:Rovibrational": 0.9798912337680555,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 9.0722970051212
+      "total": 9.091413442055837
     },
     "2": {
       "components": {
-        "united_atom:Transvibrational": 15.79497347968759,
-        "united_atom:Rovibrational": 4.606072530590255,
+        "united_atom:Transvibrational": 15.794973479687599,
+        "united_atom:Rovibrational": 4.4692860930919585,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 20.401046010277845
+      "total": 20.264259572779558
     },
     "3": {
       "components": {
         "united_atom:Transvibrational": 9.462487265119448,
-        "united_atom:Rovibrational": 1.6509513986984767,
+        "united_atom:Rovibrational": 1.6054615846390614,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 11.113438663817924
+      "total": 11.067948849758508
     },
     "4": {
       "components": {
         "united_atom:Transvibrational": 16.254161245740693,
-        "united_atom:Rovibrational": 1.367597374110767,
+        "united_atom:Rovibrational": 1.448700454979353,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 17.62175861985146
+      "total": 17.702861700720046
     },
     "5": {
       "components": {
         "united_atom:Transvibrational": 11.57779876203329,
-        "united_atom:Rovibrational": 7.351163568004953,
+        "united_atom:Rovibrational": 7.23849459157533,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 18.928962330038242
+      "total": 18.81629335360862
     },
     "6": {
       "components": {
         "united_atom:Transvibrational": 10.172061262201801,
-        "united_atom:Rovibrational": 3.671537296888502,
+        "united_atom:Rovibrational": 4.086982297438225,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 13.843598559090303
+      "total": 14.259043559640027
     },
     "7": {
       "components": {
-        "united_atom:Transvibrational": 13.49951045186194,
-        "united_atom:Rovibrational": 1.7029491215274863,
+        "united_atom:Transvibrational": 13.499510451861939,
+        "united_atom:Rovibrational": 1.6178142656646386,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 15.202459573389428
+      "total": 15.117324717526577
     },
     "8": {
       "components": {
         "united_atom:Transvibrational": 16.597759171924583,
-        "united_atom:Rovibrational": 1.6190289365617598,
+        "united_atom:Rovibrational": 1.6676178150275727,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 18.21678810848634
+      "total": 18.265376986952155
     },
     "9": {
       "components": {
         "united_atom:Transvibrational": 13.731375187064538,
-        "united_atom:Rovibrational": 5.650620990305761,
+        "united_atom:Rovibrational": 5.161816204002109,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 19.381996177370297
+      "total": 18.893191391066647
     }
   }
 }
