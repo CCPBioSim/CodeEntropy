@@ -61,13 +61,15 @@ class AxesCalculator:
         self._rot_axes = None
         self._number_of_beads = None
 
-    def get_residue_axes(self, data_container, index: int, residue=None):
+    def get_residue_axes(
+        self, data_container, index: int, relative_index: int, residue=None
+    ):
         """Compute residue-level translational and rotational axes.
 
         The translational and rotational axes at the residue level.
 
         - Identify the residue (either provided or selected by `resindex index`).
-        - Determine whether the residue is bonded to neighboring residues
+        - Determine whether the residue is bonded to neighbouring residues
           (previous/next in sequence) using MDAnalysis bonded selections.
         - If there are *no* bonds to other residues:
             * Use a custom principal axes, from a moment-of-inertia (MOI) tensor
@@ -76,13 +78,19 @@ class AxesCalculator:
             * Set translational axes equal to rotational axes (as per the original
               code convention).
         - If bonded to other residues:
-            * Use default axes and MOI (MDAnalysis principal axes / inertia).
+            Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
+            and find the shortest chain between them: the backbone. Edge
+            atoms + backbone COM are used to determine UA translational axes
+            (see get_residue_custom_axes)
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
                 Molecule and trajectory data (the fragment/molecule container).
             index (int):
                 Residue index (resindex) within `data_container`.
+            relative_index (int):
+                Index of first residue within 'data_container'.
+                This is used to obtain index in MDA Universe for atom selections.
             residue (MDAnalysis.AtomGroup, optional):
                 If provided, this residue selection will be used rather than
                 selecting again.
@@ -99,101 +107,95 @@ class AxesCalculator:
                 If the residue selection is empty.
         """
         # TODO refine selection so that it will work for branched polymers
-        index_prev = index - 1
-        index_next = index + 1
+        # match indexing to MDAnalysis indexing
+
+        index_prev = index + relative_index - 1
+        index_next = index + relative_index + 1
 
         if residue is None:
-            residue = data_container.select_atoms(f"resindex {index}")
+            residue = data_container.select_atoms(f"resindex {index + relative_index}")
+            # residue of interest
         if len(residue) == 0:
-            raise ValueError(f"Empty residue selection for resindex={index}")
+            raise ValueError(
+                f"Empty residue selection for resindex={index + relative_index}"
+            )
 
-        center = residue.atoms.center_of_mass(unwrap=True)
-        atom_set = data_container.select_atoms(
-            f"(resindex {index_prev} or resindex {index_next}) and bonded resid {index}"
+        edge_atom_set = data_container.atoms.select_atoms(
+            f"resindex {index + relative_index} and "
+            f"(bonded resindex {index_prev} or "
+            f"resindex {index_next})"
         )
 
-        if len(atom_set) == 0:
-            # No bonds to other residues.
+        uas = residue.select_atoms("mass 2 to 999")
+        ua_masses = self.get_UA_masses(residue)
+
+        if len(edge_atom_set) == 0:
+            # No UAS are bonded to other residues
             # Use a custom principal axes, from a MOI tensor that uses positions of
             # heavy atoms only, but including masses of heavy atom + bonded H.
-            uas = residue.select_atoms("mass 2 to 999")
-            ua_masses = self.get_UA_masses(residue)
+
             moi_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
+                center_of_mass=np.array(residue.center_of_mass()),
                 positions=uas.positions,
                 masses=ua_masses,
                 dimensions=data_container.dimensions[:3],
             )
             rot_axes, moment_of_inertia = self.get_custom_principal_axes(moi_tensor)
             trans_axes = rot_axes  # per original convention
+            rot_center = np.array(residue.center_of_mass())
         else:
-            # If bonded to other residues, use default axes and MOI.
+            # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue)
-            center = residue.center_of_mass(unwrap=True)
 
-        return trans_axes, rot_axes, center, moment_of_inertia
+            if len(edge_atom_set) == 1:
+                if index == 0:
+                    # first residue
+                    # use first heavy atom
+                    edges = [residue.atoms[0], edge_atom_set[0]]
+                    backbone = self.get_chain(
+                        residue, residue.atoms[0], edge_atom_set[0]
+                    )
+                else:
+                    # last residue
+                    last_index = len(uas) - 1
+                    last = None
+                    # look for last heavy atom
+                    # with only one bond to another
+                    while last_index > 0 and last is None:
+                        heavy_atom = uas[last_index]
+                        bonded_atoms = residue.atoms.select_atoms(
+                            f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                        )
+                        if len(bonded_atoms) == 1:
+                            last = heavy_atom
+                        else:
+                            last_index -= 1
+                    edges = [edge_atom_set[0], last]
 
-    def get_residue_axes_from_topology(
-        self,
-        *,
-        u,
-        mol,
-        residue_atoms,
-        topology,
-        box: np.ndarray | None,
-    ):
-        """Compute residue axes using cached static topology.
+                    backbone = self.get_chain(residue, edge_atom_set[0], last)
+            else:
+                # residue has two bonds to other residues
+                edges = [edge_atom_set[0], edge_atom_set[1]]
+                backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
+            # get edge atoms of the residue
+            # for terminal residues, this will include the C/N terminus
+            backbone_center = np.zeros(3)
+            for heavy_atom in backbone:
+                backbone_center += heavy_atom.position
+            backbone_center = backbone_center / len(backbone)
+            rot_center, rot_axes = self.get_residue_custom_axes(edges, backbone_center)
 
-        This is the cached-index equivalent of ``get_residue_axes``. It keeps
-        all frame-dependent numerical work frame-local, but avoids repeated
-        MDAnalysis selections for residue heavy atoms, UA masses, and neighbour
-        bond discovery.
-
-        Args:
-            u: Current-frame universe used to resolve cached atom indices.
-            mol: Current-frame molecule fragment.
-            residue_atoms: AtomGroup for the residue in the current frame.
-            topology: Cached ``ResidueAxesTopology`` for this residue.
-            box: Current periodic box lengths. If omitted, ``u.dimensions`` is used.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-                - trans_axes: Translational axes, shape ``(3, 3)``.
-                - rot_axes: Rotational axes, shape ``(3, 3)``.
-                - center: Residue centre, shape ``(3,)``.
-                - moment_of_inertia: Principal moments, shape ``(3,)``.
-        """
-        dimensions = (
-            np.asarray(box, dtype=float)
-            if box is not None
-            else np.asarray(u.dimensions[:3], dtype=float)
-        )
-
-        center = residue_atoms.center_of_mass(unwrap=True)
-
-        if not topology.has_neighbor_bonds:
-            heavy_atoms = u.atoms[topology.residue_heavy_indices]
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
-                positions=heavy_atoms.positions,
-                masses=topology.residue_ua_masses,
-                dimensions=dimensions,
+            moment_of_inertia = self.get_custom_residue_moment_of_inertia(
+                center_of_mass=rot_center,
+                positions=uas.positions,
+                masses=ua_masses,
+                custom_rot_axes=rot_axes,
+                dimensions=data_container.dimensions[:3],
             )
-            rot_axes, moment_of_inertia = self.get_custom_principal_axes(
-                moment_of_inertia_tensor
-            )
-            trans_axes = rot_axes
-        else:
-            make_whole(mol.atoms)
-            trans_axes = mol.atoms.principal_axes()
-            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue_atoms)
-            center = residue_atoms.center_of_mass(unwrap=True)
+        return trans_axes, rot_axes, rot_center, moment_of_inertia
 
-        return trans_axes, rot_axes, center, moment_of_inertia
-
-    def get_UA_axes(self, data_container, index: int):
+    def get_UA_axes(self, data_container, index: int, res_position):
         """Compute united-atom-level translational and rotational axes.
 
         The translational and rotational axes at the united-atom level.
@@ -201,7 +203,12 @@ class AxesCalculator:
         This preserves the original behaviour and its rationale:
 
         - Translational axes:
-            Use the same custom principal-axes approach as residue level:
+            Use the same approach as residue level rotational.
+            Identify residue of interest and neighbours, then select
+            edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
+            and find the shortest chain between them: the backbone. Edge
+            atoms + backbone COM are used to determine UA translational axes
+            (see get_residue_custom_axes)
             compute a custom MOI tensor using heavy-atom coordinates but UA masses
             (heavy + bonded H masses), then compute the principal axes from it.
 
@@ -216,7 +223,8 @@ class AxesCalculator:
                 Molecule and trajectory data.
             index (int):
                 Bead index (ordinal among heavy atoms).
-
+            res_position: where the residue of interest is
+                in data_container
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
                 - trans_axes: Translational axes (3, 3).
@@ -228,209 +236,180 @@ class AxesCalculator:
             IndexError:
                 If `index` does not correspond to an existing heavy atom.
             ValueError:
-                If bonded-axis construction fails.
+                If axis construction fails.
         """
 
-        index = int(index)  # bead index
-
+        index = int(index)  # UA bead index
+        heavy_atoms = data_container.select_atoms("mass 2 to 999")
         # use the same customPI trans axes as the residue level
-        heavy_atoms = data_container.select_atoms("prop mass > 1.1")
         if len(heavy_atoms) > 1:
-            UA_masses = self.get_UA_masses(data_container.atoms)
-            center = data_container.atoms.center_of_mass(unwrap=True)
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center, heavy_atoms.positions, UA_masses, data_container.dimensions[:3]
+            if len(data_container.residues) == 1:
+                # only the one residue => use principal axes
+                residue = data_container
+                trans_center = data_container.atoms.center_of_mass(unwrap=True)
+                trans_axes = data_container.atoms.principal_axes()
+                residue_heavy_atoms = heavy_atoms
+            else:
+                # residue of interest has at least one neighbour
+                if res_position == -1:
+                    residue = data_container.residues[0]
+                    resindex = residue.resindex
+                    resindex_next = resindex + 1
+
+                    second_edge = data_container.select_atoms(
+                        f"resindex {resindex} and bonded resindex {resindex_next}"
+                    )
+
+                    edges = [residue.atoms[0], second_edge[0]]
+                    backbone = self.get_chain(
+                        residue, residue.atoms[0], second_edge.atoms[0]
+                    )
+
+                elif res_position == 0:
+                    # between 2 residues
+                    residue = data_container.residues[1]
+                    resindex = residue.resindex
+                    resindex_next = resindex + 1
+                    resindex_prev = resindex - 1
+
+                    edge_set = data_container.select_atoms(
+                        f"resindex {resindex} and "
+                        f"(bonded resindex {resindex_prev} or "
+                        f"resindex {resindex_next})"
+                    )
+
+                    edges = [edge_set[0], edge_set[1]]
+                    backbone = self.get_chain(residue, edge_set[0], edge_set[1])
+
+                else:
+                    # last resid
+                    # always resindex 1 in data_container
+                    residue = data_container.residues[1]
+                    resindex = residue.resindex
+                    resindex_prev = resindex - 1
+                    first_edge = data_container.select_atoms(
+                        f"resindex {resindex} and bonded resindex {resindex_prev}"
+                    )
+
+                    last_index = len(heavy_atoms) - 1
+                    last = None
+                    # look for last heavy atom
+                    # with only one bond to another
+                    while last_index > 0 and last is None:
+                        heavy_atom = heavy_atoms[last_index]
+                        bonded_atoms = residue.atoms.select_atoms(
+                            f"(mass 2 to 999) and bonded index {heavy_atom.index}"
+                        )
+                        if len(bonded_atoms) == 1:
+                            last = heavy_atom
+                        else:
+                            last_index -= 1
+
+                    edges = [first_edge.atoms[0], last]
+                    backbone = self.get_chain(residue, first_edge.atoms[0], last)
+
+                backbone_center = np.zeros(3)
+                for heavy_atom in backbone:
+                    backbone_center += heavy_atom.position
+                backbone_center = backbone_center / len(backbone)
+
+                trans_center, trans_axes = self.get_residue_custom_axes(
+                    edges, backbone_center
+                )
+                residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
+
+            # look for heavy atoms in residue of interest
+            heavy_atom_indices = []
+            for atom in residue_heavy_atoms:
+                heavy_atom_indices.append(atom.index)
+            # we find the nth heavy atom
+            # where n is the bead index
+            heavy_atom_index = heavy_atom_indices[index]
+            heavy_atom = residue.atoms.select_atoms(f"index {heavy_atom_index}")[0]
+            rot_center = heavy_atom.position
+            rot_axes, moment_of_inertia = self.get_bonded_axes(
+                system=data_container,
+                atom=heavy_atom,
+                dimensions=data_container.dimensions[:3],
             )
-            trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
-                moment_of_inertia_tensor
-            )
+
         else:
-            # use standard PA for UA not bonded to anything else
-            make_whole(data_container.atoms)
-            trans_axes = data_container.atoms.principal_axes()
+            # 1 heavy atom in the data_container
+            heavy_atom = heavy_atoms[0]
+            # trans and rot centres are centre of mass
+            rot_center = data_container.center_of_mass()
+            rot_axes, moment_of_inertia = self.get_bonded_axes(
+                system=data_container,
+                atom=heavy_atom,
+                dimensions=data_container.dimensions[:3],
+            )
+            trans_center = rot_center
+            # principal axes
+            trans_axes = rot_axes
 
-        # look for heavy atoms in residue of interest
-        heavy_atom_indices = []
-        for atom in heavy_atoms:
-            heavy_atom_indices.append(atom.index)
-        # we find the nth heavy atom
-        # where n is the bead index
-        heavy_atom_index = heavy_atom_indices[index]
-        heavy_atom = data_container.select_atoms(f"index {heavy_atom_index}")
+        if trans_axes is None:
+            raise ValueError("Unable to compute translation axes for UA bead.")
 
-        center = heavy_atom.positions[0]
-        rot_axes, moment_of_inertia = self.get_bonded_axes(
-            system=data_container,
-            atom=heavy_atom[0],
-            dimensions=data_container.dimensions[:3],
-        )
         if rot_axes is None or moment_of_inertia is None:
             raise ValueError("Unable to compute bonded axes for UA bead.")
 
-        logger.debug(f"Translational Axes: {trans_axes}")
-        logger.debug(f"Rotational Axes: {rot_axes}")
-        logger.debug(f"Center: {center}")
-        logger.debug(f"Moment of Inertia: {moment_of_inertia}")
-
-        return trans_axes, rot_axes, center, moment_of_inertia
-
-    def get_UA_axes_from_topology(
-        self,
-        *,
-        u,
-        residue_atoms,
-        topology,
-        box: np.ndarray | None,
-    ):
-        """Compute UA axes using cached static topology.
-
-        This is the cached-index equivalent of ``get_UA_axes``. It preserves the
-        frame-dependent numerical calculations, but avoids repeated MDAnalysis
-        selection strings for heavy atoms, bonded atoms, and UA masses.
-
-        Args:
-            u: Current-frame universe.
-            residue_atoms: AtomGroup for the parent residue in the current frame.
-            topology: Cached ``UAAxesTopology`` for this UA bead.
-            box: Current periodic box lengths. If omitted, ``u.dimensions`` is used.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-                - trans_axes: Translational axes, shape ``(3, 3)``.
-                - rot_axes: Rotational axes, shape ``(3, 3)``.
-                - center: Rotation centre, shape ``(3,)``.
-                - moment_of_inertia: Principal moments, shape ``(3,)``.
-
-        Raises:
-            ValueError: If cached bonded-axis construction fails.
-        """
-        dimensions = (
-            np.asarray(box, dtype=float)
-            if box is not None
-            else np.asarray(u.dimensions[:3], dtype=float)
-        )
-
-        heavy_atoms = u.atoms[topology.residue_heavy_indices]
-        heavy_atom = u.atoms[int(topology.heavy_atom_index)]
-
-        if len(heavy_atoms) > 1:
-            center = residue_atoms.center_of_mass(unwrap=True)
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
-                positions=heavy_atoms.positions,
-                masses=topology.residue_ua_masses,
-                dimensions=dimensions,
-            )
-            trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
-                moment_of_inertia_tensor
-            )
-        else:
-            make_whole(residue_atoms)
-            trans_axes = residue_atoms.principal_axes()
-
-        center = heavy_atom.position
-        rot_axes, moment_of_inertia = self.get_bonded_axes_from_topology(
-            u=u,
-            heavy_atom=heavy_atom,
-            topology=topology,
-            dimensions=dimensions,
-        )
-        if rot_axes is None or moment_of_inertia is None:
-            raise ValueError("Unable to compute bonded axes for cached UA bead.")
-
         logger.debug("Translational Axes: %s", trans_axes)
         logger.debug("Rotational Axes: %s", rot_axes)
-        logger.debug("Center: %s", center)
+        logger.debug("Translational center: %s", trans_center)
+        logger.debug("Rotational center: %s", rot_center)
         logger.debug("Moment of Inertia: %s", moment_of_inertia)
 
-        return trans_axes, rot_axes, center, moment_of_inertia
+        return trans_axes, rot_axes, rot_center, moment_of_inertia
 
-    def get_bonded_axes_from_topology(
-        self,
-        *,
-        u,
-        heavy_atom,
-        topology,
-        dimensions: np.ndarray,
-    ):
-        """Compute UA bonded axes using cached bonded atom indices.
+    def get_residue_custom_axes(self, edges, center):
+        """
+        Compute rotation axes at the residue level, given
+        two edge atoms of the residue (E1+E2),
+        and the centre of geometry of backbone atoms
+        that are not edges (C).
+        x axis is O-E1
+        y axis is O-C (perpendicular to O-E1 in the
+        same plane as E2)
+        z axis is perpendicular to the two other axes
 
-        This mirrors ``get_bonded_axes`` but receives precomputed bonded atom
-        memberships from ``UAAxesTopology`` instead of rediscovering them with
-        MDAnalysis selection strings inside the frame loop.
+        ::
+
+                    C
+                    |
+                    |
+            E1 ---- O --- E2
 
         Args:
-            u: Current-frame universe.
-            heavy_atom: Current-frame heavy atom for the UA bead.
-            topology: Cached ``UAAxesTopology`` for the UA bead.
-            dimensions: Simulation box lengths, shape ``(3,)``.
+            edges: (2,3) positions of two edge atoms
+            center: (3,) coordinates of the inner backbone
+            centre of geometry
 
         Returns:
-            Tuple[np.ndarray | None, np.ndarray | None]:
-                - custom_axes: Custom rotation axes, shape ``(3, 3)``, or ``None``.
-                - custom_moment_of_inertia: Principal moments, shape ``(3,)``, or
-                  ``None``.
+            rot_center: (3,) rotation centre,
+            lies on the E1-E2 vector
+            rot_axes: (3,3) rotation axes of residue
         """
-        if not heavy_atom.mass > 1.1:
-            return None, None
-
-        custom_moment_of_inertia = None
-        custom_axes = None
-
-        heavy_bonded = u.atoms[topology.bonded_heavy_indices]
-        light_bonded = u.atoms[topology.bonded_light_indices]
-        ua = u.atoms[topology.ua_atom_indices]
-        ua_all = u.atoms[topology.ua_all_atom_indices]
-
-        if len(heavy_bonded) == 0:
-            custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(ua_all)
-
-        if len(heavy_bonded) == 1 and len(light_bonded) == 0:
-            custom_axes = self.get_custom_axes(
-                a=heavy_atom.position,
-                b_list=[heavy_bonded[0].position],
-                c=np.zeros(3),
-                dimensions=dimensions,
-            )
-
-        if len(heavy_bonded) == 1 and len(light_bonded) >= 1:
-            custom_axes = self.get_custom_axes(
-                a=heavy_atom.position,
-                b_list=[heavy_bonded[0].position],
-                c=light_bonded[0].position,
-                dimensions=dimensions,
-            )
-
-        if len(heavy_bonded) >= 2:
-            custom_axes = self.get_custom_axes(
-                a=heavy_atom.position,
-                b_list=heavy_bonded.positions,
-                c=heavy_bonded[1].position,
-                dimensions=dimensions,
-            )
-
-        if custom_axes is None:
-            return None, None
-
-        if custom_moment_of_inertia is None:
-            custom_moment_of_inertia = self.get_custom_moment_of_inertia(
-                UA=ua,
-                custom_rotation_axes=custom_axes,
-                center_of_mass=heavy_atom.position,
-                dimensions=dimensions,
-            )
-
-        custom_axes = self.get_flipped_axes(
-            ua,
-            custom_axes,
-            heavy_atom.position,
-            dimensions,
-        )
-
-        return custom_axes, custom_moment_of_inertia
+        # x axis is O-E1
+        E1C_vector = center - edges[0].position
+        # look for projection of E1-O onto E1-E2 (E1-C)
+        E1E2_vector = edges[1].position - edges[0].position
+        E1O_vector = (
+            np.dot(E1E2_vector, E1C_vector) / (np.linalg.norm(E1E2_vector) ** 2)
+        ) * E1E2_vector
+        x_axis = -E1O_vector
+        # O-C = O-E1 + E1-C
+        OC_vector = -E1O_vector + E1C_vector
+        y_axis = OC_vector
+        z_axis = np.cross(x_axis, y_axis)
+        x_axis /= np.linalg.norm(x_axis)
+        y_axis /= np.linalg.norm(y_axis)
+        z_axis /= np.linalg.norm(z_axis)
+        rot_axes = np.array([x_axis, y_axis, z_axis])
+        rot_center = E1O_vector + edges[0].position
+        return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
-        r"""Compute UA rotational axes from bonded topology around a heavy atom.
+        """Compute UA rotational axes from bonded topology around a heavy atom.
 
         For a given heavy atom, use its bonded atoms to get the axes for rotating
         forces around. Few cases for choosing united atom axes, which are dependent
@@ -659,6 +638,41 @@ class AxesCalculator:
         scaled_custom_axes = unscaled_custom_axes / mod[:, np.newaxis]
         return scaled_custom_axes
 
+    def get_custom_residue_moment_of_inertia(
+        self,
+        center_of_mass: np.ndarray,
+        positions: np.ndarray,
+        masses: np.ndarray,
+        custom_rot_axes: np.ndarray,
+        dimensions: np.ndarray,
+    ):
+        """
+        Compute moment of inertia around custom axes for a bead
+        formed of multiple UAs.
+
+        Args:
+            center_of_mass: (3, ) COM for bead
+            positions: (N,3) positions of the UAs in the bead
+            masses: (N,) masses of the UAs in the bead
+            custom_rot_axes: (3,3) array of residue rotation axes
+            dimensions: (3,) simulation_box_dimensions
+
+        Returns:
+            np.ndarray: (3,) moment of inertia array.
+
+        """
+
+        translated_coords = self.get_vector(center_of_mass, positions, dimensions)
+        custom_moment_of_inertia = np.zeros(3, dtype=float)
+
+        for coord, mass in zip(translated_coords, masses, strict=True):
+            axis_component = np.sum(
+                np.cross(custom_rot_axes, coord) ** 2 * mass, axis=1
+            )
+            custom_moment_of_inertia += axis_component
+
+        return custom_moment_of_inertia
+
     def get_custom_moment_of_inertia(
         self,
         UA,
@@ -780,7 +794,6 @@ class AxesCalculator:
         """
         r = self.get_vector(center_of_mass, positions, dimensions)
         r2 = np.sum(r**2, axis=1)
-
         masses_arr = np.asarray(list(masses), dtype=float)
         moment_of_inertia_tensor = np.eye(3) * np.sum(masses_arr * r2)
         moment_of_inertia_tensor -= np.einsum("i,ij,ik->jk", masses_arr, r, r)
@@ -812,6 +825,7 @@ class AxesCalculator:
                 - principal_axes: (3, 3) principal axes (rows).
                 - moment_of_inertia: (3,) principal moments.
         """
+
         eigenvalues, eigenvectors = np.linalg.eig(moment_of_inertia_tensor)
         order = np.abs(eigenvalues).argsort()[::-1]  # descending order
         transposed = np.transpose(eigenvectors)  # columns -> rows
@@ -849,3 +863,78 @@ class AxesCalculator:
                     ua_mass += float(h.mass)
                 ua_masses.append(ua_mass)
         return ua_masses
+
+    def get_chain(self, residue, first, last):
+        """
+        For a given MDAnalysis AtomGroup and two given heavy atoms
+        within that AtomGroup, return the
+        shortest path between the two atoms.
+
+        Args:
+            residue: MDAnalysis AtomGroup representing
+            the residue/monomer of interest.
+            first: First heavy atom in the chain
+            last: Last heavy atom in the chain
+
+        Returns:
+            chain: Array containing chain atoms.
+        """
+
+        chain = []
+        # at the beggining we've only visited the first atom
+        visited_dict = {first: True}
+        # keep the previous atom to trace back the path
+        prev = {}
+        # queue of next heavy atoms to visit
+        next_to_visit = [first]
+        # all others heavy atoms in the residue, we have not yet visited
+        remaining_heavy_atoms = residue.atoms.select_atoms(
+            f"(mass 2 to 999) and not index {first.index}"
+        )
+        for atom in remaining_heavy_atoms:
+            visited_dict[atom] = False
+        current = first
+
+        while not visited_dict[last]:
+            # we haven't found a path to the last residue
+            next_to_visit.pop(0)
+            # we're visiting the current atom => we remove it from the queue
+            bonded_atoms = residue.atoms.select_atoms(
+                f"(mass 2 to 999) and bonded index {current.index}"
+            )
+
+            if last in bonded_atoms:
+                # we found a path to the last atom
+                visited_dict[last] = True
+                chain.append(last)
+                prev[last] = current
+
+            else:
+                for bonded_atom in bonded_atoms:
+                    # look for unvisited bonded atoms to the current atom we're visiting
+                    if not visited_dict[bonded_atom]:
+                        # we're going to want to visit the atoms
+                        next_to_visit.append(bonded_atom)
+                        prev[bonded_atom] = current
+                # we visit the next atom in the queue
+                current = next_to_visit[0]
+                visited_dict[current] = True
+
+        # we track the previous atom back to the first atom now
+        current = last
+        chain = [last]
+        # subtract index of first atom in resid
+        # most likely will coincide with first
+        # but this will work even if it doesn't
+        # accout for in-residue index
+        # start from last atom in chain
+        while chain[-1] != first:
+            # we haven't yet returned to the first atom
+            current = prev[current]
+            chain.append(current)
+
+        chain = np.flip(chain)
+        # only get in between residues
+        chain = chain[1:-1]
+        # accout for in-residue index
+        return chain
