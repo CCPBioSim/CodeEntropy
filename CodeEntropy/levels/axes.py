@@ -147,7 +147,6 @@ class AxesCalculator:
             # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
-            print(f"The principal axes are: {trans_axes}")
 
             if len(edge_atom_set) == 1:
                 if index == 0:
