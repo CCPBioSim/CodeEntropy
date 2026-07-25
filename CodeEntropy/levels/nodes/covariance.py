@@ -565,6 +565,8 @@ class FrameCovarianceNode:
         force_vecs: list[np.ndarray] = []
         torque_vecs: list[np.ndarray] = []
 
+        relative_res_i = mol.residues[0].resindex
+
         for local_res_i, bead in enumerate(bead_groups):
             trans_axes, rot_axes, center, moi = self._get_residue_axes(
                 u=u,
@@ -572,6 +574,7 @@ class FrameCovarianceNode:
                 mol_id=mol_id,
                 bead=bead,
                 local_res_i=local_res_i,
+                relative_res_i=relative_res_i,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,
                 box=box,
@@ -608,6 +611,7 @@ class FrameCovarianceNode:
         mol_id: int,
         bead: Any,
         local_res_i: int,
+        relative_res_i: int,
         axes_manager: Any,
         axes_topology: Any | None,
         box: np.ndarray | None,
@@ -621,6 +625,8 @@ class FrameCovarianceNode:
             mol_id: Molecule index used in axes-topology lookup keys.
             bead: Atom group representing the residue bead.
             local_res_i: Residue index local to ``mol``.
+            relative_res_i: Residue index of first residue within ``mol``. This
+            might differ from residue index of first residue in topology.
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
@@ -644,7 +650,9 @@ class FrameCovarianceNode:
                     box=box,
                 )
 
-            return axes_manager.get_residue_axes(mol, local_res_i, residue=res.atoms)
+            return axes_manager.get_residue_axes(
+                mol, local_res_i, relative_res_i, residue=res.atoms
+            )
 
         make_whole(mol.atoms)
         make_whole(bead)

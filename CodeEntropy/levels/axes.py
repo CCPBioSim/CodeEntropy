@@ -230,7 +230,6 @@ class AxesCalculator:
             if box is not None
             else np.asarray(u.dimensions[:3], dtype=float)
         )
-
         center = residue_atoms.center_of_mass(unwrap=True)
 
         if not topology.has_neighbor_bonds:
@@ -573,6 +572,53 @@ class AxesCalculator:
         )
 
         return custom_axes, custom_moment_of_inertia
+
+    def get_residue_custom_axes(self, edges, center):
+        """
+        Compute rotation axes at the residue level, given
+        two edge atoms of the residue (E1+E2),
+        and the centre of geometry of backbone atoms
+        that are not edges (C).
+        x axis is O-E1
+        y axis is O-C (perpendicular to O-E1 in the
+        same plane as E2)
+        z axis is perpendicular to the two other axes
+
+        ::
+
+                    C
+                    |
+                    |
+            E1 ---- O --- E2
+
+        Args:
+            edges: (2,3) positions of two edge atoms
+            center: (3,) coordinates of the inner backbone
+            centre of geometry
+
+        Returns:
+            rot_center: (3,) rotation centre,
+            lies on the E1-E2 vector
+            rot_axes: (3,3) rotation axes of residue
+        """
+        # x axis is O-E1
+        E1C_vector = center - edges[0].position
+        # look for projection of E1-O onto E1-E2 (E1-C)
+        E1E2_vector = edges[1].position - edges[0].position
+        E1O_vector = (
+            np.dot(E1E2_vector, E1C_vector) / (np.linalg.norm(E1E2_vector) ** 2)
+        ) * E1E2_vector
+        x_axis = -E1O_vector
+        # O-C = O-E1 + E1-C
+        OC_vector = -E1O_vector + E1C_vector
+        y_axis = OC_vector
+        z_axis = np.cross(x_axis, y_axis)
+        x_axis /= np.linalg.norm(x_axis)
+        y_axis /= np.linalg.norm(y_axis)
+        z_axis /= np.linalg.norm(z_axis)
+        rot_axes = np.array([x_axis, y_axis, z_axis])
+        rot_center = E1O_vector + edges[0].position
+        return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
         r"""Compute UA rotational axes from bonded topology around a heavy atom.
