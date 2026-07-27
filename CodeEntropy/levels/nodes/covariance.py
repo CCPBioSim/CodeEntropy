@@ -480,6 +480,7 @@ class FrameCovarianceNode:
                     )
 
                 if ua_topology is not None:
+                    print("This is where we should be")
                     trans_axes, rot_axes, center, moi = (
                         axes_manager.get_UA_axes_from_topology(
                             u=u,
@@ -489,22 +490,21 @@ class FrameCovarianceNode:
                         )
                     )
                 else:
-                    trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
-                        residue_group, ua_i, res_position
-                    )
+                    make_whole(residue_group)
+                    make_whole(bead)
+                    if res_position == -1:
+                        # first residue in group
+                        residue = residue_group.residues[0]
+                    elif res_position == 0 or res_position == 1:
+                        # middle or last residue => second in group
+                        residue = residue_group.residues[1]
+                    else:
+                        # res_position is None bc there is only one residue
+                        residue = residue_group
+                        trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
+                            residue_group, ua_i, res_position
+                        )
             else:
-                make_whole(residue_group)
-                make_whole(bead)
-                if res_position == -1:
-                    # first residue in group
-                    residue = residue_group.residues[0]
-                elif res_position == 0 or res_position == 1:
-                    # middle or last residue => second in group
-                    residue = residue_group.residues[1]
-                else:
-                    # res_position is None bc there is only one residue
-                    residue = residue_group
-
                 trans_axes = residue.principal_axes()
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
