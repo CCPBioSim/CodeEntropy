@@ -849,3 +849,78 @@ class AxesCalculator:
                     ua_mass += float(h.mass)
                 ua_masses.append(ua_mass)
         return ua_masses
+
+    def get_chain(self, residue, first, last):
+        """
+        For a given MDAnalysis AtomGroup and two given heavy atoms
+        within that AtomGroup, return the
+        shortest path between the two atoms.
+
+        Args:
+            residue: MDAnalysis AtomGroup representing
+            the residue/monomer of interest.
+            first: First heavy atom in the chain
+            last: Last heavy atom in the chain
+
+        Returns:
+            chain: Array containing chain atoms.
+        """
+
+        chain = []
+        # at the beggining we've only visited the first atom
+        visited_dict = {first: True}
+        # keep the previous atom to trace back the path
+        prev = {}
+        # queue of next heavy atoms to visit
+        next_to_visit = [first]
+        # all others heavy atoms in the residue, we have not yet visited
+        remaining_heavy_atoms = residue.atoms.select_atoms(
+            f"(mass 2 to 999) and not index {first.index}"
+        )
+        for atom in remaining_heavy_atoms:
+            visited_dict[atom] = False
+        current = first
+
+        while not visited_dict[last]:
+            # we haven't found a path to the last residue
+            next_to_visit.pop(0)
+            # we're visiting the current atom => we remove it from the queue
+            bonded_atoms = residue.atoms.select_atoms(
+                f"(mass 2 to 999) and bonded index {current.index}"
+            )
+
+            if last in bonded_atoms:
+                # we found a path to the last atom
+                visited_dict[last] = True
+                chain.append(last)
+                prev[last] = current
+
+            else:
+                for bonded_atom in bonded_atoms:
+                    # look for unvisited bonded atoms to the current atom we're visiting
+                    if not visited_dict[bonded_atom]:
+                        # we're going to want to visit the atoms
+                        next_to_visit.append(bonded_atom)
+                        prev[bonded_atom] = current
+                # we visit the next atom in the queue
+                current = next_to_visit[0]
+                visited_dict[current] = True
+
+        # we track the previous atom back to the first atom now
+        current = last
+        chain = [last]
+        # subtract index of first atom in resid
+        # most likely will coincide with first
+        # but this will work even if it doesn't
+        # accout for in-residue index
+        # start from last atom in chain
+        while chain[-1] != first:
+            # we haven't yet returned to the first atom
+            current = prev[current]
+            chain.append(current)
+
+        chain = np.flip(chain)
+        # only get in between residues
+        chain = chain[1:-1]
+        # accout for in-residue index
+        return chain

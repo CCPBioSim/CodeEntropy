@@ -48,6 +48,7 @@ def test_build_conformational_states_defaults_chunk_size_to_selected_frame_count
         levels={7: ["residue"]},
         groups={0: [7]},
         bin_width=30.0,
+        conf_type="res_bonds",
         frame_selection=frame_selection,
     )
 
@@ -57,6 +58,7 @@ def test_build_conformational_states_defaults_chunk_size_to_selected_frame_count
         levels={7: ["residue"]},
         groups={0: [7]},
         bin_width=30.0,
+        conf_type="res_bonds",
         frame_selection=frame_selection,
         chunk_size=3,
         progress=None,
@@ -75,6 +77,7 @@ def test_build_conformational_states_passes_explicit_chunk_size():
         levels={7: ["residue"]},
         groups={0: [7]},
         bin_width=30.0,
+        conf_type="res_bonds",
         frame_selection=frame_selection,
         chunk_size=2,
     )
@@ -96,6 +99,7 @@ def test_chunked_serial_rejects_invalid_chunk_size():
             levels={},
             groups={},
             bin_width=30.0,
+            conf_type="res_bonds",
             frame_selection=_make_frame_selection(start=0, stop=1, step=1),
             chunk_size=0,
         )
@@ -115,6 +119,7 @@ def test_build_conformational_states_with_progress_handles_no_groups():
         levels={},
         groups={},
         bin_width=30.0,
+        conf_type="res_bonds",
         frame_selection=_make_frame_selection(start=0, stop=1, step=1),
         progress=progress,
     )
@@ -138,6 +143,7 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
         levels={},
         groups={0: []},
         bin_width=30.0,
+        conf_type="res_bonds",
         frame_selection=_make_frame_selection(start=0, stop=1, step=1),
         progress=progress,
     )
@@ -173,6 +179,7 @@ def test_chunked_serial_group_flow_calls_domain_phases_in_order():
             levels={7: ["united_atom"]},
             groups={0: [7]},
             bin_width=30.0,
+            conf_type="res_bonds",
             frame_selection=frame_selection,
             chunk_size=2,
         )
@@ -187,6 +194,7 @@ def test_chunked_serial_group_flow_calls_domain_phases_in_order():
         group_id=0,
         molecules=[7],
         level_list=["united_atom"],
+        conf_type="res_bonds",
     )
     builder._build_conformation_chunk_tasks.assert_called_once_with(
         topologies=[topology],
@@ -238,6 +246,7 @@ def test_chunked_serial_with_progress_updates_and_advances_non_empty_group():
         levels={7: ["united_atom"]},
         groups={0: [7]},
         bin_width=30.0,
+        conf_type="res_bonds",
         frame_selection=frame_selection,
         chunk_size=2,
         progress=progress,

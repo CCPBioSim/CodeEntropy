@@ -11,6 +11,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from CodeEntropy.levels.dihedrals.dihedral_finder import DihedralDefinitions
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,7 @@ class DihedralTopologyDiscovery:
         group_id: int,
         molecules: list[Any],
         level_list: list[Any],
+        conf_type: str,
     ) -> list[MoleculeDihedralTopology]:
         """Discover static conformational topology for a molecule group.
 
@@ -70,10 +73,11 @@ class DihedralTopologyDiscovery:
                     ua_dihedrals_by_residue[res_id] = self._get_dihedrals(
                         heavy_res,
                         "united_atom",
+                        conf_type,
                     )
 
             if "residue" in level_list:
-                residue_dihedrals = self._get_dihedrals(mol, "residue")
+                residue_dihedrals = self._get_dihedrals(mol, "residue", conf_type)
 
             topologies.append(
                 MoleculeDihedralTopology(
@@ -128,7 +132,9 @@ class DihedralTopologyDiscovery:
         )
         return res_container.select_atoms("prop mass > 1.1", updating=False)
 
-    def _get_dihedrals(self, data_container: Any, level: str) -> list[Any]:
+    def _get_dihedrals(
+        self, data_container: Any, level: str, conf_type: str
+    ) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
 
         Args:
@@ -139,59 +145,27 @@ class DihedralTopologyDiscovery:
             List of AtomGroups, each representing a dihedral definition.
         """
         atom_groups: list[Any] = []
+        self._dihedral_definitions = DihedralDefinitions()
 
-        if level == "united_atom":
-            selected_indices = {int(index) for index in data_container.indices}
+        if conf_type == "res_bonds":
+            atom_groups = self._dihedral_definitions.method_res_bonds(
+                data_container=data_container, level=level
+            )
 
-            for dihedral in data_container.dihedrals:
-                dihedral_atoms = dihedral.atoms
-                dihedral_indices = {int(index) for index in dihedral_atoms.indices}
+        elif conf_type == "res_points":
+            atom_groups = self._dihedral_definitions.method_res_points(
+                data_container=data_container, level=level
+            )
 
-                if len(dihedral_atoms) == 4 and dihedral_indices.issubset(
-                    selected_indices
-                ):
-                    atom_groups.append(dihedral_atoms)
+        elif conf_type == "ua_backbone":
+            atom_groups = self._dihedral_definitions.method_ua_backbone(
+                data_container=data_container, level=level
+            )
 
-        if level == "residue":
-            num_residues = len(data_container.residues)
-            if num_residues >= 4:
-                for residue in range(4, num_residues + 1):
-                    residue1 = data_container.residues[residue - 4]
-                    residue2 = data_container.residues[residue - 3]
-                    residue3 = data_container.residues[residue - 2]
-                    residue4 = data_container.residues[residue - 1]
-
-                    atom1 = self._atoms_in_source_bonded_to_target(
-                        residue1,
-                        residue2,
-                    )
-                    atom2 = self._atoms_in_source_bonded_to_target(
-                        residue2,
-                        residue1,
-                    )
-                    atom3 = self._atoms_in_source_bonded_to_target(
-                        residue3,
-                        residue4,
-                    )
-                    atom4 = self._atoms_in_source_bonded_to_target(
-                        residue4,
-                        residue3,
-                    )
-
-                    dihedral_atoms = atom1 + atom2 + atom3 + atom4
-
-                    if len(dihedral_atoms) == 4:
-                        atom_groups.append(dihedral_atoms)
-                    else:
-                        logger.debug(
-                            "Skipping residue-level dihedral for local residues "
-                            "%s-%s-%s-%s because it produced %d atoms.",
-                            residue - 4,
-                            residue - 3,
-                            residue - 2,
-                            residue - 1,
-                            len(dihedral_atoms),
-                        )
+        elif conf_type == "ua_whole":
+            atom_groups = self._dihedral_definitions.method_ua_whole(
+                data_container=data_container, level=level
+            )
 
         logger.debug("Level: %s, Dihedrals: %s", level, atom_groups)
         return atom_groups

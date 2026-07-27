@@ -52,7 +52,7 @@ def test_execute_uses_execution_policy_chunk_size_and_stores_outputs():
         "levels": {7: ["united_atom"]},
         "groups": {0: [7]},
         "frame_selection": frame_selection,
-        "args": SimpleNamespace(bin_width=30),
+        "args": SimpleNamespace(bin_width=30, conf_type="res_bonds"),
     }
 
     out = dag.execute(shared_data, progress=progress)
@@ -66,6 +66,7 @@ def test_execute_uses_execution_policy_chunk_size_and_stores_outputs():
         levels={7: ["united_atom"]},
         groups={0: [7]},
         bin_width=30,
+        conf_type="res_bonds",
         frame_selection=frame_selection,
         progress=progress,
         chunk_size=2,
@@ -96,7 +97,7 @@ def test_execute_converts_bin_width_to_int():
         "levels": {},
         "groups": {},
         "frame_selection": frame_selection,
-        "args": SimpleNamespace(bin_width="45"),
+        "args": SimpleNamespace(bin_width="45", conf_type="res_bonds"),
     }
 
     dag.execute(shared_data)
@@ -119,7 +120,7 @@ def test_execute_passes_real_frame_selection_to_builder():
         "levels": {},
         "groups": {},
         "frame_selection": frame_selection,
-        "args": SimpleNamespace(bin_width=30),
+        "args": SimpleNamespace(bin_width=30, conf_type="res_bonds"),
     }
 
     dag.execute(shared_data)

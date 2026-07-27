@@ -153,6 +153,12 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Type of neighbour search to use. Default is RAD; grid search is also "
         "available.",
     ),
+    "conf_type": ArgSpec(
+        type=str,
+        default="res_bonds",
+        help="Dihedral definition to use for conformational entropy."
+        "Default is res_bonds.",
+    ),
     "parallel_frames": ArgSpec(
         type=bool,
         default=False,
