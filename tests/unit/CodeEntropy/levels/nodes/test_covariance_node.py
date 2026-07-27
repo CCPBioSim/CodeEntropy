@@ -16,6 +16,7 @@ class FakeAtomGroup:
         self.name = name
         self._length = length
         self.indices = np.arange(length)
+        self.atoms = self
 
     def __len__(self):
         return self._length
@@ -423,21 +424,23 @@ def test_build_ua_vectors_uses_customised_axes():
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
 
-    force_vecs, torque_vecs = node._build_ua_vectors(
-        u=FakeUniverse([]),
-        mol_id=0,
-        local_res_i=0,
-        bead_groups=[FakeAtomGroup("ua")],
-        residue_group=FakeAtomGroup("res"),
-        axes_manager=axes_manager,
-        axes_topology=None,
-        box=None,
-        force_partitioning=0.5,
-        customised_axes=True,
-        is_highest=True,
-        res_position=None,
-    )
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
+        force_vecs, torque_vecs = node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeAtomGroup("res"),
+            axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            customised_axes=True,
+            is_highest=True,
+            res_position=None,
+        )
 
+    assert make_whole.call_count == 2
     assert len(force_vecs) == 1
     assert len(torque_vecs) == 1
     axes_manager.get_UA_axes.assert_called_once()
@@ -446,7 +449,6 @@ def test_build_ua_vectors_uses_customised_axes():
 def test_build_ua_vectors_uses_cached_axes_topology_when_available():
     node = FrameCovarianceNode()
     axes_manager = MagicMock()
-
     u = FakeUniverse([])
     ua_topology = object()
     axes_topology = SimpleNamespace(ua={(3, 4, 0): ua_topology})
@@ -521,7 +523,8 @@ def test_build_residue_vectors_uses_residue_axes():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     axes_manager = MagicMock()
-
+    residue = mol.residues[0]
+    residue.resindex = 0
     node._get_residue_axes = MagicMock(
         return_value=(np.eye(3), np.eye(3), np.zeros(3), np.ones(3))
     )
@@ -601,6 +604,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
     axes_manager.get_residue_axes.assert_called_once_with(
         mol,
         0,
+        0,
         residue=mol.residues[0].atoms,
     )
 
@@ -622,6 +626,7 @@ def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
             mol_id=0,
             bead=bead,
             local_res_i=0,
+            relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
