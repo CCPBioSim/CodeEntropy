@@ -118,7 +118,7 @@ def test_get_residue_axes_no_bonds_uses_custom_principal_axes(monkeypatch):
     assert np.allclose(moi, np.array([3.0, 2.0, 1.0]))
 
 
-def test_get_residue_axes_with_bonds_uses_vanilla_axes(monkeypatch):
+def test_get_residue_axes_one_residue_uses_principal_axes(monkeypatch):
     ax = AxesCalculator()
 
     residue = MagicMock()
@@ -142,13 +142,15 @@ def test_get_residue_axes_with_bonds_uses_vanilla_axes(monkeypatch):
 
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     monkeypatch.setattr(
-        ax, "get_vanilla_axes", lambda mol: (np.eye(3) * 2, np.array([9.0, 8.0, 7.0]))
+        ax,
+        "get_moment_of_inertia_tensor",
+        lambda **kwargs: np.array([[9.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 7.0]]),
     )
 
     trans, rot, center, moi = ax.get_residue_axes(u, index=10, relative_index=0)
 
     assert np.allclose(trans, np.eye(3))
-    assert np.allclose(rot, np.eye(3) * 2)
+    assert np.allclose(rot, np.eye(3))
     assert np.allclose(moi, np.array([9.0, 8.0, 7.0]))
 
 
@@ -507,7 +509,7 @@ def test_get_residue_axes_no_bonds_custom_path(monkeypatch):
     assert np.allclose(moi, np.array([3.0, 2.0, 1.0]))
 
 
-def test_get_residue_axes_with_bonds_vanilla_path(monkeypatch):
+def test_get_residue_axes_one_residue_principal_axes_path(monkeypatch):
     ax = AxesCalculator()
 
     residue = MagicMock()
@@ -530,14 +532,17 @@ def test_get_residue_axes_with_bonds_vanilla_path(monkeypatch):
     u.select_atoms.side_effect = _select_atoms
 
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+
     monkeypatch.setattr(
-        ax, "get_vanilla_axes", lambda mol: (np.eye(3) * 2, np.array([9.0, 8.0, 7.0]))
+        ax,
+        "get_moment_of_inertia_tensor",
+        lambda **kwargs: np.array([[9.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 7.0]]),
     )
 
     trans, rot, center, moi = ax.get_residue_axes(u, index=10, relative_index=0)
 
-    assert np.allclose(trans, np.eye(3) * 2)
-    assert np.allclose(rot, np.eye(3) * 2)
+    assert np.allclose(trans, np.eye(3))
+    assert np.allclose(rot, np.eye(3))
     assert np.allclose(center, np.array([1.0, 2.0, 3.0]))
     assert np.allclose(moi, np.array([9.0, 8.0, 7.0]))
 
