@@ -428,13 +428,14 @@ def test_build_ua_vectors_uses_customised_axes():
         mol_id=0,
         local_res_i=0,
         bead_groups=[FakeAtomGroup("ua")],
-        residue_atoms=FakeAtomGroup("res"),
+        residue_group=FakeAtomGroup("res"),
         axes_manager=axes_manager,
         axes_topology=None,
         box=None,
         force_partitioning=0.5,
         customised_axes=True,
         is_highest=True,
+        res_position=None,
     )
 
     assert len(force_vecs) == 1
@@ -464,13 +465,14 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
         mol_id=3,
         local_res_i=4,
         bead_groups=[FakeAtomGroup("ua")],
-        residue_atoms=FakeAtomGroup("res"),
+        residue_group=FakeAtomGroup("res"),
         axes_manager=axes_manager,
         axes_topology=axes_topology,
         box=None,
         force_partitioning=0.5,
         customised_axes=True,
         is_highest=True,
+        res_position=None,
     )
 
     assert len(force_vecs) == 1
@@ -501,13 +503,14 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
             mol_id=0,
             local_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
-            residue_atoms=FakeAtomGroup("res"),
+            residue_group=FakeAtomGroup("res"),
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
             force_partitioning=0.5,
             customised_axes=False,
             is_highest=False,
+            res_position=None,
         )
 
     assert make_whole.call_count == 2
@@ -558,6 +561,7 @@ def test_get_residue_axes_customised_uses_cached_topology_when_available():
         mol_id=3,
         bead=FakeAtomGroup("res"),
         local_res_i=0,
+        relative_res_i=0,
         axes_manager=axes_manager,
         axes_topology=axes_topology,
         box=None,
@@ -585,6 +589,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
             mol_id=0,
             bead=FakeAtomGroup("res"),
             local_res_i=0,
+            relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
