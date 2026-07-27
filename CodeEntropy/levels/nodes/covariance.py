@@ -472,40 +472,40 @@ class FrameCovarianceNode:
         torque_vecs: list[np.ndarray] = []
 
         for ua_i, bead in enumerate(bead_groups):
+            if res_position == -1:
+                # first residue in group
+                residue = residue_group.residues[0]
+            elif res_position == 0 or res_position == 1:
+                # middle or last residue => second in group
+                residue = residue_group.residues[1]
+            else:
+                # res_position is None bc there is only one residue
+                residue = residue_group
+
             if customised_axes:
                 ua_topology = None
                 if axes_topology is not None:
-                    ua_topology = axes_topology.ua.get(
-                        (mol_id, local_res_i, ua_i, res_position)
-                    )
-
+                    ua_topology = axes_topology.ua.get((mol_id, local_res_i, ua_i))
                 if ua_topology is not None:
-                    print("This is where we should be")
                     trans_axes, rot_axes, center, moi = (
                         axes_manager.get_UA_axes_from_topology(
                             u=u,
-                            residue_group=residue_group,
+                            residue_atoms=residue.atoms,
                             topology=ua_topology,
                             box=box,
                         )
                     )
                 else:
+                    # we don't use the topology
                     make_whole(residue_group)
                     make_whole(bead)
-                    if res_position == -1:
-                        # first residue in group
-                        residue = residue_group.residues[0]
-                    elif res_position == 0 or res_position == 1:
-                        # middle or last residue => second in group
-                        residue = residue_group.residues[1]
-                    else:
-                        # res_position is None bc there is only one residue
-                        residue = residue_group
-                        trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
-                            residue_group, ua_i, res_position
-                        )
+                    trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
+                        residue_group, ua_i, res_position
+                    )
+
             else:
-                trans_axes = residue.principal_axes()
+                # principal axes
+                trans_axes = residue.atoms.principal_axes()
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
