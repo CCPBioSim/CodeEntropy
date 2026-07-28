@@ -162,15 +162,9 @@ class AxesCalculator:
                     last = None
                     # look for last heavy atom
                     # with only one bond to another
-                    while last_index > 0 and last is None:
+                    if last_index > 0 and last is None:
                         heavy_atom = uas[last_index]
-                        bonded_atoms = residue.atoms.select_atoms(
-                            f"(mass 2 to 999) and bonded index {heavy_atom.index}"
-                        )
-                        if len(bonded_atoms) == 1:
-                            last = heavy_atom
-                        else:
-                            last_index -= 1
+                        last = heavy_atom
                     edges = [edge_atom_set[0], last]
 
                     backbone = self.get_chain(residue, edge_atom_set[0], last)
@@ -352,15 +346,9 @@ class AxesCalculator:
                     last = None
                     # look for last heavy atom
                     # with only one bond to another
-                    while last_index > 0 and last is None:
+                    if last_index > 0 and last is None:
                         heavy_atom = heavy_atoms[last_index]
-                        bonded_atoms = residue.atoms.select_atoms(
-                            f"(mass 2 to 999) and bonded index {heavy_atom.index}"
-                        )
-                        if len(bonded_atoms) == 1:
-                            last = heavy_atom
-                        else:
-                            last_index -= 1
+                        last = heavy_atom
 
                     edges = [first_edge.atoms[0], last]
                     backbone = self.get_chain(residue, first_edge.atoms[0], last)
