@@ -1677,3 +1677,27 @@ def test_get_chain(monkeypatch):
     chain = ax.get_chain(residue=residue, first=heavy_atoms[0], last=heavy_atoms[-1])
 
     assert len(chain) == 3
+
+
+def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
+    ax = AxesCalculator()
+    u = MagicMock()
+    u.atoms.principal_axes.return_value = np.eye(3)
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
+    residue = MagicMock()
+    u.residues = [residue]
+    heavy_atoms = [
+        _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+        _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+    ]
+
+    def _sel(q):
+        if q == "mass 2 to 999":
+            return heavy_atoms
+
+    u.select_atoms.side_effect = _sel
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
+
+    with pytest.raises(ValueError):
+        ax.get_UA_axes(u, index=0, res_position=None)
