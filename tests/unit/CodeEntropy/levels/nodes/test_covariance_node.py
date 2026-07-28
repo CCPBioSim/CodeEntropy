@@ -759,3 +759,67 @@ def test_process_united_atom_multiple_residues(monkeypatch):
         molcount=molcount,
     )
     assert mol.select_atoms.call_count == 3
+
+
+def test_build_ua_vectors_multiple_residues_first_residue():
+    node = FrameCovarianceNode()
+    axes_manager = MagicMock()
+    axes_manager.get_UA_axes.return_value = (
+        np.eye(3),
+        2.0 * np.eye(3),
+        np.ones(3),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
+    node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
+        force_vecs, torque_vecs = node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeMolecule(n_residues=2),
+            axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            customised_axes=True,
+            is_highest=True,
+            res_position=-1,
+        )
+
+    assert make_whole.call_count == 2
+    axes_manager.get_UA_axes.assert_called_once()
+
+
+def test_build_ua_vectors_multiple_residues_middle_residue():
+    node = FrameCovarianceNode()
+    axes_manager = MagicMock()
+    axes_manager.get_UA_axes.return_value = (
+        np.eye(3),
+        2.0 * np.eye(3),
+        np.ones(3),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
+    node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
+        force_vecs, torque_vecs = node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeMolecule(n_residues=3),
+            axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            customised_axes=True,
+            is_highest=True,
+            res_position=0,
+        )
+
+    assert make_whole.call_count == 2
+    axes_manager.get_UA_axes.assert_called_once()
