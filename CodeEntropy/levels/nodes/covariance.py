@@ -505,6 +505,8 @@ class FrameCovarianceNode:
 
             else:
                 # principal axes
+                make_whole(residue.atoms)
+                make_whole(bead)
                 trans_axes = residue.atoms.principal_axes()
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
