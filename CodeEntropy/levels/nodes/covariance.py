@@ -214,23 +214,21 @@ class FrameCovarianceNode:
                     residue_group = mol.select_atoms(
                         f"resindex {local_res_i + relative_id} "
                         f"or resindex {local_res_i + 1 + relative_id}"
-                    ).residues
-
+                    )
                 elif local_res_i == len(mol.residues) - 1:
                     # last residue
                     res_position = 1
                     residue_group = mol.select_atoms(
                         f"resindex {local_res_i - 1 + relative_id} "
                         f"or resindex {local_res_i + relative_id}"
-                    ).residues
-
+                    )
                 else:
                     res_position = 0
                     residue_group = mol.select_atoms(
                         f"resindex {local_res_i - 1 + relative_id} "
                         f"or resindex {local_res_i + relative_id} "
                         f"or resindex {local_res_i + 1 + relative_id}"
-                    ).residues
+                    )
 
             else:
                 # only one residue
@@ -249,7 +247,7 @@ class FrameCovarianceNode:
                 u=u,
                 mol_id=mol_id,
                 local_res_i=local_res_i,
-                residue_group=residue_group.atoms,
+                residue_group=residue_group,
                 bead_groups=bead_groups,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,

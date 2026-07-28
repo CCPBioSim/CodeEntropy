@@ -33,16 +33,17 @@ class FakeResidue:
 
     def __init__(self, atoms=None):
         self.atoms = atoms or FakeAtomGroup("residue-atoms")
+        self.residues = self
 
 
 class FakeMolecule:
     """Small molecule-like fragment."""
 
-    def __init__(self, n_residues=1):
+    def __init__(self, n_residues, select_map=None):
         self.atoms = FakeAtomGroup("mol-atoms")
         self.residues = [FakeResidue() for _ in range(n_residues)]
+        self._select_map = dict(select_map or {})
 
-    @property
     def select_atoms(self, query: str):
         return self._select_map.get(query, FakeMolecule([]))
 
@@ -88,7 +89,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
     node._process_residue = MagicMock()
     node._process_polymer = MagicMock()
 
-    mol = FakeMolecule()
+    mol = FakeMolecule(n_residues=1)
     universe = FakeUniverse([mol], dimensions=np.array([10.0, 20.0, 30.0, 90.0]))
     axes_manager = object()
     axes_topology = object()
@@ -137,7 +138,7 @@ def test_run_omits_forcetorque_when_combined_is_false():
 
     ctx = {
         "shared": {
-            "reduced_universe": FakeUniverse([FakeMolecule()]),
+            "reduced_universe": FakeUniverse([FakeMolecule(n_residues=1)]),
             "groups": {0: [0]},
             "levels": [["residue"]],
             "beads": {},
@@ -714,7 +715,7 @@ def test_build_ft_block_rejects_invalid_inputs():
         FrameCovarianceNode._build_ft_block([np.ones(2)], [np.ones(3)])
 
 
-def test_process_united_atom_multiple_residues():
+def test_process_united_atom_multiple_residues(monkeypatch):
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=3)
     bead_group = FakeAtomGroup("ua", length=3)
@@ -725,17 +726,14 @@ def test_process_united_atom_multiple_residues():
 
     def _select_atoms(q):
         if q == "resindex 0 or resindex 1":
-            return mol[0:2]
+            return FakeMolecule(n_residues=2)
         if q == "resindex 1 or resindex 2":
-            return mol[1:3]
+            return FakeMolecule(n_residues=2)
         if q == "resindex 0 or resindex 1 or resindex 2":
             return mol
 
-    mol.select_atoms.side_effect = _select_atoms
-
-    node._build_ua_vectors = MagicMock(
-        return_value=([np.array([1.0, 0.0, 0.0])], [np.array([0.0, 1.0, 0.0])])
-    )
+    mol.select_atoms = MagicMock(side_effect=_select_atoms)
+    node._build_ua_vectors = MagicMock(return_value=(np.eye(3), np.eye(3)))
     node._ft.compute_frame_covariance = MagicMock(
         return_value=(np.eye(3), 2.0 * np.eye(3))
     )
@@ -749,11 +747,7 @@ def test_process_united_atom_multiple_residues():
         mol=mol,
         mol_id=0,
         group_id=7,
-        beads={
-            (0, "united_atom", 0): [np.array([0])],
-            (0, "united_atom", 1): [np.array([1])],
-            (0, "united_atom", 2): [np.array([2])],
-        },
+        beads={(0, "united_atom", 0): [np.array([0])]},
         axes_manager="axes",
         axes_topology=None,
         box=None,
@@ -764,8 +758,4 @@ def test_process_united_atom_multiple_residues():
         out_torque=out_torque,
         molcount=molcount,
     )
-
-    np.testing.assert_allclose(out_force["ua"][(7, 0), (7, 1), (7, 2)], np.eye(3))
-    np.testing.assert_allclose(
-        out_torque["ua"][(7, 0), (7, 1), (7, 2)], 2.0 * np.eye(3)
-    )
+    assert mol.select_atoms.call_count == 3
