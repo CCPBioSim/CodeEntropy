@@ -42,6 +42,10 @@ class FakeMolecule:
         self.atoms = FakeAtomGroup("mol-atoms")
         self.residues = [FakeResidue() for _ in range(n_residues)]
 
+    @property
+    def select_atoms(self, query: str):
+        return self._select_map.get(query, FakeMolecule([]))
+
 
 class FakeAtoms:
     """Container supporting u.atoms.fragments and u.atoms[index_array]."""
@@ -708,3 +712,60 @@ def test_build_ft_block_rejects_invalid_inputs():
 
     with pytest.raises(ValueError, match="length 3"):
         FrameCovarianceNode._build_ft_block([np.ones(2)], [np.ones(3)])
+
+
+def test_process_united_atom_multiple_residues():
+    node = FrameCovarianceNode()
+    mol = FakeMolecule(n_residues=3)
+    bead_group = FakeAtomGroup("ua", length=3)
+    universe = FakeUniverse([mol], returned_groups=[bead_group])
+    mol.residues[0].resindex = 0
+    mol.residues[1].resindex = 1
+    mol.residues[2].resindex = 2
+
+    def _select_atoms(q):
+        if q == "resindex 0 or resindex 1":
+            return mol[0:2]
+        if q == "resindex 1 or resindex 2":
+            return mol[1:3]
+        if q == "resindex 0 or resindex 1 or resindex 2":
+            return mol
+
+    mol.select_atoms.side_effect = _select_atoms
+
+    node._build_ua_vectors = MagicMock(
+        return_value=([np.array([1.0, 0.0, 0.0])], [np.array([0.0, 1.0, 0.0])])
+    )
+    node._ft.compute_frame_covariance = MagicMock(
+        return_value=(np.eye(3), 2.0 * np.eye(3))
+    )
+
+    out_force = {"ua": {}, "res": {}, "poly": {}}
+    out_torque = {"ua": {}, "res": {}, "poly": {}}
+    molcount = {}
+
+    node._process_united_atom(
+        u=universe,
+        mol=mol,
+        mol_id=0,
+        group_id=7,
+        beads={
+            (0, "united_atom", 0): [np.array([0])],
+            (0, "united_atom", 1): [np.array([1])],
+            (0, "united_atom", 2): [np.array([2])],
+        },
+        axes_manager="axes",
+        axes_topology=None,
+        box=None,
+        force_partitioning=0.5,
+        customised_axes=False,
+        is_highest=True,
+        out_force=out_force,
+        out_torque=out_torque,
+        molcount=molcount,
+    )
+
+    np.testing.assert_allclose(out_force["ua"][(7, 0), (7, 1), (7, 2)], np.eye(3))
+    np.testing.assert_allclose(
+        out_torque["ua"][(7, 0), (7, 1), (7, 2)], 2.0 * np.eye(3)
+    )
