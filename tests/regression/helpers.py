@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tarfile
 import urllib.request
 from dataclasses import dataclass
@@ -366,12 +367,18 @@ def run_codeentropy_with_config(*, workdir: Path, config_src: Path) -> RunResult
 
     (workdir / "config.yaml").write_text(yaml.safe_dump(cooked, sort_keys=False))
 
+    env = {
+        **os.environ,
+        "PYTHONHASHSEED": "0",
+        "CODEENTROPY_RANDOM_SEED": "0",
+    }
+
     proc = subprocess.run(
-        ["python", "-m", "CodeEntropy"],
+        [sys.executable, "-m", "tests.regression.seeded_runner"],
         cwd=str(workdir),
         capture_output=True,
         text=True,
-        env={**os.environ},
+        env=env,
     )
 
     (workdir / "codeentropy_stdout.txt").write_text(proc.stdout or "")
