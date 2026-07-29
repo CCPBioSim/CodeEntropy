@@ -78,13 +78,12 @@ class AxesCalculator:
             * Set translational axes equal to rotational axes (as per the original
               code convention).
         - If bonded to other residues:
-            Translational axes are principal axes of data_container.
-            Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
-            and find the shortest chain between them: the backbone. Edge
-            atoms + backbone COM are used to determine residue rotational axes.
-            (see get_residue_custom_axes)
-        Compute a custom MOI, using heavy atom positions and heavy atom+ hydrogen
-        masses.
+            * Translational axes are principal axes of data_container.
+            * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
+              and find the shortest chain between them: the backbone. Edge
+              atoms + backbone COM are used to determine residue rotational axes.
+              (see get_residue_custom_axes).Compute a custom MOI, using heavy atom
+              positions and heavy atom + hydrogen masses.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
