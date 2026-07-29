@@ -367,18 +367,12 @@ def run_codeentropy_with_config(*, workdir: Path, config_src: Path) -> RunResult
 
     (workdir / "config.yaml").write_text(yaml.safe_dump(cooked, sort_keys=False))
 
-    env = {
-        **os.environ,
-        "PYTHONHASHSEED": "0",
-        "CODEENTROPY_RANDOM_SEED": "0",
-    }
-
     proc = subprocess.run(
-        [sys.executable, "-m", "tests.regression.seeded_runner"],
+        [sys.executable, "-m", "CodeEntropy"],
         cwd=str(workdir),
         capture_output=True,
         text=True,
-        env=env,
+        env={**os.environ},
     )
 
     (workdir / "codeentropy_stdout.txt").write_text(proc.stdout or "")
