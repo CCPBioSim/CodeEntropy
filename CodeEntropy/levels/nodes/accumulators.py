@@ -86,13 +86,16 @@ class InitCovarianceAccumulatorsNode:
 
     @staticmethod
     def _build_group_index(groups: dict[int, Any]) -> GroupIndex:
-        """Build deterministic group id <-> index mappings.
+        """Build deterministic mappings between group IDs and contiguous indices.
+
+        Group IDs are sorted before indices are assigned, ensuring that the
+        resulting mappings do not depend on dictionary insertion order.
 
         Args:
-            groups: Mapping of group id to group members.
+            groups: Mapping of group IDs to their members.
 
         Returns:
-            GroupIndex mapping object.
+            Bidirectional mappings between group IDs and contiguous indices.
         """
         group_ids = sorted(groups)
         gid2i = {gid: index for index, gid in enumerate(group_ids)}
