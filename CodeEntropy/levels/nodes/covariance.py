@@ -185,6 +185,15 @@ class FrameCovarianceNode:
         molcount: dict[tuple[int, int], int],
     ) -> None:
         """Compute united-atom second moments for one molecule.
+        If there are multiple residues in the molecule, build
+        residue group and attribute res_position:
+            - First residue: residue_group contains first two
+            residues. res_position is -1.
+            - Last residue: residue_group contains last two
+            residues. res_position is 1.
+            - Non-terminal residue: residue_group contains
+            residue of interest + two neighbours. res_position
+            is 0.
 
         Args:
             u: Universe-like object used to resolve bead atom indices.
@@ -204,10 +213,7 @@ class FrameCovarianceNode:
         """
         for local_res_i, res in enumerate(mol.residues):
             if len(mol.residues) > 1:
-                # there are multiple residues in the molecule
-                # build residue group here
                 if local_res_i == 0:
-                    # first residue
                     relative_id = res.resindex
                     # index relative to first in mda universe
                     res_position = -1
@@ -216,7 +222,6 @@ class FrameCovarianceNode:
                         f"or resindex {local_res_i + 1 + relative_id}"
                     )
                 elif local_res_i == len(mol.residues) - 1:
-                    # last residue
                     res_position = 1
                     residue_group = mol.select_atoms(
                         f"resindex {local_res_i - 1 + relative_id} "
@@ -231,7 +236,6 @@ class FrameCovarianceNode:
                     )
 
             else:
-                # only one residue
                 res_position = None
                 residue_group = res
             bead_key = (mol_id, "united_atom", local_res_i)
@@ -471,13 +475,10 @@ class FrameCovarianceNode:
 
         for ua_i, bead in enumerate(bead_groups):
             if res_position == -1:
-                # first residue in group
                 residue = residue_group.residues[0]
             elif res_position == 0 or res_position == 1:
-                # middle or last residue => second in group
                 residue = residue_group.residues[1]
             else:
-                # res_position is None bc there is only one residue
                 residue = residue_group
 
             if customised_axes:

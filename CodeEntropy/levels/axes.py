@@ -78,10 +78,13 @@ class AxesCalculator:
             * Set translational axes equal to rotational axes (as per the original
               code convention).
         - If bonded to other residues:
+            Translational axes are principal axes of data_container.
             Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
             and find the shortest chain between them: the backbone. Edge
-            atoms + backbone COM are used to determine UA translational axes
+            atoms + backbone COM are used to determine residue rotational axes.
             (see get_residue_custom_axes)
+        Compute a custom MOI, using heavy atom positions and heavy atom+ hydrogen
+        masses.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
@@ -107,7 +110,6 @@ class AxesCalculator:
                 If the residue selection is empty.
         """
         # TODO refine selection so that it will work for branched polymers
-        # match indexing to MDAnalysis indexing
 
         index_prev = index + relative_index - 1
         index_next = index + relative_index + 1
@@ -130,10 +132,6 @@ class AxesCalculator:
         ua_masses = self.get_UA_masses(residue)
 
         if len(edge_atom_set) == 0:
-            # No UAS are bonded to other residues
-            # Use a custom principal axes, from a MOI tensor that uses positions of
-            # heavy atoms only, but including masses of heavy atom + bonded H.
-
             moi_tensor = self.get_moment_of_inertia_tensor(
                 center_of_mass=np.array(residue.center_of_mass()),
                 positions=uas.positions,
@@ -144,24 +142,20 @@ class AxesCalculator:
             trans_axes = rot_axes  # per original convention
             rot_center = np.array(residue.center_of_mass())
         else:
-            # If bonded to other residues, use local axes.
             make_whole(data_container.atoms)
             trans_axes = data_container.atoms.principal_axes()
 
             if len(edge_atom_set) == 1:
                 if index == 0:
-                    # first residue
-                    # use first heavy atom
+                    # first residue: use first heavy atom
                     edges = [residue.atoms[0], edge_atom_set[0]]
                     backbone = self.get_chain(
                         residue, residue.atoms[0], edge_atom_set[0]
                     )
                 else:
-                    # last residue
+                    # last residue: last heavy atom
                     last_index = len(uas) - 1
                     last = None
-                    # look for last heavy atom
-                    # with only one bond to another
                     if last_index > 0 and last is None:
                         heavy_atom = uas[last_index]
                         last = heavy_atom
@@ -169,11 +163,8 @@ class AxesCalculator:
 
                     backbone = self.get_chain(residue, edge_atom_set[0], last)
             else:
-                # residue has two bonds to other residues
                 edges = [edge_atom_set[0], edge_atom_set[1]]
                 backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
-            # get edge atoms of the residue
-            # for terminal residues, this will include the C/N terminus
             backbone_center = np.zeros(3)
             for heavy_atom in backbone:
                 backbone_center += heavy_atom.position
@@ -256,18 +247,19 @@ class AxesCalculator:
         - Translational axes:
             Use the same approach as residue level rotational.
             Identify residue of interest and neighbours, then select
-            edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
-            and find the shortest chain between them: the backbone. Edge
-            atoms + backbone COM are used to determine UA translational axes
-            (see get_residue_custom_axes)
-            compute a custom MOI tensor using heavy-atom coordinates but UA masses
-            (heavy + bonded H masses), then compute the principal axes from it.
+            edge heavy atoms (i.e. heavy atoms bonded to neighbour residues).
+            If there are no bonds to neighbouring residues, use residue
+            .principal axes Otherwise, find the shortest chain between edge
+            residues: the backbone. Edge atoms + backbone COM are used to
+            determine UA translational axes (see get_residue_custom_axes)
 
         - Rotational axes:
             Identify heavy atoms in the residue/molecule of interest and choose
             the `index`-th heavy atom (where index corresponds to the bead index).
             Use bonded topology around that heavy atom to determine UA rotational
             axes (see :meth:`get_bonded_axes`).
+            Compute a custom MOI tensor using heavy-atom coordinates but UA masses
+            (heavy + bonded H masses), then compute the principal axes from it.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
@@ -589,23 +581,25 @@ class AxesCalculator:
             lies on the E1-E2 vector
             rot_axes: (3,3) rotation axes of residue
         """
-        # x axis is O-E1
-        E1C_vector = center - edges[0].position
+        first_edge_centre_of_geometry_vector = center - edges[0].position
         # look for projection of E1-O onto E1-E2 (E1-C)
-        E1E2_vector = edges[1].position - edges[0].position
-        E1O_vector = (
-            np.dot(E1E2_vector, E1C_vector) / (np.linalg.norm(E1E2_vector) ** 2)
-        ) * E1E2_vector
-        x_axis = -E1O_vector
+        first_edge_second_edge_vector = edges[1].position - edges[0].position
+        first_edge_origin_vector = (
+            np.dot(first_edge_second_edge_vector, first_edge_centre_of_geometry_vector)
+            / (np.linalg.norm(first_edge_second_edge_vector) ** 2)
+        ) * first_edge_second_edge_vector
+        x_axis = -first_edge_origin_vector
         # O-C = O-E1 + E1-C
-        OC_vector = -E1O_vector + E1C_vector
-        y_axis = OC_vector
+        origin_centre_of_geometry_vector = (
+            -first_edge_origin_vector + first_edge_centre_of_geometry_vector
+        )
+        y_axis = origin_centre_of_geometry_vector
         z_axis = np.cross(x_axis, y_axis)
         x_axis /= np.linalg.norm(x_axis)
         y_axis /= np.linalg.norm(y_axis)
         z_axis /= np.linalg.norm(z_axis)
         rot_axes = np.array([x_axis, y_axis, z_axis])
-        rot_center = E1O_vector + edges[0].position
+        rot_center = first_edge_origin_vector + edges[0].position
         return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
