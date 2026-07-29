@@ -86,7 +86,7 @@ class InitCovarianceAccumulatorsNode:
 
     @staticmethod
     def _build_group_index(groups: dict[int, Any]) -> GroupIndex:
-        """Build group id <-> index mappings.
+        """Build deterministic group id <-> index mappings.
 
         Args:
             groups: Mapping of group id to group members.
@@ -94,9 +94,13 @@ class InitCovarianceAccumulatorsNode:
         Returns:
             GroupIndex mapping object.
         """
-        group_ids = list(groups.keys())
-        gid2i = {gid: i for i, gid in enumerate(group_ids)}
-        return GroupIndex(group_id_to_index=gid2i, index_to_group_id=list(group_ids))
+        group_ids = sorted(groups)
+        gid2i = {gid: index for index, gid in enumerate(group_ids)}
+
+        return GroupIndex(
+            group_id_to_index=gid2i,
+            index_to_group_id=group_ids,
+        )
 
     @staticmethod
     def _build_accumulators(n_groups: int) -> CovarianceAccumulators:
