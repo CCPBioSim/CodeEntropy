@@ -367,12 +367,25 @@ def run_codeentropy_with_config(*, workdir: Path, config_src: Path) -> RunResult
 
     (workdir / "config.yaml").write_text(yaml.safe_dump(cooked, sort_keys=False))
 
+    env = os.environ.copy()
+    env.update(
+        {
+            "PYTHONHASHSEED": "0",
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+            "NUMEXPR_NUM_THREADS": "1",
+            "BLIS_NUM_THREADS": "1",
+            "VECLIB_MAXIMUM_THREADS": "1",
+        }
+    )
+
     proc = subprocess.run(
         [sys.executable, "-m", "CodeEntropy"],
         cwd=str(workdir),
         capture_output=True,
         text=True,
-        env={**os.environ},
+        env=env,
     )
 
     (workdir / "codeentropy_stdout.txt").write_text(proc.stdout or "")
