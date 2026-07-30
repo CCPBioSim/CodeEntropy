@@ -185,6 +185,15 @@ class FrameCovarianceNode:
         molcount: dict[tuple[int, int], int],
     ) -> None:
         """Compute united-atom second moments for one molecule.
+        If there are multiple residues in the molecule, build
+        residue group and attribute res_position:
+            - First residue: residue_group contains first two
+            residues. res_position is -1.
+            - Last residue: residue_group contains last two
+            residues. res_position is 1.
+            - Non-terminal residue: residue_group contains
+            residue of interest + two neighbours. res_position
+            is 0.
 
         Args:
             u: Universe-like object used to resolve bead atom indices.
@@ -203,6 +212,32 @@ class FrameCovarianceNode:
             molcount: Per-residue group sample counters, mutated in place.
         """
         for local_res_i, res in enumerate(mol.residues):
+            if len(mol.residues) > 1:
+                if local_res_i == 0:
+                    relative_id = res.resindex
+                    # index relative to first in mda universe
+                    res_position = -1
+                    residue_group = mol.select_atoms(
+                        f"resindex {local_res_i + relative_id} "
+                        f"or resindex {local_res_i + 1 + relative_id}"
+                    )
+                elif local_res_i == len(mol.residues) - 1:
+                    res_position = 1
+                    residue_group = mol.select_atoms(
+                        f"resindex {local_res_i - 1 + relative_id} "
+                        f"or resindex {local_res_i + relative_id}"
+                    )
+                else:
+                    res_position = 0
+                    residue_group = mol.select_atoms(
+                        f"resindex {local_res_i - 1 + relative_id} "
+                        f"or resindex {local_res_i + relative_id} "
+                        f"or resindex {local_res_i + 1 + relative_id}"
+                    )
+
+            else:
+                res_position = None
+                residue_group = res
             bead_key = (mol_id, "united_atom", local_res_i)
             bead_idx_list = beads.get(bead_key, [])
             if not bead_idx_list:
@@ -216,7 +251,7 @@ class FrameCovarianceNode:
                 u=u,
                 mol_id=mol_id,
                 local_res_i=local_res_i,
-                residue_atoms=res.atoms,
+                residue_group=residue_group,
                 bead_groups=bead_groups,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,
@@ -224,6 +259,7 @@ class FrameCovarianceNode:
                 force_partitioning=force_partitioning,
                 customised_axes=customised_axes,
                 is_highest=is_highest,
+                res_position=res_position,
             )
 
             F, T = self._ft.compute_frame_covariance(force_vecs, torque_vecs)
@@ -406,13 +442,14 @@ class FrameCovarianceNode:
         mol_id: int,
         local_res_i: int,
         bead_groups: list[Any],
-        residue_atoms: Any,
+        residue_group: Any,
         axes_manager: Any,
         axes_topology: Any | None,
         box: np.ndarray | None,
         force_partitioning: float,
         customised_axes: bool,
         is_highest: bool,
+        res_position: int,
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """Build force and torque vectors for united-atom beads.
 
@@ -421,13 +458,14 @@ class FrameCovarianceNode:
             mol_id: Molecule index used in axes-topology lookup keys.
             local_res_i: Local residue index used in axes-topology lookup keys.
             bead_groups: Atom groups representing UA beads in a residue.
-            residue_atoms: Atom group for the parent residue.
+            residue_group: Atom group for the parent residue group.
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             force_partitioning: Force partitioning factor for highest-level vectors.
             customised_axes: Whether customised UA axes should be used.
             is_highest: Whether UA is the highest active level.
+            res_position: Where the residue is in the residue group
 
         Returns:
             A tuple containing lists of force vectors and torque vectors.
@@ -436,29 +474,39 @@ class FrameCovarianceNode:
         torque_vecs: list[np.ndarray] = []
 
         for ua_i, bead in enumerate(bead_groups):
+            if res_position == -1:
+                residue = residue_group.residues[0]
+            elif res_position == 0 or res_position == 1:
+                residue = residue_group.residues[1]
+            else:
+                residue = residue_group
+
             if customised_axes:
                 ua_topology = None
                 if axes_topology is not None:
                     ua_topology = axes_topology.ua.get((mol_id, local_res_i, ua_i))
-
                 if ua_topology is not None:
                     trans_axes, rot_axes, center, moi = (
                         axes_manager.get_UA_axes_from_topology(
                             u=u,
-                            residue_atoms=residue_atoms,
+                            residue_atoms=residue.atoms,
                             topology=ua_topology,
                             box=box,
                         )
                     )
                 else:
+                    # we don't use the topology
+                    make_whole(residue_group)
+                    make_whole(bead)
                     trans_axes, rot_axes, center, moi = axes_manager.get_UA_axes(
-                        residue_atoms, ua_i
+                        residue_group, ua_i, res_position
                     )
-            else:
-                make_whole(residue_atoms)
-                make_whole(bead)
 
-                trans_axes = residue_atoms.principal_axes()
+            else:
+                # principal axes
+                make_whole(residue.atoms)
+                make_whole(bead)
+                trans_axes = residue.atoms.principal_axes()
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
@@ -518,6 +566,8 @@ class FrameCovarianceNode:
         force_vecs: list[np.ndarray] = []
         torque_vecs: list[np.ndarray] = []
 
+        relative_res_i = mol.residues[0].resindex
+
         for local_res_i, bead in enumerate(bead_groups):
             trans_axes, rot_axes, center, moi = self._get_residue_axes(
                 u=u,
@@ -525,6 +575,7 @@ class FrameCovarianceNode:
                 mol_id=mol_id,
                 bead=bead,
                 local_res_i=local_res_i,
+                relative_res_i=relative_res_i,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,
                 box=box,
@@ -561,6 +612,7 @@ class FrameCovarianceNode:
         mol_id: int,
         bead: Any,
         local_res_i: int,
+        relative_res_i: int,
         axes_manager: Any,
         axes_topology: Any | None,
         box: np.ndarray | None,
@@ -574,6 +626,8 @@ class FrameCovarianceNode:
             mol_id: Molecule index used in axes-topology lookup keys.
             bead: Atom group representing the residue bead.
             local_res_i: Residue index local to ``mol``.
+            relative_res_i: Residue index of first residue within ``mol``. This
+            might differ from residue index of first residue in topology.
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
@@ -597,7 +651,9 @@ class FrameCovarianceNode:
                     box=box,
                 )
 
-            return axes_manager.get_residue_axes(mol, local_res_i, residue=res.atoms)
+            return axes_manager.get_residue_axes(
+                mol, local_res_i, relative_res_i, residue=res.atoms
+            )
 
         make_whole(mol.atoms)
         make_whole(bead)
