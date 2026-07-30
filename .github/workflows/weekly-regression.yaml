@@ -64,11 +64,9 @@ jobs:
 
       - name: Run regression tests (slow, per system)
         run: |
-          pytest tests/regression \
-            -k "${{ matrix.system }}" \
+          python -m pytest tests/regression \
+            --system "${{ matrix.system }}" \
             --run-slow \
-            -n auto \
-            --dist=loadscope \
             -vv \
             --durations=20
 

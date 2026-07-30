@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import os
-import random
-
-import numpy as np
 import pytest
 
 
@@ -39,16 +35,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 def pytest_configure(config: pytest.Config) -> None:
     """
-    Register markers and enforce deterministic behavior.
+    Register regression test markers.
     """
     config.addinivalue_line("markers", "regression: end-to-end regression tests")
     config.addinivalue_line("markers", "slow: long-running tests (20-30+ minutes)")
-
-    seed = 0
-    random.seed(seed)
-    np.random.seed(seed)
-
-    os.environ["PYTHONHASHSEED"] = "0"
 
 
 def pytest_collection_modifyitems(
