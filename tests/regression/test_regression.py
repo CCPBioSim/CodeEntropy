@@ -10,27 +10,6 @@ import pytest
 from tests.regression.cases import discover_cases
 from tests.regression.helpers import run_codeentropy_with_config
 
-CASES = discover_cases()
-
-
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    """
-    Dynamically parametrize regression test cases.
-
-    This hook enables pytest-xdist to distribute individual regression cases
-    across multiple workers by generating test parametrization at collection time.
-
-    Args:
-        metafunc (pytest.Metafunc): Pytest metafunction object used to inspect
-            and modify test function parametrization.
-    """
-    if "case" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "case",
-            CASES,
-            ids=[c.id for c in CASES],
-        )
-
 
 def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """
@@ -139,6 +118,7 @@ def _compare_grouped(
 
 
 @pytest.mark.regression
+@pytest.mark.parametrize("case", discover_cases())
 def test_regression_matches_baseline(
     tmp_path: Path,
     case,

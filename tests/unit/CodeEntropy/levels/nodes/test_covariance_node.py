@@ -16,6 +16,7 @@ class FakeAtomGroup:
         self.name = name
         self._length = length
         self.indices = np.arange(length)
+        self.atoms = self
 
     def __len__(self):
         return self._length
@@ -32,14 +33,19 @@ class FakeResidue:
 
     def __init__(self, atoms=None):
         self.atoms = atoms or FakeAtomGroup("residue-atoms")
+        self.residues = self
 
 
 class FakeMolecule:
     """Small molecule-like fragment."""
 
-    def __init__(self, n_residues=1):
+    def __init__(self, n_residues, select_map=None):
         self.atoms = FakeAtomGroup("mol-atoms")
         self.residues = [FakeResidue() for _ in range(n_residues)]
+        self._select_map = dict(select_map or {})
+
+    def select_atoms(self, query: str):
+        return self._select_map.get(query, FakeMolecule([]))
 
 
 class FakeAtoms:
@@ -83,7 +89,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
     node._process_residue = MagicMock()
     node._process_polymer = MagicMock()
 
-    mol = FakeMolecule()
+    mol = FakeMolecule(n_residues=1)
     universe = FakeUniverse([mol], dimensions=np.array([10.0, 20.0, 30.0, 90.0]))
     axes_manager = object()
     axes_topology = object()
@@ -132,7 +138,7 @@ def test_run_omits_forcetorque_when_combined_is_false():
 
     ctx = {
         "shared": {
-            "reduced_universe": FakeUniverse([FakeMolecule()]),
+            "reduced_universe": FakeUniverse([FakeMolecule(n_residues=1)]),
             "groups": {0: [0]},
             "levels": [["residue"]],
             "beads": {},
@@ -423,20 +429,23 @@ def test_build_ua_vectors_uses_customised_axes():
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
 
-    force_vecs, torque_vecs = node._build_ua_vectors(
-        u=FakeUniverse([]),
-        mol_id=0,
-        local_res_i=0,
-        bead_groups=[FakeAtomGroup("ua")],
-        residue_atoms=FakeAtomGroup("res"),
-        axes_manager=axes_manager,
-        axes_topology=None,
-        box=None,
-        force_partitioning=0.5,
-        customised_axes=True,
-        is_highest=True,
-    )
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
+        force_vecs, torque_vecs = node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeAtomGroup("res"),
+            axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            customised_axes=True,
+            is_highest=True,
+            res_position=None,
+        )
 
+    assert make_whole.call_count == 2
     assert len(force_vecs) == 1
     assert len(torque_vecs) == 1
     axes_manager.get_UA_axes.assert_called_once()
@@ -445,7 +454,6 @@ def test_build_ua_vectors_uses_customised_axes():
 def test_build_ua_vectors_uses_cached_axes_topology_when_available():
     node = FrameCovarianceNode()
     axes_manager = MagicMock()
-
     u = FakeUniverse([])
     ua_topology = object()
     axes_topology = SimpleNamespace(ua={(3, 4, 0): ua_topology})
@@ -464,13 +472,14 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
         mol_id=3,
         local_res_i=4,
         bead_groups=[FakeAtomGroup("ua")],
-        residue_atoms=FakeAtomGroup("res"),
+        residue_group=FakeAtomGroup("res"),
         axes_manager=axes_manager,
         axes_topology=axes_topology,
         box=None,
         force_partitioning=0.5,
         customised_axes=True,
         is_highest=True,
+        res_position=None,
     )
 
     assert len(force_vecs) == 1
@@ -501,13 +510,14 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
             mol_id=0,
             local_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
-            residue_atoms=FakeAtomGroup("res"),
+            residue_group=FakeAtomGroup("res"),
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
             force_partitioning=0.5,
             customised_axes=False,
             is_highest=False,
+            res_position=None,
         )
 
     assert make_whole.call_count == 2
@@ -518,7 +528,8 @@ def test_build_residue_vectors_uses_residue_axes():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     axes_manager = MagicMock()
-
+    residue = mol.residues[0]
+    residue.resindex = 0
     node._get_residue_axes = MagicMock(
         return_value=(np.eye(3), np.eye(3), np.zeros(3), np.ones(3))
     )
@@ -558,6 +569,7 @@ def test_get_residue_axes_customised_uses_cached_topology_when_available():
         mol_id=3,
         bead=FakeAtomGroup("res"),
         local_res_i=0,
+        relative_res_i=0,
         axes_manager=axes_manager,
         axes_topology=axes_topology,
         box=None,
@@ -585,6 +597,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
             mol_id=0,
             bead=FakeAtomGroup("res"),
             local_res_i=0,
+            relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
@@ -595,6 +608,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
 
     axes_manager.get_residue_axes.assert_called_once_with(
         mol,
+        0,
         0,
         residue=mol.residues[0].atoms,
     )
@@ -617,6 +631,7 @@ def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
             mol_id=0,
             bead=bead,
             local_res_i=0,
+            relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
@@ -698,3 +713,113 @@ def test_build_ft_block_rejects_invalid_inputs():
 
     with pytest.raises(ValueError, match="length 3"):
         FrameCovarianceNode._build_ft_block([np.ones(2)], [np.ones(3)])
+
+
+def test_process_united_atom_multiple_residues(monkeypatch):
+    node = FrameCovarianceNode()
+    mol = FakeMolecule(n_residues=3)
+    bead_group = FakeAtomGroup("ua", length=3)
+    universe = FakeUniverse([mol], returned_groups=[bead_group])
+    mol.residues[0].resindex = 0
+    mol.residues[1].resindex = 1
+    mol.residues[2].resindex = 2
+
+    def _select_atoms(q):
+        if q == "resindex 0 or resindex 1":
+            return FakeMolecule(n_residues=2)
+        if q == "resindex 1 or resindex 2":
+            return FakeMolecule(n_residues=2)
+        if q == "resindex 0 or resindex 1 or resindex 2":
+            return mol
+
+    mol.select_atoms = MagicMock(side_effect=_select_atoms)
+    node._build_ua_vectors = MagicMock(return_value=(np.eye(3), np.eye(3)))
+    node._ft.compute_frame_covariance = MagicMock(
+        return_value=(np.eye(3), 2.0 * np.eye(3))
+    )
+
+    out_force = {"ua": {}, "res": {}, "poly": {}}
+    out_torque = {"ua": {}, "res": {}, "poly": {}}
+    molcount = {}
+
+    node._process_united_atom(
+        u=universe,
+        mol=mol,
+        mol_id=0,
+        group_id=7,
+        beads={(0, "united_atom", 0): [np.array([0])]},
+        axes_manager="axes",
+        axes_topology=None,
+        box=None,
+        force_partitioning=0.5,
+        customised_axes=False,
+        is_highest=True,
+        out_force=out_force,
+        out_torque=out_torque,
+        molcount=molcount,
+    )
+    assert mol.select_atoms.call_count == 3
+
+
+def test_build_ua_vectors_multiple_residues_first_residue():
+    node = FrameCovarianceNode()
+    axes_manager = MagicMock()
+    axes_manager.get_UA_axes.return_value = (
+        np.eye(3),
+        2.0 * np.eye(3),
+        np.ones(3),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
+    node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
+        force_vecs, torque_vecs = node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeMolecule(n_residues=2),
+            axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            customised_axes=True,
+            is_highest=True,
+            res_position=-1,
+        )
+
+    assert make_whole.call_count == 2
+    axes_manager.get_UA_axes.assert_called_once()
+
+
+def test_build_ua_vectors_multiple_residues_middle_residue():
+    node = FrameCovarianceNode()
+    axes_manager = MagicMock()
+    axes_manager.get_UA_axes.return_value = (
+        np.eye(3),
+        2.0 * np.eye(3),
+        np.ones(3),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
+    node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
+        force_vecs, torque_vecs = node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeMolecule(n_residues=3),
+            axes_manager=axes_manager,
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            customised_axes=True,
+            is_highest=True,
+            res_position=0,
+        )
+
+    assert make_whole.call_count == 2
+    axes_manager.get_UA_axes.assert_called_once()
