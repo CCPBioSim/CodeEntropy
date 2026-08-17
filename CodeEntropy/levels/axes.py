@@ -77,7 +77,10 @@ class AxesCalculator:
               heavy atom + bonded hydrogens.
             * Set translational axes equal to rotational axes (as per the original
               code convention).
-        - If bonded to other residues:
+        - If bonded to only one other residue:
+            * Translational axes are principal axes of data_container.
+            * Find edge heavy atom (i.e. heavy atoms bonded to neighbour residue).
+        - If bonded to at least two other residues:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
               and find the shortest chain between them: the backbone. Edge
@@ -145,30 +148,36 @@ class AxesCalculator:
             trans_axes = data_container.atoms.principal_axes()
 
             if len(edge_atom_set) == 1:
-                if index == 0:
-                    # first residue: use first heavy atom
-                    edges = [residue.atoms[0], edge_atom_set[0]]
-                    backbone = self.get_chain(
-                        residue, residue.atoms[0], edge_atom_set[0]
-                    )
-                else:
-                    # last residue: last heavy atom
-                    last_index = len(uas) - 1
-                    last = None
-                    if last_index > 0 and last is None:
-                        heavy_atom = uas[last_index]
-                        last = heavy_atom
-                    edges = [edge_atom_set[0], last]
+                edge_atom = edge_atom_set[0]
+                bonded_atoms = uas.select_atoms(f"bonded index {edge_atom.index}")
+                # find the average position of heavy atoms bonded to edge atom
+                average_bonded_atom = np.zeros(3)
+                for atom in bonded_atoms:
+                    average_bonded_atom += atom.position
+                average_bonded_atom /= len(bonded_atoms)
+                # find the average position of all other heavy atoms in residue
+                other_atoms = []
+                for atom in uas:
+                    if atom != edge_atom and atom not in bonded_atoms:
+                        other_atoms.append(atom)
+                average_other_atoms = np.zeros(3)
+                for atom in other_atoms:
+                    average_other_atoms += atom.position
+                average_other_atoms /= len(other_atoms)
+                rot_center, rot_axes = self.get_residue_custom_axes(
+                    [edge_atom.position, average_other_atoms], average_bonded_atom
+                )
 
-                    backbone = self.get_chain(residue, edge_atom_set[0], last)
             else:
-                edges = [edge_atom_set[0], edge_atom_set[1]]
+                edges = [edge_atom_set[0].position, edge_atom_set[1].position]
                 backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
-            backbone_center = np.zeros(3)
-            for heavy_atom in backbone:
-                backbone_center += heavy_atom.position
-            backbone_center = backbone_center / len(backbone)
-            rot_center, rot_axes = self.get_residue_custom_axes(edges, backbone_center)
+                backbone_center = np.zeros(3)
+                for heavy_atom in backbone:
+                    backbone_center += heavy_atom.position
+                backbone_center = backbone_center / len(backbone)
+                rot_center, rot_axes = self.get_residue_custom_axes(
+                    edges, backbone_center
+                )
 
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
                 center_of_mass=rot_center,
@@ -248,7 +257,8 @@ class AxesCalculator:
             Identify residue of interest and neighbours, then select
             edge heavy atoms (i.e. heavy atoms bonded to neighbour residues).
             If there are no bonds to neighbouring residues, use residue
-            .principal axes Otherwise, find the shortest chain between edge
+            principal axes. Otherwise, for residues with at least two neighbours,
+            find the shortest chain between edge
             residues: the backbone. Edge atoms + backbone COM are used to
             determine UA translational axes (see get_residue_custom_axes)
 
@@ -293,66 +303,69 @@ class AxesCalculator:
                 residue_heavy_atoms = heavy_atoms
             else:
                 # residue of interest has at least one neighbour
-                if res_position == -1:
-                    residue = data_container.residues[0]
-                    resindex = residue.resindex
-                    resindex_next = resindex + 1
-
-                    second_edge = data_container.select_atoms(
-                        f"resindex {resindex} and bonded resindex {resindex_next}"
+                if res_position == -1 or res_position == 1:
+                    # look at a terminal residue
+                    if res_position == -1:
+                        # first residue
+                        residue = data_container.residues[0]
+                        resindex = residue.resindex
+                        resindex_next = resindex + 1
+                        edge_atom = data_container.select_atoms(
+                            f"resindex {resindex} and bonded resindex {resindex_next}"
+                        )
+                    else:
+                        # last residue
+                        residue = data_container.residues[1]
+                        resindex = residue.resindex
+                        resindex_prev = resindex - 1
+                        edge_atom = data_container.select_atoms(
+                            f"resindex {resindex} and bonded resindex {resindex_prev}"
+                        )
+                    residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
+                    bonded_atoms = residue_heavy_atoms.select_atoms(
+                        f"bonded index {edge_atom[0].index}"
                     )
-
-                    edges = [residue.atoms[0], second_edge[0]]
-                    backbone = self.get_chain(
-                        residue, residue.atoms[0], second_edge.atoms[0]
+                    # find the average position of heavy atoms bonded to edge atom
+                    average_bonded_atom = np.zeros(3)
+                    for atom in bonded_atoms:
+                        average_bonded_atom += atom.position
+                    average_bonded_atom /= len(bonded_atoms)
+                    # find the average position of all other heavy atoms in residue
+                    other_atoms = []
+                    for atom in residue_heavy_atoms:
+                        if atom != edge_atom and atom not in bonded_atoms:
+                            other_atoms.append(atom)
+                    average_other_atoms = np.zeros(3)
+                    for atom in other_atoms:
+                        average_other_atoms += atom.position
+                    average_other_atoms /= len(other_atoms)
+                    trans_center, trans_axes = self.get_residue_custom_axes(
+                        [edge_atom.positions[0], average_other_atoms],
+                        average_bonded_atom,
                     )
-
-                elif res_position == 0:
+                else:
                     # between 2 residues
                     residue = data_container.residues[1]
                     resindex = residue.resindex
                     resindex_next = resindex + 1
                     resindex_prev = resindex - 1
-
+                    residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
                     edge_set = data_container.select_atoms(
                         f"resindex {resindex} and "
                         f"(bonded resindex {resindex_prev} or "
                         f"resindex {resindex_next})"
                     )
 
-                    edges = [edge_set[0], edge_set[1]]
+                    edges = edge_set.positions
                     backbone = self.get_chain(residue, edge_set[0], edge_set[1])
+                    backbone_center = np.zeros(3)
+                    for heavy_atom in backbone:
+                        backbone_center += heavy_atom.position
+                    backbone_center = backbone_center / len(backbone)
 
-                else:
-                    # last resid
-                    # always resindex 1 in data_container
-                    residue = data_container.residues[1]
-                    resindex = residue.resindex
-                    resindex_prev = resindex - 1
-                    first_edge = data_container.select_atoms(
-                        f"resindex {resindex} and bonded resindex {resindex_prev}"
+                    trans_center, trans_axes = self.get_residue_custom_axes(
+                        edges, backbone_center
                     )
-
-                    last_index = len(heavy_atoms) - 1
-                    last = None
-                    # look for last heavy atom
-                    # with only one bond to another
-                    if last_index > 0 and last is None:
-                        heavy_atom = heavy_atoms[last_index]
-                        last = heavy_atom
-
-                    edges = [first_edge.atoms[0], last]
-                    backbone = self.get_chain(residue, first_edge.atoms[0], last)
-
-                backbone_center = np.zeros(3)
-                for heavy_atom in backbone:
-                    backbone_center += heavy_atom.position
-                backbone_center = backbone_center / len(backbone)
-
-                trans_center, trans_axes = self.get_residue_custom_axes(
-                    edges, backbone_center
-                )
-                residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
 
             # look for heavy atoms in residue of interest
             heavy_atom_indices = []
@@ -580,9 +593,9 @@ class AxesCalculator:
             lies on the E1-E2 vector
             rot_axes: (3,3) rotation axes of residue
         """
-        first_edge_centre_of_geometry_vector = center - edges[0].position
+        first_edge_centre_of_geometry_vector = center - edges[0]
         # look for projection of E1-O onto E1-E2 (E1-C)
-        first_edge_second_edge_vector = edges[1].position - edges[0].position
+        first_edge_second_edge_vector = edges[1] - edges[0]
         first_edge_origin_vector = (
             np.dot(first_edge_second_edge_vector, first_edge_centre_of_geometry_vector)
             / (np.linalg.norm(first_edge_second_edge_vector) ** 2)
@@ -598,7 +611,7 @@ class AxesCalculator:
         y_axis /= np.linalg.norm(y_axis)
         z_axis /= np.linalg.norm(z_axis)
         rot_axes = np.array([x_axis, y_axis, z_axis])
-        rot_center = first_edge_origin_vector + edges[0].position
+        rot_center = first_edge_origin_vector + edges[0]
         return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
