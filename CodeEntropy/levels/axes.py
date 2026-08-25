@@ -265,16 +265,19 @@ class AxesCalculator:
             - If there are *no* bonds to other residues, use a custom principal axes
             from a moment-of-inertia (MOI) tensor that uses positions of heavy atoms
             only, but includes masses of heavy atom + bonded hydrogens.
+
             - If bonded to only one other residue, find edge heavy atom
             (i.e. heavy atom bonded to neighbour residue). Find all heavy atoms
             bonded to edge heavy atom and compute their average position.
             Find all other heavy atoms in residue and compute their average position.
-             The three points are now used to obtain determine residue rotational axes.
+            The three points are now used to obtain determine residue rotational axes.
             (see get_residue_custom_axes)
+
             - If bonded to at least two other residues, find edge heavy atoms
             (i.e. heavy atoms bonded to neighbour residues) and find the shortest
             chain between them: the backbone. Edge atoms + backbone COM are used
             to determine residue rotational axes. (see get_residue_custom_axes).
+
         - Rotational axes:
             Identify heavy atoms in the residue/molecule of interest and choose
             the `index`-th heavy atom (where index corresponds to the bead index).
