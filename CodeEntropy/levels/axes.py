@@ -280,8 +280,7 @@ class AxesCalculator:
             Identify heavy atoms in the residue/molecule of interest and choose
             the `index`-th heavy atom (where index corresponds to the bead index).
             Use bonded topology around that heavy atom to determine UA rotational
-            axes (see :meth:`get_bonded_axes`).
-            Compute a custom MOI tensor.
+            axes (see :meth:`get_bonded_axes`). Compute a custom MOI tensor.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
