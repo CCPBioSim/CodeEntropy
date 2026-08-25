@@ -73,20 +73,26 @@ class AxesCalculator:
           (previous/next in sequence) using MDAnalysis bonded selections.
         - If there are *no* bonds to other residues:
             * Use a custom principal axes, from a moment-of-inertia (MOI) tensor
-              that uses positions of heavy atoms only, but including masses of
+              that uses positions of heavy atoms only, but includes masses of
               heavy atom + bonded hydrogens.
             * Set translational axes equal to rotational axes (as per the original
               code convention).
         - If bonded to only one other residue:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atom (i.e. heavy atoms bonded to neighbour residue).
+              Find all heavy atoms bonded to edge heavy atom and compute their average
+              position.
+              Find all other heavy atoms in residue and compute their average position.
+              The three points are now used to obtain determine residue rotational axes.
+              (see get_residue_custom_axes)
         - If bonded to at least two other residues:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
               and find the shortest chain between them: the backbone. Edge
               atoms + backbone COM are used to determine residue rotational axes.
-              (see get_residue_custom_axes).Compute a custom MOI, using heavy atom
-              positions and heavy atom + hydrogen masses.
+              (see get_residue_custom_axes).
+        Compute a custom MOI, using heavy atom positions and
+          heavy atom + hydrogen masses.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
@@ -256,19 +262,25 @@ class AxesCalculator:
             Use the same approach as residue level rotational.
             Identify residue of interest and neighbours, then select
             edge heavy atoms (i.e. heavy atoms bonded to neighbour residues).
-            If there are no bonds to neighbouring residues, use residue
-            principal axes. Otherwise, for residues with at least two neighbours,
-            find the shortest chain between edge
-            residues: the backbone. Edge atoms + backbone COM are used to
-            determine UA translational axes (see get_residue_custom_axes)
-
+            - If there are *no* bonds to other residues, use a custom principal axes
+              from a moment-of-inertia (MOI) tensor that uses positions of heavy atoms
+              only, but includes masses of heavy atom + bonded hydrogens.
+            - If bonded to only one other residue, find edge heavy atom
+              (i.e. heavy atom bonded to neighbour residue). Find all heavy atoms
+              bonded to edge heavy atom and compute their average position.
+              Find all other heavy atoms in residue and compute their average position.
+              The three points are now used to obtain determine residue rotational axes.
+              (see get_residue_custom_axes)
+            - If bonded to at least two other residues, find edge heavy atoms
+            (i.e. heavy atoms bonded to neighbour residues) and find the shortest
+              chain between them: the backbone. Edge atoms + backbone COM are used
+              to determine residue rotational axes. (see get_residue_custom_axes).
         - Rotational axes:
             Identify heavy atoms in the residue/molecule of interest and choose
             the `index`-th heavy atom (where index corresponds to the bead index).
             Use bonded topology around that heavy atom to determine UA rotational
             axes (see :meth:`get_bonded_axes`).
-            Compute a custom MOI tensor using heavy-atom coordinates but UA masses
-            (heavy + bonded H masses), then compute the principal axes from it.
+            Compute a custom MOI tensor.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
