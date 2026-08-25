@@ -80,20 +80,20 @@ class AxesCalculator:
 
         - If bonded to only one other residue:
             * Translational axes are principal axes of data_container.
-            * Find edge heavy atom (i.e. heavy atoms bonded to next residue). Find
-            all heavy atoms bonded to edge heavy atom and compute their average
-            position. Find all other heavy atoms in residue and compute their average
-            position.The three points are now used to obtain determine residue
-            rotational axes. (see get_residue_custom_axes) Compute a custom MOI,
-            using heavy atom positions and heavy atom + hydrogen masses.
+            * Find edge heavy atom (i.e. heavy atoms bonded to neighbour residue). Find
+              all heavy atoms bonded to edge heavy atom and compute their average
+              position. Find all other heavy atoms in residue and compute their average
+              position.The three points are now used to obtain determine residue
+              rotational axes. (see get_residue_custom_axes) Compute a custom MOI,
+              using heavy atom positions and heavy atom + hydrogen masses.
 
         - If bonded to at least two other residues:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
-            and find the shortest chain between them: the backbone. Edge atoms
-            + backbone COM are used to determine residue rotational axes.
-            (see get_residue_custom_axes). Compute a custom MOI, using heavy
-            atom positions and heavy atom + hydrogen masses.
+              and find the shortest chain between them: the backbone. Edge atoms
+              + backbone COM are used to determine residue rotational axes.
+              (see get_residue_custom_axes). Compute a custom MOI, using heavy
+              atom positions and heavy atom + hydrogen masses.
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
