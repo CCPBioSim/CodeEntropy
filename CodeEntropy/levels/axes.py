@@ -187,7 +187,8 @@ class AxesCalculator:
                         [edge_atom.position, average_other_atoms], average_bonded_atom
                     )
                 else:
-                    rot_center, rot_axes = self.get_custom_axes(
+                    rot_center = edge_atom.position
+                    rot_axes = self.get_custom_axes(
                         a=edge_atom.position, b=[average_bonded_atom], c=np.zeros(3)
                     )
 
@@ -203,8 +204,9 @@ class AxesCalculator:
                         edges, backbone_center
                     )
                 else:
-                    rot_center, rot_axes = self.get_custom_axes(
-                        a=edges[0], b=[edges[1]], c=np.zeros(3)
+                    rot_center = (edges[0] + edges[1]) / 2
+                    rot_axes = self.get_custom_axes(
+                        a=rot_center, b=[edges[1]], c=np.zeros(3)
                     )
 
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
@@ -391,7 +393,8 @@ class AxesCalculator:
                             average_bonded_atom,
                         )
                     else:
-                        trans_center, trans_axes = self.get_custom_axes(
+                        trans_center = edge_atom.position
+                        trans_axes = self.get_custom_axes(
                             a=edge_atom.position, b=[average_bonded_atom], c=np.zeros(3)
                         )
                 else:
@@ -417,8 +420,9 @@ class AxesCalculator:
                             edges, backbone_center
                         )
                     else:
-                        trans_center, trans_axes = self.get_custom_axes(
-                            a=edges[0], b=[edges[1]], c=np.zeros(3)
+                        trans_center = (edges[0] + edges[1]) / 2
+                        trans_axes = self.get_custom_axes(
+                            a=trans_center, b=[edges[1]], c=np.zeros(3)
                         )
 
             # look for heavy atoms in residue of interest
