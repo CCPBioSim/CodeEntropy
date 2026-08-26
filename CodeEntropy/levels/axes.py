@@ -156,21 +156,26 @@ class AxesCalculator:
 
             if len(edge_atom_set) == 1:
                 edge_atom = edge_atom_set[0]
-                bonded_atoms = uas.select_atoms(f"bonded index {edge_atom.index}")
+                bonded_atoms = residue.select_atoms(
+                    f"(mass 2 to 999) and bonded index {edge_atom.index}"
+                )
                 # find the average position of heavy atoms bonded to edge atom
-                average_bonded_atom = np.zeros(3)
-                for atom in bonded_atoms:
-                    average_bonded_atom += atom.position
-                average_bonded_atom /= len(bonded_atoms)
+                if len(bonded_atoms) > 0:
+                    average_bonded_atom = np.zeros(3)
+                    for bonded_atom in bonded_atoms:
+                        average_bonded_atom += bonded_atom.position
+                    average_bonded_atom /= len(bonded_atoms)
                 # find the average position of all other heavy atoms in residue
                 other_atoms = []
                 for atom in uas:
                     if atom != edge_atom and atom not in bonded_atoms:
                         other_atoms.append(atom)
-                average_other_atoms = np.zeros(3)
-                for atom in other_atoms:
-                    average_other_atoms += atom.position
-                average_other_atoms /= len(other_atoms)
+                if len(other_atoms) > 0:
+                    average_other_atoms = np.zeros(3)
+                    for atom in other_atoms:
+                        average_other_atoms += atom.position
+                    average_other_atoms /= len(average_other_atoms)
+
                 rot_center, rot_axes = self.get_residue_custom_axes(
                     [edge_atom.position, average_other_atoms], average_bonded_atom
                 )
@@ -179,9 +184,10 @@ class AxesCalculator:
                 edges = [edge_atom_set[0].position, edge_atom_set[1].position]
                 backbone = self.get_chain(residue, edge_atom_set[0], edge_atom_set[1])
                 backbone_center = np.zeros(3)
-                for heavy_atom in backbone:
-                    backbone_center += heavy_atom.position
-                backbone_center = backbone_center / len(backbone)
+                if len(backbone) > 0:
+                    for heavy_atom in backbone:
+                        backbone_center += heavy_atom.position
+                    backbone_center /= len(backbone)
                 rot_center, rot_axes = self.get_residue_custom_axes(
                     edges, backbone_center
                 )
@@ -323,7 +329,7 @@ class AxesCalculator:
                         residue = data_container.residues[0]
                         resindex = residue.resindex
                         resindex_next = resindex + 1
-                        edge_atom = data_container.select_atoms(
+                        edge_atom_set = data_container.select_atoms(
                             f"resindex {resindex} and bonded resindex {resindex_next}"
                         )
                     else:
@@ -331,29 +337,32 @@ class AxesCalculator:
                         residue = data_container.residues[1]
                         resindex = residue.resindex
                         resindex_prev = resindex - 1
-                        edge_atom = data_container.select_atoms(
+                        edge_atom_set = data_container.select_atoms(
                             f"resindex {resindex} and bonded resindex {resindex_prev}"
                         )
+                    edge_atom = edge_atom_set[0]
                     residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
-                    bonded_atoms = residue_heavy_atoms.select_atoms(
-                        f"bonded index {edge_atom[0].index}"
+                    bonded_atoms = residue.atoms.select_atoms(
+                        f"(mass 2 to 999) and bonded index {edge_atom.index}"
                     )
                     # find the average position of heavy atoms bonded to edge atom
-                    average_bonded_atom = np.zeros(3)
-                    for atom in bonded_atoms:
-                        average_bonded_atom += atom.position
-                    average_bonded_atom /= len(bonded_atoms)
+                    if len(bonded_atoms) > 0:
+                        average_bonded_atom = np.zeros(3)
+                        for atom in bonded_atoms:
+                            average_bonded_atom += atom.position
+                        average_bonded_atom /= len(bonded_atoms)
                     # find the average position of all other heavy atoms in residue
                     other_atoms = []
                     for atom in residue_heavy_atoms:
                         if atom != edge_atom and atom not in bonded_atoms:
                             other_atoms.append(atom)
                     average_other_atoms = np.zeros(3)
-                    for atom in other_atoms:
-                        average_other_atoms += atom.position
-                    average_other_atoms /= len(other_atoms)
+                    if len(other_atoms) > 0:
+                        for atom in other_atoms:
+                            average_other_atoms += atom.position
+                        average_other_atoms /= len(other_atoms)
                     trans_center, trans_axes = self.get_residue_custom_axes(
-                        [edge_atom.positions[0], average_other_atoms],
+                        [edge_atom.position, average_other_atoms],
                         average_bonded_atom,
                     )
                 else:
@@ -371,10 +380,11 @@ class AxesCalculator:
 
                     edges = edge_set.positions
                     backbone = self.get_chain(residue, edge_set[0], edge_set[1])
-                    backbone_center = np.zeros(3)
-                    for heavy_atom in backbone:
-                        backbone_center += heavy_atom.position
-                    backbone_center = backbone_center / len(backbone)
+                    if len(backbone) > 0:
+                        backbone_center = np.zeros(3)
+                        for heavy_atom in backbone:
+                            backbone_center += heavy_atom.position
+                        backbone_center /= len(backbone)
 
                     trans_center, trans_axes = self.get_residue_custom_axes(
                         edges, backbone_center
