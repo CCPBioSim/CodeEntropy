@@ -84,15 +84,23 @@ class AxesCalculator:
               all heavy atoms bonded to edge heavy atom and compute their average
               position. Find all other heavy atoms in residue and compute their average
               position.The three points are now used to obtain determine residue
-              rotational axes. (see get_residue_custom_axes) Compute a custom MOI,
-              using heavy atom positions and heavy atom + hydrogen masses.
+              rotational axes. (see get_residue_custom_axes) If there are
+              only two heavy atoms in the residue/all heavy atoms are bonded to edge
+              atom, x-axis is set along the vector between the edge atom and average
+              position of bonded atoms, y-axis is arbitrary and z-axis is paralel
+              to the two. This is the same as case 2 in get_bonded_axes. Compute a
+              custom MOI, using heavy atom positions and heavy atom + hydrogen masses.
 
         - If bonded to at least two other residues:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues)
               and find the shortest chain between them: the backbone. Edge atoms
               + backbone COM are used to determine residue rotational axes.
-              (see get_residue_custom_axes). Compute a custom MOI, using heavy
+              (see get_residue_custom_axes). If the two edge heavy atoms
+              are bonded to each other (i.e. there is no backbone), x-axis is set
+              along the vector between the edge atom and average position of bonded
+              atoms, y-axis is arbitrary and z-axis is paralel to the two. This is the
+              same as case 2 in get_bonded_axes. Compute a custom MOI, using heavy
               atom positions and heavy atom + hydrogen masses.
 
         Args:
@@ -175,10 +183,13 @@ class AxesCalculator:
                     for atom in other_atoms:
                         average_other_atoms += atom.position
                     average_other_atoms /= len(average_other_atoms)
-
-                rot_center, rot_axes = self.get_residue_custom_axes(
-                    [edge_atom.position, average_other_atoms], average_bonded_atom
-                )
+                    rot_center, rot_axes = self.get_residue_custom_axes(
+                        [edge_atom.position, average_other_atoms], average_bonded_atom
+                    )
+                else:
+                    rot_center, rot_axes = self.get_custom_axes(
+                        a=edge_atom.position, b=[average_bonded_atom], c=np.zeros(3)
+                    )
 
             else:
                 edges = [edge_atom_set[0].position, edge_atom_set[1].position]
@@ -188,9 +199,13 @@ class AxesCalculator:
                     for heavy_atom in backbone:
                         backbone_center += heavy_atom.position
                     backbone_center /= len(backbone)
-                rot_center, rot_axes = self.get_residue_custom_axes(
-                    edges, backbone_center
-                )
+                    rot_center, rot_axes = self.get_residue_custom_axes(
+                        edges, backbone_center
+                    )
+                else:
+                    rot_center, rot_axes = self.get_custom_axes(
+                        a=edges[0], b=[edges[1]], c=np.zeros(3)
+                    )
 
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
                 center_of_mass=rot_center,
@@ -272,6 +287,11 @@ class AxesCalculator:
             - If there are *no* bonds to other residues, use a custom principal axes
             from a moment-of-inertia (MOI) tensor that uses positions of heavy atoms
             only, but includes masses of heavy atom + bonded hydrogens.
+            - If bonded to only one other residue and there are only two heavy atoms
+            in the residue/all heavy atoms are bonded to edge atom,
+            x-axis is set along the vector between the edge atom and average position
+            of bonded atoms, y-axis is arbitrary and z-axis is paralel to the two.
+            This is the same as case 2 in get_bonded_axes.
             - If bonded to only one other residue, find edge heavy atom
             (i.e. heavy atom bonded to neighbour residue). Find all heavy atoms
             bonded to edge heavy atom and compute their average position.
@@ -282,6 +302,11 @@ class AxesCalculator:
             (i.e. heavy atoms bonded to neighbour residues) and find the shortest
             chain between them: the backbone. Edge atoms + backbone COM are used
             to determine residue rotational axes. (see get_residue_custom_axes).
+            - If bonded to at least two other residues and the two edge heavy atoms
+            are bonded to each other (i.e. there is no backbone), x-axis is set along
+            the vector between the edge atom and average position of bonded atoms,
+            y-axis is arbitrary and z-axis is paralel to the two. This is the same
+            as case 2 in get_bonded_axes.
 
         - Rotational axes:
             Identify heavy atoms in the residue/molecule of interest and choose
@@ -361,10 +386,14 @@ class AxesCalculator:
                         for atom in other_atoms:
                             average_other_atoms += atom.position
                         average_other_atoms /= len(other_atoms)
-                    trans_center, trans_axes = self.get_residue_custom_axes(
-                        [edge_atom.position, average_other_atoms],
-                        average_bonded_atom,
-                    )
+                        trans_center, trans_axes = self.get_residue_custom_axes(
+                            [edge_atom.position, average_other_atoms],
+                            average_bonded_atom,
+                        )
+                    else:
+                        trans_center, trans_axes = self.get_custom_axes(
+                            a=edge_atom.position, b=[average_bonded_atom], c=np.zeros(3)
+                        )
                 else:
                     # between 2 residues
                     residue = data_container.residues[1]
@@ -377,7 +406,6 @@ class AxesCalculator:
                         f"(bonded resindex {resindex_prev} or "
                         f"resindex {resindex_next})"
                     )
-
                     edges = edge_set.positions
                     backbone = self.get_chain(residue, edge_set[0], edge_set[1])
                     if len(backbone) > 0:
@@ -385,10 +413,13 @@ class AxesCalculator:
                         for heavy_atom in backbone:
                             backbone_center += heavy_atom.position
                         backbone_center /= len(backbone)
-
-                    trans_center, trans_axes = self.get_residue_custom_axes(
-                        edges, backbone_center
-                    )
+                        trans_center, trans_axes = self.get_residue_custom_axes(
+                            edges, backbone_center
+                        )
+                    else:
+                        trans_center, trans_axes = self.get_custom_axes(
+                            a=edges[0], b=[edges[1]], c=np.zeros(3)
+                        )
 
             # look for heavy atoms in residue of interest
             heavy_atom_indices = []
