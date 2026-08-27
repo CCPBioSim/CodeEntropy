@@ -1269,7 +1269,7 @@ def test_get_residue_bonded_axes_1_heavy_atom_backbone_2neighbours(monkeypatch):
 
     u.atoms.select_atoms.side_effect = _select_atoms
     u.atoms.principal_axes.return_value = np.eye(3)
-    monkeypatch.setattr(ax, "get_chain", backbone_atom)
+    monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [backbone_atom])
     monkeypatch.setattr(
         ax,
         "get_custom_residue_moment_of_inertia",
@@ -1639,3 +1639,49 @@ def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
 
     with pytest.raises(ValueError):
         ax.get_UA_axes(u, index=0, res_position=None)
+
+
+def get_residue_bonded_axes_terminal_2_points(monkeypatch):
+    ax = AxesCalculator()
+    u = MagicMock()
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    residue = u.select_atoms("resindex 0")
+    residue.__len__.return_value = 3
+    uas = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=[1, 0, 0]),
+            _atom(index=1, mass=12.0, pos=[0, 1, 0]),
+        ]
+    )
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            return uas
+        if q.startswith("(mass 2 to 999) and bonded"):
+            # the bonded atom
+            return [uas[1]]
+        if q.startswith("resindex 0 and (bonded resindex"):
+            # edge atom
+            return [uas[2]]
+
+    u.atoms.principal_axes.return_value = np.eye(3)
+    u.atoms.select_atoms.side_effect = _select_atoms
+    residue.select_atoms.side_effect = _select_atoms
+
+    monkeypatch.setattr(
+        ax,
+        "get_custom_residue_moment_of_inertia",
+        lambda center_of_mass, positions, masses, custom_rot_axes, dimensions: np.array(
+            [1, 1, 1]
+        ),
+    )
+
+    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
+        u, index=0, relative_index=0
+    )
+
+    assert np.allclose(trans_axes, np.eye(3))
+    assert rot_axes.shape == (3, 3)
+    assert np.allclose(rot_center, [1, 1, 0])
+    assert np.allclose(moi, np.array([1, 1, 1]))
