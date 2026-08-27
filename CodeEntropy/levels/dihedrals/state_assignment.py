@@ -71,6 +71,7 @@ class ConformationStateAssigner:
         level_list: list[Any],
         peaks_ua: list[list[Any]],
         peaks_res: list[Any],
+        conf_type: str,
     ) -> ConformationStatePartial:
         """Assign chunk-local states from cached angle arrays and global peaks.
 
@@ -112,6 +113,15 @@ class ConformationStateAssigner:
                     peaks=peaks_res,
                     angles=observable.residue_angles,
                 )
+
+        # Flexible residues are used for an extra force halving relating
+        # to correlations between vibrations and conformational flexiblity
+        # This is a work arround for the "ua_backbone" type of dihedral finder
+        # because with the backbone set of united atoms being used for the
+        # residue level conformations, the number of dihedrals can exceed the
+        # number of residue bead vibrational degrees of freedom.
+        if "residue" in level_list and conf_type == "ua_backbone":
+            flex_res = 0
 
         return ConformationStatePartial(
             task=observable.task,

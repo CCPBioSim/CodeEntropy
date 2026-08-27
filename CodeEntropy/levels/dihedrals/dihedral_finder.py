@@ -177,31 +177,13 @@ class DihedralDefinitions:
                         backbone += edges
                     elif len(edges) == 2:
                         chain = self._axes.get_chain(residue, edges[0], edges[1])
-                        backbone += chain
+                        for atom in chain:
+                            backbone += atom
 
                 logger.debug(f"backbone = {backbone}")
                 dihedrals = backbone.dihedrals
                 for d in dihedrals:
                     atom_groups.append(d.atoms)
-
-        return atom_groups
-
-    def method_ua_whole(self, data_container: Any, level: str) -> list[Any]:
-        """Return dihedral AtomGroups for a container at a given level.
-
-        Args:
-            data_container: MDAnalysis container (AtomGroup/Universe).
-            level: Either "united_atom" or "residue".
-
-        Returns:
-            List of AtomGroups (each representing a dihedral definition).
-        """
-        atom_groups: list[Any] = []
-
-        if level == "united_atom":
-            dihedrals = data_container.dihedrals
-            for d in dihedrals:
-                atom_groups.append(d.atoms)
 
         return atom_groups
 

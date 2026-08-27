@@ -183,6 +183,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
                     level_list=level_list,
                     peaks_ua=peak_data.peaks_ua,
                     peaks_res=peak_data.peaks_res,
+                    conf_type=conf_type,
                 )
                 for observable in observables
             ]
