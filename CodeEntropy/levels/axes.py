@@ -182,7 +182,7 @@ class AxesCalculator:
                     average_other_atoms = np.zeros(3)
                     for atom in other_atoms:
                         average_other_atoms += atom.position
-                    average_other_atoms /= len(average_other_atoms)
+                    average_other_atoms /= len(other_atoms)
                     rot_center, rot_axes = self.get_residue_custom_axes(
                         [edge_atom.position, average_other_atoms], average_bonded_atom
                     )
