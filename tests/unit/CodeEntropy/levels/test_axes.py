@@ -218,6 +218,7 @@ def test_get_UA_axes_raises_when_bonded_axes_fail(monkeypatch):
         return []
 
     u.select_atoms.side_effect = _sel
+
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
@@ -1623,21 +1624,21 @@ def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
     u = MagicMock()
     u.atoms.principal_axes.return_value = np.eye(3)
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
-    residue = MagicMock()
-    u.residues = [residue]
-    heavy_atoms = _FakeAtomGroup(
-        [
-            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
-            _atom(index=1, mass=12.0, pos=(0, 1, 0)),
-        ],
-    )
+    heavy_atoms = [
+        _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+        _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+    ]
+    u.residues = [heavy_atoms]
 
     def _sel(q):
         if q == "mass 2 to 999":
-            return [heavy_atoms]
+            return heavy_atoms
+        if q.startswith("index"):
+            return [heavy_atoms[0]]
 
     u.select_atoms.side_effect = _sel
-    residue.atoms.select_atoms.side_effect = _sel
+    u.atoms.select_atoms.side_effect = _sel
+
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
@@ -1738,7 +1739,6 @@ def test_get_residue_axes_non_terminal_2_atoms(monkeypatch):
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     residue = u.select_atoms("resindex 5")
     residue.__len__.return_value = 2
-    print(f"The residue should be: {residue}")
     u.atoms.principal_axes.return_value = np.eye(3)
     uas = _FakeAtomGroup(
         [
