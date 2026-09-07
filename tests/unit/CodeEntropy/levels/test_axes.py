@@ -1363,6 +1363,7 @@ def test_get_residue_bonded_axes_terminal_resid(monkeypatch):
     u.atoms.principal_axes.return_value = np.eye(3)
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = _select_atoms
+    residue.atoms.select_atoms.side_effect = _select_atoms
 
     monkeypatch.setattr(
         ax,
@@ -1624,16 +1625,19 @@ def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
     residue = MagicMock()
     u.residues = [residue]
-    heavy_atoms = [
-        _atom(index=0, mass=12.0, pos=(1, 0, 0)),
-        _atom(index=1, mass=12.0, pos=(0, 1, 0)),
-    ]
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+        ],
+    )
 
     def _sel(q):
         if q == "mass 2 to 999":
-            return heavy_atoms
+            return [heavy_atoms]
 
     u.select_atoms.side_effect = _sel
+    residue.atoms.select_atoms.side_effect = _sel
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
@@ -1779,7 +1783,7 @@ def test_get_residue_axes_terminal_2_atoms(monkeypatch):
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     residue = u.select_atoms("resindex 0")
-    residue.__len__.return_value = 3
+    residue.__len__.return_value = 2
     uas = _FakeAtomGroup(
         [
             _atom(index=0, mass=12.0, pos=(1, 0, 0)),
@@ -1800,6 +1804,7 @@ def test_get_residue_axes_terminal_2_atoms(monkeypatch):
 
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = _select_atoms
+    residue.atoms.select_atoms.side_effect = _select_atoms
     monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
     monkeypatch.setattr(
         ax,
@@ -1817,3 +1822,221 @@ def test_get_residue_axes_terminal_2_atoms(monkeypatch):
     assert np.allclose(rot_axes, 2 * np.eye(3))
     assert np.allclose(rot_center, [0, 0, 1])
     assert np.allclose(moi, [1, 1, 1])
+
+
+def test_get_res_axes_terminal_1_atom(monkeypatch):
+    ax = AxesCalculator()
+    u = MagicMock()
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    residue = u.select_atoms("resindex 0")
+    residue.__len__.return_value = 1
+    uas = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+        ],
+    )
+    u.atoms.principal_axes.return_value = np.eye(3)
+    residue.atoms.principal_axes.return_value = np.eye(3)
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            return uas
+        if q.startswith("(mass 2 to 999) and bonded index "):
+            return []
+        if q.startswith("resindex "):
+            return [uas[0]]
+
+    u.atoms.select_atoms.side_effect = _select_atoms
+    residue.select_atoms.side_effect = _select_atoms
+    residue.atoms.select_atoms.side_effect = _select_atoms
+
+    monkeypatch.setattr(
+        ax,
+        "get_custom_residue_moment_of_inertia",
+        lambda center_of_mass, positions, masses, custom_rot_axes, dimensions: np.array(
+            [1, 1, 1]
+        ),
+    )
+    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
+        data_container=u,
+        index=0,
+        relative_index=0,
+    )
+    assert np.allclose(trans_axes, np.eye(3))
+    assert np.allclose(rot_axes, np.eye(3))
+    assert np.allclose(rot_center, [1, 0, 0])
+    assert np.allclose(moi, [1, 1, 1])
+
+
+def test_get_UA_axes_terminal_1_atom(monkeypatch):
+    ax = AxesCalculator()
+    residue_group = MagicMock()
+    residue_group.__len__ = 2
+    residue = residue_group.residues[1]
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 1, 1)),
+            _atom(index=1, mass=12.0, pos=(3, 3, 3)),
+        ],
+    )
+
+    def _select_atoms_data_container(q):
+        if q == "mass 2 to 999":
+            # return heavy atoms group
+            return heavy_atoms
+        if q.startswith("resindex "):
+            return [heavy_atoms[0]]
+
+    def _select_atoms_residue(q):
+        if q == "mass 2 to 999":
+            # return heavy atoms group
+            return [heavy_atoms[0]]
+        if q.startswith("index"):
+            return [heavy_atoms[0]]
+        if q.startswith("(mass 2 to 999) and bonded "):
+            return []
+
+    residue_group.select_atoms.side_effect = _select_atoms_data_container
+    residue_group.atoms.select_atoms.side_effect = _select_atoms_data_container
+    residue.select_atoms.side_effect = _select_atoms_residue
+    residue.atoms.select_atoms.side_effect = _select_atoms_residue
+    monkeypatch.setattr(
+        ax,
+        "get_bonded_axes",
+        lambda system, atom, dimensions: (np.eye(3), 3 * np.eye(3)),
+    )
+    residue.atoms.principal_axes.return_value = 2 * np.eye(3)
+
+    trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
+        data_container=residue_group, index=0, res_position=-1
+    )
+
+    assert np.allclose(trans_axes, 2 * np.eye(3))
+    assert np.allclose(rot_axes, np.eye(3))
+    assert np.allclose(rot_center, [1, 1, 1])
+    assert np.allclose(moi, 3 * np.eye(3))
+
+
+def test_get_terminal_axes_1point(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 1
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+        ],
+    )
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            return heavy_atoms
+        if q.startswith("(mass 2 to 999) and bonded"):
+            return []
+
+    residue.atoms.select_atoms.side_effect = _select_atoms
+    residue.atoms.principal_axes.return_value = np.eye(3)
+    centre, axes = ax.get_terminal_axes(residue, heavy_atoms[0])
+    assert np.allclose(centre, [1, 0, 0])
+    assert np.allclose(axes, np.eye(3))
+
+
+def test_get_terminal_axes_2points(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 2
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+        ],
+    )
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            return heavy_atoms
+        if q.startswith("(mass 2 to 999) and bonded"):
+            return [heavy_atoms[1]]
+
+    residue.atoms.select_atoms.side_effect = _select_atoms
+    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
+    centre, axes = ax.get_terminal_axes(residue, heavy_atoms[0])
+    assert np.allclose(centre, [1, 0, 0])
+    assert np.allclose(axes, 2 * np.eye(3))
+
+
+def test_get_terminal_axes_3points(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 4
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=1, mass=12.0, pos=(1, 1, 0)),
+            _atom(index=2, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=3, mass=14.0, pos=(3, 0, 0)),
+        ],
+    )
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            return heavy_atoms
+        if q.startswith("(mass 2 to 999) and bonded"):
+            return [heavy_atoms[1]]
+
+    residue.atoms.select_atoms.side_effect = _select_atoms
+    monkeypatch.setattr(
+        ax, "get_residue_custom_axes", lambda edges, center: ([1, 0, 0], 3 * np.eye(3))
+    )
+
+    centre, axes = ax.get_terminal_axes(residue, heavy_atoms[0])
+
+    assert np.allclose(centre, [1, 0, 0])
+    assert np.allclose(axes, 3 * np.eye(3))
+
+
+def test_get_non_terminal_axes_2points(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 2
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(2, 0, 0)),
+            _atom(index=1, mass=12.0, pos=(0, 2, 0)),
+        ],
+    )
+    monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [])
+    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
+    centre, axes = ax.get_non_terminal_axes(residue, heavy_atoms)
+    assert np.allclose(centre, [1, 1, 0])
+    assert np.allclose(axes, 2 * np.eye(3))
+
+
+def test_get_non_terminal_axes_3points(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 4
+    heavy_atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=1, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=2, mass=14.0, pos=(3, 0, 0)),
+            _atom(index=3, mass=12.0, pos=(1, 1, 0)),
+        ],
+    )
+    edges = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=3, mass=12.0, pos=(1, 1, 0)),
+        ],
+    )
+    monkeypatch.setattr(
+        ax, "get_chain", lambda residue, first, last: [heavy_atoms[1], heavy_atoms[2]]
+    )
+    monkeypatch.setattr(
+        ax, "get_residue_custom_axes", lambda edges, center: ([1, 0, 0], 3 * np.eye(3))
+    )
+    centre, axes = ax.get_non_terminal_axes(residue, edges)
+
+    assert np.allclose(centre, [1, 0, 0])
+    assert np.allclose(axes, 3 * np.eye(3))
