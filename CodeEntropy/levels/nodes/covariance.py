@@ -483,6 +483,7 @@ class FrameCovarianceNode:
 
             if customised_axes:
                 ua_topology = None
+                axes_topology = None
                 if axes_topology is not None:
                     ua_topology = axes_topology.ua.get((mol_id, local_res_i, ua_i))
                 if ua_topology is not None:
@@ -639,6 +640,7 @@ class FrameCovarianceNode:
         if customised_axes:
             res = mol.residues[local_res_i]
             residue_topology = None
+            axes_topology = None
             if axes_topology is not None:
                 residue_topology = axes_topology.residue.get((mol_id, local_res_i))
 
