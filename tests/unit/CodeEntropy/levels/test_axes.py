@@ -1680,7 +1680,9 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 1.0, 1.0])),
     )
 
-    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
+    monkeypatch.setattr(
+        ax, "get_custom_axes", lambda a, b_list, c, dimensions: 2 * np.eye(3)
+    )
 
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
         data_container=residue_group, index=0, res_position=1
@@ -1720,7 +1722,9 @@ def test_get_ua_axes_non_terminal_2_atoms(monkeypatch):
         "get_bonded_axes",
         lambda system, atom, dimensions: (np.eye(3), 3 * np.eye(3)),
     )
-    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
+    monkeypatch.setattr(
+        ax, "get_custom_axes", lambda a, b_list, c, dimensions: 2 * np.eye(3)
+    )
     monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [])
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
         data_container=residue_group, index=0, res_position=0
@@ -1756,7 +1760,9 @@ def test_get_residue_axes_non_terminal_2_atoms(monkeypatch):
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = residue
     monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [])
-    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
+    monkeypatch.setattr(
+        ax, "get_custom_axes", lambda a, b_list, c, dimensions: 2 * np.eye(3)
+    )
     monkeypatch.setattr(
         ax,
         "get_custom_residue_moment_of_inertia",
@@ -1805,7 +1811,9 @@ def test_get_residue_axes_terminal_2_atoms(monkeypatch):
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
-    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
+    monkeypatch.setattr(
+        ax, "get_custom_axes", lambda a, b_list, c, dimensions: 2 * np.eye(3)
+    )
     monkeypatch.setattr(
         ax,
         "get_custom_residue_moment_of_inertia",
@@ -1936,7 +1944,9 @@ def test_get_terminal_axes_1point(monkeypatch):
 
     residue.atoms.select_atoms.side_effect = _select_atoms
     residue.atoms.principal_axes.return_value = np.eye(3)
-    centre, axes = ax.get_terminal_axes(residue, heavy_atoms[0])
+    centre, axes = ax.get_terminal_axes(
+        residue, heavy_atoms[0], dimensions=np.array([1, 1, 1])
+    )
     assert np.allclose(centre, [1, 0, 0])
     assert np.allclose(axes, np.eye(3))
 
@@ -1959,8 +1969,12 @@ def test_get_terminal_axes_2points(monkeypatch):
             return [heavy_atoms[1]]
 
     residue.atoms.select_atoms.side_effect = _select_atoms
-    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
-    centre, axes = ax.get_terminal_axes(residue, heavy_atoms[0])
+    monkeypatch.setattr(
+        ax, "get_custom_axes", lambda a, b_list, c, dimensions: 2 * np.eye(3)
+    )
+    centre, axes = ax.get_terminal_axes(
+        residue, heavy_atoms[0], dimensions=np.array([1, 1, 1])
+    )
     assert np.allclose(centre, [1, 0, 0])
     assert np.allclose(axes, 2 * np.eye(3))
 
@@ -1989,7 +2003,9 @@ def test_get_terminal_axes_3points(monkeypatch):
         ax, "get_residue_custom_axes", lambda edges, center: ([1, 0, 0], 3 * np.eye(3))
     )
 
-    centre, axes = ax.get_terminal_axes(residue, heavy_atoms[0])
+    centre, axes = ax.get_terminal_axes(
+        residue, heavy_atoms[0], dimensions=np.array([1, 1, 1])
+    )
 
     assert np.allclose(centre, [1, 0, 0])
     assert np.allclose(axes, 3 * np.eye(3))
@@ -2006,8 +2022,12 @@ def test_get_non_terminal_axes_2points(monkeypatch):
         ],
     )
     monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [])
-    monkeypatch.setattr(ax, "get_custom_axes", lambda a, b, c: 2 * np.eye(3))
-    centre, axes = ax.get_non_terminal_axes(residue, heavy_atoms)
+    monkeypatch.setattr(
+        ax, "get_custom_axes", lambda a, b_list, c, dimensions: 2 * np.eye(3)
+    )
+    centre, axes = ax.get_non_terminal_axes(
+        residue=residue, edges=heavy_atoms, dimensions=np.array([1, 1, 1])
+    )
     assert np.allclose(centre, [1, 1, 0])
     assert np.allclose(axes, 2 * np.eye(3))
 
@@ -2036,7 +2056,9 @@ def test_get_non_terminal_axes_3points(monkeypatch):
     monkeypatch.setattr(
         ax, "get_residue_custom_axes", lambda edges, center: ([1, 0, 0], 3 * np.eye(3))
     )
-    centre, axes = ax.get_non_terminal_axes(residue, edges)
+    centre, axes = ax.get_non_terminal_axes(
+        residue=residue, edges=edges, dimensions=np.array([1, 1, 1])
+    )
 
     assert np.allclose(centre, [1, 0, 0])
     assert np.allclose(axes, 3 * np.eye(3))
