@@ -151,10 +151,16 @@ class AxesCalculator:
             trans_axes = data_container.atoms.principal_axes()
             if len(edge_atom_set) == 1:
                 edge_atom = edge_atom_set[0]
-                rot_center, rot_axes = self.get_terminal_axes(residue, edge_atom)
+                rot_center, rot_axes = self.get_terminal_axes(
+                    residue=residue,
+                    edge=edge_atom,
+                    dimensions=data_container.dimensions[:3],
+                )
             else:
                 rot_center, rot_axes = self.get_non_terminal_axes(
-                    residue, edge_atom_set
+                    residue=residue,
+                    edges=edge_atom_set,
+                    dimensions=data_container.dimensions[:3],
                 )
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
                 center_of_mass=rot_center,
@@ -297,7 +303,9 @@ class AxesCalculator:
                         )
                     edge_atom = edge_atom_set[0]
                     trans_center, trans_axes = self.get_terminal_axes(
-                        residue, edge_atom
+                        residue=residue,
+                        edge=edge_atom,
+                        dimensions=data_container.dimensions[:3],
                     )
                 else:
                     # between 2 residues
@@ -312,7 +320,9 @@ class AxesCalculator:
                         f"resindex {resindex_next})"
                     )
                     trans_center, trans_axes = self.get_non_terminal_axes(
-                        residue, edge_atom_set
+                        residue=residue,
+                        edges=edge_atom_set,
+                        dimensions=data_container.dimensions[:3],
                     )
             # look for heavy atoms in residue of interest
             residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
@@ -562,7 +572,7 @@ class AxesCalculator:
         rot_center = first_edge_origin_vector + edges[0]
         return rot_center, rot_axes
 
-    def get_terminal_axes(self, residue, edge):
+    def get_terminal_axes(self, residue, edge, dimensions):
         """
         Compute rotation axes at the residue level/translation axes at the UA level
         for the terminal residues in a polymer, given the edge atom
@@ -582,6 +592,7 @@ class AxesCalculator:
         Args:
             residue: MDAnalysis AtomGroup
             edge: MDAnalysis atom
+            dimensions: (3,) dimensions of the simulation box
 
         Returns:
             rot_center: (3,) rotation centre,
@@ -616,11 +627,14 @@ class AxesCalculator:
             else:
                 rot_center = edge.position
                 rot_axes = self.get_custom_axes(
-                    a=edge.position, b=[average_bonded], c=np.zeros(3)
+                    a=edge.position,
+                    b_list=[average_bonded],
+                    c=np.zeros(3),
+                    dimensions=dimensions,
                 )
         return rot_center, rot_axes
 
-    def get_non_terminal_axes(self, residue, edges):
+    def get_non_terminal_axes(self, residue, edges, dimensions):
         """
         Compute rotation axes at the residue level/ translation axes at
         the UA level for the non-terminal residues in a linear polymer, given the
@@ -635,6 +649,7 @@ class AxesCalculator:
         Args:
             residue: MDAnalysis AtomGroup
             edges: MDAnalysis AtomGroup
+            dimensions: (3,) dimensions of the simulation box
 
         Returns:
             rot_center: (3,) rotation centre,
@@ -651,7 +666,12 @@ class AxesCalculator:
             )
         else:
             rot_center = (edges[0].position + edges[1].position) / 2
-            rot_axes = self.get_custom_axes(a=rot_center, b=[edges[0]], c=np.zeros(3))
+            rot_axes = self.get_custom_axes(
+                a=rot_center,
+                b_list=[edges[0].position],
+                c=np.zeros(3),
+                dimensions=dimensions,
+            )
         return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
