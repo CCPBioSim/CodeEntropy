@@ -552,6 +552,10 @@ class AxesCalculator:
             rot_center: (3,) rotation centre,
             lies on the E1-E2 vector
             rot_axes: (3,3) rotation axes of residue
+
+        Raises:
+            ValueError: If axes cannot be normalized due to degeneracy.
+
         """
         first_edge_centre_of_geometry_vector = center - edges[0]
         # look for projection of E1-O onto E1-E2 (E1-C)
@@ -567,10 +571,11 @@ class AxesCalculator:
         )
         y_axis = origin_centre_of_geometry_vector
         z_axis = np.cross(x_axis, y_axis)
-        x_axis /= np.linalg.norm(x_axis)
-        y_axis /= np.linalg.norm(y_axis)
-        z_axis /= np.linalg.norm(z_axis)
-        rot_axes = np.array([x_axis, y_axis, z_axis])
+        unscaled_rot_axes = np.array((x_axis, y_axis, z_axis), dtype=float)
+        mod = np.sqrt(np.sum(unscaled_rot_axes**2, axis=1))
+        if np.any(np.isclose(mod, 0.0)):
+            raise ValueError("Degenerate custom axes: cannot normalize (zero norm).")
+        rot_axes = unscaled_rot_axes / mod[:, np.newaxis]
         rot_center = first_edge_origin_vector + edges[0]
         return rot_center, rot_axes
 
@@ -677,7 +682,8 @@ class AxesCalculator:
         return rot_center, rot_axes
 
     def get_bonded_axes(self, system, atom, dimensions: np.ndarray):
-        r"""Compute UA rotational axes from bonded topology around a heavy atom.
+        """
+        Compute UA rotational axes from bonded topology around a heavy atom.
 
         For a given heavy atom, use its bonded atoms to get the axes for rotating
         forces around. Few cases for choosing united atom axes, which are dependent
