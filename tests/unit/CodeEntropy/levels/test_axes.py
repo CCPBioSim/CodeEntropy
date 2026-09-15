@@ -1211,7 +1211,7 @@ def test_get_bonded_axes_from_topology_returns_none_when_custom_axes_none(
     get_flipped.assert_not_called()
 
 
-def test_get_residue_axes_custom_path(monkeypatch):
+def test_get_residue_custom_axes(monkeypatch):
     ax = AxesCalculator()
 
     edge_atoms = _FakeAtomGroup(
@@ -1226,6 +1226,19 @@ def test_get_residue_axes_custom_path(monkeypatch):
 
     assert rot_center.shape == (3,)
     assert rot_axes.shape == (3, 3)
+
+
+def test_get_residue_custom_axes_raises(monkeypatch):
+    ax = AxesCalculator()
+    edge_atoms = _FakeAtomGroup(
+        [_FakeAtom(8, 12.0, [1, 0, 0]), _FakeAtom(10, 14.0, [0, 0, 0])],
+        positions=np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=float),
+    )
+    backbone_center = np.array([2.0, 0.0, 0.0])
+    with pytest.raises(ValueError):
+        ax.get_residue_custom_axes(
+            [edge_atoms[0].position, edge_atoms[1].position], backbone_center
+        )
 
 
 def test_get_custom_residue_moment_of_inertia(monkeypatch):
@@ -1331,6 +1344,8 @@ def test_get_residue_bonded_axes_multiple_heavy_atoms_backbone_2neighbours(monke
         u, index=1, relative_index=0
     )
 
+    #
+
     assert len(edge_atom_set) == 2
     assert np.allclose(trans_axes, np.eye(3))
     assert rot_axes.shape == (3, 3)
@@ -1347,7 +1362,7 @@ def test_get_residue_bonded_axes_terminal_resid(monkeypatch):
     residue.__len__.return_value = 3
     uas = _FakeAtomGroup(
         [
-            _atom(index=0, mass=12.0, pos=[1, 0, 0]),
+            _atom(index=0, mass=12.0, pos=[1, -1, 0]),
             _atom(index=1, mass=12.0, pos=[0, 1, 0]),
             _atom(index=2, mass=12.0, pos=[0, 0, 0]),
         ]
