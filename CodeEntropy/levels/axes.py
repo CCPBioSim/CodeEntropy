@@ -74,28 +74,16 @@ class AxesCalculator:
         - If there are *no* bonds to other residues:
             * Use a custom principal axes, from a moment-of-inertia (MOI) tensor
               that uses positions of heavy atoms only, but includes masses of
-              that uses positions of heavy atoms only, but includes masses of
               heavy atom + bonded hydrogens.
             * Set translational axes equal to rotational axes (as per the original
               code convention).
 
         - If bonded to only one other residue:
-
-        - If bonded to only one other residue:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atom (i.e. heavy atoms bonded to neighbour residue).
               Compute rotation centre and axes as in get_terminal_axes.
-              custom MOI, using heavy atom positions and heavy atom + hydrogen masses.
-
-        - If bonded to at least two other residues:
-            * Translational axes are principal axes of data_container.
-            * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues).
-              Compute rotation centre and axes as in get_non_terminal_axes.
-              Compute a custom MOI, using heavy atom positions and
+              Compute custom MOI, using heavy atom positions and
               heavy atom + hydrogen masses.
-            * Find edge heavy atom (i.e. heavy atoms bonded to neighbour residue).
-              Compute rotation centre and axes as in get_terminal_axes.
-              custom MOI, using heavy atom positions and heavy atom + hydrogen masses.
 
         - If bonded to at least two other residues:
             * Translational axes are principal axes of data_container.
@@ -257,17 +245,11 @@ class AxesCalculator:
             only, but includes masses of heavy atom + bonded hydrogens.
             - If bonded to only one other residue, see get_terminal_axes.
             - If bonded to at least two other residues, see get_non_terminal_axes.
-            - If there are *no* bonds to other residues, use a custom principal axes
-            from a moment-of-inertia (MOI) tensor that uses positions of heavy atoms
-            only, but includes masses of heavy atom + bonded hydrogens.
-            - If bonded to only one other residue, see get_terminal_axes.
-            - If bonded to at least two other residues, see get_non_terminal_axes.
 
         - Rotational axes:
             Identify heavy atoms in the residue/molecule of interest and choose
             the `index`-th heavy atom (where index corresponds to the bead index).
             Use bonded topology around that heavy atom to determine UA rotational
-            axes (see :meth:`get_bonded_axes`). Compute a custom MOI tensor.
             axes (see :meth:`get_bonded_axes`). Compute a custom MOI tensor.
 
         Args:
