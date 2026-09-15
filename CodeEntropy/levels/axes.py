@@ -314,7 +314,6 @@ class AxesCalculator:
                     resindex = residue.resindex
                     resindex_next = resindex + 1
                     resindex_prev = resindex - 1
-                    residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
                     edge_atom_set = data_container.select_atoms(
                         f"resindex {resindex} and "
                         f"(bonded resindex {resindex_prev} or "
@@ -327,7 +326,7 @@ class AxesCalculator:
                     )
             # look for heavy atoms in residue of interest
             residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
-            residue_heavy_atoms = residue.atoms.select_atoms("mass 2 to 999")
+
             heavy_atom_indices = []
             for atom in residue_heavy_atoms:
                 heavy_atom_indices.append(atom.index)
