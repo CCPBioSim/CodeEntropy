@@ -70,9 +70,11 @@ The axes for this transformation are calculated for each bead in each time step.
 
 For the polymer level, the translational and rotational axes are defined as the principal axes of the molecule.
 
-For the residue level, there are two situations.
+For the residue level, there are three situations.
 When the residue is not bonded to any other residues, the translational and rotational axes are the principal axes of the molecule.
-When the residue is part of a larger polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the two heavy atoms bonded to neighbour residues(E1,E2) and the average position of all other backbone atoms in the residue (C). The backbone of a residue is defined as the shortest path between the two edge atoms of the residue, i.e. the two heavy atoms bonded to neighbour residues.The centre of rotation is located at the point where the perpendicular from C meets the E1-E2 vector.
+When the residue is part of a larger polymer and is not a terminus of that polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the two heavy atoms bonded to neighbour residues (E1,E2) and the average position of all other backbone atoms in the residue (C). The backbone of a residue is defined as the shortest path between the two edge atoms of the residue, i.e.the two heavy atoms bonded to neighbour residues.The centre of rotation (O) is located at the point where the perpendicular from C meets the E1-E2 vector.
+When the residue is part of a larger polymer and is a terminus of that polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the heavy atom bonded to a
+neighbour residue (E1), the average position of all heavy atoms bonded to E1 (C) and the average position of all other heavy atoms in the residue (E2). The centre of rotation (O) is defined the same as above forthe non-terminal residue case.
 
 For the united atom level, the translational axes are defined as the residue rotational axes and the rotational axes are defined from the average position of the bonds to neighbouring heavy atoms.
 If there are no bonds to other heavy atoms, the principal axes of the molecule are used.
