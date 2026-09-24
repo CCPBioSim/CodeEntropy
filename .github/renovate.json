@@ -1,21 +1,33 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:best-practices",
-    ":dependencyDashboard",
-    "group:monorepos",
-    "group:recommended"
+    "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "enabledManagers": ["pep621", "github-actions"],
-  "pep621": {
-    "enabled": true
-  },
-  "rangeStrategy": "replace",
-  "schedule": ["* 8 * * 1-5"],
-  "labels": ["dependencies"],
+  "timezone": "Europe/London",
+  "schedule": ["after 9am and before 5pm every weekday"],
+  "dependencyDashboard": true,
+  "assignees": ["harryswift01", "jimboid"],
+  "minimumReleaseAge": "3 days",
   "packageRules": [
     {
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": false
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "addLabels": ["ci", "dependencies"]
+    },
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies"],
+      "rangeStrategy": "widen",
+      "groupName": "Software Production Dependencies",
+      "addLabels": ["python", "production-deps"]
+    },
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.optional-dependencies", "build-system.requires"],
+      "rangeStrategy": "replace",
+      "groupName": "Python CI and Dev Tools",
+      "addLabels": ["python", "dev-dependencies"]
     }
   ]
 }
