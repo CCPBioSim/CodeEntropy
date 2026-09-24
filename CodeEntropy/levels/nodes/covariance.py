@@ -186,7 +186,9 @@ class FrameCovarianceNode:
     ) -> None:
         """Compute united-atom second moments for one molecule.
         If there are multiple residues in the molecule, build
-        residue group and attribute res_position:
+        residue group and retain residue_id for . Each residue
+        group contains the residue of interest, alongside bonded
+        heavy atoms from neighbouring residues.
             - First residue: residue_group contains first two
             residues. res_position is -1.
             - Last residue: residue_group contains last two
@@ -211,8 +213,13 @@ class FrameCovarianceNode:
             out_torque: Frame-local torque second-moment accumulator, mutated in place.
             molcount: Per-residue group sample counters, mutated in place.
         """
+
+        # relative_res_i = mol.residues[0].resindex
         for local_res_i, res in enumerate(mol.residues):
             if len(mol.residues) > 1:
+                residue_group = mol.select_atoms(f"bonded resindex {local_res_i}")
+                print(f"The residue group for residue {res} is {residue_group}")
+
                 if local_res_i == 0:
                     relative_id = res.resindex
                     # index relative to first in mda universe
@@ -639,6 +646,7 @@ class FrameCovarianceNode:
         if customised_axes:
             res = mol.residues[local_res_i]
             residue_topology = None
+            axes_topology = None
             if axes_topology is not None:
                 residue_topology = axes_topology.residue.get((mol_id, local_res_i))
 
