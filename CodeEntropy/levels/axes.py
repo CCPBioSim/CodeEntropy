@@ -115,10 +115,6 @@ class AxesCalculator:
             ValueError:
                 If the residue selection is empty.
         """
-        # TODO refine selection so that it will work for branched polymers
-
-        index_prev = index + relative_index - 1
-        index_next = index + relative_index + 1
 
         if residue is None:
             residue = data_container.select_atoms(f"resindex {index + relative_index}")
@@ -127,12 +123,16 @@ class AxesCalculator:
             raise ValueError(
                 f"Empty residue selection for resindex={index + relative_index}"
             )
-
-        edge_atom_set = data_container.atoms.select_atoms(
-            f"resindex {index + relative_index} and "
-            f"(bonded resindex {index_prev} or "
-            f"resindex {index_next})"
+        neighbours = data_container.select_atoms(
+            f"(not resindex {index}) and (bonded resindex {index})"
         )
+        edge_atom_set = []
+        for neighbour in neighbours:
+            edge = data_container.select_atoms(
+                f"(bonded resindex {neighbour.resindex}) and (resindex {index})"
+            )
+            edge = edge[0]
+            edge_atom_set.append(edge)
 
         uas = residue.select_atoms("mass 2 to 999")
         ua_masses = self.get_UA_masses(residue)
@@ -229,7 +229,7 @@ class AxesCalculator:
 
         return trans_axes, rot_axes, center, moment_of_inertia
 
-    def get_UA_axes(self, data_container, index: int, res_position):
+    def get_UA_axes(self, data_container, index: int, resindex: int):
         """Compute united-atom-level translational and rotational axes.
 
         The translational and rotational axes at the united-atom level.
@@ -257,8 +257,9 @@ class AxesCalculator:
                 Molecule and trajectory data.
             index (int):
                 Bead index (ordinal among heavy atoms).
-            res_position: where the residue of interest is
-                in data_container
+            res_index (int):
+                Index of the residue the UA is in.
+
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
                 - trans_axes: Translational axes (3, 3).
@@ -272,7 +273,6 @@ class AxesCalculator:
             ValueError:
                 If axis construction fails.
         """
-
         index = int(index)  # UA bead index
         heavy_atoms = data_container.select_atoms("mass 2 to 999")
         # use the same customPI trans axes as the residue level
@@ -283,25 +283,19 @@ class AxesCalculator:
                 trans_center = data_container.atoms.center_of_mass(unwrap=True)
                 trans_axes = data_container.atoms.principal_axes()
             else:
+                residue = data_container.select_atoms(f"resindex {resindex}")
                 # residue of interest has at least one neighbour
-                if res_position == -1 or res_position == 1:
-                    # look at a terminal residue
-                    if res_position == -1:
-                        # first residue
-                        residue = data_container.residues[0]
-                        resindex = residue.resindex
-                        resindex_next = resindex + 1
-                        edge_atom_set = data_container.select_atoms(
-                            f"resindex {resindex} and bonded resindex {resindex_next}"
-                        )
-                    else:
-                        # last residue
-                        residue = data_container.residues[1]
-                        resindex = residue.resindex
-                        resindex_prev = resindex - 1
-                        edge_atom_set = data_container.select_atoms(
-                            f"resindex {resindex} and bonded resindex {resindex_prev}"
-                        )
+                neighbours = data_container.select_atoms(f"not resindex {resindex}")
+                edge_atom_set = []
+                for neighbour in neighbours:
+                    edge = data_container.select_atoms(
+                        f"(bonded resindex {neighbour.resindex}) "
+                        f"and (resindex {resindex})"
+                    )
+                    edge = edge[0]
+                    edge_atom_set.append(edge)
+                if len(edge_atom_set) == 1:
+                    # a terminal residue
                     edge_atom = edge_atom_set[0]
                     trans_center, trans_axes = self.get_terminal_axes(
                         residue=residue,
@@ -309,16 +303,6 @@ class AxesCalculator:
                         dimensions=data_container.dimensions[:3],
                     )
                 else:
-                    # between 2 residues
-                    residue = data_container.residues[1]
-                    resindex = residue.resindex
-                    resindex_next = resindex + 1
-                    resindex_prev = resindex - 1
-                    edge_atom_set = data_container.select_atoms(
-                        f"resindex {resindex} and "
-                        f"(bonded resindex {resindex_prev} or "
-                        f"resindex {resindex_next})"
-                    )
                     trans_center, trans_axes = self.get_non_terminal_axes(
                         residue=residue,
                         edges=edge_atom_set,
@@ -645,9 +629,12 @@ class AxesCalculator:
         Compute rotation axes at the residue level/ translation axes at
         the UA level for the non-terminal residues in a linear polymer, given the
         edge atoms (i.e. heavy atoms bonded to neighbour residues) and
-        residue of interest. Find the shortest chain between edge atoms: the backbone.
-        Edges + backbone average position determine the residue rotational axes.
-        (see get_residue_custom_axes). If the two edge heavy atoms
+        residue of interest. If there are two edge atoms, find the shortest chain
+        between them: the backbone. Edges + backbone average position determine the
+        residue rotational axes. If there are at least three edge atoms, first two
+        edge atoms act the same as the edges in the linear case and the average
+        position of the other edges atoms acts as the backbone centre in the linear
+        case. (see get_residue_custom_axes). If the two edge heavy atoms
         are bonded to each other (i.e. there is no backbone), x-axis is set
         along the vector between the edge atom and average position of bonded
         atoms, y-axis is arbitrary and z-axis is paralel to the two. This is the
@@ -661,22 +648,32 @@ class AxesCalculator:
             rot_center: (3,) rotation centre,
             rot_axes: (3,3) rotation axes of residue
         """
-        backbone = self.get_chain(residue, edges[0], edges[1])
-        backbone_center = np.zeros(3)
-        if len(backbone) > 0:
-            for heavy_atom in backbone:
-                backbone_center += heavy_atom.position
-            backbone_center /= len(backbone)
-            rot_center, rot_axes = self.get_residue_custom_axes(
-                edges.positions, backbone_center
-            )
+        if len(edges) == 2:
+            backbone = self.get_chain(residue, edges[0], edges[1])
+            backbone_center = np.zeros(3)
+            if len(backbone) > 0:
+                for heavy_atom in backbone:
+                    backbone_center += heavy_atom.position
+                backbone_center /= len(backbone)
+                rot_center, rot_axes = self.get_residue_custom_axes(
+                    [edges[0].position, edges[1].position], backbone_center
+                )
+            else:
+                rot_center = (edges[0].position + edges[1].position) / 2
+                rot_axes = self.get_custom_axes(
+                    a=rot_center,
+                    b_list=[edges[0].position],
+                    c=np.zeros(3),
+                    dimensions=dimensions,
+                )
         else:
-            rot_center = (edges[0].position + edges[1].position) / 2
-            rot_axes = self.get_custom_axes(
-                a=rot_center,
-                b_list=[edges[0].position],
-                c=np.zeros(3),
-                dimensions=dimensions,
+            third_point_positions = []
+            other_edges = edges[2:]
+            for other_edge in other_edges:
+                third_point_positions.append(other_edge.position)
+            third_point = sum(third_point_positions) / len(other_edges)
+            rot_center, rot_axes = self.get_residue_custom_axes(
+                [edges[0].position, edges[1].position], third_point
             )
         return rot_center, rot_axes
 
