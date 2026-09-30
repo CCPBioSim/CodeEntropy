@@ -12,7 +12,7 @@ concurrency:
 jobs:
   discover:
     name: Discover regression systems
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     outputs:
       systems: ${{ steps.set.outputs.systems }}
@@ -40,7 +40,7 @@ jobs:
   regression:
     name: Regression (${{ matrix.system }})
     needs: discover
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 360
 
     strategy:
