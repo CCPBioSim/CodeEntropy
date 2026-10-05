@@ -16,17 +16,21 @@ def run_manager():
     return RM()
 
 
-def test_matrix_eigenvalues_returns_complex_dtype_possible(run_manager):
+def test_matrix_eigenvalues_returns_real_dtype_for_symmetric_matrix(run_manager):
     ve = VibrationalEntropy(run_manager=run_manager)
-    m = np.array([[0.0, -1.0], [1.0, 0.0]])
+    m = np.array([[2.0, -1.0], [-1.0, 2.0]])
     eigs = ve._matrix_eigenvalues(m)
     assert eigs.shape == (2,)
+    assert not np.iscomplexobj(eigs)
 
 
 def test_frequencies_from_lambdas_filters_nonpositive_and_near_zero(run_manager):
+    """Near-zero eigenvalue is scaled to the spectrum's magnitude, not fixed."""
     ve = VibrationalEntropy(run_manager=run_manager)
 
-    lambdas = np.array([-1.0, 0.0, 1e-12, 1.0, 4.0])
+    scale = 4.0
+    noise = np.finfo(float).eps * scale
+    lambdas = np.array([-1.0, 0.0, noise, 1.0, scale])
     freqs = ve._frequencies_from_lambdas(lambdas, temp=298.0)
 
     assert freqs.size == 2
