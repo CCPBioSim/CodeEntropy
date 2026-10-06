@@ -667,13 +667,8 @@ class AxesCalculator:
                     dimensions=dimensions,
                 )
         else:
-            third_point_positions = []
-            other_edges = edges[2:]
-            for other_edge in other_edges:
-                third_point_positions.append(other_edge.position)
-            third_point = sum(third_point_positions) / len(other_edges)
             rot_center, rot_axes = self.get_residue_custom_axes(
-                [edges[0].position, edges[1].position], third_point
+                [edges[0].position, edges[1].position], edges[2].position
             )
         return rot_center, rot_axes
 
