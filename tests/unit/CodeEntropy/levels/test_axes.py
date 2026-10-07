@@ -340,52 +340,77 @@ def test_get_vanilla_axes_sorts_eigenvalues_desc_by_abs(monkeypatch):
     assert np.allclose(moments, np.array([-10.0, 3.0, 1.0]))
 
 
-def test_get_principal_axes_sorts_by_descending_eigenvalue():
-    ax = AxesCalculator()
-    group = MagicMock()
-    group.atoms.moment_of_inertia.return_value = np.diag([1.0, 3.0, 2.0])
-
-    axes = ax.get_principal_axes(group)
-
-    # eigenvalues 3, 2, 1 => rows along y, z, x (sign may differ)
-    expected = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=float)
-    assert np.allclose(np.abs(axes), expected)
+def _tensor(eigenvalues, seed=0):
+    q, _ = np.linalg.qr(np.random.default_rng(seed).normal(size=(3, 3)))
+    return q @ np.diag(eigenvalues) @ q.T
 
 
-def test_get_principal_axes_orthonormal_and_right_handed_for_near_degenerate():
-    ax = AxesCalculator()
-    rng = np.random.default_rng(0)
-    q, _ = np.linalg.qr(rng.normal(size=(3, 3)))
-    tensor = q @ np.diag([1.0, 1.0 + 1e-9, 5.0]) @ q.T
+def _group_with(tensor):
     group = MagicMock()
     group.atoms.moment_of_inertia.return_value = tensor
+    return group
 
-    axes = ax.get_principal_axes(group)
+
+def test_get_principal_axes_sorts_by_descending_eigenvalue():
+    ax = AxesCalculator()
+
+    axes = ax.get_principal_axes(_group_with(np.diag([1.0, 3.0, 2.0])))
+
+    # eigenvalues 3, 2, 1 => rows along y, z, x
+    assert np.allclose(axes, [[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+
+
+@pytest.mark.parametrize(
+    "eigenvalues",
+    [
+        (1.0, 2.0, 5.0),  # all distinct
+        (0.0, 0.845, 0.845),  # linear bead
+        (5.0, 5.0, 1.0),  # symmetric top, degenerate pair on top
+        (2.0, 2.0, 2.0),  # spherical top
+    ],
+)
+def test_get_principal_axes_is_orthonormal_and_right_handed(eigenvalues):
+    ax = AxesCalculator()
+
+    axes = ax.get_principal_axes(_group_with(_tensor(eigenvalues)))
 
     assert np.allclose(axes @ axes.T, np.eye(3), atol=1e-12)
     assert np.isclose(np.linalg.det(axes), 1.0)
-    assert np.isclose(abs(np.dot(axes[0], q[:, 2])), 1.0)
 
 
-def test_get_principal_axes_flips_all_axes_when_left_handed(monkeypatch):
+@pytest.mark.parametrize(
+    "eigenvalues",
+    [(1.0, 2.0, 5.0), (0.0, 0.845, 0.845), (5.0, 5.0, 1.0), (2.0, 2.0, 2.0)],
+)
+def test_get_principal_axes_ignores_arbitrary_eigenvector_choices(
+    monkeypatch, eigenvalues
+):
     ax = AxesCalculator()
-    group = MagicMock()
-    group.atoms.moment_of_inertia.return_value = np.eye(3)
-    monkeypatch.setattr(
-        np.linalg, "eigh", lambda _m: (np.array([1.0, 2.0, 3.0]), np.eye(3))
-    )
+    group = _group_with(_tensor(eigenvalues))
+    reference = ax.get_principal_axes(group)
+    real_eigh = np.linalg.eigh
+    rng = np.random.default_rng(1)
 
-    axes = ax.get_principal_axes(group)
+    def arbitrary_eigh(matrix):
+        w, v = real_eigh(matrix)
+        v = v * rng.choice([-1.0, 1.0], size=3)
+        for i in range(2):
+            if abs(w[i] - w[i + 1]) <= 1e-9 * max(abs(w).max(), 1e-300):
+                t = rng.uniform(0, 2 * np.pi)
+                c, s = np.cos(t), np.sin(t)
+                a, b = v[:, i].copy(), v[:, i + 1].copy()
+                v[:, i], v[:, i + 1] = c * a + s * b, -s * a + c * b
+        return w, v
 
-    # descending order gives rows e3, e2, e1 (left-handed), so all are negated
-    expected = -np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float)
-    assert np.allclose(axes, expected)
+    monkeypatch.setattr(np.linalg, "eigh", arbitrary_eigh)
+
+    for _ in range(25):
+        assert np.allclose(ax.get_principal_axes(group), reference, atol=1e-9)
 
 
 def test_get_principal_axes_passes_wrap_to_moment_of_inertia():
     ax = AxesCalculator()
-    group = MagicMock()
-    group.atoms.moment_of_inertia.return_value = np.diag([3.0, 2.0, 1.0])
+    group = _group_with(np.diag([3.0, 2.0, 1.0]))
 
     ax.get_principal_axes(group, wrap=True)
 

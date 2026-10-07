@@ -1113,34 +1113,65 @@ class AxesCalculator:
 
         return principal_axes, moment_of_inertia
 
-    def get_principal_axes(self, group, wrap: bool = False) -> np.ndarray:
-        """Compute the principal axes of an atom group from its moment of inertia.
+    @staticmethod
+    def _positive_largest_component(
+        vector: np.ndarray, tol: float = 1e-6
+    ) -> np.ndarray:
+        """Return ``vector`` signed so that its largest component is positive.
 
-        Equivalent to MDAnalysis's ``AtomGroup.principal_axes()``, but uses
-        ``np.linalg.eigh`` rather than ``np.linalg.eig``. The moment of inertia
-        tensor is symmetric, so ``eigh`` returns orthonormal axes, whereas ``eig``
-        can return skewed axes for (near-)degenerate moments.
+        Components within ``tol`` of the largest magnitude count as ties, and the
+        first of them decides the sign.
+        """
+        i = np.flatnonzero(np.abs(vector) >= np.abs(vector).max() - tol)[0]
+        return vector if vector[i] > 0 else -vector
 
-        - Axes are sorted by descending (signed) eigenvalue and returned as rows.
-        - If the axes are left-handed, all three are flipped, as in MDAnalysis.
+    def get_principal_axes(
+        self, group, wrap: bool = False, rel_tol: float = 1e-8
+    ) -> np.ndarray:
+        """Compute reproducible principal axes of an atom group.
+
+        Like MDAnalysis's ``AtomGroup.principal_axes()``, but using ``np.linalg.eigh``
+        and a canonical frame, so the result does not depend on which eigenvectors
+        the LAPACK build happens to return.
+
+        - Axes are sorted by descending eigenvalue and returned as rows.
+        - Non-degenerate axes take the sign that makes their largest component
+          positive, and the last axis completes a right-handed frame.
+        - If two moments agree to within ``rel_tol`` (e.g. a linear bead), the
+          in-plane axes are built from the lab axis most perpendicular to the
+          unique axis. If all three agree, the lab axes are returned.
 
         Args:
             group: MDAnalysis atom group (or anything with ``.atoms``).
-            wrap: Whether to wrap atoms into the primary unit cell before computing
-                the moment of inertia.
+            wrap: Whether to wrap atoms into the primary unit cell first.
+            rel_tol: Relative tolerance, scaled by the largest moment, below which
+                two moments are treated as degenerate.
 
         Returns:
-            np.ndarray: (3, 3) principal axes (rows).
+            np.ndarray: (3, 3) principal axes (rows), right-handed.
         """
-        atomgroup = group.atoms
-        e_val, e_vec = np.linalg.eigh(atomgroup.moment_of_inertia(wrap=wrap))
+        e_val, e_vec = np.linalg.eigh(group.atoms.moment_of_inertia(wrap=wrap))
+        order = np.argsort(e_val)[::-1]
+        vals, axes = e_val[order], e_vec[:, order].T
 
-        e_vec = e_vec[:, np.argsort(e_val)[::-1]].T
+        gap = rel_tol * max(abs(vals[0]), np.finfo(float).tiny)
+        d01 = abs(vals[0] - vals[1]) <= gap
+        d12 = abs(vals[1] - vals[2]) <= gap
 
-        if np.dot(np.cross(e_vec[0], e_vec[1]), e_vec[2]) < 0:
-            e_vec *= -1
+        if d01 and d12:
+            return np.eye(3)
 
-        return e_vec
+        if d01 or d12:
+            n = self._positive_largest_component(axes[2] if d01 else axes[0])
+            i = np.flatnonzero(np.abs(n) <= np.abs(n).min() + 1e-6)[0]
+            u = np.eye(3)[i] - n[i] * n
+            u /= np.linalg.norm(u)
+            v = np.cross(n, u)
+            return np.array([u, v, n] if d01 else [n, u, v])
+
+        a0 = self._positive_largest_component(axes[0])
+        a1 = self._positive_largest_component(axes[1])
+        return np.array([a0, a1, np.cross(a0, a1)])
 
     def get_UA_masses(self, molecule) -> list[float]:
         """Return united-atom (UA) masses for a molecule.
