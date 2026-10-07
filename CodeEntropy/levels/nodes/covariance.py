@@ -506,7 +506,7 @@ class FrameCovarianceNode:
                 # principal axes
                 make_whole(residue.atoms)
                 make_whole(bead)
-                trans_axes = residue.atoms.principal_axes()
+                trans_axes = axes_manager.get_principal_axes(residue.atoms)
                 rot_axes, moi = axes_manager.get_vanilla_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
@@ -658,7 +658,7 @@ class FrameCovarianceNode:
         make_whole(mol.atoms)
         make_whole(bead)
 
-        trans_axes = mol.atoms.principal_axes()
+        trans_axes = axes_manager.get_principal_axes(mol.atoms)
         rot_axes, moi = axes_manager.get_vanilla_axes(bead)
         center = bead.center_of_mass(unwrap=True)
         return (
@@ -688,7 +688,7 @@ class FrameCovarianceNode:
         make_whole(mol.atoms)
         make_whole(bead)
 
-        trans_axes = mol.atoms.principal_axes()
+        trans_axes = axes_manager.get_principal_axes(mol.atoms)
         rot_axes, moi = axes_manager.get_vanilla_axes(bead)
         center = bead.center_of_mass(unwrap=True)
 

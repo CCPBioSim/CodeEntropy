@@ -149,7 +149,7 @@ class AxesCalculator:
             rot_center = np.array(residue.center_of_mass())
         else:
             make_whole(data_container.atoms)
-            trans_axes = data_container.atoms.principal_axes()
+            trans_axes = self.get_principal_axes(data_container.atoms)
             if len(edge_atom_set) == 1:
                 edge_atom = edge_atom_set[0]
                 rot_center, rot_axes = self.get_terminal_axes(
@@ -223,7 +223,7 @@ class AxesCalculator:
             trans_axes = rot_axes
         else:
             make_whole(mol.atoms)
-            trans_axes = mol.atoms.principal_axes()
+            trans_axes = self.get_principal_axes(mol.atoms)
             rot_axes, moment_of_inertia = self.get_vanilla_axes(residue_atoms)
             center = residue_atoms.center_of_mass(unwrap=True)
 
@@ -281,7 +281,7 @@ class AxesCalculator:
                 # only the one residue => use principal axes
                 residue = data_container
                 trans_center = data_container.atoms.center_of_mass(unwrap=True)
-                trans_axes = data_container.atoms.principal_axes()
+                trans_axes = self.get_principal_axes(data_container.atoms)
             else:
                 # residue of interest has at least one neighbour
                 if res_position == -1 or res_position == 1:
@@ -421,7 +421,7 @@ class AxesCalculator:
             )
         else:
             make_whole(residue_atoms)
-            trans_axes = residue_atoms.principal_axes()
+            trans_axes = self.get_principal_axes(residue_atoms)
 
         center = heavy_atom.position
         rot_axes, moment_of_inertia = self.get_bonded_axes_from_topology(
@@ -611,7 +611,7 @@ class AxesCalculator:
         if len(bonded_atoms) == 0:
             # there is only one heavy atom in the residue
             rot_center = edge.position
-            rot_axes = residue.atoms.principal_axes()
+            rot_axes = self.get_principal_axes(residue.atoms)
         else:
             average_bonded = np.zeros(3)
             for bonded_atom in bonded_atoms:
@@ -834,7 +834,7 @@ class AxesCalculator:
         """
         moment_of_inertia_tensor = molecule.moment_of_inertia(unwrap=True)
         make_whole(molecule.atoms)
-        principal_axes = molecule.principal_axes()
+        principal_axes = self.get_principal_axes(molecule)
 
         eigenvalues, _ = np.linalg.eigh(moment_of_inertia_tensor)
         order = np.argsort(np.abs(eigenvalues))[::-1]
@@ -1112,6 +1112,35 @@ class AxesCalculator:
             principal_axes[2] *= -1
 
         return principal_axes, moment_of_inertia
+
+    def get_principal_axes(self, group, wrap: bool = False) -> np.ndarray:
+        """Compute the principal axes of an atom group from its moment of inertia.
+
+        Equivalent to MDAnalysis's ``AtomGroup.principal_axes()``, but uses
+        ``np.linalg.eigh`` rather than ``np.linalg.eig``. The moment of inertia
+        tensor is symmetric, so ``eigh`` returns orthonormal axes, whereas ``eig``
+        can return skewed axes for (near-)degenerate moments.
+
+        - Axes are sorted by descending (signed) eigenvalue and returned as rows.
+        - If the axes are left-handed, all three are flipped, as in MDAnalysis.
+
+        Args:
+            group: MDAnalysis atom group (or anything with ``.atoms``).
+            wrap: Whether to wrap atoms into the primary unit cell before computing
+                the moment of inertia.
+
+        Returns:
+            np.ndarray: (3, 3) principal axes (rows).
+        """
+        atomgroup = group.atoms
+        e_val, e_vec = np.linalg.eigh(atomgroup.moment_of_inertia(wrap=wrap))
+
+        e_vec = e_vec[:, np.argsort(e_val)[::-1]].T
+
+        if np.dot(np.cross(e_vec[0], e_vec[1]), e_vec[2]) < 0:
+            e_vec *= -1
+
+        return e_vec
 
     def get_UA_masses(self, molecule) -> list[float]:
         """Return united-atom (UA) masses for a molecule.
