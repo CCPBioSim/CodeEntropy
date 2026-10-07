@@ -2,8 +2,8 @@
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 24.315699188266905,
-        "united_atom:Rovibrational": 21.04839012420562,
+        "united_atom:Transvibrational": 24.315699188266926,
+        "united_atom:Rovibrational": 21.048390124205604,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
@@ -11,84 +11,84 @@
     },
     "1": {
       "components": {
-        "united_atom:Transvibrational": 23.766082670463117,
-        "united_atom:Rovibrational": 16.769636839671318,
+        "united_atom:Transvibrational": 23.766082670463092,
+        "united_atom:Rovibrational": 16.769636839671296,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 40.535719510134435
+      "total": 40.535719510134385
     },
     "2": {
       "components": {
-        "united_atom:Transvibrational": 24.83389621978833,
-        "united_atom:Rovibrational": 16.996392060962343,
+        "united_atom:Transvibrational": 24.833896219788347,
+        "united_atom:Rovibrational": 16.996392060962357,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 41.83028828075067
+      "total": 41.83028828075071
     },
     "3": {
       "components": {
-        "united_atom:Transvibrational": 6.672385707928316,
-        "united_atom:Rovibrational": 4.986376282798272,
+        "united_atom:Transvibrational": 6.672385707928322,
+        "united_atom:Rovibrational": 4.986376282798274,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 11.658761990726589
+      "total": 11.658761990726596
     },
     "4": {
       "components": {
         "united_atom:Transvibrational": 6.880461178899526,
-        "united_atom:Rovibrational": 4.441585994100293,
+        "united_atom:Rovibrational": 4.441585994100297,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 11.322047172999818
+      "total": 11.322047172999824
     },
     "5": {
       "components": {
-        "united_atom:Transvibrational": 15.473092273577436,
+        "united_atom:Transvibrational": 15.473092273577388,
         "united_atom:Rovibrational": 7.777083478334702,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 23.25017575191214
+      "total": 23.25017575191209
     },
     "6": {
       "components": {
-        "united_atom:Transvibrational": 25.694168010993906,
+        "united_atom:Transvibrational": 25.694168010993888,
         "united_atom:Rovibrational": 6.731392483940259,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 32.42556049493417
+      "total": 32.425560494934146
     },
     "7": {
       "components": {
-        "united_atom:Transvibrational": 10.533257828925988,
-        "united_atom:Rovibrational": 8.975639133015862,
+        "united_atom:Transvibrational": 10.533257828925997,
+        "united_atom:Rovibrational": 8.975639133015859,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 19.50889696194185
+      "total": 19.508896961941858
     },
     "8": {
       "components": {
-        "united_atom:Transvibrational": 7.332978272264892,
-        "united_atom:Rovibrational": 3.0418502362906055,
+        "united_atom:Transvibrational": 7.332978272264879,
+        "united_atom:Rovibrational": 3.0418502362906086,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 10.374828508555497
+      "total": 10.374828508555488
     },
     "9": {
       "components": {
         "united_atom:Transvibrational": 4.023932761002867,
-        "united_atom:Rovibrational": 8.289324383636096,
+        "united_atom:Rovibrational": 8.289324383636089,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 12.313257144638964
+      "total": 12.313257144638957
     }
   }
 }

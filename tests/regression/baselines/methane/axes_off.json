@@ -2,12 +2,12 @@
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 42.71309458819117,
-        "united_atom:Rovibrational": 34.49645268839667,
+        "united_atom:Transvibrational": 42.51619525142699,
+        "united_atom:Rovibrational": 34.692556166968025,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 77.20954727658784
+      "total": 77.20875141839502
     }
   }
 }
