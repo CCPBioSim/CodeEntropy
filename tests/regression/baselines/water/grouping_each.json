@@ -2,26 +2,26 @@
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 14.945907953805547,
-        "united_atom:Rovibrational": 1.894724395364822,
+        "united_atom:Transvibrational": 14.945907953805552,
+        "united_atom:Rovibrational": 1.8947243953648225,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 16.84063234917037
+      "total": 16.840632349170374
     },
     "1": {
       "components": {
         "united_atom:Transvibrational": 8.111522208287775,
-        "united_atom:Rovibrational": 0.9607747968334228,
+        "united_atom:Rovibrational": 0.960774796833424,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 9.072297005121198
+      "total": 9.0722970051212
     },
     "2": {
       "components": {
-        "united_atom:Transvibrational": 15.794973479687595,
-        "united_atom:Rovibrational": 4.606072530590256,
+        "united_atom:Transvibrational": 15.794973479687597,
+        "united_atom:Rovibrational": 4.606072530590255,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
@@ -29,30 +29,30 @@
     },
     "3": {
       "components": {
-        "united_atom:Transvibrational": 9.462487265119444,
+        "united_atom:Transvibrational": 9.462487265119448,
         "united_atom:Rovibrational": 1.6509513986984767,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 11.11343866381792
+      "total": 11.113438663817924
     },
     "4": {
       "components": {
-        "united_atom:Transvibrational": 16.254161245740693,
+        "united_atom:Transvibrational": 16.254161245740683,
         "united_atom:Rovibrational": 1.3675973741107645,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 17.62175861985146
+      "total": 17.621758619851448
     },
     "5": {
       "components": {
         "united_atom:Transvibrational": 11.577798762033282,
-        "united_atom:Rovibrational": 7.3511635680049485,
+        "united_atom:Rovibrational": 7.351163568004953,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 18.92896233003823
+      "total": 18.928962330038235
     },
     "6": {
       "components": {

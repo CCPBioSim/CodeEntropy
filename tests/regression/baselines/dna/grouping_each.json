@@ -20,13 +20,13 @@
         "united_atom:Rovibrational": 0.01846427765949588,
         "residue:Transvibrational": 0.0,
         "residue:Rovibrational": 2.386320108254459,
-        "polymer:FTmat-Transvibrational": 11.110372533885968,
+        "polymer:FTmat-Transvibrational": 11.110372533885974,
         "polymer:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 18.274062256427637
+      "total": 18.27406225642764
     }
   }
 }
