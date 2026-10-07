@@ -293,7 +293,7 @@ def test_get_flipped_axes_flips_negative_dot():
     assert np.allclose(flipped[0], np.array([1.0, 0.0, 0.0]))
 
 
-def test_get_custom_principal_axes_flips_z_when_left_handed():
+def test_get_custom_principal_axes_returns_axes_and_moments():
     ax = AxesCalculator()
     moi = np.eye(3)
     axes, vals = ax.get_custom_principal_axes(moi)
@@ -368,19 +368,97 @@ def test_get_principal_axes_orthonormal_and_right_handed_for_near_degenerate():
     assert np.isclose(abs(np.dot(axes[0], q[:, 2])), 1.0)
 
 
-def test_get_principal_axes_flips_all_axes_when_left_handed(monkeypatch):
+def _scrambled_eigh(seed):
+    """Return an ``eigh`` that gives valid but arbitrary signs and degenerate bases."""
+    rng = np.random.default_rng(seed)
+    real_eigh = np.linalg.eigh
+
+    def scrambled(matrix):
+        values, vectors = real_eigh(matrix)
+        n = len(values)
+        for i in range(n):
+            for j in range(i + 1, n):
+                if np.isclose(values[i], values[j], rtol=1e-5):
+                    angle = rng.uniform(0, 2 * np.pi)
+                    c, s = np.cos(angle), np.sin(angle)
+                    vi, vj = vectors[:, i].copy(), vectors[:, j].copy()
+                    vectors[:, i] = c * vi + s * vj
+                    vectors[:, j] = -s * vi + c * vj
+        return values, vectors * rng.choice([-1.0, 1.0], size=n)
+
+    return scrambled
+
+
+def _example_tensors():
+    rng = np.random.default_rng(1)
+    q, _ = np.linalg.qr(rng.normal(size=(3, 3)))
+    return {
+        "asymmetric_top": q @ np.diag([5.0, 3.0, 1.0]) @ q.T,
+        "linear": q @ np.diag([4.0, 4.0, 0.0]) @ q.T,
+        "symmetric_top": q @ np.diag([5.0, 2.0, 2.0]) @ q.T,
+        "spherical_top": 3.0 * np.eye(3),
+    }
+
+
+@pytest.mark.parametrize("name", list(_example_tensors()))
+def test_get_reproducible_axes_orthonormal_right_handed_and_diagonalising(name):
     ax = AxesCalculator()
-    group = MagicMock()
-    group.atoms.moment_of_inertia.return_value = np.eye(3)
-    monkeypatch.setattr(
-        np.linalg, "eigh", lambda _m: (np.array([1.0, 2.0, 3.0]), np.eye(3))
-    )
+    tensor = _example_tensors()[name]
 
-    axes = ax.get_principal_axes(group)
+    axes, moments = ax.get_reproducible_axes(tensor)
 
-    # descending order gives rows e3, e2, e1 (left-handed), so all are negated
-    expected = -np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float)
-    assert np.allclose(axes, expected)
+    assert np.allclose(axes @ axes.T, np.eye(3), atol=1e-12)
+    assert np.isclose(np.linalg.det(axes), 1.0)
+    assert np.allclose(axes @ tensor @ axes.T, np.diag(moments), atol=1e-12)
+    assert np.all(np.diff(np.abs(moments)) <= 1e-12)
+
+
+@pytest.mark.parametrize("name", list(_example_tensors()))
+def test_get_reproducible_axes_independent_of_eigensolver_choices(monkeypatch, name):
+    ax = AxesCalculator()
+    tensor = _example_tensors()[name]
+    expected_axes, expected_moments = ax.get_reproducible_axes(tensor)
+
+    for seed in range(20):
+        monkeypatch.setattr(np.linalg, "eigh", _scrambled_eigh(seed))
+        axes, moments = ax.get_reproducible_axes(tensor)
+        assert np.allclose(axes, expected_axes, atol=1e-9)
+        assert np.allclose(moments, expected_moments)
+
+
+@pytest.mark.parametrize("name", list(_example_tensors()))
+def test_get_reproducible_axes_stable_under_rounding_level_noise(name):
+    ax = AxesCalculator()
+    tensor = _example_tensors()[name]
+    expected_axes, _ = ax.get_reproducible_axes(tensor)
+    rng = np.random.default_rng(2)
+
+    for _ in range(50):
+        noise = rng.normal(scale=1e-7, size=(3, 3))
+        axes, _ = ax.get_reproducible_axes(tensor + (noise + noise.T) / 2)
+        assert np.allclose(axes, expected_axes, atol=1e-4)
+
+
+def test_get_reproducible_axes_keeps_unique_axis_of_linear_tensor_exact():
+    ax = AxesCalculator()
+    direction = np.array([1.0, -2.0, 0.5])
+    direction /= np.linalg.norm(direction)
+    tensor = 4.0 * (np.eye(3) - np.outer(direction, direction))
+
+    axes, moments = ax.get_reproducible_axes(tensor)
+
+    assert np.isclose(moments[2], 0.0, atol=1e-12)
+    assert np.isclose(abs(axes[2] @ direction), 1.0, atol=1e-12)
+
+
+def test_get_reproducible_axes_signs_first_two_axes_along_reference_direction():
+    ax = AxesCalculator()
+    tensor = np.diag([5.0, 3.0, 1.0])
+
+    axes, _ = ax.get_reproducible_axes(tensor)
+
+    assert axes[0] @ np.array([1.0, 2.0, 3.0]) > 0
+    assert axes[1] @ np.array([1.0, 2.0, 3.0]) > 0
 
 
 def test_get_principal_axes_passes_wrap_to_moment_of_inertia():
@@ -653,7 +731,7 @@ def test_get_custom_axes_raises_when_normalization_degenerate():
         ac.get_custom_axes(a=a, b_list=b_list, c=c, dimensions=dims)
 
 
-def test_get_custom_principal_axes_flips_z_for_handedness():
+def test_get_custom_principal_axes_is_right_handed():
     ac = AxesCalculator()
 
     moi = np.diag([3.0, 2.0, 1.0])

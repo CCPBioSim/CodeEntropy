@@ -837,13 +837,7 @@ class AxesCalculator:
         """
         make_whole(molecule.atoms)
         moment_of_inertia_tensor = molecule.moment_of_inertia()
-        principal_axes = self.get_principal_axes(molecule)
-
-        eigenvalues, _ = np.linalg.eigh(moment_of_inertia_tensor)
-        order = np.argsort(np.abs(eigenvalues))[::-1]
-        moment_of_inertia = eigenvalues[order]
-
-        return principal_axes, moment_of_inertia
+        return self.get_reproducible_axes(moment_of_inertia_tensor)
 
     def get_custom_axes(
         self,
@@ -1082,17 +1076,10 @@ class AxesCalculator:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute principal axes and moments from a custom MOI tensor.
 
-        Principal axes and centre of axes from the ordered eigenvalues and
-        eigenvectors of a moment of inertia tensor. This function allows for a
-        custom moment of inertia tensor to be used, which isn't possible with the
-        built-in MDAnalysis principal_axes() function.
-
-        Original behaviour preserved:
-
-        - Eigenvalues are sorted by descending absolute magnitude.
-        - Eigenvectors are transposed so axes are returned as rows.
-        - Z axis is flipped to enforce the same handedness convention as the
-          original implementation.
+        Principal axes and moments from the ordered eigenvalues and eigenvectors of
+        a moment of inertia tensor. This function allows for a custom moment of
+        inertia tensor to be used. The axes are made reproducible by
+        :meth:`get_reproducible_axes`.
 
         Args:
             moment_of_inertia_tensor: (3, 3) custom inertia tensor.
@@ -1100,31 +1087,13 @@ class AxesCalculator:
         Returns:
             Tuple[np.ndarray, np.ndarray]:
                 - principal_axes: (3, 3) principal axes (rows).
-                - moment_of_inertia: (3,) principal moments.
+                - moment_of_inertia: (3,) principal moments sorted descending by
+                  absolute value.
         """
-        eigenvalues, eigenvectors = np.linalg.eigh(moment_of_inertia_tensor)
-        order = np.abs(eigenvalues).argsort()[::-1]  # descending order
-        transposed = np.transpose(eigenvectors)  # columns -> rows
-        moment_of_inertia = eigenvalues[order]
-        principal_axes = transposed[order]
-
-        # point z axis in correct direction, as per original code
-        cross_xy = np.cross(principal_axes[0], principal_axes[1])
-        dot_z = float(np.dot(cross_xy, principal_axes[2]))
-        if dot_z < 0:
-            principal_axes[2] *= -1
-
-        return principal_axes, moment_of_inertia
+        return self.get_reproducible_axes(moment_of_inertia_tensor)
 
     def get_principal_axes(self, group, wrap: bool = False) -> np.ndarray:
         """Compute the principal axes of an atom group from its moment of inertia.
-
-        Uses ``np.linalg.eigh`` rather than ``np.linalg.eig``. The moment of inertia
-        tensor is symmetric, so ``eigh`` returns orthonormal axes, whereas ``eig``
-        can return skewed axes for (near-)degenerate moments.
-
-        - Axes are sorted by descending (signed) eigenvalue and returned as rows.
-        - If the axes are left-handed, all three are flipped.
 
         Args:
             group: Atom group (or anything with ``.atoms``).
@@ -1132,17 +1101,66 @@ class AxesCalculator:
                 the moment of inertia.
 
         Returns:
-            np.ndarray: (3, 3) principal axes (rows).
+            np.ndarray: (3, 3) principal axes (rows), as given by
+            :meth:`get_reproducible_axes`.
         """
-        atomgroup = group.atoms
-        e_val, e_vec = np.linalg.eigh(atomgroup.moment_of_inertia(wrap=wrap))
+        tensor = group.atoms.moment_of_inertia(wrap=wrap)
+        principal_axes, _ = self.get_reproducible_axes(tensor)
+        return principal_axes
 
-        e_vec = e_vec[:, np.argsort(e_val)[::-1]].T
+    def get_reproducible_axes(
+        self, tensor: np.ndarray, rtol: float = 1e-5
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Diagonalise a symmetric tensor into reproducible principal axes.
 
-        if np.dot(np.cross(e_vec[0], e_vec[1]), e_vec[2]) < 0:
-            e_vec *= -1
+        ``np.linalg.eigh`` returns orthonormal axes, but the sign of each axis, and
+        the choice of axes within a set of (near-)equal moments, can differ between
+        LAPACK builds. These axes are used to average covariances over molecules and
+        frames, so that choice changes the entropy. This method fixes it:
 
-        return e_vec
+        - Moments are sorted descending by absolute value.
+        - Axes whose moments are equal to within ``rtol`` (relative to the largest
+          moment) are re-chosen from the eigenvectors of a fixed reference tensor
+          projected onto the shared subspace. Axes with distinct moments are left as
+          they are.
+        - The first two axes are signed to point along the lab-frame direction
+          (1, 2, 3), and the third is their cross product, so the axes are
+          right-handed.
+
+        The result is reproducible but is a function of the lab-frame orientation,
+        so it is not rotation covariant.
+
+        Args:
+            tensor: (3, 3) symmetric tensor, e.g. a moment of inertia tensor.
+            rtol: Relative tolerance for treating two moments as equal.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]:
+                - principal_axes: (3, 3) principal axes (rows).
+                - moments: (3,) principal moments sorted descending by absolute
+                  value.
+        """
+        moments, vectors = np.linalg.eigh(tensor)
+        order = np.argsort(np.abs(moments))[::-1]
+        moments, vectors = moments[order], vectors[:, order]
+
+        reference_direction = np.array([1.0, 2.0, 3.0])
+        gaps = np.abs(np.diff(np.abs(moments)))
+        group_starts = np.flatnonzero(gaps > rtol * np.abs(moments[0])) + 1
+        for group in np.split(np.arange(3), group_starts):
+            if len(group) > 1:
+                shared = vectors[:, group]
+                reference = shared.T @ np.diag(reference_direction) @ shared
+                _, rotation = np.linalg.eigh(reference)
+                vectors[:, group] = shared @ rotation
+
+        for i in (0, 1):
+            if vectors[:, i] @ reference_direction < 0:
+                vectors[:, i] *= -1
+
+        third_axis = np.cross(vectors[:, 0], vectors[:, 1])
+        principal_axes = np.array([vectors[:, 0], vectors[:, 1], third_axis])
+        return principal_axes, moments
 
     def get_UA_masses(self, molecule) -> list[float]:
         """Return united-atom (UA) masses for a molecule.
