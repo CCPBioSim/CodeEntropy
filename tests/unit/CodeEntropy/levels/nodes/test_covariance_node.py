@@ -501,6 +501,7 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
         np.eye(3),
         np.array([1.0, 2.0, 3.0]),
     )
+    axes_manager.get_principal_axes.return_value = np.eye(3)
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
 
@@ -623,6 +624,7 @@ def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
         np.eye(3),
         np.array([1.0, 2.0, 3.0]),
     )
+    axes_manager.get_principal_axes.return_value = np.eye(3)
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         trans_axes, rot_axes, center, moi = node._get_residue_axes(
@@ -654,6 +656,7 @@ def test_get_polymer_axes_uses_make_whole_and_vanilla_axes():
         np.eye(3),
         np.array([1.0, 2.0, 3.0]),
     )
+    axes_manager.get_principal_axes.return_value = np.eye(3)
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         trans_axes, rot_axes, center, moi = node._get_polymer_axes(
