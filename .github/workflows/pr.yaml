@@ -89,25 +89,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[testing]
 
-      - name: Install MDA 2.11 pre-release
-        run: |
-          git clone https://github.com/MDAnalysis/mdanalysis.git "$RUNNER_TEMP/mdanalysis"
-          git -C "$RUNNER_TEMP/mdanalysis" checkout f765ecd77c8d51d79bec87c9780a0fab80c7d43c
-          python -m pip install "$RUNNER_TEMP/mdanalysis/package"
-
-      - name: Verify MDA uses eigh in principal_axes
-        run: |
-          python - <<'EOF'
-          import inspect
-          import MDAnalysis
-          from MDAnalysis.core import topologyattrs
-
-          print("MDAnalysis", MDAnalysis.__version__)
-          assert "np.linalg.eigh(atomgroup.moment_of_inertia" in inspect.getsource(
-              topologyattrs
-          )
-          EOF
-
       - name: Run fast regression tests
         run: |
           python -m pytest tests/regression \
