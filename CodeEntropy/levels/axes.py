@@ -836,7 +836,7 @@ class AxesCalculator:
         make_whole(molecule.atoms)
         principal_axes = molecule.principal_axes()
 
-        eigenvalues, _ = np.linalg.eig(moment_of_inertia_tensor)
+        eigenvalues, _ = np.linalg.eigh(moment_of_inertia_tensor)
         order = np.argsort(np.abs(eigenvalues))[::-1]
         moment_of_inertia = eigenvalues[order]
 
@@ -1099,7 +1099,7 @@ class AxesCalculator:
                 - principal_axes: (3, 3) principal axes (rows).
                 - moment_of_inertia: (3,) principal moments.
         """
-        eigenvalues, eigenvectors = np.linalg.eig(moment_of_inertia_tensor)
+        eigenvalues, eigenvectors = np.linalg.eigh(moment_of_inertia_tensor)
         order = np.abs(eigenvalues).argsort()[::-1]  # descending order
         transposed = np.transpose(eigenvectors)  # columns -> rows
         moment_of_inertia = eigenvalues[order]
