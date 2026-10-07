@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+import MDAnalysis as mda
 import numpy as np
 import pytest
 
@@ -390,6 +391,26 @@ def test_get_principal_axes_passes_wrap_to_moment_of_inertia():
     ax.get_principal_axes(group, wrap=True)
 
     group.atoms.moment_of_inertia.assert_called_once_with(wrap=True)
+
+
+def test_get_vanilla_axes_moments_ignore_position_relative_to_box():
+    """Shifting a molecule by a box vector must not change its moments."""
+    universe = mda.Universe.empty(
+        n_atoms=3, n_residues=1, atom_resindex=[0, 0, 0], trajectory=True
+    )
+    universe.add_TopologyAttr("masses", [16.0, 1.0, 1.0])
+    universe.add_TopologyAttr("bonds", [(0, 1), (0, 2)])
+    universe.dimensions = [50.0, 50.0, 50.0, 90.0, 90.0, 90.0]
+    positions = np.array([[0.0, 0.0, 0.0], [0.96, 0.0, 0.0], [-0.24, 0.93, 0.0]])
+    ax = AxesCalculator()
+
+    universe.atoms.positions = positions + 25.0
+    _, moments = ax.get_vanilla_axes(universe.atoms)
+    universe.atoms.positions = positions + 25.0 + np.array([50.0, 0.0, 0.0])
+    _, shifted_moments = ax.get_vanilla_axes(universe.atoms)
+
+    assert np.allclose(shifted_moments, moments, rtol=1e-3)
+    assert moments.max() < 10.0
 
 
 def test_find_bonded_atoms_selects_heavy_and_hydrogen_groups():

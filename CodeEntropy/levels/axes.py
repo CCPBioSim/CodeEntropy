@@ -819,7 +819,10 @@ class AxesCalculator:
         moment of inertia tensor.
 
         The original description is preserved:
-        - The molecule is made whole to ensure correct handling of PBC.
+
+        - The molecule is made whole to ensure correct handling of PBC. The tensor
+          is taken after that, so it does not depend on where the molecule sits
+          relative to the periodic boundary.
         - The moments are obtained by diagonalising the moment of inertia tensor.
         - Eigenvalues are returned sorted from largest to smallest magnitude.
 
@@ -832,8 +835,8 @@ class AxesCalculator:
                 - principal_axes: (3, 3) axes.
                 - moment_of_inertia: (3,) moments sorted descending by absolute value.
         """
-        moment_of_inertia_tensor = molecule.moment_of_inertia(unwrap=True)
         make_whole(molecule.atoms)
+        moment_of_inertia_tensor = molecule.moment_of_inertia()
         principal_axes = self.get_principal_axes(molecule)
 
         eigenvalues, _ = np.linalg.eigh(moment_of_inertia_tensor)
