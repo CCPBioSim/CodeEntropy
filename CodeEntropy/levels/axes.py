@@ -126,13 +126,13 @@ class AxesCalculator:
         neighbours = data_container.select_atoms(
             f"(not resindex {index}) and (bonded resindex {index})"
         )
+
         edge_atom_set = []
         for neighbour in neighbours:
             edge = data_container.select_atoms(
                 f"(bonded resindex {neighbour.resindex}) and (resindex {index})"
             )
-            edge = edge[0]
-            edge_atom_set.append(edge)
+            edge_atom_set.append(edge[0])
 
         uas = residue.select_atoms("mass 2 to 999")
         ua_masses = self.get_UA_masses(residue)
@@ -274,10 +274,10 @@ class AxesCalculator:
                 If axis construction fails.
         """
         index = int(index)  # UA bead index
-        heavy_atoms = data_container.select_atoms("mass 2 to 999")
+        heavy_atoms = data_container.atoms.select_atoms("mass 2 to 999")
         # use the same customPI trans axes as the residue level
         if len(heavy_atoms) > 1:
-            if len(data_container.residues) == 1:
+            if len(data_container.atoms.residues) == 1:
                 # only the one residue => use principal axes
                 residue = data_container
                 trans_center = data_container.atoms.center_of_mass(unwrap=True)
@@ -292,8 +292,7 @@ class AxesCalculator:
                         f"(bonded resindex {neighbour.resindex}) "
                         f"and (resindex {resindex})"
                     )
-                    edge = edge[0]
-                    edge_atom_set.append(edge)
+                    edge_atom_set.append(edge[0])
                 if len(edge_atom_set) == 1:
                     # a terminal residue
                     edge_atom = edge_atom_set[0]
@@ -322,7 +321,7 @@ class AxesCalculator:
             rot_axes, moment_of_inertia = self.get_bonded_axes(
                 system=data_container,
                 atom=heavy_atom,
-                dimensions=data_container.dimensions[:3],
+                dimensions=data_container.atoms.dimensions[:3],
             )
 
         else:
@@ -799,7 +798,7 @@ class AxesCalculator:
                 - bonded_heavy_atoms: bonded heavy atoms (mass 2 to 999)
                 - bonded_H_atoms: bonded hydrogen atoms (mass 1 to 1.1)
         """
-        bonded_atoms = system.select_atoms(f"bonded index {atom_idx}")
+        bonded_atoms = system.atoms.select_atoms(f"bonded index {atom_idx}")
         bonded_heavy_atoms = bonded_atoms.select_atoms("mass 2 to 999")
         bonded_H_atoms = bonded_atoms.select_atoms("mass 1 to 1.1")
         return bonded_heavy_atoms, bonded_H_atoms
