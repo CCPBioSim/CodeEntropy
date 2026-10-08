@@ -144,12 +144,14 @@ class AxesCalculator:
                 masses=ua_masses,
                 dimensions=data_container.dimensions[:3],
             )
-            rot_axes, moment_of_inertia = self.get_custom_principal_axes(moi_tensor)
+            rot_axes, moment_of_inertia = self.get_principal_axes_from_tensor(
+                moi_tensor
+            )
             trans_axes = rot_axes  # per original convention
             rot_center = np.array(residue.center_of_mass())
         else:
             make_whole(data_container.atoms)
-            trans_axes = self.get_principal_axes(data_container.atoms)
+            trans_axes = self.get_principal_axes_from_group(data_container.atoms)
             if len(edge_atom_set) == 1:
                 edge_atom = edge_atom_set[0]
                 rot_center, rot_axes = self.get_terminal_axes(
@@ -217,14 +219,14 @@ class AxesCalculator:
                 masses=topology.residue_ua_masses,
                 dimensions=dimensions,
             )
-            rot_axes, moment_of_inertia = self.get_custom_principal_axes(
+            rot_axes, moment_of_inertia = self.get_principal_axes_from_tensor(
                 moment_of_inertia_tensor
             )
             trans_axes = rot_axes
         else:
             make_whole(mol.atoms)
-            trans_axes = self.get_principal_axes(mol.atoms)
-            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue_atoms)
+            trans_axes = self.get_principal_axes_from_group(mol.atoms)
+            rot_axes, moment_of_inertia = self.get_molecule_axes(residue_atoms)
             center = residue_atoms.center_of_mass(unwrap=True)
 
         return trans_axes, rot_axes, center, moment_of_inertia
@@ -281,7 +283,7 @@ class AxesCalculator:
                 # only the one residue => use principal axes
                 residue = data_container
                 trans_center = data_container.atoms.center_of_mass(unwrap=True)
-                trans_axes = self.get_principal_axes(data_container.atoms)
+                trans_axes = self.get_principal_axes_from_group(data_container.atoms)
             else:
                 # residue of interest has at least one neighbour
                 if res_position == -1 or res_position == 1:
@@ -416,12 +418,12 @@ class AxesCalculator:
                 masses=topology.residue_ua_masses,
                 dimensions=dimensions,
             )
-            trans_axes, _moment_of_inertia = self.get_custom_principal_axes(
+            trans_axes, _moment_of_inertia = self.get_principal_axes_from_tensor(
                 moment_of_inertia_tensor
             )
         else:
             make_whole(residue_atoms)
-            trans_axes = self.get_principal_axes(residue_atoms)
+            trans_axes = self.get_principal_axes_from_group(residue_atoms)
 
         center = heavy_atom.position
         rot_axes, moment_of_inertia = self.get_bonded_axes_from_topology(
@@ -478,10 +480,10 @@ class AxesCalculator:
         ua_all = u.atoms[topology.ua_all_atom_indices]
 
         if len(heavy_bonded) == 0:
-            custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(ua_all)
+            custom_axes, custom_moment_of_inertia = self.get_molecule_axes(ua_all)
 
         if len(heavy_bonded) == 1 and len(light_bonded) == 0:
-            custom_axes = self.get_custom_axes(
+            custom_axes = self.get_bonded_vector_axes(
                 a=heavy_atom.position,
                 b_list=[heavy_bonded[0].position],
                 c=np.zeros(3),
@@ -489,7 +491,7 @@ class AxesCalculator:
             )
 
         if len(heavy_bonded) == 1 and len(light_bonded) >= 1:
-            custom_axes = self.get_custom_axes(
+            custom_axes = self.get_bonded_vector_axes(
                 a=heavy_atom.position,
                 b_list=[heavy_bonded[0].position],
                 c=light_bonded[0].position,
@@ -497,7 +499,7 @@ class AxesCalculator:
             )
 
         if len(heavy_bonded) >= 2:
-            custom_axes = self.get_custom_axes(
+            custom_axes = self.get_bonded_vector_axes(
                 a=heavy_atom.position,
                 b_list=heavy_bonded.positions,
                 c=heavy_bonded[1].position,
@@ -611,7 +613,7 @@ class AxesCalculator:
         if len(bonded_atoms) == 0:
             # there is only one heavy atom in the residue
             rot_center = edge.position
-            rot_axes = self.get_principal_axes(residue.atoms)
+            rot_axes = self.get_principal_axes_from_group(residue.atoms)
         else:
             average_bonded = np.zeros(3)
             for bonded_atom in bonded_atoms:
@@ -632,7 +634,7 @@ class AxesCalculator:
                 )
             else:
                 rot_center = edge.position
-                rot_axes = self.get_custom_axes(
+                rot_axes = self.get_bonded_vector_axes(
                     a=edge.position,
                     b_list=[average_bonded],
                     c=np.zeros(3),
@@ -672,7 +674,7 @@ class AxesCalculator:
             )
         else:
             rot_center = (edges[0].position + edges[1].position) / 2
-            rot_axes = self.get_custom_axes(
+            rot_axes = self.get_bonded_vector_axes(
                 a=rot_center,
                 b_list=[edges[0].position],
                 c=np.zeros(3),
@@ -749,11 +751,11 @@ class AxesCalculator:
 
         # case1
         if len(heavy_bonded) == 0:
-            custom_axes, custom_moment_of_inertia = self.get_vanilla_axes(ua_all)
+            custom_axes, custom_moment_of_inertia = self.get_molecule_axes(ua_all)
 
         # case2
         if len(heavy_bonded) == 1 and len(light_bonded) == 0:
-            custom_axes = self.get_custom_axes(
+            custom_axes = self.get_bonded_vector_axes(
                 a=atom.position,
                 b_list=[heavy_bonded[0].position],
                 c=np.zeros(3),
@@ -762,7 +764,7 @@ class AxesCalculator:
 
         # case3
         if len(heavy_bonded) == 1 and len(light_bonded) >= 1:
-            custom_axes = self.get_custom_axes(
+            custom_axes = self.get_bonded_vector_axes(
                 a=atom.position,
                 b_list=[heavy_bonded[0].position],
                 c=light_bonded[0].position,
@@ -772,7 +774,7 @@ class AxesCalculator:
         # case4 (not used in original 2019 code; case5 used instead)
         # case5
         if len(heavy_bonded) >= 2:
-            custom_axes = self.get_custom_axes(
+            custom_axes = self.get_bonded_vector_axes(
                 a=atom.position,
                 b_list=heavy_bonded.positions,
                 c=heavy_bonded[1].position,
@@ -812,13 +814,11 @@ class AxesCalculator:
         bonded_H_atoms = bonded_atoms.select_atoms("mass 1 to 1.1")
         return bonded_heavy_atoms, bonded_H_atoms
 
-    def get_vanilla_axes(self, molecule):
-        """Get principal axes and sorted principal moments (vanilla method).
+    def get_molecule_axes(self, molecule):
+        """Get principal axes and sorted principal moments.
 
         Compute the principal axes and moments of inertia for a molecule from its
         moment of inertia tensor.
-
-        The original description is preserved:
 
         - The molecule is made whole to ensure correct handling of PBC. The tensor
           is taken after that, so it does not depend on where the molecule sits
@@ -836,10 +836,9 @@ class AxesCalculator:
                 - moment_of_inertia: (3,) moments sorted descending by absolute value.
         """
         make_whole(molecule.atoms)
-        moment_of_inertia_tensor = molecule.moment_of_inertia()
-        return self.get_reproducible_axes(moment_of_inertia_tensor)
+        return self.get_principal_axes_from_tensor(molecule.moment_of_inertia())
 
-    def get_custom_axes(
+    def get_bonded_vector_axes(
         self,
         a: np.ndarray,
         b_list: Sequence[np.ndarray],
@@ -1071,96 +1070,75 @@ class AxesCalculator:
 
         return moment_of_inertia_tensor
 
-    def get_custom_principal_axes(
-        self, moment_of_inertia_tensor: np.ndarray
+    def get_principal_axes_from_tensor(
+        self,
+        moment_of_inertia_tensor: np.ndarray,
+        degeneracy_rtol: float = 100 * np.finfo(np.float32).eps,
+        reference_vector: Sequence[float] = (1.0, 2.0, 3.0),
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Compute principal axes and moments from a custom MOI tensor.
+        """Compute reproducible principal axes and moments from a MOI tensor.
 
-        Principal axes and moments from the ordered eigenvalues and eigenvectors of
-        a moment of inertia tensor. This function allows for a custom moment of
-        inertia tensor to be used. The axes are made reproducible by
-        :meth:`get_reproducible_axes`.
+        ``np.linalg.eigh`` fixes neither the sign of each eigenvector nor the basis
+        within a degenerate eigenspace, and both can differ between LAPACK builds.
+        The axes define the frame covariances are averaged in, so this changes the
+        entropy. Both are therefore fixed here:
+
+        - Moments are sorted by descending absolute value.
+        - Within a degenerate eigenspace (moments equal to within
+          ``degeneracy_rtol`` of the largest), the basis is the eigenvectors of a
+          reference tensor built from ``reference_vector``, projected onto that
+          eigenspace.
+        - The first two axes are signed to have a positive projection onto
+          ``reference_vector``, and the third is their cross product.
+
+        The reference is defined in the lab frame, so the result is reproducible
+        but not rotation covariant.
 
         Args:
-            moment_of_inertia_tensor: (3, 3) custom inertia tensor.
+            moment_of_inertia_tensor: (3, 3) symmetric inertia tensor.
+            degeneracy_rtol: Relative tolerance, with respect to the largest
+                moment, for treating moments as degenerate. The default is a
+                multiple of the float32 precision of the coordinates.
+            reference_vector: Fixed direction used to choose axis signs and the
+                basis within a degenerate eigenspace. Its components must be
+                distinct, so that no symmetric or axis-aligned direction is
+                perpendicular to it or ties on its components.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]:
                 - principal_axes: (3, 3) principal axes (rows).
-                - moment_of_inertia: (3,) principal moments sorted descending by
-                  absolute value.
+                - principal_moments: (3,) moments sorted by descending magnitude.
         """
-        return self.get_reproducible_axes(moment_of_inertia_tensor)
+        principal_moments, eigenvectors = np.linalg.eigh(moment_of_inertia_tensor)
+        order = np.argsort(np.abs(principal_moments))[::-1]
+        principal_moments = principal_moments[order]
+        eigenvectors = eigenvectors[:, order]
 
-    def get_principal_axes(self, group, wrap: bool = False) -> np.ndarray:
-        """Compute the principal axes of an atom group from its moment of inertia.
+        reference = np.asarray(reference_vector, dtype=float)
+        gaps = np.abs(np.diff(np.abs(principal_moments)))
+        boundaries = (
+            np.flatnonzero(gaps > degeneracy_rtol * np.abs(principal_moments[0])) + 1
+        )
+        for subspace in np.split(np.arange(3), boundaries):
+            if len(subspace) > 1:
+                basis = eigenvectors[:, subspace]
+                _, rotation = np.linalg.eigh(basis.T @ np.diag(reference) @ basis)
+                eigenvectors[:, subspace] = basis @ rotation
 
-        Args:
-            group: Atom group (or anything with ``.atoms``).
-            wrap: Whether to wrap atoms into the primary unit cell before computing
-                the moment of inertia.
+        for axis in (0, 1):
+            if eigenvectors[:, axis] @ reference < 0:
+                eigenvectors[:, axis] *= -1
 
-        Returns:
-            np.ndarray: (3, 3) principal axes (rows), as given by
-            :meth:`get_reproducible_axes`.
-        """
-        tensor = group.atoms.moment_of_inertia(wrap=wrap)
-        principal_axes, _ = self.get_reproducible_axes(tensor)
+        z_axis = np.cross(eigenvectors[:, 0], eigenvectors[:, 1])
+        principal_axes = np.array([eigenvectors[:, 0], eigenvectors[:, 1], z_axis])
+        return principal_axes, principal_moments
+
+    def get_principal_axes_from_group(self, group) -> np.ndarray:
+        """Return the reproducible principal axes (rows) of an atom group."""
+        principal_axes, _ = self.get_principal_axes_from_tensor(
+            group.atoms.moment_of_inertia()
+        )
         return principal_axes
-
-    def get_reproducible_axes(
-        self, tensor: np.ndarray, rtol: float = 1e-5
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Diagonalise a symmetric tensor into reproducible principal axes.
-
-        ``np.linalg.eigh`` returns orthonormal axes, but the sign of each axis, and
-        the choice of axes within a set of (near-)equal moments, can differ between
-        LAPACK builds. These axes are used to average covariances over molecules and
-        frames, so that choice changes the entropy. This method fixes it:
-
-        - Moments are sorted descending by absolute value.
-        - Axes whose moments are equal to within ``rtol`` (relative to the largest
-          moment) are re-chosen from the eigenvectors of a fixed reference tensor
-          projected onto the shared subspace. Axes with distinct moments are left as
-          they are.
-        - The first two axes are signed to point along the lab-frame direction
-          (1, 2, 3), and the third is their cross product, so the axes are
-          right-handed.
-
-        The result is reproducible but is a function of the lab-frame orientation,
-        so it is not rotation covariant.
-
-        Args:
-            tensor: (3, 3) symmetric tensor, e.g. a moment of inertia tensor.
-            rtol: Relative tolerance for treating two moments as equal.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray]:
-                - principal_axes: (3, 3) principal axes (rows).
-                - moments: (3,) principal moments sorted descending by absolute
-                  value.
-        """
-        moments, vectors = np.linalg.eigh(tensor)
-        order = np.argsort(np.abs(moments))[::-1]
-        moments, vectors = moments[order], vectors[:, order]
-
-        reference_direction = np.array([1.0, 2.0, 3.0])
-        gaps = np.abs(np.diff(np.abs(moments)))
-        group_starts = np.flatnonzero(gaps > rtol * np.abs(moments[0])) + 1
-        for group in np.split(np.arange(3), group_starts):
-            if len(group) > 1:
-                shared = vectors[:, group]
-                reference = shared.T @ np.diag(reference_direction) @ shared
-                _, rotation = np.linalg.eigh(reference)
-                vectors[:, group] = shared @ rotation
-
-        for i in (0, 1):
-            if vectors[:, i] @ reference_direction < 0:
-                vectors[:, i] *= -1
-
-        third_axis = np.cross(vectors[:, 0], vectors[:, 1])
-        principal_axes = np.array([vectors[:, 0], vectors[:, 1], third_axis])
-        return principal_axes, moments
 
     def get_UA_masses(self, molecule) -> list[float]:
         """Return united-atom (UA) masses for a molecule.

@@ -494,14 +494,14 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
     axes_manager.get_UA_axes.assert_not_called()
 
 
-def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
+def test_build_ua_vectors_uses_molecule_axes_when_not_customised():
     node = FrameCovarianceNode()
     axes_manager = MagicMock()
-    axes_manager.get_vanilla_axes.return_value = (
+    axes_manager.get_molecule_axes.return_value = (
         np.eye(3),
         np.array([1.0, 2.0, 3.0]),
     )
-    axes_manager.get_principal_axes.return_value = np.eye(3)
+    axes_manager.get_principal_axes_from_group.return_value = np.eye(3)
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
 
@@ -522,7 +522,7 @@ def test_build_ua_vectors_uses_vanilla_axes_when_not_customised():
         )
 
     assert make_whole.call_count == 2
-    axes_manager.get_vanilla_axes.assert_called_once()
+    axes_manager.get_molecule_axes.assert_called_once()
 
 
 def test_build_residue_vectors_uses_residue_axes():
@@ -615,16 +615,16 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
     )
 
 
-def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
+def test_get_residue_axes_molecule_uses_make_whole_and_molecule_axes():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     bead = FakeAtomGroup("res")
     axes_manager = MagicMock()
-    axes_manager.get_vanilla_axes.return_value = (
+    axes_manager.get_molecule_axes.return_value = (
         np.eye(3),
         np.array([1.0, 2.0, 3.0]),
     )
-    axes_manager.get_principal_axes.return_value = np.eye(3)
+    axes_manager.get_principal_axes_from_group.return_value = np.eye(3)
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         trans_axes, rot_axes, center, moi = node._get_residue_axes(
@@ -647,16 +647,16 @@ def test_get_residue_axes_vanilla_uses_make_whole_and_vanilla_axes():
     np.testing.assert_allclose(moi, np.array([1.0, 2.0, 3.0]))
 
 
-def test_get_polymer_axes_uses_make_whole_and_vanilla_axes():
+def test_get_polymer_axes_uses_make_whole_and_molecule_axes():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     bead = FakeAtomGroup("poly")
     axes_manager = MagicMock()
-    axes_manager.get_vanilla_axes.return_value = (
+    axes_manager.get_molecule_axes.return_value = (
         np.eye(3),
         np.array([1.0, 2.0, 3.0]),
     )
-    axes_manager.get_principal_axes.return_value = np.eye(3)
+    axes_manager.get_principal_axes_from_group.return_value = np.eye(3)
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         trans_axes, rot_axes, center, moi = node._get_polymer_axes(
