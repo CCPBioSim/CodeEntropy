@@ -11,7 +11,7 @@
     },
     "1": {
       "components": {
-        "united_atom:Transvibrational": 23.76608267046309,
+        "united_atom:Transvibrational": 23.766082670463092,
         "united_atom:Rovibrational": 16.769636839671296,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
@@ -29,7 +29,7 @@
     },
     "3": {
       "components": {
-        "united_atom:Transvibrational": 6.6723857079283215,
+        "united_atom:Transvibrational": 6.672385707928322,
         "united_atom:Rovibrational": 4.986376282798274,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
@@ -39,16 +39,16 @@
     "4": {
       "components": {
         "united_atom:Transvibrational": 6.880461178899526,
-        "united_atom:Rovibrational": 4.441585994100298,
+        "united_atom:Rovibrational": 4.441585994100294,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 11.322047172999824
+      "total": 11.32204717299982
     },
     "5": {
       "components": {
         "united_atom:Transvibrational": 15.473092273577388,
-        "united_atom:Rovibrational": 7.777083478334702,
+        "united_atom:Rovibrational": 7.7770834783347,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
@@ -57,7 +57,7 @@
     "6": {
       "components": {
         "united_atom:Transvibrational": 25.694168010993888,
-        "united_atom:Rovibrational": 6.731392483940261,
+        "united_atom:Rovibrational": 6.731392483940259,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
@@ -84,11 +84,11 @@
     "9": {
       "components": {
         "united_atom:Transvibrational": 4.023932761002867,
-        "united_atom:Rovibrational": 8.289324383636089,
+        "united_atom:Rovibrational": 8.289324383636092,
         "united_atom:Conformational": 0.0,
         "united_atom:Orientational": 0.0
       },
-      "total": 12.313257144638957
+      "total": 12.31325714463896
     }
   }
 }
