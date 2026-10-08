@@ -1076,12 +1076,12 @@ class AxesCalculator:
         degeneracy_rtol: float = 100 * np.finfo(np.float32).eps,
         reference_vector: Sequence[float] = (1.0, 2.0, 3.0),
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Compute reproducible principal axes and moments from a MOI tensor.
+        """Compute the principal axes and moments of a moment of inertia tensor.
 
-        ``np.linalg.eigh`` fixes neither the sign of each eigenvector nor the basis
-        within a degenerate eigenspace, and both can differ between LAPACK builds.
-        The axes define the frame covariances are averaged in, so this changes the
-        entropy. Both are therefore fixed here:
+        The eigenvectors of a symmetric tensor are only defined up to a sign, and,
+        for equal moments, up to a rotation within the degenerate eigenspace. The
+        axes are returned in a canonical form, so that a given tensor always
+        produces the same axes. The convention is:
 
         - Moments are sorted by descending absolute value.
         - Within a degenerate eigenspace (moments equal to within
@@ -1090,9 +1090,6 @@ class AxesCalculator:
           eigenspace.
         - The first two axes are signed to have a positive projection onto
           ``reference_vector``, and the third is their cross product.
-
-        The reference is defined in the lab frame, so the result is reproducible
-        but not rotation covariant.
 
         Args:
             moment_of_inertia_tensor: (3, 3) symmetric inertia tensor.
@@ -1134,7 +1131,7 @@ class AxesCalculator:
         return principal_axes, principal_moments
 
     def get_principal_axes_from_group(self, group) -> np.ndarray:
-        """Return the reproducible principal axes (rows) of an atom group."""
+        """Return the canonical principal axes (rows) of an atom group."""
         principal_axes, _ = self.get_principal_axes_from_tensor(
             group.atoms.moment_of_inertia()
         )
