@@ -129,7 +129,6 @@ def test_get_residue_axes_one_residue_uses_principal_axes(monkeypatch):
 
     u = MagicMock()
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
-    u.atoms.principal_axes.return_value = np.eye(3)
 
     # atom_set non-empty => bonded branch
     def _select_atoms(q):
@@ -159,7 +158,6 @@ def test_get_UA_axes_uses_principal_axes_when_single_heavy(monkeypatch):
     ax = AxesCalculator()
     u = MagicMock()
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
-    u.atoms.principal_axes.return_value = np.eye(3)
     u.center_of_mass.return_value = np.array([[4.0, 0.0, 0.0]])
 
     # heavy_atoms length <= 1 => principal_axes path
@@ -666,13 +664,11 @@ def test_get_residue_axes_one_residue_principal_axes_path(monkeypatch):
 
     residue = MagicMock()
     residue.__len__.return_value = 1
-    residue.atoms.principal_axes.return_value = np.eye(3) * 2
     residue.atoms.center_of_mass.return_value = np.array([1.0, 2.0, 3.0])
     residue.center_of_mass.return_value = np.array([1.0, 2.0, 3.0])
 
     u = MagicMock()
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
-    u.atoms.principal_axes.return_value = np.eye(3) * 2
 
     def _select_atoms(q):
         if q.startswith("(resindex"):
@@ -1788,7 +1784,7 @@ def test_get_chain(monkeypatch):
 def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
     ax = AxesCalculator()
     u = MagicMock()
-    u.atoms.principal_axes.return_value = np.eye(3)
+    u.atoms.atoms.moment_of_inertia.return_value = np.diag([3.0, 2.0, 1.0])
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
     heavy_atoms = [
         _atom(index=0, mass=12.0, pos=(1, 0, 0)),
