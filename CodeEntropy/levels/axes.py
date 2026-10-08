@@ -133,13 +133,7 @@ class AxesCalculator:
         )
 
         if len(edge_atom_set) == 0:
-            rot_axes = residue.atoms.principal_axes()
-            moment_of_inertia_tensor = residue.atoms.moment_of_inertia()
-            moment_of_inertia = [
-                moment_of_inertia_tensor[0][0],
-                moment_of_inertia_tensor[1][1],
-                moment_of_inertia_tensor[2][2],
-            ]
+            rot_axes, moi = self.get_vanilla_axes(residue)
             trans_axes = rot_axes  # per original convention
             rot_center = np.array(residue.center_of_mass())
         else:
@@ -197,24 +191,10 @@ class AxesCalculator:
                 - center: Residue centre, shape ``(3,)``.
                 - moment_of_inertia: Principal moments, shape ``(3,)``.
         """
-        dimensions = (
-            np.asarray(box, dtype=float)
-            if box is not None
-            else np.asarray(u.dimensions[:3], dtype=float)
-        )
         center = residue_atoms.center_of_mass(unwrap=True)
 
         if not topology.has_neighbor_bonds:
-            heavy_atoms = u.atoms[topology.residue_heavy_indices]
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
-                positions=heavy_atoms.positions,
-                masses=topology.residue_ua_masses,
-                dimensions=dimensions,
-            )
-            rot_axes, moment_of_inertia = self.get_custom_principal_axes(
-                moment_of_inertia_tensor
-            )
+            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue_atoms)
             trans_axes = rot_axes
         else:
             make_whole(mol.atoms)
@@ -270,7 +250,7 @@ class AxesCalculator:
 
         index = int(index)  # UA bead index
         heavy_atoms = data_container.select_atoms("mass 2 to 999")
-        # use the same customPI trans axes as the residue level
+        # use the same trans axes as the residue level
         if len(heavy_atoms) > 1:
             if len(data_container.residues) == 1:
                 # only the one residue => use principal axes
