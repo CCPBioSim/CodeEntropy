@@ -142,10 +142,17 @@ ARG_SPECS: dict[str, ArgSpec] = {
         default=True,
         help="Use combined force-torque matrix for residue-level vibrational entropies",
     ),
-    "customised_axes": ArgSpec(
-        type=bool,
-        default=True,
-        help="Use bonded axes to rotate forces for united-atom vibrational entropies",
+    "axes": ArgSpec(
+        type=str,
+        default="local",
+        help="Axes to be used for residue and UA level rotations. If set to principal, "
+        "principal axes of residue are used for residue rotation and UA translation "
+        "and principal axes of UA are used for UA rotation. If set to topology, "
+        "axes are determined using the cached topology indices rather than repeating "
+        "MDAnalysis selections each frame. Residue level rotation and UA translation "
+        "use principal axes of the residue. UA rotation uses bond-derived axes. If set"
+        "to local, local custom axes are used. Residue rotation and UA translation use "
+        "local internal coordinate-derived axes. UA rotation uses bond-derived axes.",
     ),
     "search_type": ArgSpec(
         type=str,
