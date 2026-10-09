@@ -103,12 +103,8 @@ def test_get_residue_axes_no_bonds_uses_custom_principal_axes(monkeypatch):
 
     u.select_atoms.side_effect = _select_atoms
 
-    monkeypatch.setattr(ax, "get_UA_masses", lambda mol: [10.0, 12.0])
-    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", lambda **kwargs: np.eye(3))
     monkeypatch.setattr(
-        ax,
-        "get_principal_axes_from_tensor",
-        lambda moi: (np.eye(3), np.array([3.0, 2.0, 1.0])),
+        ax, "get_molecule_axes", lambda molecule: (np.eye(3), np.array([3.0, 2.0, 1.0]))
     )
 
     trans, rot, center, moi = ax.get_residue_axes(u, index=7, relative_index=0)
@@ -142,9 +138,7 @@ def test_get_residue_axes_one_residue_uses_principal_axes(monkeypatch):
 
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     monkeypatch.setattr(
-        ax,
-        "get_moment_of_inertia_tensor",
-        lambda **kwargs: np.array([[9.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 7.0]]),
+        ax, "get_molecule_axes", lambda molecule: (np.eye(3), np.array([9.0, 8.0, 7.0]))
     )
 
     trans, rot, center, moi = ax.get_residue_axes(u, index=10, relative_index=0)
@@ -638,12 +632,10 @@ def test_get_residue_axes_no_bonds_custom_path(monkeypatch):
 
     u.select_atoms.side_effect = _select_atoms
 
-    monkeypatch.setattr(ax, "get_UA_masses", lambda mol: [10.0, 12.0])
-    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", lambda **kwargs: np.eye(3))
     monkeypatch.setattr(
         ax,
-        "get_principal_axes_from_tensor",
-        lambda moi: (np.eye(3), np.array([3.0, 2.0, 1.0])),
+        "get_molecule_axes",
+        lambda molecule: (2 * np.eye(3), np.array([3.0, 2.0, 1.0])),
     )
 
     trans, rot, center, moi = ax.get_residue_axes(u, index=7, relative_index=0)
@@ -678,14 +670,14 @@ def test_get_residue_axes_one_residue_principal_axes_path(monkeypatch):
 
     monkeypatch.setattr(
         ax,
-        "get_moment_of_inertia_tensor",
-        lambda **kwargs: np.array([[9.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 7.0]]),
+        "get_molecule_axes",
+        lambda molecule: (2 * np.eye(3), np.array([9.0, 8.0, 7.0])),
     )
 
     trans, rot, center, moi = ax.get_residue_axes(u, index=10, relative_index=0)
 
-    assert np.allclose(trans, np.eye(3))
-    assert np.allclose(rot, np.eye(3))
+    assert np.allclose(trans, 2 * np.eye(3))
+    assert np.allclose(rot, 2 * np.eye(3))
     assert np.allclose(center, np.array([1.0, 2.0, 3.0]))
     assert np.allclose(moi, np.array([9.0, 8.0, 7.0]))
 
@@ -937,11 +929,9 @@ def test_get_residue_axes_from_topology_no_neighbor_bonds_uses_cached_indices(
         has_neighbor_bonds=False,
     )
 
-    get_tensor = MagicMock(return_value=np.eye(3))
     get_principal = MagicMock(return_value=(np.eye(3) * 2.0, np.array([3.0, 2.0, 1.0])))
 
-    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", get_tensor)
-    monkeypatch.setattr(ax, "get_principal_axes_from_tensor", get_principal)
+    monkeypatch.setattr(ax, "get_molecule_axes", get_principal)
 
     box = np.array([20.0, 30.0, 40.0])
     trans_axes, rot_axes, center, moi = ax.get_residue_axes_from_topology(
@@ -956,18 +946,6 @@ def test_get_residue_axes_from_topology_no_neighbor_bonds_uses_cached_indices(
     np.testing.assert_allclose(rot_axes, np.eye(3) * 2.0)
     np.testing.assert_allclose(center, np.array([9.0, 8.0, 7.0]))
     np.testing.assert_allclose(moi, np.array([3.0, 2.0, 1.0]))
-
-    tensor_kwargs = get_tensor.call_args.kwargs
-    np.testing.assert_allclose(
-        tensor_kwargs["center_of_mass"],
-        np.array([9.0, 8.0, 7.0]),
-    )
-    np.testing.assert_allclose(
-        tensor_kwargs["positions"],
-        np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
-    )
-    np.testing.assert_allclose(tensor_kwargs["masses"], np.array([13.0, 14.0]))
-    np.testing.assert_allclose(tensor_kwargs["dimensions"], box)
     get_principal.assert_called_once()
 
 

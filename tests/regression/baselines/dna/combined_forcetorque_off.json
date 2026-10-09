@@ -5,28 +5,28 @@
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.0021606790121284584,
         "residue:Transvibrational": 0.0,
-        "residue:Rovibrational": 3.376800684085247,
+        "residue:Rovibrational": 3.385663647984109,
         "polymer:Transvibrational": 21.18266215491191,
         "polymer:Rovibrational": 12.837576042626923,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 42.15810489726392
+      "total": 42.16696786116278
     },
     "1": {
       "components": {
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.01846427765949588,
         "residue:Transvibrational": 0.0,
-        "residue:Rovibrational": 2.386320108254459,
+        "residue:Rovibrational": 2.437317643397837,
         "polymer:Transvibrational": 16.607667396609134,
         "polymer:Rovibrational": 12.304363914795605,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 36.07572103394641
+      "total": 36.12671856908978
     }
   }
 }
