@@ -133,7 +133,7 @@ class AxesCalculator:
         )
 
         if len(edge_atom_set) == 0:
-            rot_axes, moi = self.get_vanilla_axes(residue)
+            rot_axes, moment_of_inertia = self.get_vanilla_axes(residue)
             trans_axes = rot_axes  # per original convention
             rot_center = np.array(residue.center_of_mass())
         else:
