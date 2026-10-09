@@ -424,3 +424,39 @@ def test_extract_fragment_atomgroup_returns_lightweight_range_selection() -> Non
         "index 10:13",
         updating=False,
     )
+
+
+def test_build_non_periodic_dimensions_box_exceeds_twice_largest_extent():
+    coordinates = np.zeros((3, 2, 3))
+    coordinates[:, 1] = [50.0, 0.0, 0.0]
+
+    out = UniverseOperations._build_non_periodic_dimensions(coordinates)
+
+    assert out.shape == (3, 6)
+    assert np.all(out[:, :3] > 2 * 50.0)
+    assert np.allclose(out[:, 3:], 90.0)
+
+
+def test_merge_forces_builds_box_for_non_periodic_trajectory(monkeypatch):
+    ops = UniverseOperations()
+
+    u = MagicMock()
+    u.dimensions = None
+    u_force = MagicMock()
+    monkeypatch.setattr(
+        "CodeEntropy.trajectory.mda.mda.Universe", MagicMock(side_effect=[u, u_force])
+    )
+    ops._extract_timeseries = MagicMock(return_value=np.zeros((2, 2, 3)))
+    ops._extract_force_timeseries_with_fallback = MagicMock(
+        return_value=np.ones((2, 2, 3))
+    )
+
+    merged = MagicMock()
+    monkeypatch.setattr("CodeEntropy.trajectory.mda.mda.Merge", lambda ag: merged)
+
+    ops.merge_forces(
+        tprfile="tpr", trrfile="trr", forcefile="f.trr", fileformat=None, kcal=False
+    )
+
+    dimensions = merged.load_new.call_args.kwargs["dimensions"]
+    assert dimensions.shape == (2, 6)
