@@ -150,9 +150,10 @@ ARG_SPECS: dict[str, ArgSpec] = {
         "and principal axes of UA are used for UA rotation. If set to topology, "
         "axes are determined using the cached topology indices rather than repeating "
         "MDAnalysis selections each frame. Residue level rotation and UA translation "
-        "use principal axes of the residue. UA rotation uses bond-derived axes. If set"
-        "to local, local custom axes are used. Residue rotation and UA translation use "
-        "local internal coordinate-derived axes. UA rotation uses bond-derived axes.",
+        "use principal axes of the residue. UA rotation uses bond-derived axes. If set "
+        "to local, local level-specific custom axes are used. Residue rotation and UA "
+        "translation use local internal coordinate-derived axes. "
+        "UA rotation uses bond-derived axes.",
     ),
     "search_type": ArgSpec(
         type=str,
