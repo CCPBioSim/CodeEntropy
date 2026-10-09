@@ -379,12 +379,11 @@ class UniverseOperations:
 
     @staticmethod
     def _build_non_periodic_dimensions(coordinates: np.ndarray) -> np.ndarray:
-        """Build a box large enough that periodic wrapping never acts.
+        """Build a box for a trajectory without box dimensions.
 
-        Non-periodic trajectories (for example gas-phase simulations) carry no
-        box. The axes and covariance code applies the minimum image convention
-        and unwraps molecules, which requires a box. A cubic box more than
-        twice the largest interatomic distance makes both operations no-ops.
+        The axes and covariance code needs a box for the minimum image
+        convention and unwrapping. The box is cubic and more than twice the
+        largest interatomic distance, so neither step changes the coordinates.
 
         Args:
             coordinates: Positions with shape ``(n_frames, n_atoms, 3)``.
