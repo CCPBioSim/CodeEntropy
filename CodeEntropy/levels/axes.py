@@ -1111,30 +1111,6 @@ class AxesCalculator:
         )
         return principal_axes
 
-    def get_UA_masses(self, molecule) -> list[float]:
-        """Return united-atom (UA) masses for a molecule.
-
-        For a given molecule, return a list of masses of UAs (combination of the
-        heavy atoms + bonded hydrogen atoms). This list is used to get the moment
-        of inertia tensor for molecules larger than one UA.
-
-        Args:
-            molecule: MDAnalysis AtomGroup representing the molecule.
-
-        Returns:
-            list[float]: UA masses for each heavy atom.
-        """
-        ua_masses: list[float] = []
-        for atom in molecule:
-            if atom.mass > 1.1:
-                ua_mass = float(atom.mass)
-                bonded_atoms = molecule.select_atoms(f"bonded index {atom.index}")
-                bonded_h_atoms = bonded_atoms.select_atoms("mass 1 to 1.1")
-                for h in bonded_h_atoms:
-                    ua_mass += float(h.mass)
-                ua_masses.append(ua_mass)
-        return ua_masses
-
     def get_chain(self, residue, first, last):
         """
         For a given MDAnalysis AtomGroup and two given heavy atoms
