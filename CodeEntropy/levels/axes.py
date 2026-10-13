@@ -115,6 +115,7 @@ class AxesCalculator:
             ValueError:
                 If the residue selection is empty.
         """
+        print("THE LOCAL CUSTOM RESIDUE AXES")
         # TODO refine selection so that it will work for branched polymers
 
         index_prev = index + relative_index - 1
@@ -204,6 +205,7 @@ class AxesCalculator:
                 - center: Residue centre, shape ``(3,)``.
                 - moment_of_inertia: Principal moments, shape ``(3,)``.
         """
+        print("THE TOPOLOGY AXES")
         dimensions = (
             np.asarray(box, dtype=float)
             if box is not None
@@ -274,7 +276,7 @@ class AxesCalculator:
             ValueError:
                 If axis construction fails.
         """
-
+        print("THE LOCAL UA AXES")
         index = int(index)  # UA bead index
         heavy_atoms = data_container.select_atoms("mass 2 to 999")
         # use the same customPI trans axes as the residue level
@@ -401,6 +403,7 @@ class AxesCalculator:
         Raises:
             ValueError: If cached bonded-axis construction fails.
         """
+        print("THE TOPOLOGY AXES")
         dimensions = (
             np.asarray(box, dtype=float)
             if box is not None
