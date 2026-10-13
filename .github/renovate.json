@@ -7,7 +7,7 @@
   "timezone": "Europe/London",
   "schedule": ["after 9am and before 5pm every weekday"],
   "dependencyDashboard": true,
-  "assignees": ["harryswift01", "jimboid"],
+  "reviewers": ["harryswift01", "jimboid"],
   "minimumReleaseAge": "3 days",
   "packageRules": [
     {
