@@ -16,14 +16,14 @@
       "addLabels": ["ci", "dependencies"]
     },
     {
-      "matchManagers": ["pep621"],
+      "matchManagers": ["poetry", "pep621"],
       "matchDepTypes": ["project.dependencies"],
       "rangeStrategy": "widen",
       "groupName": "Software Production Dependencies",
       "addLabels": ["python", "production-deps"]
     },
     {
-      "matchManagers": ["pep621"],
+      "matchManagers": ["poetry", "pep621"],
       "matchDepTypes": ["project.optional-dependencies", "build-system.requires"],
       "rangeStrategy": "replace",
       "groupName": "Python CI and Dev Tools",
