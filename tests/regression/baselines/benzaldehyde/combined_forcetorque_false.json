@@ -3,14 +3,14 @@
     "0": {
       "components": {
         "united_atom:Transvibrational": 0.06817494136874551,
-        "united_atom:Rovibrational": 49.686697381523466,
+        "united_atom:Rovibrational": 49.686697381523516,
         "residue:Transvibrational": 69.25273989458984,
-        "residue:Rovibrational": 68.64810133422232,
+        "residue:Rovibrational": 68.6481013342223,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 20.481571492615355
       },
-      "total": 208.13728504431973
+      "total": 208.13728504431975
     }
   }
 }
