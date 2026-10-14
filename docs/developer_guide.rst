@@ -181,9 +181,9 @@ bound (floor) is the oldest release CodeEntropy is known to work with, so that i
 stays installable alongside other scientific packages. Floors are only raised
 when the code needs a newer release. Upper bounds are widened by Renovate.
 
-The ``dependency-floors.yaml`` workflow checks this on pull requests that change
-``pyproject.toml`` and weekly. It checks that the lowest allowed versions resolve
-to installable wheels on each platform and Python version, and that the unit tests
+The unit job in the pull request workflow and the weekly ``dependency-floors.yaml``
+workflow check this. They check that the lowest allowed versions resolve to
+installable wheels on each platform and Python version, and that the unit tests
 pass with them installed.
 
 Run the same checks locally with `uv <https://docs.astral.sh/uv/>`_::

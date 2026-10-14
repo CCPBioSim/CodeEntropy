@@ -1,10 +1,6 @@
 name: Dependency Floors
 
 on:
-  pull_request:
-    paths:
-      - pyproject.toml
-      - .github/workflows/dependency-floors.yaml
   schedule:
     - cron: '0 8 * * 1'
   workflow_dispatch:
