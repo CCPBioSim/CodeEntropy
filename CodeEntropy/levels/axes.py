@@ -169,7 +169,6 @@ class AxesCalculator:
         mol,
         residue_atoms,
         topology,
-        box: np.ndarray | None,
     ):
         """Compute residue axes using cached static topology.
 
@@ -183,7 +182,6 @@ class AxesCalculator:
             mol: Current-frame molecule fragment.
             residue_atoms: AtomGroup for the residue in the current frame.
             topology: Cached ``ResidueAxesTopology`` for this residue.
-            box: Current periodic box lengths. If omitted, ``u.dimensions`` is used.
 
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
