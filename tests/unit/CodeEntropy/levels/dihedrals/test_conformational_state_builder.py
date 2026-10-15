@@ -120,9 +120,9 @@ def test_build_conformational_states_with_progress_handles_no_groups():
     )
 
     assert states_ua == {}
-    assert states_res == []
+    assert states_res == {}
     assert flex_ua == {}
-    assert flex_res == []
+    assert flex_res == {}
     progress.add_task.assert_called_once()
     progress.update.assert_called_once_with(123, title="No groups")
     progress.advance.assert_called_once_with(123)
@@ -143,9 +143,9 @@ def test_build_conformational_states_with_progress_skips_empty_molecule_group():
     )
 
     assert states_ua == {}
-    assert states_res == [[]]
+    assert states_res == {}
     assert flex_ua == {}
-    assert flex_res == []
+    assert flex_res == {}
     progress.update.assert_called_with(5, title="Group 0 (empty)")
     progress.advance.assert_called_with(5)
 
@@ -179,9 +179,9 @@ def test_chunked_serial_group_flow_calls_domain_phases_in_order():
     )
 
     assert states_ua == {(0, 0): ["0"]}
-    assert states_res == [[], []]
+    assert states_res == {0: []}
     assert flexible_ua == {(0, 0): 0}
-    assert flexible_res == [0]
+    assert flexible_res == {0: 0}
     builder._discover_group_dihedral_topology.assert_called_once_with(
         data_container="universe",
         group_id=0,

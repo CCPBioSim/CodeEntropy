@@ -16,13 +16,13 @@
       "components": {
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.00013794104464519378,
-        "residue:FTmat-Transvibrational": 14.571797812433097,
+        "residue:FTmat-Transvibrational": 14.571797812433102,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 45.863560270951176
       },
-      "total": 60.435496024428915
+      "total": 60.43549602442892
     },
     "2": {
       "components": {
@@ -39,43 +39,43 @@
     "3": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 0.0031285818933102097,
-        "residue:FTmat-Transvibrational": 21.241358919104755,
+        "united_atom:Rovibrational": 0.003128581893310219,
+        "residue:FTmat-Transvibrational": 21.24135891910476,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 21.244487500998066
+      "total": 21.24448750099807
     },
     "4": {
       "components": {
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.0015070029381425056,
-        "residue:FTmat-Transvibrational": 12.221662826352398,
+        "residue:FTmat-Transvibrational": 12.221662826352395,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 12.22316982929054
+      "total": 12.223169829290537
     },
     "5": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 0.005775850934008876,
-        "residue:FTmat-Transvibrational": 7.61563645334877,
+        "united_atom:Rovibrational": 0.005775850934008859,
+        "residue:FTmat-Transvibrational": 7.615636453348772,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 7.621412304282779
+      "total": 7.621412304282781
     },
     "6": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 0.00028812747686091,
+        "united_atom:Rovibrational": 0.00028812747686091095,
         "residue:FTmat-Transvibrational": 16.555914111511573,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
@@ -88,25 +88,25 @@
       "components": {
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.0013568745282136598,
-        "residue:FTmat-Transvibrational": 15.710677571869644,
+        "residue:FTmat-Transvibrational": 15.71067757186965,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 15.712034446397857
+      "total": 15.712034446397864
     },
     "8": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 8.389568220414916e-05,
-        "residue:FTmat-Transvibrational": 13.516454082542095,
+        "united_atom:Rovibrational": 8.389568220414944e-05,
+        "residue:FTmat-Transvibrational": 13.516454082542088,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 13.5165379782243
+      "total": 13.516537978224292
     },
     "9": {
       "components": {
