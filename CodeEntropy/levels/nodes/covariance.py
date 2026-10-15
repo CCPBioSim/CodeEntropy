@@ -578,7 +578,6 @@ class FrameCovarianceNode:
                 relative_res_i=relative_res_i,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,
-                box=box,
                 customised_axes=customised_axes,
             )
 
@@ -615,7 +614,6 @@ class FrameCovarianceNode:
         relative_res_i: int,
         axes_manager: Any,
         axes_topology: Any | None,
-        box: np.ndarray | None,
         customised_axes: bool,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Return axes, centre, and inertia data for a residue bead.
@@ -630,7 +628,6 @@ class FrameCovarianceNode:
             might differ from residue index of first residue in topology.
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
-            box: Optional periodic box vector.
             customised_axes: Whether customised residue axes should be used.
 
         Returns:
@@ -644,11 +641,7 @@ class FrameCovarianceNode:
 
             if residue_topology is not None:
                 return axes_manager.get_residue_axes_from_topology(
-                    u=u,
-                    mol=mol,
-                    residue_atoms=res.atoms,
-                    topology=residue_topology,
-                    box=box,
+                    u=u, mol=mol, residue_atoms=res.atoms, topology=residue_topology
                 )
 
             return axes_manager.get_residue_axes(
