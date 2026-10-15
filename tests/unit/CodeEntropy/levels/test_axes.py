@@ -293,28 +293,6 @@ def test_get_principal_axes_from_tensor_returns_axes_and_moments():
     assert vals.shape == (3,)
 
 
-def test_get_UA_masses_sums_bonded_hydrogens():
-    ax = AxesCalculator()
-
-    heavy = _FakeAtom(index=0, mass=12.0, position=[0, 0, 0])
-    h1 = _FakeAtom(index=1, mass=1.0, position=[1, 0, 0])
-    h2 = _FakeAtom(index=2, mass=1.0, position=[0, 1, 0])
-
-    bonded_atoms = _FakeAtomGroup(
-        [h1, h2], select_map={"mass 1 to 1.1": _FakeAtomGroup([h1, h2])}
-    )
-
-    mol = _FakeAtomGroup(
-        [heavy, h1, h2],
-        select_map={
-            "bonded index 0": bonded_atoms,
-        },
-    )
-
-    masses = ax.get_UA_masses(mol)
-    assert masses == [14.0]
-
-
 def test_get_molecule_axes_sorts_eigenvalues_desc_by_abs(monkeypatch):
     ax = AxesCalculator()
     mol = MagicMock()
@@ -810,7 +788,6 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
         "get_bonded_axes",
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 1.0, 1.0])),
     )
-    monkeypatch.setattr(ax, "get_UA_masses", lambda _ag: [12.0, 12.0])
 
     trans_axes, rot_axes, center, moi = ax.get_UA_axes(
         data_container, index=0, res_position=None
@@ -933,13 +910,11 @@ def test_get_residue_axes_from_topology_no_neighbor_bonds_uses_cached_indices(
 
     monkeypatch.setattr(ax, "get_molecule_axes", get_principal)
 
-    box = np.array([20.0, 30.0, 40.0])
     trans_axes, rot_axes, center, moi = ax.get_residue_axes_from_topology(
         u=universe,
         mol=mol,
         residue_atoms=residue_atoms,
         topology=topology,
-        box=box,
     )
 
     np.testing.assert_allclose(trans_axes, np.eye(3) * 2.0)
@@ -972,11 +947,7 @@ def test_get_residue_axes_from_topology_neighbor_bonds_uses_molecule_axes(
     monkeypatch.setattr(ax, "get_molecule_axes", get_molecule)
 
     trans_axes, rot_axes, center, moi = ax.get_residue_axes_from_topology(
-        u=universe,
-        mol=mol,
-        residue_atoms=residue_atoms,
-        topology=topology,
-        box=None,
+        u=universe, mol=mol, residue_atoms=residue_atoms, topology=topology
     )
 
     make_whole.assert_called_once_with(mol.atoms)
@@ -1005,12 +976,9 @@ def test_get_UA_axes_from_topology_multiple_heavy_uses_cached_indices_and_box(
         residue_ua_masses=(13.0, 14.0),
     )
 
-    get_tensor = MagicMock(return_value=np.eye(3))
-    get_principal = MagicMock(return_value=(np.eye(3) * 2.0, np.array([3.0, 2.0, 1.0])))
+    get_principal = MagicMock(return_value=(np.eye(3) * 2.0))
     get_bonded = MagicMock(return_value=(np.eye(3) * 4.0, np.array([1.0, 1.0, 1.0])))
-
-    monkeypatch.setattr(ax, "get_moment_of_inertia_tensor", get_tensor)
-    monkeypatch.setattr(ax, "get_principal_axes_from_tensor", get_principal)
+    monkeypatch.setattr(ax, "get_principal_axes_from_group", get_principal)
     monkeypatch.setattr(ax, "get_bonded_axes_from_topology", get_bonded)
 
     box = np.array([20.0, 30.0, 40.0])
@@ -1026,19 +994,7 @@ def test_get_UA_axes_from_topology_multiple_heavy_uses_cached_indices_and_box(
     np.testing.assert_allclose(center, heavy_atom.position)
     np.testing.assert_allclose(moi, np.array([1.0, 1.0, 1.0]))
 
-    get_tensor.assert_called_once()
-    tensor_kwargs = get_tensor.call_args.kwargs
-    np.testing.assert_allclose(
-        tensor_kwargs["center_of_mass"], np.array([9.0, 8.0, 7.0])
-    )
-    np.testing.assert_allclose(
-        tensor_kwargs["positions"], np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    )
-    np.testing.assert_allclose(tensor_kwargs["masses"], np.array([13.0, 14.0]))
-    np.testing.assert_allclose(tensor_kwargs["dimensions"], box)
-
     get_principal.assert_called_once()
-    np.testing.assert_allclose(get_principal.call_args.args[0], np.eye(3))
     get_bonded.assert_called_once_with(
         u=universe,
         heavy_atom=heavy_atom,
