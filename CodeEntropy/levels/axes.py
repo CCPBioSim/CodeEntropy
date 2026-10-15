@@ -385,16 +385,7 @@ class AxesCalculator:
         heavy_atom = u.atoms[int(topology.heavy_atom_index)]
 
         if len(heavy_atoms) > 1:
-            center = residue_atoms.center_of_mass(unwrap=True)
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
-                positions=heavy_atoms.positions,
-                masses=topology.residue_ua_masses,
-                dimensions=dimensions,
-            )
-            trans_axes, _moment_of_inertia = self.get_principal_axes_from_tensor(
-                moment_of_inertia_tensor
-            )
+            trans_axes = self.get_principal_axes_from_group(residue_atoms)
         else:
             make_whole(residue_atoms)
             trans_axes = self.get_principal_axes_from_group(residue_atoms)
