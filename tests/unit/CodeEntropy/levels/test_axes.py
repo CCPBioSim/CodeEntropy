@@ -921,6 +921,7 @@ def test_get_residue_axes_from_topology_no_neighbor_bonds_uses_cached_indices(
     np.testing.assert_allclose(rot_axes, np.eye(3) * 2.0)
     np.testing.assert_allclose(center, np.array([9.0, 8.0, 7.0]))
     np.testing.assert_allclose(moi, np.array([3.0, 2.0, 1.0]))
+
     get_principal.assert_called_once()
 
 
@@ -947,7 +948,10 @@ def test_get_residue_axes_from_topology_neighbor_bonds_uses_molecule_axes(
     monkeypatch.setattr(ax, "get_molecule_axes", get_molecule)
 
     trans_axes, rot_axes, center, moi = ax.get_residue_axes_from_topology(
-        u=universe, mol=mol, residue_atoms=residue_atoms, topology=topology
+        u=universe,
+        mol=mol,
+        residue_atoms=residue_atoms,
+        topology=topology,
     )
 
     make_whole.assert_called_once_with(mol.atoms)
@@ -978,6 +982,7 @@ def test_get_UA_axes_from_topology_multiple_heavy_uses_cached_indices_and_box(
 
     get_principal = MagicMock(return_value=(np.eye(3) * 2.0))
     get_bonded = MagicMock(return_value=(np.eye(3) * 4.0, np.array([1.0, 1.0, 1.0])))
+
     monkeypatch.setattr(ax, "get_principal_axes_from_group", get_principal)
     monkeypatch.setattr(ax, "get_bonded_axes_from_topology", get_bonded)
 
@@ -2172,3 +2177,44 @@ def test_get_non_terminal_axes_3points(monkeypatch):
 
     assert np.allclose(centre, [1, 0, 0])
     assert np.allclose(axes, 3 * np.eye(3))
+
+
+def test_get_residue_axes_all_atom_MOI(monkeypatch):
+    ax = AxesCalculator()
+    u = MagicMock()
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
+    residue = u.select_atoms("resindex 1")
+    residue.__len__.return_value = 5
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    atoms = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+            _atom(index=2, mass=12.0, pos=(0, 0, 1)),
+            _atom(index=3, mass=1.0, pos=(0, 0, 0)),
+            _atom(index=4, mass=1.0, pos=(1, 1, 1)),
+        ],
+        positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0], [1, 1, 1]]),
+    )
+    residue.atoms.positions = atoms.positions
+    residue.atoms.masses = atoms.masses
+
+    def _select_atoms(q):
+        if q.startswith("resindex"):
+            return atoms[0:2]
+
+    u.atoms.select_atoms.side_effect = _select_atoms
+    monkeypatch.setattr(ax, "get_principal_axes_from_group", lambda _ag: 2 * np.eye(3))
+    monkeypatch.setattr(
+        ax,
+        "get_non_terminal_axes",
+        lambda residue, edges, dimensions: ([1, 0, 0], np.eye(3)),
+    )
+    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
+        data_container=u, index=1, relative_index=0, residue=None
+    )
+
+    assert np.allclose(trans_axes, 2 * np.eye(3))
+    assert np.allclose(rot_axes, np.eye(3))
+    assert np.allclose(rot_center, [1, 0, 0])
+    assert np.allclose(moi, [26, 38, 38])
