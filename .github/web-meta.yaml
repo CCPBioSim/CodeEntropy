@@ -4,3 +4,4 @@ category: "scientific"
 image: "codeentropy-logo-chip-dark.svg"
 pypi: true
 conda: true
+ghcr: false
