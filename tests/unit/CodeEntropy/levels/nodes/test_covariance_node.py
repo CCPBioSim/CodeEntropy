@@ -573,7 +573,6 @@ def test_get_residue_axes_customised_uses_cached_topology_when_available():
         relative_res_i=0,
         axes_manager=axes_manager,
         axes_topology=axes_topology,
-        box=None,
         customised_axes=True,
     )
 
@@ -601,7 +600,6 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
             relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
-            box=None,
             customised_axes=True,
         )
         == expected
@@ -636,7 +634,6 @@ def test_get_residue_axes_molecule_uses_make_whole_and_molecule_axes():
             relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
-            box=None,
             customised_axes=False,
         )
 

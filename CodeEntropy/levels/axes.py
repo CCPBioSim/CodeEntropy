@@ -82,15 +82,14 @@ class AxesCalculator:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atom (i.e. heavy atoms bonded to neighbour residue).
               Compute rotation centre and axes as in get_terminal_axes.
-              Compute custom MOI, using heavy atom positions and
-              heavy atom + hydrogen masses.
+              Compute custom MOI, using all atoms positions and masses.
 
         - If bonded to at least two other residues:
             * Translational axes are principal axes of data_container.
             * Find edge heavy atoms (i.e. heavy atoms bonded to neighbour residues).
               Compute rotation centre and axes as in get_non_terminal_axes.
-              Compute a custom MOI, using heavy atom positions and
-              heavy atom + hydrogen masses.
+              Compute custom MOI, using all atoms positions and masses.
+
 
         Args:
             data_container (MDAnalysis.Universe or AtomGroup):
@@ -134,19 +133,8 @@ class AxesCalculator:
             f"resindex {index_next})"
         )
 
-        uas = residue.select_atoms("mass 2 to 999")
-        ua_masses = self.get_UA_masses(residue)
-
         if len(edge_atom_set) == 0:
-            moi_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=np.array(residue.center_of_mass()),
-                positions=uas.positions,
-                masses=ua_masses,
-                dimensions=data_container.dimensions[:3],
-            )
-            rot_axes, moment_of_inertia = self.get_principal_axes_from_tensor(
-                moi_tensor
-            )
+            rot_axes, moment_of_inertia = self.get_molecule_axes(residue)
             trans_axes = rot_axes  # per original convention
             rot_center = np.array(residue.center_of_mass())
         else:
@@ -167,8 +155,8 @@ class AxesCalculator:
                 )
             moment_of_inertia = self.get_custom_residue_moment_of_inertia(
                 center_of_mass=rot_center,
-                positions=uas.positions,
-                masses=ua_masses,
+                positions=residue.atoms.positions,
+                masses=residue.atoms.masses,
                 custom_rot_axes=rot_axes,
                 dimensions=data_container.dimensions[:3],
             )
@@ -181,7 +169,6 @@ class AxesCalculator:
         mol,
         residue_atoms,
         topology,
-        box: np.ndarray | None,
     ):
         """Compute residue axes using cached static topology.
 
@@ -195,7 +182,6 @@ class AxesCalculator:
             mol: Current-frame molecule fragment.
             residue_atoms: AtomGroup for the residue in the current frame.
             topology: Cached ``ResidueAxesTopology`` for this residue.
-            box: Current periodic box lengths. If omitted, ``u.dimensions`` is used.
 
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -204,24 +190,10 @@ class AxesCalculator:
                 - center: Residue centre, shape ``(3,)``.
                 - moment_of_inertia: Principal moments, shape ``(3,)``.
         """
-        dimensions = (
-            np.asarray(box, dtype=float)
-            if box is not None
-            else np.asarray(u.dimensions[:3], dtype=float)
-        )
         center = residue_atoms.center_of_mass(unwrap=True)
 
         if not topology.has_neighbor_bonds:
-            heavy_atoms = u.atoms[topology.residue_heavy_indices]
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
-                positions=heavy_atoms.positions,
-                masses=topology.residue_ua_masses,
-                dimensions=dimensions,
-            )
-            rot_axes, moment_of_inertia = self.get_principal_axes_from_tensor(
-                moment_of_inertia_tensor
-            )
+            rot_axes, moment_of_inertia = self.get_molecule_axes(residue_atoms)
             trans_axes = rot_axes
         else:
             make_whole(mol.atoms)
@@ -277,7 +249,7 @@ class AxesCalculator:
 
         index = int(index)  # UA bead index
         heavy_atoms = data_container.select_atoms("mass 2 to 999")
-        # use the same customPI trans axes as the residue level
+        # use the same trans axes as the residue level
         if len(heavy_atoms) > 1:
             if len(data_container.residues) == 1:
                 # only the one residue => use principal axes
@@ -411,16 +383,7 @@ class AxesCalculator:
         heavy_atom = u.atoms[int(topology.heavy_atom_index)]
 
         if len(heavy_atoms) > 1:
-            center = residue_atoms.center_of_mass(unwrap=True)
-            moment_of_inertia_tensor = self.get_moment_of_inertia_tensor(
-                center_of_mass=center,
-                positions=heavy_atoms.positions,
-                masses=topology.residue_ua_masses,
-                dimensions=dimensions,
-            )
-            trans_axes, _moment_of_inertia = self.get_principal_axes_from_tensor(
-                moment_of_inertia_tensor
-            )
+            trans_axes = self.get_principal_axes_from_group(residue_atoms)
         else:
             make_whole(residue_atoms)
             trans_axes = self.get_principal_axes_from_group(residue_atoms)
@@ -921,8 +884,8 @@ class AxesCalculator:
 
         Args:
             center_of_mass: (3, ) COM for bead
-            positions: (N,3) positions of the UAs in the bead
-            masses: (N,) masses of the UAs in the bead
+            positions: (N,3) positions of the atoms in the bead
+            masses: (N,) masses of the atoms in the bead
             custom_rot_axes: (3,3) array of residue rotation axes
             dimensions: (3,) simulation_box_dimensions
 
@@ -1136,30 +1099,6 @@ class AxesCalculator:
             group.atoms.moment_of_inertia()
         )
         return principal_axes
-
-    def get_UA_masses(self, molecule) -> list[float]:
-        """Return united-atom (UA) masses for a molecule.
-
-        For a given molecule, return a list of masses of UAs (combination of the
-        heavy atoms + bonded hydrogen atoms). This list is used to get the moment
-        of inertia tensor for molecules larger than one UA.
-
-        Args:
-            molecule: MDAnalysis AtomGroup representing the molecule.
-
-        Returns:
-            list[float]: UA masses for each heavy atom.
-        """
-        ua_masses: list[float] = []
-        for atom in molecule:
-            if atom.mass > 1.1:
-                ua_mass = float(atom.mass)
-                bonded_atoms = molecule.select_atoms(f"bonded index {atom.index}")
-                bonded_h_atoms = bonded_atoms.select_atoms("mass 1 to 1.1")
-                for h in bonded_h_atoms:
-                    ua_mass += float(h.mass)
-                ua_masses.append(ua_mass)
-        return ua_masses
 
     def get_chain(self, residue, first, last):
         """
