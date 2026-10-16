@@ -32,6 +32,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
+from CodeEntropy import __version__
 from CodeEntropy.config.argparse import ConfigResolver
 from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
@@ -135,20 +136,21 @@ class CodeEntropyRunner:
             return None
 
     def show_splash(self) -> None:
-        """Render a Rich splash screen with optional citation metadata."""
+        """Render a Rich splash screen.
+
+        The version shown is that of the locally installed package. Remaining
+        metadata (authors, description, URL) comes from the online citation file
+        when it is reachable.
+        """
         citation = self.load_citation_data()
+        version_text = Align.center(Text(f"Version {__version__}", style="green"))
 
         if citation:
             ascii_title = text2art(citation.get("title", "CodeEntropy"))
             ascii_render = Align.center(Text(ascii_title, style="bold white"))
 
-            version = citation.get("version", "?")
-            release_date = citation.get("date-released", "?")
             url = citation.get("url", citation.get("repository-code", ""))
 
-            version_text = Align.center(
-                Text(f"Version {version} | Released {release_date}", style="green")
-            )
             url_text = Align.center(Text(url, style="blue underline"))
 
             abstract = citation.get("abstract", "No description available.")
@@ -193,7 +195,7 @@ class CodeEntropyRunner:
         else:
             ascii_title = text2art("CodeEntropy")
             ascii_render = Align.center(Text(ascii_title, style="bold white"))
-            splash_content = Group(ascii_render)
+            splash_content = Group(ascii_render, Rule(style="cyan"), version_text)
 
         splash_panel = Panel(
             splash_content,

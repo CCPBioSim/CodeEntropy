@@ -354,7 +354,10 @@ class UniverseOperations:
         select_atom_force = u_force.select_atoms("all")
 
         coordinates = self._extract_timeseries(select_atom, kind="positions")
-        dimensions = self._extract_timeseries(select_atom, kind="dimensions")
+        if u.dimensions is None:
+            dimensions = self._build_non_periodic_dimensions(coordinates)
+        else:
+            dimensions = self._extract_timeseries(select_atom, kind="dimensions")
 
         forces = self._extract_force_timeseries_with_fallback(
             select_atom_force,
@@ -373,6 +376,30 @@ class UniverseOperations:
         )
 
         return new_universe
+
+    @staticmethod
+    def _build_non_periodic_dimensions(coordinates: np.ndarray) -> np.ndarray:
+        """Build a box for a trajectory without box dimensions.
+
+        The axes and covariance code needs a box for the minimum image
+        convention and unwrapping. The box is cubic and more than twice the
+        largest interatomic distance, so neither step changes the coordinates.
+
+        Args:
+            coordinates: Positions with shape ``(n_frames, n_atoms, 3)``.
+
+        Returns:
+            Array of shape ``(n_frames, 6)`` holding the box lengths and 90
+            degree angles for every frame.
+        """
+        span = float(np.max(np.ptp(coordinates, axis=1)))
+        length = max(10.0 * span, 100.0)
+        box = np.array([length, length, length, 90.0, 90.0, 90.0], dtype=np.float32)
+        logger.warning(
+            "Trajectory has no box dimensions; treating it as non-periodic "
+            f"using a {length:.1f} A cubic box."
+        )
+        return np.tile(box, (coordinates.shape[0], 1))
 
     def _extract_timeseries(self, atomgroup, *, kind: str) -> np.ndarray:
         """Extract a time series array using explicit frame indexing.

@@ -7,7 +7,7 @@
   "timezone": "Europe/London",
   "schedule": ["after 9am and before 5pm every weekday"],
   "dependencyDashboard": true,
-  "assignees": ["harryswift01", "jimboid"],
+  "reviewers": ["harryswift01", "jimboid"],
   "minimumReleaseAge": "3 days",
   "packageRules": [
     {
@@ -16,14 +16,14 @@
       "addLabels": ["ci", "dependencies"]
     },
     {
-      "matchManagers": ["pep621"],
+      "matchManagers": ["poetry", "pep621"],
       "matchDepTypes": ["project.dependencies"],
       "rangeStrategy": "widen",
       "groupName": "Software Production Dependencies",
       "addLabels": ["python", "production-deps"]
     },
     {
-      "matchManagers": ["pep621"],
+      "matchManagers": ["poetry", "pep621"],
       "matchDepTypes": ["project.optional-dependencies", "build-system.requires"],
       "rangeStrategy": "replace",
       "groupName": "Python CI and Dev Tools",
