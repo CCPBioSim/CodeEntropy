@@ -13,43 +13,28 @@ concurrency:
 jobs:
   unit:
     name: Unit
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-26, windows-2025-vs2026]
-        python-version: ["3.12", "3.13", "3.14"]
+    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    permissions:
+      contents: read
+      checks: write
+      statuses: write
+      pull-requests: write
+    with:
+      package: CodeEntropy
+      test-path: tests/unit
+      os: '["ubuntu-24.04", "macos-26", "windows-2025-vs2026"]'
+      coverage-python-version: "3.15"
+      timeout-minutes: 25
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install testing dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[testing]
-
-      - name: Pytest unit • ${{ matrix.os }}, ${{ matrix.python-version }}
-        run: python -m pytest tests/unit
-
-      - name: Install uv
-        run: python -m pip install uv
-
-      - name: Resolve lowest dependencies as wheels
-        run: |
-          uv pip compile pyproject.toml --resolution lowest-direct --only-binary :all: --output-file lowest.txt
-
-      - name: Install lowest dependencies
-        run: uv pip install --system --reinstall --resolution lowest-direct -e ".[testing]"
-
-      - name: Pytest unit at lowest dependencies • ${{ matrix.os }}, ${{ matrix.python-version }}
-        run: python -m pytest tests/unit
+  lowest-dependencies:
+    name: Lowest dependencies
+    uses: CCPBioSim/.github/.github/workflows/ci-lowest-dependencies.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    permissions:
+      contents: read
+    with:
+      test-path: tests/unit
+      os: '["ubuntu-24.04", "macos-26", "windows-2025-vs2026"]'
+      timeout-minutes: 25
 
   discover-systems:
     name: Discover regression systems
@@ -122,101 +107,19 @@ jobs:
   docs:
     name: Docs
     needs: unit
-    runs-on: ubuntu-26.04
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.15"
-
-      - name: Install docs dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[docs]
-
-      - name: Build docs
-        run: |
-          make -C docs clean
-          make -C docs html SPHINXOPTS="-W --keep-going"
-
-      - name: Upload docs artifact
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: docs-html
-          path: docs/_build/html
+    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    permissions:
+      contents: read
+    with:
+      python-versions: '["3.15"]'
+      timeout-minutes: 25
 
   pre-commit:
     name: Pre-commit
     needs: unit
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.15"
-
-      - name: Install pre-commit dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[pre-commit]
-
-      - name: Run pre-commit
-        run: |
-          pre-commit install
-          pre-commit run --all-files || {
-            git status --short
-            git diff
-            exit 1
-          }
-
-  coverage:
-    name: Coverage
-    needs: unit
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-
+    uses: CCPBioSim/.github/.github/workflows/ci-pre-commit.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
     permissions:
       contents: read
-      checks: write
-      statuses: write
-      pull-requests: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.15"
-
-      - name: Install testing dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[testing]
-
-      - name: Run coverage
-        run: |
-          python -m pytest tests/unit \
-            --cov CodeEntropy \
-            --cov-report term-missing \
-            --cov-report xml \
-            -q
-
-      - name: Upload coverage to Coveralls
-        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          file: coverage.xml
-          fail-on-error: false
+    with:
+      python-version: "3.15"
+      timeout-minutes: 15

@@ -14,37 +14,11 @@ concurrency:
 
 jobs:
   lowest:
-    name: Lowest dependencies (${{ matrix.os }}, py${{ matrix.python-version }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-26.04, macos-26, windows-2025-vs2026]
-        python-version: ["3.12", "3.13", "3.14"]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install uv
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install uv
-
-      - name: Resolve lowest dependencies as wheels
-        run: |
-          uv pip compile pyproject.toml --resolution lowest-direct --only-binary :all: --output-file lowest.txt
-          cat lowest.txt
-
-      - name: Install lowest dependencies
-        run: uv pip install --system --resolution lowest-direct -e ".[testing]"
-
-      - name: Run unit tests
-        run: python -m pytest tests/unit
+    name: Lowest dependencies
+    uses: CCPBioSim/.github/.github/workflows/ci-lowest-dependencies.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    permissions:
+      contents: read
+    with:
+      test-path: tests/unit
+      os: '["ubuntu-26.04", "macos-26", "windows-2025-vs2026"]'
+      timeout-minutes: 30
