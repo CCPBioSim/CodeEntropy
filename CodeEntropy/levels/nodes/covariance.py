@@ -83,7 +83,7 @@ class FrameCovarianceNode:
 
         fp = float(args.force_partitioning)
         combined = bool(getattr(args, "combined_forcetorque", False))
-        axes = bool(getattr(args, "axes", False))
+        axes = str(getattr(args, "axes", False))
 
         box = self._try_get_box(u)
         fragments = u.atoms.fragments
@@ -178,7 +178,7 @@ class FrameCovarianceNode:
         axes_topology: Any | None,
         box: np.ndarray | None,
         force_partitioning: float,
-        axes: bool,
+        axes: str,
         is_highest: bool,
         out_force: dict[str, dict[Any, Matrix]],
         out_torque: dict[str, dict[Any, Matrix]],
@@ -205,7 +205,7 @@ class FrameCovarianceNode:
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             force_partitioning: Force partitioning factor for highest-level vectors.
-            axes: Whether customised UA axes should be used.
+            axes: Which UA axes should be used.
             is_highest: Whether united atom is the highest active level.
             out_force: Frame-local force second-moment accumulator, mutated in place.
             out_torque: Frame-local torque second-moment accumulator, mutated in place.
@@ -281,7 +281,7 @@ class FrameCovarianceNode:
         axes_manager: Any,
         axes_topology: Any | None,
         box: np.ndarray | None,
-        axes: bool,
+        axes: str,
         force_partitioning: float,
         is_highest: bool,
         out_force: dict[str, dict[Any, Matrix]],
@@ -301,7 +301,7 @@ class FrameCovarianceNode:
             axes_manager: Axes helper used to build translation and rotation axes.
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
-            axes: Whether customised residue axes should be used.
+            axes: Which residue axes should be used.
             force_partitioning: Force partitioning factor for highest-level vectors.
             is_highest: Whether residue is the highest active level.
             out_force: Frame-local force second-moment accumulator, mutated in place.
@@ -463,7 +463,7 @@ class FrameCovarianceNode:
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
             force_partitioning: Force partitioning factor for highest-level vectors.
-            axes: Type of axes that should be used.
+            axes: Which UA axes should be used.
             is_highest: Whether UA is the highest active level.
             res_position: Where the residue is in the residue group
 
@@ -563,7 +563,7 @@ class FrameCovarianceNode:
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
             box: Optional periodic box vector.
-            axes: Type of axes that should be used
+            axes: Which residue axes that should be used.
             force_partitioning: Force partitioning factor for highest-level vectors.
             is_highest: Whether residue is the highest active level.
 
@@ -585,7 +585,6 @@ class FrameCovarianceNode:
                 relative_res_i=relative_res_i,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,
-                box=box,
                 axes=axes,
             )
 
@@ -622,8 +621,7 @@ class FrameCovarianceNode:
         relative_res_i: int,
         axes_manager: Any,
         axes_topology: Any | None,
-        box: np.ndarray | None,
-        axes: bool,
+        axes: str,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Return axes, centre, and inertia data for a residue bead.
 
@@ -637,8 +635,7 @@ class FrameCovarianceNode:
             might differ from residue index of first residue in topology.
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
-            box: Optional periodic box vector.
-            axes: Whether customised residue axes should be used.
+            axes: Which residue axes should be used.
 
         Returns:
             A tuple of translation axes, rotation axes, centre, and moments of inertia.
@@ -649,14 +646,10 @@ class FrameCovarianceNode:
             if axes == "topology":
                 residue_topology = axes_topology.residue.get((mol_id, local_res_i))
 
-                if residue_topology is not None:
-                    return axes_manager.get_residue_axes_from_topology(
-                        u=u,
-                        mol=mol,
-                        residue_atoms=res.atoms,
-                        topology=residue_topology,
-                        box=box,
-                    )
+            if residue_topology is not None:
+                return axes_manager.get_residue_axes_from_topology(
+                    u=u, mol=mol, residue_atoms=res.atoms, topology=residue_topology
+                )
 
             return axes_manager.get_residue_axes(
                 mol, local_res_i, relative_res_i, residue=res.atoms

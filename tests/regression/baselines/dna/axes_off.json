@@ -9,10 +9,10 @@
         "polymer:FTmat-Transvibrational": 48.10401202541479,
         "polymer:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 10.584542990557836,
-        "residue:Conformational": 0.0,
+        "residue:Conformational": 5.292271495278918,
         "polymer:Orientational": 4.758905336627712
       },
-      "total": 92.76258901647961
+      "total": 98.05486051175852
     },
     "1": {
       "components": {

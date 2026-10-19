@@ -3,7 +3,7 @@ CodeEntropy
 
 | Category       | Badges |
 |----------------|--------|
-| **Build**      | [![PR Checks](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml) [![Daily Tests](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/daily.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/daily.yaml) |
+| **Build**      | [![PR Checks](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml) [![Daily Tests](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/daily.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/daily.yaml) [![Dependency Floors](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/dependency-floors.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/dependency-floors.yaml) |
 | **Regression** | [![Weekly Regression](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-regression.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-regression.yaml) |
 | **Documentation** | [![Weekly Docs](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-docs.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-docs.yaml) [![Docs - Status](https://app.readthedocs.org/projects/codeentropy/badge/?version=latest)](https://codeentropy.readthedocs.io/en/latest/?badge=latest) |
 | **Citation**      | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17570721.svg)](https://doi.org/10.5281/zenodo.17570721) |

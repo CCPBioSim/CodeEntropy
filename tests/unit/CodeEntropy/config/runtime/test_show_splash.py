@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 from rich.console import Console
 
+from CodeEntropy import __version__
+
 
 def test_show_splash_with_citation(runner):
     citation = {
@@ -26,8 +28,8 @@ def test_show_splash_with_citation(runner):
     out = buf.getvalue()
 
     assert "Welcome to CodeEntropy" in out
-    assert "Version 1.0" in out
-    assert "2025-01-01" in out
+    assert f"Version {__version__}" in out
+    assert "Version 1.0" not in out
     assert "https://example.com" in out
     assert "This is a test abstract." in out
     assert "Alice Smith" in out
@@ -43,4 +45,7 @@ def test_show_splash_without_citation(runner):
     ):
         runner.show_splash()
 
-    assert "Welcome to CodeEntropy" in buf.getvalue()
+    out = buf.getvalue()
+
+    assert "Welcome to CodeEntropy" in out
+    assert f"Version {__version__}" in out

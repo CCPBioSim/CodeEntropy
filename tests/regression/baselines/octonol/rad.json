@@ -4,13 +4,13 @@
       "components": {
         "united_atom:Transvibrational": 37.773345787136414,
         "united_atom:Rovibrational": 84.26087853087442,
-        "residue:FTmat-Transvibrational": 66.1742370152873,
-        "residue:FTmat-Rovibrational": 57.07006496269577,
+        "residue:FTmat-Transvibrational": 66.27397939927971,
+        "residue:FTmat-Rovibrational": 58.77768843093995,
         "united_atom:Conformational": 34.22940197506605,
         "residue:Conformational": 0.0,
         "residue:Orientational": 28.084239413273323
       },
-      "total": 307.5921676843333
+      "total": 309.3995335365699
     }
   }
 }

@@ -12,50 +12,50 @@ authors:
     family-names: Chakravorty
     email: arghyac@umich.edu
     orcid: 'https://orcid.org/0000-0002-4467-1135'
-    affiliation: University of Michigan
+    affiliation: 'Department of Chemistry, University of Michigan, Ann Arbor, Michigan 48109, United States'
   - given-names: Donald
     family-names: Chung-HK
     email: donald.chung@stfc.ac.uk
-    affiliation: 'STFC, Scientific Computing'
+    affiliation: 'Scientific Computing Department, STFC Rutherford Appleton Laboratory, Didcot OX11 0QX, United Kingdom'
   - given-names: Sarah
     family-names: Fegan
     email: sarah.fegan@stfc.ac.uk
-    affiliation: 'STFC, Scientific Computing'
+    affiliation: 'Scientific Computing Department, STFC Daresbury Laboratory, Warrington WA4 4AD, United Kingdom'
     orcid: 'https://orcid.org/0009-0007-1030-228X'
   - given-names: James
     family-names: Gebbie-Rayet
     email: james.gebbie@stfc.ac.uk
-    affiliation: 'STFC, Scientific Computing'
+    affiliation: 'Scientific Computing Department, STFC Daresbury Laboratory, Warrington WA4 4AD, United Kingdom'
     orcid: 'https://orcid.org/0000-0001-8271-3431'
   - given-names: Sarah
     family-names: Harris
     email: sarah.harris@sheffield.ac.uk
-    affiliation: University of Sheffield
+    affiliation: 'School of Mathematical and Physical Sciences, University of Sheffield, United Kingdom'
     orcid: 'https://orcid.org/0000-0002-2812-1651'
   - given-names: Richard
     family-names: Henchman
     email: rhen7213@uni.sydney.edu.au
-    affiliation: University of Sydney
+    affiliation: 'School of Public Health, University of Sydney, Australia'
     orcid: 'https://orcid.org/0000-0002-0461-6625'
   - given-names: Jonathan
     family-names: Higham
     email: j.higham4@lancaster.ac.uk
-    affiliation: Lancaster University
+    affiliation: 'Department of Mathematics and Statistics, Faculty of Science and Technology, Lancaster University, Lancaster LA1 4YF, United Kingdom'
     orcid: 'https://orcid.org/0000-0002-9779-9968'
   - given-names: Jas
     family-names: Kalayan
     email: jas.kalayan@stfc.ac.uk
-    affiliation: 'STFC, Scientific Computing'
+    affiliation: 'Scientific Computing Department, STFC Daresbury Laboratory, Warrington WA4 4AD, United Kingdom'
     orcid: 'https://orcid.org/0000-0002-6833-1864'
   - given-names: Ioana
     family-names: Papa
     email: iapapa1@sheffield.ac.uk
-    affiliation: University of Sheffield
+    affiliation: 'School of Mathematical and Physical Sciences, University of Sheffield, United Kingdom'
     orcid: 'https://orcid.org/0009-0000-2287-4081'
   - given-names: Harry
     family-names: Swift
     email: harry.swift@stfc.ac.uk
-    affiliation: 'STFC, Scientific Computing'
+    affiliation: 'Scientific Computing Department, STFC Daresbury Laboratory, Warrington WA4 4AD, United Kingdom'
     orcid: 'https://orcid.org/0009-0007-3323-753X'
 repository-code: 'https://github.com/CCPBioSim/CodeEntropy'
 url: 'https://ccpbiosim.github.io/CodeEntropy/'
@@ -76,5 +76,5 @@ keywords:
   - biomolecular simulations
   - protein flexibility
 license: MIT
-version: 2.5.0
-date-released: '2026-10-09'
+version: 2.6.1
+date-released: '2026-10-15'

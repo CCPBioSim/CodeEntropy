@@ -170,20 +170,23 @@ class ConformationStateAssigner:
 
     @staticmethod
     def _merge_group_state_data(
+        group_id: int,
         state_data: ConformationStateData,
         states_ua: dict[UAKey, list[str]],
-        states_res: list[list[str]],
+        states_res: dict[int, list[str]],
         flexible_ua: dict[UAKey, int],
-        flexible_res: list[int],
+        flexible_res: dict[int, int],
     ) -> None:
         """Merge one group's state data into final output accumulators.
 
         Args:
+            group_id: Id of the group the state data belongs to.
             state_data: Serial conformational state data for one group.
             states_ua: UA state accumulator to mutate.
-            states_res: Residue state accumulator to mutate.
+            states_res: Residue state accumulator, keyed by group id, to mutate.
             flexible_ua: UA flexible-dihedral accumulator to mutate.
-            flexible_res: Residue flexible-dihedral accumulator to mutate.
+            flexible_res: Residue flexible-dihedral accumulator, keyed by group id,
+                to mutate.
 
         Returns:
             None. Mutates the provided accumulators.
@@ -199,8 +202,8 @@ class ConformationStateAssigner:
                     state_data.flexible_ua_updates[key],
                 )
 
-        states_res.append(state_data.state_res)
-        flexible_res.append(state_data.flex_res)
+        states_res[group_id] = state_data.state_res
+        flexible_res[group_id] = state_data.flex_res
 
     def _process_conformations_from_angles(
         self,

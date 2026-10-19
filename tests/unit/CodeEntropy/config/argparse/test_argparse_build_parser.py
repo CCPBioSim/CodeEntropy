@@ -1,3 +1,6 @@
+import pytest
+
+from CodeEntropy import __version__
 from CodeEntropy.config.argparse import ConfigResolver
 
 
@@ -37,3 +40,13 @@ def test_build_parser_nargs_plus_parses_top_traj_file_list():
     args = parser.parse_args(["--top_traj_file", "a.tpr", "b.trr"])
 
     assert args.top_traj_file == ["a.tpr", "b.trr"]
+
+
+def test_version_flag_prints_installed_version_and_exits(capsys):
+    parser = ConfigResolver().build_parser()
+
+    with pytest.raises(SystemExit) as exc:
+        parser.parse_args(["--version"])
+
+    assert exc.value.code == 0
+    assert f"CodeEntropy {__version__}" in capsys.readouterr().out
