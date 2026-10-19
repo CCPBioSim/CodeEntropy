@@ -118,7 +118,6 @@ class AxesCalculator:
 
         index_prev = index + relative_index - 1
         index_next = index + relative_index + 1
-        print("THE CUSTOM RESIDUE AXES!!!")
 
         if residue is None:
             residue = data_container.select_atoms(f"resindex {index + relative_index}")
@@ -247,7 +246,6 @@ class AxesCalculator:
             ValueError:
                 If axis construction fails.
         """
-        print("THE CUSTOM UA AXES!!!")
 
         index = int(index)  # UA bead index
         heavy_atoms = data_container.select_atoms("mass 2 to 999")
