@@ -82,7 +82,7 @@ class BuildAxesTopologyNode:
     def run(self, shared_data: dict[str, Any]) -> dict[str, Any]:
         """Build cached axes topology and write it into shared data.
 
-        The cache is only populated when ``args.customised_axes`` is true. When
+        The cache is only populated when ``args.axes`` is equal to ``topology``. When
         customised axes are disabled, an empty cache is still written so later
         stages can read ``shared_data["axes_topology"]`` safely.
 
@@ -97,7 +97,7 @@ class BuildAxesTopologyNode:
         args = shared_data["args"]
         topology = AxesTopology()
 
-        if not bool(getattr(args, "customised_axes", False)):
+        if str(getattr(args, "axes", "topology")):
             shared_data["axes_topology"] = topology
             return {"axes_topology": topology}
 

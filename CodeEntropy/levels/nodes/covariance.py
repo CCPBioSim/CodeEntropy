@@ -472,7 +472,6 @@ class FrameCovarianceNode:
         """
         force_vecs: list[np.ndarray] = []
         torque_vecs: list[np.ndarray] = []
-        print(f"The axes are: {axes}")
         for ua_i, bead in enumerate(bead_groups):
             if res_position == -1:
                 residue = residue_group.residues[0]
@@ -484,6 +483,7 @@ class FrameCovarianceNode:
             ua_topology = None
             if axes == "topology":
                 ua_topology = axes_topology.ua.get((mol_id, local_res_i, ua_i))
+                print(f"The ua topology is: {ua_topology}")
                 if ua_topology is not None:
                     trans_axes, rot_axes, center, moi = (
                         axes_manager.get_UA_axes_from_topology(
@@ -493,6 +493,7 @@ class FrameCovarianceNode:
                             box=box,
                         )
                     )
+                    print("We used the topology axes!")
                 else:
                     # custom local axes if no topology
                     make_whole(residue_group)
@@ -508,8 +509,7 @@ class FrameCovarianceNode:
                     residue_group, ua_i, res_position
                 )
 
-            else:
-                print("principal axes? :(")
+            elif axes == "principal":
                 # principal axes
                 make_whole(residue.atoms)
                 make_whole(bead)
@@ -640,17 +640,19 @@ class FrameCovarianceNode:
         Returns:
             A tuple of translation axes, rotation axes, centre, and moments of inertia.
         """
-        if axes != "principal":
+        if axes == "topology" or axes == "local":
             res = mol.residues[local_res_i]
+            print(f"The axes topology is: {axes_topology}")
             residue_topology = None
-            if axes == "topology":
+            if axes == "topology" and axes_topology is not None:
+                # can use the cached axes topology
                 residue_topology = axes_topology.residue.get((mol_id, local_res_i))
 
             if residue_topology is not None:
                 return axes_manager.get_residue_axes_from_topology(
                     u=u, mol=mol, residue_atoms=res.atoms, topology=residue_topology
                 )
-
+            # no topology or local axes argument
             return axes_manager.get_residue_axes(
                 mol, local_res_i, relative_res_i, residue=res.atoms
             )
@@ -658,15 +660,16 @@ class FrameCovarianceNode:
         make_whole(mol.atoms)
         make_whole(bead)
 
-        trans_axes = axes_manager.get_principal_axes_from_group(mol.atoms)
-        rot_axes, moi = axes_manager.get_molecule_axes(bead)
-        center = bead.center_of_mass(unwrap=True)
-        return (
-            np.asarray(trans_axes),
-            np.asarray(rot_axes),
-            np.asarray(center),
-            np.asarray(moi),
-        )
+        if axes == "principal":
+            trans_axes = axes_manager.get_principal_axes_from_group(mol.atoms)
+            rot_axes, moi = axes_manager.get_molecule_axes(bead)
+            center = bead.center_of_mass(unwrap=True)
+            return (
+                np.asarray(trans_axes),
+                np.asarray(rot_axes),
+                np.asarray(center),
+                np.asarray(moi),
+            )
 
     def _get_polymer_axes(
         self,
