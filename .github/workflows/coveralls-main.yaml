@@ -16,7 +16,7 @@ concurrency:
 jobs:
   coveralls:
     name: Build main coverage baseline
-    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@9f4315e6f907ce6606ec2346848272d423c62acf # 0.9.0
     permissions:
       contents: read
       checks: write
@@ -26,6 +26,4 @@ jobs:
       package: CodeEntropy
       test-path: tests/unit
       os: '["ubuntu-26.04"]'
-      python-versions: '["3.15"]'
-      coverage-python-version: "3.15"
       timeout-minutes: 30
