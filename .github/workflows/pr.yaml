@@ -13,7 +13,7 @@ concurrency:
 jobs:
   unit:
     name: Unit
-    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@9f4315e6f907ce6606ec2346848272d423c62acf # 0.9.0
+    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@64c08fb93033ff0584dba6edbd8736da52d70bf8 # 0.10.0
     permissions:
       contents: read
       checks: write
@@ -21,21 +21,7 @@ jobs:
       pull-requests: write
     with:
       package: CodeEntropy
-      test-path: tests/unit
-      os: '["ubuntu-24.04", "macos-26", "windows-2025-vs2026"]'
-      timeout-minutes: 25
-
-  lowest-dependencies:
-    name: Lowest dependencies
-    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@9f4315e6f907ce6606ec2346848272d423c62acf # 0.9.0
-    permissions:
-      contents: read
-      checks: write
-      statuses: write
-      pull-requests: write
-    with:
-      package: CodeEntropy
-      lowest-dependencies: true
+      lowest-dependencies-leg: true
       test-path: tests/unit
       os: '["ubuntu-24.04", "macos-26", "windows-2025-vs2026"]'
       timeout-minutes: 25
@@ -111,7 +97,7 @@ jobs:
   docs:
     name: Docs
     needs: unit
-    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@9f4315e6f907ce6606ec2346848272d423c62acf # 0.9.0
+    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@64c08fb93033ff0584dba6edbd8736da52d70bf8 # 0.10.0
     permissions:
       contents: read
     with:
@@ -120,7 +106,7 @@ jobs:
   pre-commit:
     name: Pre-commit
     needs: unit
-    uses: CCPBioSim/.github/.github/workflows/ci-pre-commit.yaml@9f4315e6f907ce6606ec2346848272d423c62acf # 0.9.0
+    uses: CCPBioSim/.github/.github/workflows/ci-pre-commit.yaml@64c08fb93033ff0584dba6edbd8736da52d70bf8 # 0.10.0
     permissions:
       contents: read
     with:
