@@ -217,6 +217,7 @@ def test_chunked_serial_group_flow_calls_domain_phases_in_order():
         level_list=["united_atom"],
         peaks_ua=peak_data.peaks_ua,
         peaks_res=peak_data.peaks_res,
+        conf_type="res_bonds",
     )
     builder._reduce_state_partials.assert_called_once_with([partial])
 

@@ -156,9 +156,9 @@ ARG_SPECS: dict[str, ArgSpec] = {
     ),
     "conf_type": ArgSpec(
         type=str,
-        default="res_bonds",
+        default="ua_backbone",
         help="Dihedral definition to use for conformational entropy."
-        "Default is res_bonds.",
+        "Default is ua_backbone.",
     ),
     "parallel_frames": ArgSpec(
         type=bool,

@@ -8,3 +8,4 @@ run1:
   start: 0
   end: 5
   step: 2
+  conf_type: "res_bonds"
