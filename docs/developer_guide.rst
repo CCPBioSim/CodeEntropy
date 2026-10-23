@@ -167,8 +167,29 @@ Weekly workflows:
 
 - Full regression suite including slow tests
 - Documentation build across all Python versions
+- Dependency floor checks (see :ref:`dependency-policy`)
 
 CI also caches regression datasets to improve performance.
+
+.. _dependency-policy:
+
+Dependency Policy
+-----------------
+
+Runtime dependencies in ``pyproject.toml`` are declared as ranges. The lower
+bound (floor) is the oldest release CodeEntropy is known to work with, so that it
+stays installable alongside other scientific packages. Floors are only raised
+when the code needs a newer release. Upper bounds are widened by Renovate.
+
+The ``lowest-dependencies`` job in the pull request workflow and the weekly
+``dependency-floors.yaml`` workflow check this. They check that the lowest
+allowed versions resolve to installable wheels on each platform and Python
+version, and that the unit tests pass with them installed.
+
+Run the same checks locally with `uv <https://docs.astral.sh/uv/>`_::
+
+    uv pip install --resolution lowest-direct -e ".[testing]"
+    python -m pytest tests/unit
 
 Building Documentation
 ----------------------

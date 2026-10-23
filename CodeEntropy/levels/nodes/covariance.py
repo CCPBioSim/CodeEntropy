@@ -506,8 +506,8 @@ class FrameCovarianceNode:
                 # principal axes
                 make_whole(residue.atoms)
                 make_whole(bead)
-                trans_axes = residue.atoms.principal_axes()
-                rot_axes, moi = axes_manager.get_vanilla_axes(bead)
+                trans_axes = axes_manager.get_principal_axes_from_group(residue.atoms)
+                rot_axes, moi = axes_manager.get_molecule_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
             force_vecs.append(
@@ -578,7 +578,6 @@ class FrameCovarianceNode:
                 relative_res_i=relative_res_i,
                 axes_manager=axes_manager,
                 axes_topology=axes_topology,
-                box=box,
                 customised_axes=customised_axes,
             )
 
@@ -615,7 +614,6 @@ class FrameCovarianceNode:
         relative_res_i: int,
         axes_manager: Any,
         axes_topology: Any | None,
-        box: np.ndarray | None,
         customised_axes: bool,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Return axes, centre, and inertia data for a residue bead.
@@ -630,7 +628,6 @@ class FrameCovarianceNode:
             might differ from residue index of first residue in topology.
             axes_manager: Axes helper used to select axes, centres, and moments.
             axes_topology: Optional cached axes topology generated during static setup.
-            box: Optional periodic box vector.
             customised_axes: Whether customised residue axes should be used.
 
         Returns:
@@ -644,11 +641,7 @@ class FrameCovarianceNode:
 
             if residue_topology is not None:
                 return axes_manager.get_residue_axes_from_topology(
-                    u=u,
-                    mol=mol,
-                    residue_atoms=res.atoms,
-                    topology=residue_topology,
-                    box=box,
+                    u=u, mol=mol, residue_atoms=res.atoms, topology=residue_topology
                 )
 
             return axes_manager.get_residue_axes(
@@ -658,8 +651,8 @@ class FrameCovarianceNode:
         make_whole(mol.atoms)
         make_whole(bead)
 
-        trans_axes = mol.atoms.principal_axes()
-        rot_axes, moi = axes_manager.get_vanilla_axes(bead)
+        trans_axes = axes_manager.get_principal_axes_from_group(mol.atoms)
+        rot_axes, moi = axes_manager.get_molecule_axes(bead)
         center = bead.center_of_mass(unwrap=True)
         return (
             np.asarray(trans_axes),
@@ -688,8 +681,8 @@ class FrameCovarianceNode:
         make_whole(mol.atoms)
         make_whole(bead)
 
-        trans_axes = mol.atoms.principal_axes()
-        rot_axes, moi = axes_manager.get_vanilla_axes(bead)
+        trans_axes = axes_manager.get_principal_axes_from_group(mol.atoms)
+        rot_axes, moi = axes_manager.get_molecule_axes(bead)
         center = bead.center_of_mass(unwrap=True)
 
         return (

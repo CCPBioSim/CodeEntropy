@@ -47,7 +47,12 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         frame_selection: FrameSelection,
         progress: _RichProgressSink | None = None,
         chunk_size: int | None = None,
-    ) -> tuple[dict[UAKey, list[str]], list[list[str]], dict[UAKey, int], list[int]]:
+    ) -> tuple[
+        dict[UAKey, list[str]],
+        dict[int, list[str]],
+        dict[UAKey, int],
+        dict[int, int],
+    ]:
         """Build conformational state labels from selected trajectory frames.
 
         Args:
@@ -90,7 +95,12 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         frame_selection: FrameSelection,
         chunk_size: int,
         progress: _RichProgressSink | None = None,
-    ) -> tuple[dict[UAKey, list[str]], list[list[str]], dict[UAKey, int], list[int]]:
+    ) -> tuple[
+        dict[UAKey, list[str]],
+        dict[int, list[str]],
+        dict[UAKey, int],
+        dict[int, int],
+    ]:
         """Build conformational states with serial frame-chunk map-reduce.
 
         Args:
@@ -112,9 +122,9 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
             raise ValueError("chunk_size must be >= 1")
 
         states_ua: dict[UAKey, list[str]] = {}
-        states_res: list[list[str]] = []
+        states_res: dict[int, list[str]] = {}
         flexible_ua: dict[UAKey, int] = {}
-        flexible_res: list[int] = []
+        flexible_res: dict[int, int] = {}
 
         task: TaskID | None = None
         if progress is not None:
@@ -190,6 +200,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
             state_data = self._reduce_state_partials(state_partials)
 
             self._merge_group_state_data(
+                group_id=group_id,
                 state_data=state_data,
                 states_ua=states_ua,
                 states_res=states_res,

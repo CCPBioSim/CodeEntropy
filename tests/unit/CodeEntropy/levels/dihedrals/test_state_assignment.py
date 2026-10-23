@@ -174,9 +174,9 @@ def test_reduce_state_partials_preserves_molecule_then_chunk_order_and_max_flex(
 
 def test_merge_group_state_data_extends_existing_ua_states():
     states_ua = {(0, 0): ["0"]}
-    states_res = []
+    states_res = {}
     flexible_ua = {(0, 0): 1}
-    flexible_res = []
+    flexible_res = {}
     state_data = ConformationStateData(
         state_res=["1"],
         flex_res=0,
@@ -185,6 +185,7 @@ def test_merge_group_state_data_extends_existing_ua_states():
     )
 
     _StateAssigner._merge_group_state_data(
+        group_id=3,
         state_data=state_data,
         states_ua=states_ua,
         states_res=states_res,
@@ -196,5 +197,5 @@ def test_merge_group_state_data_extends_existing_ua_states():
     assert states_ua[(0, 1)] == ["2"]
     assert flexible_ua[(0, 0)] == 2
     assert flexible_ua[(0, 1)] == 0
-    assert states_res == [["1"]]
-    assert flexible_res == [0]
+    assert states_res == {3: ["1"]}
+    assert flexible_res == {3: 0}

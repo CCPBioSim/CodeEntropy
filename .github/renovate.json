@@ -1,21 +1,8 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:best-practices",
-    ":dependencyDashboard",
-    "group:monorepos",
-    "group:recommended"
+    "github>CCPBioSim/.github//renovate/default",
+    "github>CCPBioSim/.github//renovate/python"
   ],
-  "enabledManagers": ["pep621", "github-actions"],
-  "pep621": {
-    "enabled": true
-  },
-  "rangeStrategy": "replace",
-  "schedule": ["* 8 * * 1-5"],
-  "labels": ["dependencies"],
-  "packageRules": [
-    {
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": false
-    }
-  ]
+  "reviewers": ["harryswift01", "jimboid"]
 }

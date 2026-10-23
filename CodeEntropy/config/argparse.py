@@ -31,6 +31,7 @@ from typing import Any
 
 import yaml
 
+from CodeEntropy import __version__
 from CodeEntropy.core.dask_clusters import HPCDaskManager
 
 logger = logging.getLogger(__name__)
@@ -323,6 +324,11 @@ class ConfigResolver:
         """
         parser = argparse.ArgumentParser(
             description="CodeEntropy: entropy calculation with the MCC method."
+        )
+        parser.add_argument(
+            "--version",
+            action="version",
+            version=f"CodeEntropy {__version__}",
         )
 
         for name, spec in self._arg_specs.items():

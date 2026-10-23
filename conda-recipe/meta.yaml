@@ -1,5 +1,12 @@
 {% set name = "codeentropy" %}
 {% set version = "0.0.0" %}
+{% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=True) %}
+{% set pip_only = namespace(water_entropy="") %}
+{% for dependency in pyproject["project"]["dependencies"] %}
+{% if dependency.startswith("waterEntropy") %}
+{% set pip_only.water_entropy = dependency %}
+{% endif %}
+{% endfor %}
 
 package:
   name: {{ name }}
@@ -12,7 +19,7 @@ build:
   noarch: python
   script: |
     python -m pip install . -vv --no-deps
-    PIP_NO_INDEX=0 python -m pip install -vv --index-url https://pypi.org/simple waterEntropy
+    PIP_NO_INDEX=0 python -m pip install -vv --index-url https://pypi.org/simple "{{ pip_only.water_entropy }}"
   entry_points:
     - CodeEntropy=CodeEntropy.cli:main
 
@@ -22,23 +29,14 @@ requirements:
     - pip
     - flit-core >=4,<5
   run:
-    - python >=3.12
-    - numpy >=2.3,<3.0
-    - mdanalysis >=2.10,<3.0
-    - pandas >=3,<3.1
-    - psutil >=7.1,<8.0
-    - pyyaml >=6.0,<7.0
-    - python-json-logger >=4.0,<5.0
-    - rich >=15,<15.1
-    - python-art >=6.5,<7.0
-    - networkx >=3.6,<3.7
-    - matplotlib >=3.11,<3.12
-    - requests >=2.32,<3.0
-    - rdkit>=2025.9.5
-    - dask >=2026.1.2,<2026.2.0
-    - distributed >=2026.1.2,<2026.2.0
-    - dask-jobqueue >=0.9,<0.10
-    - numba >=0.65.1, <0.70
+    - python {{ pyproject["project"]["requires-python"] }}
+    {% for dependency in pyproject["project"]["dependencies"] %}
+    {% if dependency.startswith("art>") %}
+    - python-{{ dependency }}
+    {% elif not dependency.startswith("waterEntropy") %}
+    - {{ dependency | lower }}
+    {% endif %}
+    {% endfor %}
 
 test:
   imports:
