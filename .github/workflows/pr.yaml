@@ -13,7 +13,7 @@ concurrency:
 jobs:
   unit:
     name: Unit
-    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@df9784599846a2b5ef1fdb60911a9e65edfb73fd # 0.11.0
+    uses: CCPBioSim/.github/.github/workflows/ci-test-python.yaml@f4cec1ba490b4461bfbcfd6362a8587678908a7d # 0.12.0
     permissions:
       contents: read
       checks: write
@@ -97,7 +97,7 @@ jobs:
   docs:
     name: Docs
     needs: unit
-    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@df9784599846a2b5ef1fdb60911a9e65edfb73fd # 0.11.0
+    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@f4cec1ba490b4461bfbcfd6362a8587678908a7d # 0.12.0
     permissions:
       contents: read
     with:
@@ -106,7 +106,7 @@ jobs:
   pre-commit:
     name: Pre-commit
     needs: unit
-    uses: CCPBioSim/.github/.github/workflows/ci-pre-commit.yaml@df9784599846a2b5ef1fdb60911a9e65edfb73fd # 0.11.0
+    uses: CCPBioSim/.github/.github/workflows/ci-pre-commit.yaml@f4cec1ba490b4461bfbcfd6362a8587678908a7d # 0.12.0
     permissions:
       contents: read
     with:
