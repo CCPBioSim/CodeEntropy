@@ -159,15 +159,12 @@ Pull Request checks include:
 - Documentation build
 - Pre-commit validation
 
-Daily workflow:
-
-- Runs automated test validation
-
 Weekly workflows:
 
+- Unit tests on Linux, macOS, and Windows, including the dependency floor checks
+  (see :ref:`dependency-policy`)
 - Full regression suite including slow tests
 - Documentation build across all Python versions
-- Dependency floor checks (see :ref:`dependency-policy`)
 
 CI also caches regression datasets to improve performance.
 
@@ -181,10 +178,10 @@ bound (floor) is the oldest release CodeEntropy is known to work with, so that i
 stays installable alongside other scientific packages. Floors are only raised
 when the code needs a newer release. Upper bounds are widened by Renovate.
 
-The ``lowest-dependencies`` job in the pull request workflow and the weekly
-``dependency-floors.yaml`` workflow check this. They check that the lowest
-allowed versions resolve to installable wheels on each platform and Python
-version, and that the unit tests pass with them installed.
+The unit jobs in the pull request and weekly workflows check this. After the
+normal tests, each job reinstalls the lowest allowed versions of the direct
+dependencies and runs the unit tests again, which checks that they resolve to
+installable wheels on each platform and Python version and that the tests pass.
 
 Run the same checks locally with `uv <https://docs.astral.sh/uv/>`_::
 
