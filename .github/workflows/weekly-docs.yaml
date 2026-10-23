@@ -15,7 +15,7 @@ concurrency:
 jobs:
   docs:
     name: Docs build
-    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    uses: CCPBioSim/.github/.github/workflows/ci-docs.yaml@f4cec1ba490b4461bfbcfd6362a8587678908a7d # 0.12.0
     permissions:
       contents: read
     with:
