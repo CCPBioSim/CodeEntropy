@@ -111,9 +111,8 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         if chunk_size < 1:
             raise ValueError("chunk_size must be >= 1")
 
-        number_groups = len(groups)
         states_ua: dict[UAKey, list[str]] = {}
-        states_res: list[list[str]] = [[] for _ in range(number_groups)]
+        states_res: list[list[str]] = []
         flexible_ua: dict[UAKey, int] = {}
         flexible_res: list[int] = []
 

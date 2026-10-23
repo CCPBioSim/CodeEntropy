@@ -34,6 +34,8 @@ class DihedralDefinitions:
 
     def method_res_bonds(self, data_container: Any, level: str) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
+        Using bonds between residues (1, 2) and (3,4) to identify 4 points
+        to cast as a dihedral group at the residue level.
 
         Args:
             data_container: MDAnalysis container.
@@ -97,11 +99,86 @@ class DihedralDefinitions:
                             len(dihedral_atoms),
                         )
 
-        logger.debug("Level: %s, Dihedrals: %s", level, atom_groups)
+        return atom_groups
+
+    def method_res_pairs(self, data_container: Any, level: str) -> list[Any]:
+        """Return dihedral AtomGroups for a container at a given level.
+        Using the bond between residues (1, 2) and the centre of geometry of
+        each residue to identify 4 points to cast as a dihedral group at the
+        residue level.
+
+        Args:
+            data_container: MDAnalysis container.
+            level: Either ``"united_atom"`` or ``"residue"``.
+
+        Returns:
+            List of AtomGroups, each representing a dihedral definition.
+        """
+        atom_groups: list[Any] = []
+
+        if level == "united_atom":
+            selected_indices = {int(index) for index in data_container.indices}
+
+            for dihedral in data_container.dihedrals:
+                dihedral_atoms = dihedral.atoms
+                dihedral_indices = {int(index) for index in dihedral_atoms.indices}
+
+                if len(dihedral_atoms) == 4 and dihedral_indices.issubset(
+                    selected_indices
+                ):
+                    atom_groups.append(dihedral_atoms)
+
+        if level == "residue":
+            num_residues = len(data_container.residues)
+            if num_residues >= 2:
+                for residue in range(2, num_residues + 1):
+                    residue1 = data_container.residues[residue - 2]
+                    index1 = data_container.residues.resindices[residue - 2]
+                    residue2 = data_container.residues[residue - 1]
+                    index2 = data_container.residues.resindices[residue - 1]
+
+                    center = residue1.atoms.center_of_geometry()
+                    atom_search = data_container.select_atoms(
+                        f"point {center[0]} {center[1]} {center[2]} 1.5"
+                        f" and resindex {index1}"
+                    )
+                    atom1 = atom_search[0]
+                    atom2 = self._atoms_in_source_bonded_to_target(
+                        residue1,
+                        residue2,
+                    )
+                    atom3 = self._atoms_in_source_bonded_to_target(
+                        residue2,
+                        residue1,
+                    )
+                    center = residue2.atoms.center_of_geometry()
+                    atom_search = data_container.select_atoms(
+                        f"point {center[0]} {center[1]} {center[2]} 1.5"
+                        f" and resindex {index2}"
+                    )
+                    atom4 = atom_search[0]
+
+                    dihedral_atoms = atom1 + atom2 + atom3 + atom4
+
+                    if len(dihedral_atoms) == 4:
+                        atom_groups.append(dihedral_atoms)
+                    else:
+                        logger.debug(
+                            "Skipping residue-level dihedral for local residues "
+                            "%s-%s because it produced %d atoms.",
+                            residue - 2,
+                            residue - 1,
+                            len(dihedral_atoms),
+                        )
+
         return atom_groups
 
     def method_res_points(self, data_container: Any, level: str) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
+        At the residue level, for each residue a point is defined as the
+        atom nearest the average position of the edge atoms (bonded to an atom
+        in a different residue). These points are then used for residue level
+        dihedral groups.
 
         Args:
             data_container: MDAnalysis container (AtomGroup/Universe).
@@ -113,9 +190,16 @@ class DihedralDefinitions:
         atom_groups: list[Any] = []
 
         if level == "united_atom":
-            dihedrals = data_container.dihedrals
-            for d in dihedrals:
-                atom_groups.append(d.atoms)
+            selected_indices = {int(index) for index in data_container.indices}
+
+            for dihedral in data_container.dihedrals:
+                dihedral_atoms = dihedral.atoms
+                dihedral_indices = {int(index) for index in dihedral_atoms.indices}
+
+                if len(dihedral_atoms) == 4 and dihedral_indices.issubset(
+                    selected_indices
+                ):
+                    atom_groups.append(dihedral_atoms)
 
         if level == "residue":
             num_residues = len(data_container.residues)
@@ -149,6 +233,8 @@ class DihedralDefinitions:
 
     def method_ua_backbone(self, data_container: Any, level: str) -> list[Any]:
         """Return dihedral AtomGroups for a container at a given level.
+        For the residue level, use the heavy atoms from the backbone as the set
+        from which the dihedrals are found (gives secondary structure states).
 
         Args:
             data_container: MDAnalysis container (AtomGroup/Universe).
@@ -160,16 +246,24 @@ class DihedralDefinitions:
         atom_groups: list[Any] = []
 
         if level == "united_atom":
-            dihedrals = data_container.dihedrals
-            for d in dihedrals:
-                atom_groups.append(d.atoms)
+            selected_indices = {int(index) for index in data_container.indices}
+
+            for dihedral in data_container.dihedrals:
+                dihedral_atoms = dihedral.atoms
+                dihedral_indices = {int(index) for index in dihedral_atoms.indices}
+
+                if len(dihedral_atoms) == 4 and dihedral_indices.issubset(
+                    selected_indices
+                ):
+                    atom_groups.append(dihedral_atoms)
 
         if level == "residue":
             num_residues = len(data_container.residues)
             backbone = data_container.select_atoms("name H and not name H")
-            if num_residues >= 4:
-                for index in range(num_residues):
-                    residue = data_container.residues[index]
+            if num_residues >= 2:
+                for res_counter in range(num_residues):
+                    residue = data_container.residues[res_counter]
+                    index = data_container.residues.resindices[res_counter]
                     edges = data_container.select_atoms(
                         f"resindex {index} and bonded not resindex {index}"
                     )
@@ -180,7 +274,7 @@ class DihedralDefinitions:
                         for atom in chain:
                             backbone += atom
 
-                logger.debug(f"backbone = {backbone}")
+                logger.debug("backbone = %s", backbone)
                 dihedrals = backbone.dihedrals
                 for d in dihedrals:
                     atom_groups.append(d.atoms)

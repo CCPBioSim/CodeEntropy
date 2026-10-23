@@ -152,6 +152,11 @@ class DihedralTopologyDiscovery:
                 data_container=data_container, level=level
             )
 
+        elif conf_type == "res_pairs":
+            atom_groups = self._dihedral_definitions.method_res_pairs(
+                data_container=data_container, level=level
+            )
+
         elif conf_type == "res_points":
             atom_groups = self._dihedral_definitions.method_res_points(
                 data_container=data_container, level=level
@@ -159,11 +164,6 @@ class DihedralTopologyDiscovery:
 
         elif conf_type == "ua_backbone":
             atom_groups = self._dihedral_definitions.method_ua_backbone(
-                data_container=data_container, level=level
-            )
-
-        elif conf_type == "ua_whole":
-            atom_groups = self._dihedral_definitions.method_ua_whole(
                 data_container=data_container, level=level
             )
 
