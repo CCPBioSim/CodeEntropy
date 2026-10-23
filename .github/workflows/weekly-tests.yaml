@@ -2,7 +2,7 @@ name: Weekly Unit Tests
 
 on:
   schedule:
-    - cron: '17 8 * * 2'
+    - cron: '0 8 * * 1'
   workflow_dispatch:
 
 permissions:
