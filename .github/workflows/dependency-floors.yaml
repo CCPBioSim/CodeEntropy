@@ -15,7 +15,7 @@ concurrency:
 jobs:
   lowest:
     name: Lowest dependencies
-    uses: CCPBioSim/.github/.github/workflows/ci-lowest-dependencies.yaml@116d539cf0864af72d33dce047313ca6fc624ccd # 0.4.0
+    uses: CCPBioSim/.github/.github/workflows/ci-lowest-dependencies.yaml@032ccd9e849d9a57dee16beb835b90e53de9c981 # 0.7.0
     permissions:
       contents: read
     with:
