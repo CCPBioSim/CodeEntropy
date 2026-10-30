@@ -16,4 +16,4 @@ python:
 
 sphinx:
   # Path to your Sphinx configuration file.
-  configuration: docs/conf.py
+  configuration: docs/source/conf.py
