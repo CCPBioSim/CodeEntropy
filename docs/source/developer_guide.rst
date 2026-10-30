@@ -191,8 +191,9 @@ Run the same checks locally with `uv <https://docs.astral.sh/uv/>`_::
 Building Documentation
 ----------------------
 
-Build documentation locally::
+Install the documentation dependencies and build the documentation locally::
 
+    pip install -e ".[docs]"
     cd docs
     make html
 
@@ -200,10 +201,8 @@ The generated HTML files will be in ``docs/build/html/``.
 
 Open ``index.html`` in your browser to preview.
 
-Documentation sources are located in:
-
-- ``docs/user_guide/``
-- ``docs/developer_guide/``
+The documentation sources are in ``docs/source/``, and the API reference is generated
+from the source code by sphinx-autoapi.
 
 Contributing Code
 -----------------
