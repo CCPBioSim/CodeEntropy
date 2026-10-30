@@ -34,8 +34,6 @@ release = ""
 
 # -- General configuration ---------------------------------------------------
 extensions = [
-    "sphinx.ext.autosummary",
-    "sphinx.ext.autodoc",
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
@@ -43,9 +41,6 @@ extensions = [
     "sphinx.ext.extlinks",
     "autoapi.extension",
 ]
-
-# Autosummary (API stubs)
-autosummary_generate = True
 
 # Napoleon: Google-style docstrings
 napoleon_google_docstring = True
@@ -61,6 +56,8 @@ autoapi_dirs = ["../../CodeEntropy"]
 autoapi_root = "reference"
 autoapi_add_toctree_entry = False
 autoapi_member_order = "groupwise"
+# Include the __init__ docstring, where the constructor arguments are documented
+autoapi_python_class_content = "both"
 autoapi_options = [
     "members",
     "undoc-members",
