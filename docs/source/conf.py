@@ -10,10 +10,9 @@ import os
 import sys
 import time
 
-# Ensure the *repo root* is on sys.path so autodoc imports the local package.
-# This works whether conf.py is in docs/ or docs/source/.
+# Put the repo root on sys.path so the local package can be imported.
 DOCS_DIR = os.path.abspath(os.path.dirname(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(DOCS_DIR, ".."))
+REPO_ROOT = os.path.abspath(os.path.join(DOCS_DIR, "..", ".."))
 sys.path.insert(0, REPO_ROOT)
 
 # -- Project information -----------------------------------------------------
@@ -42,8 +41,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
-    "nbsphinx",
-    "sphinx_copybutton",
+    "autoapi.extension",
 ]
 
 # Autosummary (API stubs)
@@ -58,8 +56,22 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 napoleon_use_ivar = True
 
-# (Optional) If some modules have optional heavy deps, you can mock them here:
-autodoc_mock_imports = ["MDAnalysis", "rdkit"]
+# API reference generated from the source by sphinx-autoapi
+autoapi_dirs = ["../../CodeEntropy"]
+autoapi_root = "reference"
+autoapi_add_toctree_entry = False
+autoapi_member_order = "groupwise"
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+]
+
+# Show type hints in the parameter list rather than the signature
+autodoc_typehints = "description"
+add_module_names = False
+python_maximum_signature_line_length = 88
 
 templates_path = ["_templates"]
 
@@ -72,11 +84,8 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 pygments_style = "default"
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = "furo"
-html_theme_options = {
-    "dark_logo": "logos/biosim-codeentropy_logo_light.png",
-    "light_logo": "logos/biosim-codeentropy_logo_dark.png",
-}
+html_theme = "ccpbiosim_sphinx_theme"
+html_context = {"github_repo": "CodeEntropy"}
 
 html_static_path = ["_static"]
 
