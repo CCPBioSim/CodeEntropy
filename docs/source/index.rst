@@ -6,9 +6,11 @@ CodeEntropy
 .. ccpbiosim-hero::
    :logo: _static/logos/biosim-codeentropy_logo_light.png
    :logo-alt: CodeEntropy logo
-   :tagline: Entropy of macromolecular systems from MD simulations
+   :tagline: CodeEntropy
    :button: getting_started | Get started
    :github: CCPBioSim/CodeEntropy
+
+   Entropy of macromolecular systems from MD simulations
 
 This code is a complete and generally applicable set of tools for computing
 entropy of macromolecular systems from the forces sampled in a MD simulation.
