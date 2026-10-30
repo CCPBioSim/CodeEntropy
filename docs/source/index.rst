@@ -4,7 +4,8 @@ CodeEntropy
 ===========
 
 .. ccpbiosim-hero::
-   :logo: _static/logos/biosim-codeentropy_logo_light.png
+   :logo-light: _static/logos/biosim-codeentropy_logo_dark.png
+   :logo-dark: _static/logos/biosim-codeentropy_logo_light.png
    :logo-alt: CodeEntropy logo
    :tagline: CodeEntropy
    :button: getting_started | Get started
