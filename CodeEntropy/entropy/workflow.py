@@ -394,6 +394,7 @@ class EntropyWorkflow:
                 start=start,
                 end=end,
                 step=step,
+                parallel=self._args.water_entropy_parallel,
                 group_id=group_id,
             )
 
