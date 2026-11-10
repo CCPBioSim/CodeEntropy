@@ -1,33 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:best-practices",
-    "helpers:pinGitHubActionDigestsToSemver"
+    "github>CCPBioSim/.github//renovate/default",
+    "github>CCPBioSim/.github//renovate/python"
   ],
-  "timezone": "Europe/London",
-  "schedule": ["after 9am and before 5pm every weekday"],
-  "dependencyDashboard": true,
-  "reviewers": ["harryswift01", "jimboid"],
-  "minimumReleaseAge": "3 days",
-  "packageRules": [
-    {
-      "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions",
-      "addLabels": ["ci", "dependencies"]
-    },
-    {
-      "matchManagers": ["poetry", "pep621"],
-      "matchDepTypes": ["project.dependencies"],
-      "rangeStrategy": "widen",
-      "groupName": "Software Production Dependencies",
-      "addLabels": ["python", "production-deps"]
-    },
-    {
-      "matchManagers": ["poetry", "pep621"],
-      "matchDepTypes": ["project.optional-dependencies", "build-system.requires"],
-      "rangeStrategy": "replace",
-      "groupName": "Python CI and Dev Tools",
-      "addLabels": ["python", "dev-dependencies"]
-    }
-  ]
+  "reviewers": ["harryswift01", "jimboid"]
 }
