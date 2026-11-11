@@ -625,7 +625,7 @@ class AxesCalculator:
                 )
             else:
                 rot_center = (edges[0].position + edges[1].position) / 2
-                rot_axes = self.get_custom_axes(
+                rot_axes = self.get_bonded_vector_axes(
                     a=rot_center,
                     b_list=[edges[0].position],
                     c=np.zeros(3),
