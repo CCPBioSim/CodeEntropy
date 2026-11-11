@@ -2,7 +2,7 @@ import logging
 import sys
 import types
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -73,7 +73,16 @@ def test_execute_calls_level_dag_and_entropy_graph_and_logs_tables():
     wf._reporter.log_tables.assert_called_once()
 
 
-def test_execute_water_entropy_branch_calls_water_entropy_solver():
+@pytest.mark.parametrize(
+    ("nonwater_groups", "expect_warning"),
+    [
+        ({0: [0]}, False),
+        ({}, True),
+    ],
+)
+def test_execute_water_entropy_branch_calls_water_entropy_solver(
+    nonwater_groups, expect_warning
+):
     args = SimpleNamespace(
         start=0,
         end=-1,
@@ -106,15 +115,19 @@ def test_execute_water_entropy_branch_calls_water_entropy_solver():
     wf._build_reduced_universe = MagicMock(return_value=MagicMock())
     wf._detect_levels = MagicMock(return_value={0: ["united_atom"]})
 
-    wf._split_water_groups = MagicMock(return_value=({0: [0]}, {9: [1, 2]}))
+    wf._split_water_groups = MagicMock(return_value=(nonwater_groups, {9: [1, 2]}))
     wf._finalize_molecule_results = MagicMock()
 
-    wf._group_molecules.grouping_molecules.return_value = {0: [0], 9: [1, 2]}
+    wf._group_molecules.grouping_molecules.return_value = {
+        **nonwater_groups,
+        9: [1, 2],
+    }
 
     with (
         patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls,
         patch("CodeEntropy.entropy.workflow.LevelDAG") as LevelDAGCls,
         patch("CodeEntropy.entropy.workflow.EntropyGraph") as GraphCls,
+        patch("CodeEntropy.entropy.workflow.console") as console,
     ):
         water_instance = WaterCls.return_value
         water_instance.calculate_and_log = MagicMock()
@@ -126,6 +139,10 @@ def test_execute_water_entropy_branch_calls_water_entropy_solver():
 
     water_instance.calculate_and_log.assert_called_once()
     _, kwargs = water_instance.calculate_and_log.call_args
+    warning = call(
+        "Warning: You are running waterEntropy on bulk water, this will be slow!"
+    )
+    assert (warning in console.print.call_args_list) is expect_warning
     assert kwargs["universe"] is universe
     assert kwargs["start"] == 0
     assert kwargs["end"] == 5
