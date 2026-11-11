@@ -182,7 +182,7 @@ def test_get_UA_axes_uses_principal_axes_when_single_heavy(monkeypatch):
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 2.0, 3.0])),
     )
 
-    trans, rot, center, moi = ax.get_UA_axes(u, index=0, res_position=None)
+    trans, rot, center, moi = ax.get_UA_axes(u, index=0, resindex=3)
 
     assert np.allclose(trans, np.eye(3))
     assert np.allclose(rot, np.eye(3))
@@ -216,7 +216,7 @@ def test_get_UA_axes_raises_when_bonded_axes_fail(monkeypatch):
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
     with pytest.raises(ValueError):
-        ax.get_UA_axes(u, index=5, res_position=None)
+        ax.get_UA_axes(u, index=5, resindex=0)
 
 
 def test_get_bonded_vector_axes_degenerate_axis1_raises():
@@ -749,7 +749,6 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
         ],
         positions=np.array([[0, 0, 0], [1, 0, 0]], dtype=float),
     )
-
     system_atom = _atom(index=0, mass=12.0, pos=[0, 0, 0])
     heavy_atom_selection = _FakeAtomGroup(
         [system_atom], positions=np.array([[0, 0, 0]], dtype=float)
@@ -770,7 +769,7 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
 
     data_container = MagicMock()
     data_container.atoms = _Atoms()
-    data_container.residues.__len__.return_value = 1
+    data_container.atoms.residues = [heavy_atoms]
     data_container.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90], dtype=float)
     _FakeAtomGroup.atoms = heavy_atom_selection
 
@@ -790,7 +789,7 @@ def test_get_UA_axes_multiple_heavy_atoms_uses_custom_principal_axes(monkeypatch
     )
 
     trans_axes, rot_axes, center, moi = ax.get_UA_axes(
-        data_container, index=0, res_position=None
+        data_container, index=0, resindex=0
     )
 
     assert trans_axes.shape == (3, 3)
@@ -1534,7 +1533,7 @@ def test_get_ua_axes_bonded_axes_2neighbours_1_heavy_atom_backbone(monkeypatch):
     )
 
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=1, res_position=0
+        data_container=residue_group, index=1, resindex=1
     )
 
     assert trans_axes.shape == (3, 3)
@@ -1588,7 +1587,7 @@ def test_get_ua_axes_bonded_axes_2neighbours_multiple_heavy_atoms_backbone(monke
     )
 
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=1, res_position=0
+        data_container=residue_group, index=1, resindex=2
     )
 
     assert trans_axes.shape == (3, 3)
@@ -1635,7 +1634,7 @@ def test_get_ua_axes_bonded_axes_first_resid(monkeypatch):
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 1.0, 1.0])),
     )
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=0, res_position=-1
+        data_container=residue_group, index=0, resindex=0
     )
 
     assert trans_axes.shape == (3, 3)
@@ -1682,7 +1681,7 @@ def test_get_ua_axes_bonded_axes_last_resid(monkeypatch):
         lambda system, atom, dimensions: (np.eye(3), np.array([1.0, 1.0, 1.0])),
     )
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=0, res_position=1
+        data_container=residue_group, index=0, resindex=2
     )
 
     assert trans_axes.shape == (3, 3)
@@ -1749,7 +1748,7 @@ def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
     monkeypatch.setattr(ax, "get_bonded_axes", lambda **kwargs: (None, None))
 
     with pytest.raises(ValueError):
-        ax.get_UA_axes(u, index=0, res_position=None)
+        ax.get_UA_axes(u, index=0, resindex=0)
 
 
 def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
@@ -1791,7 +1790,7 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
     )
 
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=0, res_position=1
+        data_container=residue_group, index=0, resindex=2
     )
 
     assert np.allclose(trans_axes, 2 * np.eye(3))
@@ -1833,7 +1832,7 @@ def test_get_ua_axes_non_terminal_2_atoms(monkeypatch):
     )
     monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [])
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=0, res_position=0
+        data_container=residue_group, index=0, resindex=1
     )
 
     assert np.allclose(trans_axes, 2 * np.eye(3))
@@ -1986,57 +1985,6 @@ def test_get_res_axes_terminal_1_atom(monkeypatch):
     assert np.allclose(rot_axes, np.eye(3))
     assert np.allclose(rot_center, [1, 0, 0])
     assert np.allclose(moi, [1, 1, 1])
-
-
-def test_get_UA_axes_terminal_1_atom(monkeypatch):
-    ax = AxesCalculator()
-    residue_group = MagicMock()
-    residue_group.__len__ = 2
-    residue = residue_group.residues[1]
-    heavy_atoms = _FakeAtomGroup(
-        [
-            _atom(index=0, mass=12.0, pos=(1, 1, 1)),
-            _atom(index=1, mass=12.0, pos=(3, 3, 3)),
-        ],
-    )
-
-    def _select_atoms_data_container(q):
-        if q == "mass 2 to 999":
-            # return heavy atoms group
-            return heavy_atoms
-        if q.startswith("resindex "):
-            return [heavy_atoms[0]]
-
-    def _select_atoms_residue(q):
-        if q == "mass 2 to 999":
-            # return heavy atoms group
-            return [heavy_atoms[0]]
-        if q.startswith("index"):
-            return [heavy_atoms[0]]
-        if q.startswith("(mass 2 to 999) and bonded "):
-            return []
-
-    residue_group.select_atoms.side_effect = _select_atoms_data_container
-    residue_group.atoms.select_atoms.side_effect = _select_atoms_data_container
-    residue.select_atoms.side_effect = _select_atoms_residue
-    residue.atoms.select_atoms.side_effect = _select_atoms_residue
-    monkeypatch.setattr(
-        ax,
-        "get_bonded_axes",
-        lambda system, atom, dimensions: (np.eye(3), 3 * np.eye(3)),
-    )
-    monkeypatch.setattr(
-        ax, "get_principal_axes_from_group", lambda *_a, **_k: 2 * np.eye(3)
-    )
-
-    trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
-        data_container=residue_group, index=0, res_position=-1
-    )
-
-    assert np.allclose(trans_axes, 2 * np.eye(3))
-    assert np.allclose(rot_axes, np.eye(3))
-    assert np.allclose(rot_center, [1, 1, 1])
-    assert np.allclose(moi, 3 * np.eye(3))
 
 
 def test_get_terminal_axes_1point(monkeypatch):

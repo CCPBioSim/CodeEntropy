@@ -12,11 +12,12 @@ from CodeEntropy.levels.nodes.covariance import FrameCovarianceNode
 class FakeAtomGroup:
     """Small AtomGroup-like object for covariance-node tests."""
 
-    def __init__(self, name="ag", *, length=1):
+    def __init__(self, name="ag", *, length=1, select_map=None):
         self.name = name
         self._length = length
         self.indices = np.arange(length)
         self.atoms = self
+        self._select_map = dict(select_map or {})
 
     def __len__(self):
         return self._length
@@ -26,6 +27,9 @@ class FakeAtomGroup:
 
     def center_of_mass(self, unwrap=False):
         return np.array([1.0, 2.0, 3.0])
+
+    def select_atoms(self, query: str):
+        return self._select_map.get(query, FakeAtomGroup([]))
 
 
 class FakeResidue:
@@ -434,6 +438,7 @@ def test_build_ua_vectors_uses_customised_axes():
             u=FakeUniverse([]),
             mol_id=0,
             local_res_i=0,
+            relative_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
             residue_group=FakeAtomGroup("res"),
             axes_manager=axes_manager,
@@ -442,7 +447,6 @@ def test_build_ua_vectors_uses_customised_axes():
             force_partitioning=0.5,
             customised_axes=True,
             is_highest=True,
-            res_position=None,
         )
 
     assert make_whole.call_count == 2
@@ -471,6 +475,7 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
         u=u,
         mol_id=3,
         local_res_i=4,
+        relative_res_i=0,
         bead_groups=[FakeAtomGroup("ua")],
         residue_group=FakeAtomGroup("res"),
         axes_manager=axes_manager,
@@ -479,7 +484,6 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
         force_partitioning=0.5,
         customised_axes=True,
         is_highest=True,
-        res_position=None,
     )
 
     assert len(force_vecs) == 1
@@ -510,6 +514,7 @@ def test_build_ua_vectors_uses_molecule_axes_when_not_customised():
             u=FakeUniverse([]),
             mol_id=0,
             local_res_i=0,
+            relative_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
             residue_group=FakeAtomGroup("res"),
             axes_manager=axes_manager,
@@ -518,7 +523,6 @@ def test_build_ua_vectors_uses_molecule_axes_when_not_customised():
             force_partitioning=0.5,
             customised_axes=False,
             is_highest=False,
-            res_position=None,
         )
 
     assert make_whole.call_count == 2
@@ -778,6 +782,7 @@ def test_build_ua_vectors_multiple_residues_first_residue():
             u=FakeUniverse([]),
             mol_id=0,
             local_res_i=0,
+            relative_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
             residue_group=FakeMolecule(n_residues=2),
             axes_manager=axes_manager,
@@ -786,7 +791,6 @@ def test_build_ua_vectors_multiple_residues_first_residue():
             force_partitioning=0.5,
             customised_axes=True,
             is_highest=True,
-            res_position=-1,
         )
 
     assert make_whole.call_count == 2
@@ -810,6 +814,7 @@ def test_build_ua_vectors_multiple_residues_middle_residue():
             u=FakeUniverse([]),
             mol_id=0,
             local_res_i=0,
+            relative_res_i=1,
             bead_groups=[FakeAtomGroup("ua")],
             residue_group=FakeMolecule(n_residues=3),
             axes_manager=axes_manager,
@@ -818,7 +823,6 @@ def test_build_ua_vectors_multiple_residues_middle_residue():
             force_partitioning=0.5,
             customised_axes=True,
             is_highest=True,
-            res_position=0,
         )
 
     assert make_whole.call_count == 2
