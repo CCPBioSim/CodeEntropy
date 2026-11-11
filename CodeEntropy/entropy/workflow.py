@@ -106,8 +106,8 @@ class EntropyWorkflow:
         )
 
         if self._args.water_entropy and water_groups:
-            if nonwater_groups:
-                logger.warning("You are running waterEntropy on bulk water, this will be slow!")
+            if not nonwater_groups:
+                console.print("Warning: You are running waterEntropy on bulk water, this will be slow!")
             self._compute_water_entropy(frame_selection, water_groups)
         else:
             nonwater_groups.update(water_groups)
