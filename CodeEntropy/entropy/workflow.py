@@ -105,7 +105,11 @@ class EntropyWorkflow:
             reduced_universe, groups
         )
 
-        if self._args.water_entropy and water_groups and nonwater_groups:
+        if self._args.water_entropy and water_groups:
+            if not nonwater_groups:
+                logger.warning(
+                    "You are running waterEntropy on bulk water, this will be slow!"
+                )
             self._compute_water_entropy(frame_selection, water_groups)
         else:
             nonwater_groups.update(water_groups)
@@ -394,6 +398,7 @@ class EntropyWorkflow:
                 start=start,
                 end=end,
                 step=step,
+                parallel=self._args.water_entropy_parallel,
                 group_id=group_id,
             )
 

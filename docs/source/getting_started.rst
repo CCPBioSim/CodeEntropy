@@ -196,8 +196,12 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - ``0.5``
      - ``float``
    * - ``--water_entropy``
-     - Use Jas Kalayan's waterEntropy code to calculate the water conformational entropy.
+     - Use Jas Kalayan's waterEntropy code to calculate the water orientational entropy.
      - ``False``
+     - ``bool``
+   * - ``--water_entropy_parallel``
+     - If water_entropy is True, run waterEntropy in parallel to calculate the water orientational entropy.
+     - ``True``
      - ``bool``
    * - ``--grouping``
      - How to group molecules for averaging.
