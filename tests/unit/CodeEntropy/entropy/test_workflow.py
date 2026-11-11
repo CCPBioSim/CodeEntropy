@@ -127,7 +127,7 @@ def test_execute_water_entropy_branch_calls_water_entropy_solver(
         patch("CodeEntropy.entropy.workflow.WaterEntropy") as WaterCls,
         patch("CodeEntropy.entropy.workflow.LevelDAG") as LevelDAGCls,
         patch("CodeEntropy.entropy.workflow.EntropyGraph") as GraphCls,
-        patch("CodeEntropy.entropy.workflow.console") as console,
+        patch("CodeEntropy.entropy.workflow.logger") as logger,
     ):
         water_instance = WaterCls.return_value
         water_instance.calculate_and_log = MagicMock()
@@ -139,10 +139,8 @@ def test_execute_water_entropy_branch_calls_water_entropy_solver(
 
     water_instance.calculate_and_log.assert_called_once()
     _, kwargs = water_instance.calculate_and_log.call_args
-    warning = call(
-        "Warning: You are running waterEntropy on bulk water, this will be slow!"
-    )
-    assert (warning in console.print.call_args_list) is expect_warning
+    warning = call("You are running waterEntropy on bulk water, this will be slow!")
+    assert (warning in logger.warning.call_args_list) is expect_warning
     assert kwargs["universe"] is universe
     assert kwargs["start"] == 0
     assert kwargs["end"] == 5
