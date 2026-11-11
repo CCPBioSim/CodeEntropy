@@ -105,7 +105,7 @@ class EntropyWorkflow:
             reduced_universe, groups
         )
 
-        if self._args.water_entropy and water_groups and nonwater_groups:
+        if self._args.water_entropy and water_groups:
             self._compute_water_entropy(frame_selection, water_groups)
         else:
             nonwater_groups.update(water_groups)

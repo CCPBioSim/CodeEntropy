@@ -130,13 +130,16 @@ ARG_SPECS: dict[str, ArgSpec] = {
     ),
     "water_entropy": ArgSpec(
         type=bool,
-        default=True,
-        help="If set to False, disables the calculation of water entropy",
+        default=False,
+        help="If set to True, enables the calculation of water entropy",
     ),
     "water_entropy_parallel": ArgSpec(
         type=bool,
         default=True,
-        help="If set to False, disables the parallel calculation of water entropy and switches to serial",
+        help=(
+            "If set to False, disables the parallel calculation of "
+            "water entropy and switches to serial"
+        ),
     ),
     "grouping": ArgSpec(
         type=str,

@@ -122,7 +122,8 @@ class WaterEntropy:
             Tuple of solver outputs.
         """
         logger.info(
-            "[WaterEntropy] Computing water entropy (start=%s, end=%s, step=%s, parallel=%s)",
+            "[WaterEntropy] Computing water entropy (start=%s, end=%s, step=%s, "
+            "parallel=%s)",
             inputs.start,
             inputs.end,
             inputs.step,
