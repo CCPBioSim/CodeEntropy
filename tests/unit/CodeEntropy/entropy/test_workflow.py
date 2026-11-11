@@ -80,6 +80,7 @@ def test_execute_water_entropy_branch_calls_water_entropy_solver():
         step=1,
         grouping="molecules",
         water_entropy=True,
+        water_entropy_parallel=True,
         selection_string="all",
         output_file="out.json",
     )
@@ -291,6 +292,7 @@ def test_compute_water_entropy_updates_selection_string_and_calls_internal_metho
     args = SimpleNamespace(
         selection_string="all",
         water_entropy=True,
+        water_entropy_parallel=True,
         temperature=298.0,
     )
     wf = EntropyWorkflow(
@@ -317,6 +319,7 @@ def test_compute_water_entropy_updates_selection_string_and_calls_internal_metho
         start=0,
         end=5,
         step=1,
+        parallel=True,
         group_id=9,
     )
     assert wf._args.selection_string == "not water"
@@ -428,6 +431,7 @@ def test_compute_water_entropy_instantiates_waterentropy_and_updates_selection_s
     args = SimpleNamespace(
         selection_string="all",
         water_entropy=True,
+        water_entropy_parallel=True,
         temperature=298.0,
     )
     universe = MagicMock()
@@ -458,6 +462,7 @@ def test_compute_water_entropy_instantiates_waterentropy_and_updates_selection_s
         start=0,
         end=5,
         step=1,
+        parallel=True,
         group_id=9,
     )
     assert args.selection_string == "not water"
@@ -771,6 +776,7 @@ def test_compute_water_entropy_appends_not_water_to_existing_selection():
     args = SimpleNamespace(
         selection_string="protein",
         water_entropy=True,
+        water_entropy_parallel=True,
         temperature=298.0,
         output_file="out.json",
     )
@@ -789,6 +795,7 @@ def test_compute_water_entropy_appends_not_water_to_existing_selection():
         start=0,
         end=5,
         step=1,
+        parallel=True,
         group_id=9,
     )
     assert args.selection_string == "protein and not water"

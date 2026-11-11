@@ -24,7 +24,7 @@ def test_water_entropy_calls_solver_and_logs_components():
     args = SimpleNamespace(temperature=298.0)
     reporter = MagicMock()
 
-    Sorient_dict = {1: {"WAT": [3.0, 5]}}
+    Sorient_dict = {1: {"WAT": {"Sorient_Nw_ave": 3.0, "tot_count": 5}}}
 
     covariances = SimpleNamespace(counts={(7, "WAT"): 2})
 
@@ -41,7 +41,9 @@ def test_water_entropy_calls_solver_and_logs_components():
 
     universe = _make_fake_universe_with_water()
 
-    we.calculate_and_log(universe=universe, start=0, end=10, step=1, group_id=9)
+    we.calculate_and_log(
+        universe=universe, start=0, end=10, step=1, parallel=True, group_id=9
+    )
 
     solver.assert_called_once()
 
@@ -79,7 +81,9 @@ def test_water_entropy_handles_empty_solver_results_gracefully():
 
     universe = _make_fake_universe_with_water()
 
-    we.calculate_and_log(universe=universe, start=0, end=10, step=1, group_id=1)
+    we.calculate_and_log(
+        universe=universe, start=0, end=10, step=1, parallel=True, group_id=1
+    )
 
     reporter.add_residue_data.assert_not_called()
     reporter.add_group_label.assert_called_once()
@@ -113,7 +117,9 @@ def test_water_group_label_handles_multiple_water_resnames():
 
     universe.select_atoms.return_value = water_selection
 
-    we.calculate_and_log(universe=universe, start=0, end=10, step=1, group_id=1)
+    we.calculate_and_log(
+        universe=universe, start=0, end=10, step=1, parallel=True, group_id=1
+    )
 
     reporter.add_group_label.assert_called_once()
 
@@ -144,7 +150,7 @@ def test_log_group_label_defaults_to_WAT_when_no_residue_names_match():
     water_selection.atoms = [1, 2, 3]
     universe.select_atoms.return_value = water_selection
 
-    Sorient_dict = {1: {"TIP3": [1.0, 1]}}
+    Sorient_dict = {1: {"TIP3": {"Sorient_Nw_ave": 1.0, "tot_count": 1}}}
 
     we._log_group_label(universe, Sorient_dict, group_id=7)
 
