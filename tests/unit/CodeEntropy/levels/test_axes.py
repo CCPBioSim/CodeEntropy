@@ -1754,16 +1754,19 @@ def test_get_UA_axes_raises_when_only_rot_axes_fail(monkeypatch):
 def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
     ax = AxesCalculator()
     residue_group = MagicMock()
-    residue_group.__len__ = 2
-    residue = residue_group.residues[1]
+    residue = residue_group.atoms.residues[1]
+    print(type(residue_group.atoms.residues))
+    residue_group.atoms.residues.__len__ = 2
     heavy_atoms = _FakeAtomGroup(
         [
             _atom(index=0, mass=12.0, pos=(1, 0, 0)),
             _atom(index=1, mass=12.0, pos=(0, 1, 0)),
+            _atom(index=2, mass=14.0, pos=(2, 2, 2)),
         ],
     )
     edge_atom_set = [heavy_atoms[0]]
     bonded_atoms = [heavy_atoms[1]]
+    # neighbour = [heavy_atoms[2]]
 
     def _select_atoms(q):
         if q == "mass 2 to 999":
@@ -1777,6 +1780,7 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
             return bonded_atoms
 
     residue_group.select_atoms.side_effect = _select_atoms
+    residue_group.atoms.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
 
     monkeypatch.setattr(
@@ -1803,6 +1807,7 @@ def test_get_ua_axes_non_terminal_2_atoms(monkeypatch):
     ax = AxesCalculator()
     residue_group = MagicMock()
     residue_group.__len__ = 3
+    residue_group.atoms.residues.__len__ = 3
     residue = residue_group.residues[1]
     heavy_atoms = _FakeAtomGroup(
         [
@@ -1820,6 +1825,7 @@ def test_get_ua_axes_non_terminal_2_atoms(monkeypatch):
         if q.startswith("resindex "):
             return heavy_atoms
 
+    residue_group.atoms.select_atoms.side_effect = _select_atoms
     residue_group.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
     monkeypatch.setattr(
