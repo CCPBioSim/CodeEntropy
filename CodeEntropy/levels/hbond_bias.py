@@ -9,7 +9,7 @@ from collections import Counter
 
 from MDAnalysis.analysis.hydrogenbonds.hbond_analysis import HydrogenBondAnalysis as HBA
 
-from CodeEntropy.levels.mda import UniverseOperations
+from CodeEntropy.trajectory.mda import UniverseOperations
 
 logger = logging.getLogger(__name__)
 

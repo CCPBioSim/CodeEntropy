@@ -3,7 +3,7 @@ CodeEntropy
 
 | Category       | Badges |
 |----------------|--------|
-| **Build**      | [![PR Checks](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml) [![Daily Tests](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/daily.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/daily.yaml) |
+| **Build**      | [![PR Checks](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/pr.yaml) [![Weekly Tests](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-tests.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-tests.yaml) |
 | **Regression** | [![Weekly Regression](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-regression.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-regression.yaml) |
 | **Documentation** | [![Weekly Docs](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-docs.yaml/badge.svg)](https://github.com/CCPBioSim/CodeEntropy/actions/workflows/weekly-docs.yaml) [![Docs - Status](https://app.readthedocs.org/projects/codeentropy/badge/?version=latest)](https://codeentropy.readthedocs.io/en/latest/?badge=latest) |
 | **Citation**      | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17570721.svg)](https://doi.org/10.5281/zenodo.17570721) |
@@ -14,8 +14,8 @@ CodeEntropy
 CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics.
 
 <p align="center">
-    <img src="docs/_static/logos/biosim-codeentropy_logo_light.png#gh-dark-mode-only" alt="CodeEntropy logo" width="300"/>
-    <img src="docs/_static/logos/biosim-codeentropy_logo_dark.png#gh-light-mode-only" alt="CodeEntropy logo" width="300"/>
+    <img src="docs/source/_static/logos/biosim-codeentropy_logo_light.png#gh-dark-mode-only" alt="CodeEntropy logo" width="300"/>
+    <img src="docs/source/_static/logos/biosim-codeentropy_logo_dark.png#gh-light-mode-only" alt="CodeEntropy logo" width="300"/>
 </p>
 
 See [CodeEntropy’s documentation](https://codeentropy.readthedocs.io/en/latest/) for more information.

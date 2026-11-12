@@ -15,14 +15,11 @@ rest of the pipeline.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import MutableMapping
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-
-logger = logging.getLogger(__name__)
 
 SharedData = MutableMapping[str, Any]
 
@@ -63,10 +60,6 @@ class InitCovarianceAccumulatorsNode:
     Group index mapping:
         - group_id_to_index: {group_id: index}
         - index_to_group_id: [group_id_by_index]
-
-    Backwards-compatible aliases (kept for older consumers):
-        - force_torque_stats -> forcetorque_covariances
-        - force_torque_counts -> forcetorque_counts
     """
 
     def run(self, shared_data: dict[str, Any]) -> dict[str, Any]:
@@ -89,23 +82,28 @@ class InitCovarianceAccumulatorsNode:
         )
 
         self._attach_to_shared_data(shared_data, group_index, accumulators)
-        self._attach_backwards_compatible_aliases(shared_data)
-
         return self._build_return_payload(shared_data)
 
     @staticmethod
     def _build_group_index(groups: dict[int, Any]) -> GroupIndex:
-        """Build group id <-> index mappings.
+        """Build deterministic mappings between group IDs and contiguous indices.
+
+        Group IDs are sorted before indices are assigned, ensuring that the
+        resulting mappings do not depend on dictionary insertion order.
 
         Args:
-            groups: Mapping of group id to group members.
+            groups: Mapping of group IDs to their members.
 
         Returns:
-            GroupIndex mapping object.
+            Bidirectional mappings between group IDs and contiguous indices.
         """
-        group_ids = list(groups.keys())
-        gid2i = {gid: i for i, gid in enumerate(group_ids)}
-        return GroupIndex(group_id_to_index=gid2i, index_to_group_id=list(group_ids))
+        group_ids = sorted(groups)
+        gid2i = {gid: index for index, gid in enumerate(group_ids)}
+
+        return GroupIndex(
+            group_id_to_index=gid2i,
+            index_to_group_id=group_ids,
+        )
 
     @staticmethod
     def _build_accumulators(n_groups: int) -> CovarianceAccumulators:
@@ -162,16 +160,6 @@ class InitCovarianceAccumulatorsNode:
         shared_data["forcetorque_counts"] = acc.forcetorque_counts
 
     @staticmethod
-    def _attach_backwards_compatible_aliases(shared_data: SharedData) -> None:
-        """Attach backwards-compatible aliases.
-
-        Args:
-            shared_data: Shared pipeline dictionary.
-        """
-        shared_data["force_torque_stats"] = shared_data["forcetorque_covariances"]
-        shared_data["force_torque_counts"] = shared_data["forcetorque_counts"]
-
-    @staticmethod
     def _build_return_payload(shared_data: SharedData) -> dict[str, Any]:
         """Build the return payload containing initialized keys.
 
@@ -189,6 +177,4 @@ class InitCovarianceAccumulatorsNode:
             "frame_counts": shared_data["frame_counts"],
             "forcetorque_covariances": shared_data["forcetorque_covariances"],
             "forcetorque_counts": shared_data["forcetorque_counts"],
-            "force_torque_stats": shared_data["force_torque_stats"],
-            "force_torque_counts": shared_data["force_torque_counts"],
         }

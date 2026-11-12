@@ -10,27 +10,6 @@ import pytest
 from tests.regression.cases import discover_cases
 from tests.regression.helpers import run_codeentropy_with_config
 
-CASES = discover_cases()
-
-
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    """
-    Dynamically parametrize regression test cases.
-
-    This hook enables pytest-xdist to distribute individual regression cases
-    across multiple workers by generating test parametrization at collection time.
-
-    Args:
-        metafunc (pytest.Metafunc): Pytest metafunction object used to inspect
-            and modify test function parametrization.
-    """
-    if "case" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "case",
-            CASES,
-            ids=[c.id for c in CASES],
-        )
-
 
 def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """
@@ -49,6 +28,18 @@ def _group_index(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     if not isinstance(groups, dict):
         raise TypeError("payload['groups'] must be a dict")
     return groups
+
+
+def _baseline_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Build the persisted regression baseline payload.
+
+    Baselines intentionally store only grouped entropy results, not runtime
+    arguments or provenance, so they remain stable across machines and runs.
+    """
+    return {
+        "groups": _group_index(payload),
+    }
 
 
 def _compare_grouped(
@@ -127,6 +118,7 @@ def _compare_grouped(
 
 
 @pytest.mark.regression
+@pytest.mark.parametrize("case", discover_cases())
 def test_regression_matches_baseline(
     tmp_path: Path,
     case,
@@ -148,7 +140,8 @@ def test_regression_matches_baseline(
         options.
 
     Raises:
-        AssertionError: If the output does not match the baseline or baseline is missing
+        AssertionError: If the output does not match the baseline or
+        baseline is missing.
     """
     system = case.system
     config_path = case.config_path
@@ -176,7 +169,9 @@ def test_regression_matches_baseline(
 
     if request.config.getoption("--update-baselines"):
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
-        baseline_path.write_text(json.dumps(run.payload, indent=2))
+        baseline_path.write_text(
+            json.dumps(_baseline_payload(run.payload), indent=2) + "\n"
+        )
         pytest.skip(f"Updated baseline for {system}")
 
     _compare_grouped(

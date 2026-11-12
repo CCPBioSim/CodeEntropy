@@ -1,45 +1,16 @@
 {
-  "args": {
-    "top_traj_file": [
-      "/home/ogo12949/CodeEntropy/.testdata/benzaldehyde/molecules.top",
-      "/home/ogo12949/CodeEntropy/.testdata/benzaldehyde/trajectory.crd"
-    ],
-    "force_file": "/home/ogo12949/CodeEntropy/.testdata/benzaldehyde/forces.frc",
-    "file_format": "MDCRD",
-    "kcal_force_units": true,
-    "selection_string": "resid 1:10",
-    "start": 0,
-    "end": 5,
-    "step": 2,
-    "bin_width": 30,
-    "temperature": 298.0,
-    "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw1/test_regression_matches_baseli1/job001/output_file.json",
-    "force_partitioning": 0.5,
-    "water_entropy": true,
-    "grouping": "molecules",
-    "combined_forcetorque": true,
-    "customised_axes": true,
-    "search_type": "grid"
-  },
-  "provenance": {
-    "python": "3.13.5",
-    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.1",
-    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
-  },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 40.30267601961045,
-        "united_atom:Rovibrational": 38.21906858443615,
-        "residue:FTmat-Transvibrational": 73.41098578352612,
-        "residue:FTmat-Rovibrational": 57.881504393660364,
+        "united_atom:Transvibrational": 37.90368186636453,
+        "united_atom:Rovibrational": 38.219068584436165,
+        "residue:FTmat-Transvibrational": 74.05827280885852,
+        "residue:FTmat-Rovibrational": 58.53451127009362,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 20.481571492615355
       },
-      "total": 230.29580627384846
+      "total": 229.1971060223682
     }
   }
 }

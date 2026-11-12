@@ -1,0 +1,43 @@
+name: Update Regression Baselines
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: update-regression-baselines-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-baselines:
+    name: Update regression baselines
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install testing dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[testing]
+
+      - name: Update regression baselines
+        run: pytest tests/regression --update-baselines --run-slow
+
+      - name: Commit updated baselines
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
+        with:
+          commit_message: "test(regression): update baselines"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com

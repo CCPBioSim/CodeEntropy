@@ -32,13 +32,17 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
+from CodeEntropy import __version__
 from CodeEntropy.config.argparse import ConfigResolver
+from CodeEntropy.core.dask_clusters import HPCDaskManager
 from CodeEntropy.core.logging import LoggingConfig
 from CodeEntropy.entropy.workflow import EntropyWorkflow
-from CodeEntropy.levels.dihedrals import ConformationStateBuilder
-from CodeEntropy.levels.mda import UniverseOperations
+from CodeEntropy.levels.dihedrals.conformational_state_builder import (
+    ConformationStateBuilder,
+)
 from CodeEntropy.molecules.grouping import MoleculeGrouper
 from CodeEntropy.results.reporter import ResultsReporter
+from CodeEntropy.trajectory.mda import UniverseOperations
 
 logger = logging.getLogger(__name__)
 console = LoggingConfig.get_console()
@@ -132,20 +136,21 @@ class CodeEntropyRunner:
             return None
 
     def show_splash(self) -> None:
-        """Render a Rich splash screen with optional citation metadata."""
+        """Render a Rich splash screen.
+
+        The version shown is that of the locally installed package. Remaining
+        metadata (authors, description, URL) comes from the online citation file
+        when it is reachable.
+        """
         citation = self.load_citation_data()
+        version_text = Align.center(Text(f"Version {__version__}", style="green"))
 
         if citation:
             ascii_title = text2art(citation.get("title", "CodeEntropy"))
             ascii_render = Align.center(Text(ascii_title, style="bold white"))
 
-            version = citation.get("version", "?")
-            release_date = citation.get("date-released", "?")
             url = citation.get("url", citation.get("repository-code", ""))
 
-            version_text = Align.center(
-                Text(f"Version {version} | Released {release_date}", style="green")
-            )
             url_text = Align.center(Text(url, style="blue underline"))
 
             abstract = citation.get("abstract", "No description available.")
@@ -190,7 +195,7 @@ class CodeEntropyRunner:
         else:
             ascii_title = text2art("CodeEntropy")
             ascii_render = Align.center(Text(ascii_title, style="bold white"))
-            splash_content = Group(ascii_render)
+            splash_content = Group(ascii_render, Rule(style="cyan"), version_text)
 
         splash_panel = Panel(
             splash_content,
@@ -223,8 +228,9 @@ class CodeEntropyRunner:
 
         This method:
         - Sets up logging and prints the splash screen
-        - Loads YAML config from CWD and parses CLI args
+        - Loads YAML configuration from CWD and parses CLI args
         - Merges args with YAML per-run config
+        - Optionally submits a master SLURM job and exits
         - Builds the MDAnalysis Universe (with optional force merging)
         - Validates user parameters
         - Constructs dependencies and executes EntropyWorkflow
@@ -255,6 +261,16 @@ class CodeEntropyRunner:
                     continue
 
                 args = self._config_manager.resolve(args, run_config)
+
+                if getattr(args, "submit", False):
+                    if os.environ.get("CODEENTROPY_SUBMITTED_JOB") == "1":
+                        run_logger.info(
+                            "Already running inside submitted SLURM job; "
+                            "continuing workflow."
+                        )
+                    else:
+                        HPCDaskManager(args).submit_master()
+                        return
 
                 log_level = (
                     logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
@@ -298,6 +314,7 @@ class CodeEntropyRunner:
                 except Exception:
                     logger.error("Run arguments at failure could not be serialized")
 
+            logger.exception("Fatal error during entropy calculation")
             raise RuntimeError("CodeEntropyRunner encountered an error") from exc
 
     @staticmethod
@@ -335,8 +352,14 @@ class CodeEntropyRunner:
         kcal_units = args.kcal_force_units
 
         if forcefile is None:
-            logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
-            return mda.Universe(tprfile, trrfile, format=fileformat)
+            if fileformat == "LAMMPSDUMP":
+                logger.debug(
+                    f"Loading Universe with {tprfile} and {trrfile} (LAMMPSDUMP)"
+                )
+                return universe_operations.convert_lammps(tprfile, trrfile, fileformat)
+            else:
+                logger.debug(f"Loading Universe with {tprfile} and {trrfile}")
+                return mda.Universe(tprfile, trrfile, format=fileformat)
 
         return universe_operations.merge_forces(
             tprfile, trrfile, forcefile, fileformat, kcal_units

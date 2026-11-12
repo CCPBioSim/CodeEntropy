@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from CodeEntropy.levels.hbond_bias import HBondFactor
-from CodeEntropy.levels.mda import UniverseOperations
+from CodeEntropy.trajectory.mda import UniverseOperations
 
 
 def test_get_hbond_factor_no_hbond_possible():

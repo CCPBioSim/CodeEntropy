@@ -323,7 +323,7 @@ class VibrationalEntropyNode:
             EntropyPair containing translational entropy (from force covariance) and
             rotational entropy (from torque covariance).
         """
-        if fmat is None or tmat is None:
+        if fmat is None and tmat is None:
             return EntropyPair(trans=0.0, rot=0.0)
 
         f = self._mat_ops.filter_zero_rows_columns(
@@ -333,7 +333,7 @@ class VibrationalEntropyNode:
             np.asarray(tmat), atol=self._zero_atol
         )
 
-        if f.size == 0 or t.size == 0:
+        if f.size == 0 and t.size == 0:
             return EntropyPair(trans=0.0, rot=0.0)
 
         s_trans = ve.vibrational_entropy_calculation(

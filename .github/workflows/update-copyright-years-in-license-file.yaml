@@ -5,13 +5,12 @@ on:
     - cron: '0 3 1 1 *' # 03:00 AM on January 1
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-    update-license-year:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v6
-              with:
-                  fetch-depth: 0
-            - uses: FantasticFiasco/action-update-license-year@v3
-              with:
-                  token: ${{ secrets.GITHUB_TOKEN }}
+  update-license-year:
+    uses: CCPBioSim/.github/.github/workflows/maintenance-license-year.yaml@f72e64d2dc791ad5ceda145777a3922895d92a5d # 0.17.0
+    permissions:
+      contents: write
+      pull-requests: write

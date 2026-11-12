@@ -1,45 +1,16 @@
 {
-  "args": {
-    "top_traj_file": [
-      "/home/ogo12949/CodeEntropy/.testdata/benzene/molecules.top",
-      "/home/ogo12949/CodeEntropy/.testdata/benzene/trajectory.crd"
-    ],
-    "force_file": "/home/ogo12949/CodeEntropy/.testdata/benzene/forces.frc",
-    "file_format": "MDCRD",
-    "kcal_force_units": true,
-    "selection_string": "resid 1:10",
-    "start": 0,
-    "end": 5,
-    "step": 2,
-    "bin_width": 30,
-    "temperature": 298.0,
-    "verbose": false,
-    "output_file": "/tmp/pytest-of-ogo12949/pytest-3/popen-gw5/test_regression_matches_baseli0/job001/output_file.json",
-    "force_partitioning": 0.5,
-    "water_entropy": true,
-    "grouping": "molecules",
-    "combined_forcetorque": true,
-    "customised_axes": true,
-    "search_type": "grid"
-  },
-  "provenance": {
-    "python": "3.13.5",
-    "platform": "Linux-6.17.0-1017-oem-x86_64-with-glibc2.39",
-    "codeentropy_version": "2.1.1",
-    "git_sha": "f2e0e7c509c6683eea94dd25a25bba2639c0bb96"
-  },
   "groups": {
     "0": {
       "components": {
-        "united_atom:Transvibrational": 11.46552036084548,
-        "united_atom:Rovibrational": 34.98492056748493,
-        "residue:FTmat-Transvibrational": 71.83491878606151,
-        "residue:FTmat-Rovibrational": 55.6098400281744,
+        "united_atom:Transvibrational": 13.02795056227694,
+        "united_atom:Rovibrational": 34.98492056748487,
+        "residue:FTmat-Transvibrational": 76.31666900908246,
+        "residue:FTmat-Rovibrational": 55.741216775589876,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 173.89519974256632
+      "total": 180.07075691443413
     }
   }
 }

@@ -148,7 +148,7 @@ class VibrationalEntropy:
             Eigenvalues as a NumPy array.
         """
         matrix = np.asarray(matrix, dtype=float)
-        return la.eigvals(matrix)
+        return la.eigvalsh(matrix)
 
     def _convert_lambda_units(self, lambdas: np.ndarray) -> np.ndarray:
         """Convert eigenvalues into SI units using run_manager.
@@ -185,7 +185,10 @@ class VibrationalEntropy:
         """Convert eigenvalues to frequencies with robust filtering.
 
         Filters out eigenvalues that are complex, non-positive, or near-zero to
-        avoid invalid frequencies and unstable entropies.
+        avoid invalid frequencies and unstable entropies. The near-zero
+        tolerance scales with the spectrum's own magnitude (as in
+        ``numpy.linalg.matrix_rank``) rather than using a fixed cutoff, since
+        the eigensolver noise floor around a true null mode is not constant.
 
         Args:
             lambdas: Eigenvalues (post unit conversion).
@@ -197,8 +200,11 @@ class VibrationalEntropy:
         lambdas = np.asarray(lambdas)
         lambdas = np.real_if_close(lambdas, tol=1000)
 
+        scale = float(np.max(np.abs(lambdas))) if lambdas.size else 0.0
+        atol = lambdas.size * np.finfo(float).eps * scale
+
         valid_mask = (
-            np.isreal(lambdas) & (lambdas > 0) & (~np.isclose(lambdas, 0, atol=1e-7))
+            np.isreal(lambdas) & (lambdas > 0) & (~np.isclose(lambdas, 0, atol=atol))
         )
 
         removed = int(len(lambdas) - np.count_nonzero(valid_mask))

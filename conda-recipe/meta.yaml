@@ -1,5 +1,12 @@
 {% set name = "codeentropy" %}
 {% set version = "0.0.0" %}
+{% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=True) %}
+{% set pip_only = namespace(water_entropy="") %}
+{% for dependency in pyproject["project"]["dependencies"] %}
+{% if dependency.startswith("waterEntropy") %}
+{% set pip_only.water_entropy = dependency %}
+{% endif %}
+{% endfor %}
 
 package:
   name: {{ name }}
@@ -12,7 +19,7 @@ build:
   noarch: python
   script: |
     python -m pip install . -vv --no-deps
-    PIP_NO_INDEX=0 python -m pip install -vv --index-url https://pypi.org/simple waterEntropy
+    PIP_NO_INDEX=0 python -m pip install -vv --index-url https://pypi.org/simple "{{ pip_only.water_entropy }}"
   entry_points:
     - CodeEntropy=CodeEntropy.cli:main
 
@@ -20,26 +27,16 @@ requirements:
   host:
     - python >=3.12
     - pip
-    - flit-core >=3.4,<4
+    - flit-core >=4,<5
   run:
-    - python >=3.12
-    - numpy >=2.3,<3.0
-    - mdanalysis >=2.10,<3.0
-    - pandas >=3.0,<3.1
-    - psutil >=7.1,<8.0
-    - pyyaml >=6.0,<7.0
-    - python-json-logger >=2.0,<3.0
-    - rich >=14.2,<15.0
-    - python-art >=6.5,<7.0
-    - networkx >=3.6,<3.7
-    - matplotlib >=3.10,<3.11
-    - requests >=2.32,<3.0
-    - rdkit>=2025.9.5
-    - dask >=2026.1.2,<2026.2.0
-    - distributed >=2026.1.2,<2026.2.0
-    - dask-jobqueue >=0.9,<0.10
-    - pytest-xdist >=3.8, <3.9
-    - numba >=0.65.0, <0.7
+    - python {{ pyproject["project"]["requires-python"] }}
+    {% for dependency in pyproject["project"]["dependencies"] %}
+    {% if dependency.startswith("art>") %}
+    - python-{{ dependency }}
+    {% elif not dependency.startswith("waterEntropy") %}
+    - {{ dependency | lower }}
+    {% endif %}
+    {% endfor %}
 
 test:
   imports:
@@ -48,7 +45,13 @@ test:
     - CodeEntropy --help
 
 about:
-  home: https://ccpbiosim.github.io/CodeEntropy/
+  home: https://github.com/CCPBioSim/CodeEntropy
   license: MIT
+  license_family: MIT
   license_file: LICENSE
-  summary: "Entropy analysis tools for macromolecular systems and MD simulation"
+  license_url: https://github.com/CCPBioSim/CodeEntropy/blob/main/LICENSE
+  summary: Python package for calculating configurational entropy from molecular dynamics simulations using the multiscale cell correlation method.
+  description: "CodeEntropy is a Python package for computing the configurational entropy of macromolecular systems using forces sampled from molecular dynamics (MD) simulations. It implements the multiscale cell correlation method to provide accurate and efficient entropy estimates, supporting a wide range of applications in molecular simulation and statistical mechanics."
+  dev_url: https://github.com/CCPBioSim/CodeEntropy
+  doc_url: https://codeentropy.readthedocs.io/en/latest/
+  doc_source_url: https://github.com/CCPBioSim/CodeEntropy/blob/main/README.md

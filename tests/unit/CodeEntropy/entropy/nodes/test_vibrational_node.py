@@ -321,7 +321,7 @@ def test_compute_force_torque_entropy_returns_zero_when_missing_matrix(shared_gr
     node = VibrationalEntropyNode()
     ve = MagicMock()
     pair = node._compute_force_torque_entropy(
-        ve=ve, temp=298.0, fmat=None, tmat=np.eye(3), flexible=0, highest=True
+        ve=ve, temp=298.0, fmat=None, tmat=None, flexible=0, highest=True
     )
     assert pair == EntropyPair(trans=0.0, rot=0.0)
 
