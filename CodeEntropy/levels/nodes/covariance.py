@@ -83,7 +83,7 @@ class FrameCovarianceNode:
 
         fp = float(args.force_partitioning)
         combined = bool(getattr(args, "combined_forcetorque", False))
-        axes = str(getattr(args, "axes", False))
+        axes = args.axes
 
         box = self._try_get_box(u)
         fragments = u.atoms.fragments
@@ -517,6 +517,9 @@ class FrameCovarianceNode:
                 rot_axes, moi = axes_manager.get_molecule_axes(bead)
                 center = bead.center_of_mass(unwrap=True)
 
+            else:
+                raise ValueError(f"Unknown axes option: {axes!r}")
+
             force_vecs.append(
                 self._ft.get_weighted_forces(
                     bead=bead,
@@ -656,6 +659,9 @@ class FrameCovarianceNode:
             return axes_manager.get_residue_axes(
                 mol, local_res_i, relative_res_i, residue=res.atoms
             )
+
+        if axes != "principal":
+            raise ValueError(f"Unknown axes option: {axes!r}")
 
         make_whole(mol.atoms)
         make_whole(bead)

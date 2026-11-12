@@ -514,6 +514,18 @@ class ConfigResolver:
         self._check_input_temperature(args)
         self._check_input_force_partitioning(args)
         self._check_parallel_frame_options(args)
+        self._check_input_axes(args)
+
+    @staticmethod
+    def _check_input_axes(args: argparse.Namespace) -> None:
+        """Check that the axes option is one of the supported values."""
+        valid = ("principal", "topology", "local")
+        axes = str(args.axes).strip().lower()
+        if axes not in valid:
+            raise ValueError(
+                f"Invalid 'axes': {args.axes!r}. Must be one of {', '.join(valid)}."
+            )
+        args.axes = axes
 
     @staticmethod
     def _check_input_start(u: Any, args: argparse.Namespace) -> None:

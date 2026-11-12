@@ -97,7 +97,7 @@ class BuildAxesTopologyNode:
         args = shared_data["args"]
         topology = AxesTopology()
 
-        if str(getattr(args, "axes", "topology")):
+        if args.axes != "topology":
             shared_data["axes_topology"] = topology
             return {"axes_topology": topology}
 
