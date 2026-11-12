@@ -130,8 +130,16 @@ ARG_SPECS: dict[str, ArgSpec] = {
     ),
     "water_entropy": ArgSpec(
         type=bool,
+        default=False,
+        help="If set to True, enables the calculation of water entropy",
+    ),
+    "water_entropy_parallel": ArgSpec(
+        type=bool,
         default=True,
-        help="If set to False, disables the calculation of water entropy",
+        help=(
+            "If set to False, disables the parallel calculation of "
+            "water entropy and switches to serial"
+        ),
     ),
     "grouping": ArgSpec(
         type=str,
@@ -143,10 +151,18 @@ ARG_SPECS: dict[str, ArgSpec] = {
         default=True,
         help="Use combined force-torque matrix for residue-level vibrational entropies",
     ),
-    "customised_axes": ArgSpec(
-        type=bool,
-        default=True,
-        help="Use bonded axes to rotate forces for united-atom vibrational entropies",
+    "axes": ArgSpec(
+        type=str,
+        default="local",
+        help="Axes to be used for residue and UA level rotations. If set to principal, "
+        "principal axes of residue are used for residue rotation and UA translation "
+        "and principal axes of UA are used for UA rotation. If set to topology, "
+        "axes are determined using the cached topology indices rather than repeating "
+        "MDAnalysis selections each frame. Residue level rotation and UA translation "
+        "use principal axes of the residue. UA rotation uses bond-derived axes. If set "
+        "to local, local level-specific custom axes are used. Residue rotation and UA "
+        "translation use local internal coordinate-derived axes. "
+        "UA rotation uses bond-derived axes.",
     ),
     "search_type": ArgSpec(
         type=str,
@@ -498,6 +514,18 @@ class ConfigResolver:
         self._check_input_temperature(args)
         self._check_input_force_partitioning(args)
         self._check_parallel_frame_options(args)
+        self._check_input_axes(args)
+
+    @staticmethod
+    def _check_input_axes(args: argparse.Namespace) -> None:
+        """Check that the axes option is one of the supported values."""
+        valid = ("principal", "topology", "local")
+        axes = str(args.axes).strip().lower()
+        if axes not in valid:
+            raise ValueError(
+                f"Invalid 'axes': {args.axes!r}. Must be one of {', '.join(valid)}."
+            )
+        args.axes = axes
 
     @staticmethod
     def _check_input_start(u: Any, args: argparse.Namespace) -> None:

@@ -273,3 +273,31 @@ def test_check_parallel_frame_options_raises_when_conda_exec_missing(
         match="'conda_exec' must be provided when using HPC Dask.",
     ):
         resolver._check_parallel_frame_options(args)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("principal", "principal"),
+        ("topology", "topology"),
+        ("local", "local"),
+        ("Topology", "topology"),
+        ("  LOCAL ", "local"),
+    ],
+)
+def test_check_input_axes_accepts_and_normalises_valid_values(
+    resolver, make_args, value, expected
+):
+    args = make_args(axes=value)
+
+    resolver._check_input_axes(args)
+
+    assert args.axes == expected
+
+
+@pytest.mark.parametrize("value", ["topolgy", "", True, None])
+def test_check_input_axes_raises_for_invalid_values(resolver, make_args, value):
+    args = make_args(axes=value)
+
+    with pytest.raises(ValueError, match="Invalid 'axes'"):
+        resolver._check_input_axes(args)

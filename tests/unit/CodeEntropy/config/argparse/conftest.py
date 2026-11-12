@@ -35,6 +35,7 @@ def make_args():
             bin_width=30,
             temperature=298.0,
             force_partitioning=0.5,
+            axes="local",
         )
         base.update(overrides)
         # validation functions only require attribute access; SimpleNamespace is ideal
