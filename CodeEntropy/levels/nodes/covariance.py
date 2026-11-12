@@ -237,7 +237,7 @@ class FrameCovarianceNode:
 
             else:
                 res_position = None
-                residue_group = res
+                residue_group = res.atoms
             bead_key = (mol_id, "united_atom", local_res_i)
             bead_idx_list = beads.get(bead_key, [])
             if not bead_idx_list:
@@ -483,7 +483,6 @@ class FrameCovarianceNode:
             ua_topology = None
             if axes == "topology":
                 ua_topology = axes_topology.ua.get((mol_id, local_res_i, ua_i))
-                print(f"The ua topology is: {ua_topology}")
                 if ua_topology is not None:
                     trans_axes, rot_axes, center, moi = (
                         axes_manager.get_UA_axes_from_topology(
@@ -493,7 +492,6 @@ class FrameCovarianceNode:
                             box=box,
                         )
                     )
-                    print("We used the topology axes!")
                 else:
                     # custom local axes if no topology
                     make_whole(residue_group)
@@ -645,7 +643,6 @@ class FrameCovarianceNode:
         """
         if axes == "topology" or axes == "local":
             res = mol.residues[local_res_i]
-            print(f"The axes topology is: {axes_topology}")
             residue_topology = None
             if axes == "topology" and axes_topology is not None:
                 # can use the cached axes topology
