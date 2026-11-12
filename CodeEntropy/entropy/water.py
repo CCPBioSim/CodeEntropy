@@ -35,6 +35,7 @@ class WaterEntropyInput:
     end: int
     step: int
     temperature: float
+    parallel: bool
     group_id: int | None = None
 
 
@@ -53,7 +54,7 @@ class WaterEntropy:
         self,
         args: Any,
         reporter: Any,
-        solver: Callable[..., tuple[dict, Any, Any, Any, Any]] = (
+        solver: Callable[..., tuple[dict, Any, Any, Any, Any, Any]] = (
             GetSolvent.get_interfacial_water_orient_entropy
         ),
     ) -> None:
@@ -77,6 +78,7 @@ class WaterEntropy:
         start: int,
         end: int,
         step: int,
+        parallel: bool,
         group_id: int | None = None,
     ) -> None:
         """Compute water entropy and write results to the data logger.
@@ -95,6 +97,7 @@ class WaterEntropy:
             step=step,
             temperature=float(self._args.temperature),
             group_id=group_id,
+            parallel=parallel,
         )
         self._calculate_and_log_from_inputs(inputs)
 
@@ -119,10 +122,12 @@ class WaterEntropy:
             Tuple of solver outputs.
         """
         logger.info(
-            "[WaterEntropy] Computing water entropy (start=%s, end=%s, step=%s)",
+            "[WaterEntropy] Computing water entropy (start=%s, end=%s, step=%s, "
+            "parallel=%s)",
             inputs.start,
             inputs.end,
             inputs.step,
+            inputs.parallel,
         )
         return self._solver(
             inputs.universe,
@@ -130,7 +135,7 @@ class WaterEntropy:
             inputs.end,
             inputs.step,
             inputs.temperature,
-            parallel=True,
+            inputs.parallel,
         )
 
     def _log_orientational_entropy(
@@ -144,8 +149,9 @@ class WaterEntropy:
         """
         for _resid, resname_dict in Sorient_dict.items():
             for resname, values in resname_dict.items():
-                if isinstance(values, list) and len(values) == 2:
-                    entropy, count = values
+                if isinstance(values, dict):
+                    entropy = values["Sorient_Nw_ave"]
+                    count = values["tot_count"]
                     self._reporter.add_residue_data(
                         group_id, resname, "Water", "Orientational", count, entropy
                     )
