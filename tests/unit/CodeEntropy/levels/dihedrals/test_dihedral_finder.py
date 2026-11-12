@@ -98,7 +98,9 @@ class FakeAtomGroup:
         )
 
     def select_atoms(self, select_string: str, updating: bool = False) -> Any:
-        if select_string not in self._select_map:
+        if select_string.startswith("resindex"):
+            return self._select_map[select_string]
+        elif select_string not in self._select_map:
             raise AssertionError(f"Unexpected selection: {select_string!r}")
         return self._select_map[select_string]
 
@@ -154,6 +156,145 @@ def test_method_res_bonds_res():
     data_container.residues = residues
 
     result = dd.method_res_bonds(data_container, "residue")
+
+    assert len(result) == 1
+    assert result[0].indices == [0, 1, 2, 3]
+
+
+def test_method_res_points_ua():
+    dd = DihedralDefinitions()
+    atoms = [FakeAtom(index) for index in range(4)]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    data_container = FakeAtomGroup(
+        atoms,
+        dihedrals=[dihedral],
+        universe=universe,
+    )
+
+    result = dd.method_res_points(data_container, "united_atom")
+
+    assert len(result) == 1
+    assert result[0] is atom_group
+    assert result[0].indices == [0, 1, 2, 3]
+
+
+def test_method_res_points_res():
+    dd = DihedralDefinitions()
+    atoms = [FakeAtom(index) for index in range(4)]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    # Create bonds between consecutive residues.
+    atoms[0].bonded_atoms = FakeAtomGroup([atoms[1]], universe=universe)
+    atoms[1].bonded_atoms = FakeAtomGroup([atoms[0], atoms[2]], universe=universe)
+    atoms[2].bonded_atoms = FakeAtomGroup([atoms[1], atoms[3]], universe=universe)
+    atoms[3].bonded_atoms = FakeAtomGroup([atoms[2]], universe=universe)
+
+    residues = [FakeResidue(FakeAtomGroup([atom], universe=universe)) for atom in atoms]
+
+    data_container = FakeAtomGroup(
+        atoms,
+        residues=residues,
+        dihedrals=[dihedral],
+        universe=universe,
+    )
+
+    result = dd.method_res_points(data_container, "residue")
+
+    assert len(result) == 1
+    assert result[0].indices == [0, 1, 2, 3]
+
+
+def test_method_res_pairs_ua():
+    dd = DihedralDefinitions()
+    atoms = [FakeAtom(index) for index in range(4)]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    data_container = FakeAtomGroup(
+        atoms,
+        dihedrals=[dihedral],
+        universe=universe,
+    )
+
+    result = dd.method_res_pairs(data_container, "united_atom")
+
+    assert len(result) == 1
+    assert result[0] is atom_group
+    assert result[0].indices == [0, 1, 2, 3]
+
+
+def test_method_res_pairs_res():
+    dd = DihedralDefinitions()
+    atoms = [FakeAtom(index) for index in range(2)]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    # Create bonds between consecutive residues.
+    atoms[0].bonded_atoms = FakeAtomGroup([atoms[1]], universe=universe)
+    atoms[1].bonded_atoms = FakeAtomGroup([atoms[0]], universe=universe)
+
+    residues = [FakeResidue(FakeAtomGroup([atom], universe=universe)) for atom in atoms]
+
+    data_container = FakeAtomGroup(
+        atoms,
+        residues=residues,
+        dihedrals=[dihedral],
+        universe=universe,
+    )
+
+    result = dd.method_res_pairs(data_container, "residue")
+
+    assert len(result) == 1
+    assert result[0].indices == [0, 1, 2, 3]
+
+
+def test_method_ua_backbone_ua():
+    dd = DihedralDefinitions()
+    atoms = [FakeAtom(index) for index in range(4)]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    data_container = FakeAtomGroup(
+        atoms,
+        dihedrals=[dihedral],
+        universe=universe,
+    )
+
+    result = dd.method_ua_backbone(data_container, "united_atom")
+
+    assert len(result) == 1
+    assert result[0] is atom_group
+    assert result[0].indices == [0, 1, 2, 3]
+
+
+def test_method_ua_backbone_res():
+    dd = DihedralDefinitions()
+    atoms = [FakeAtom(index) for index in range(4)]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    residues = [FakeResidue(FakeAtomGroup([atom], universe=universe)) for atom in atoms]
+
+    backbone = FakeAtomGroup(atoms, dihedrals=[dihedral], universe=universe)
+
+    data_container = FakeAtomGroup(
+        atoms,
+        dihedrals=[dihedral],
+        residues=residues,
+        select_map={"name H and not name H": backbone},
+        universe=universe,
+    )
+
+    result = dd.method_ua_backbone(data_container, "residue")
 
     assert len(result) == 1
     assert result[0].indices == [0, 1, 2, 3]
