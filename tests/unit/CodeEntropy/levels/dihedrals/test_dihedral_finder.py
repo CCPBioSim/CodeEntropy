@@ -120,23 +120,40 @@ class FakeDihedral:
 def test_method_res_bonds_ua():
     dd = DihedralDefinitions()
     atoms = [FakeAtom(index) for index in range(4)]
-    data_container = MagicMock()
-    data_container.atoms = atoms
-    data_container.dihedrals = MagicMock()
-    data_container.dihedrals.atoms.return_value = [0, 1, 2, 3]
+    universe = FakeUniverse(atoms)
+    atom_group = FakeAtomGroup(atoms, universe=universe)
+    dihedral = FakeDihedral(atom_group)
+
+    data_container = FakeAtomGroup(
+        atoms,
+        dihedrals=[dihedral],
+        universe=universe,
+    )
 
     result = dd.method_res_bonds(data_container, "united_atom")
 
-    assert result == [0, 1, 2, 3]
+    assert len(result) == 1
+    assert result[0] is atom_group
+    assert result[0].indices == [0, 1, 2, 3]
 
 
 def test_method_res_bonds_res():
     dd = DihedralDefinitions()
     atoms = [FakeAtom(index) for index in range(4)]
+    universe = FakeUniverse(atoms)
+
+    # Create bonds between consecutive residues.
+    atoms[0].bonded_atoms = FakeAtomGroup([atoms[1]], universe=universe)
+    atoms[1].bonded_atoms = FakeAtomGroup([atoms[0]], universe=universe)
+    atoms[2].bonded_atoms = FakeAtomGroup([atoms[3]], universe=universe)
+    atoms[3].bonded_atoms = FakeAtomGroup([atoms[2]], universe=universe)
+
+    residues = [FakeResidue(FakeAtomGroup([atom], universe=universe)) for atom in atoms]
+
     data_container = MagicMock()
-    data_container.atoms = atoms
-    data_container.residues = [0, 1, 2, 3]
+    data_container.residues = residues
 
     result = dd.method_res_bonds(data_container, "residue")
 
-    assert result == [0, 1, 2, 3]
+    assert len(result) == 1
+    assert result[0].indices == [0, 1, 2, 3]
