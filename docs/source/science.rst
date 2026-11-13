@@ -87,8 +87,12 @@ This term is based on the intramolecular conformational states.
 The united atom level dihedrals are defined for every linear sequence of four bonded atoms, but only using the heavy atoms no hydrogens are involved.
 The MDAnalysis package is used to identify and calculate the united atom dihedral values.
 
-For the residue level dihedrals, the bond between the first and second residues and the bond between the third and fourth residues are found.
-The four atoms at the ends of these two bonds are used as points for the dihedral angle calculation.
+For the residue level dihedrals, there is a choice of methods:
+
+- ua_backbone: the heavy backbone atoms from every residue, if there are two or more residues in the molecule, are collected into an atom group and the atomistic dihedrals from this group are used. 
+- res_pairs: four points are selected from two neighboring residues. These points are the atoms at the ends of the bond connecting the two residues and the center of geometry of each residue.
+- res_bonds: the bond between the first and second residues and the bond between the third and fourth residues are found. The four atoms at the ends of these two bonds are used as points for the dihedral angle calculation.
+- res_points: uses one point from each of four adjacent residues. This method uses the atoms bonded to other residues as edges and takes the center of the edges as the point for each residue.
 
 To discretise dihedrals, a histogram is constructed from each set of dihedral values and peaks are identified.
 Then at each timestep, every dihedral is assigned to its nearest peak and a state is created from all the assigned peaks in the residue (for united atom level) or molecule (for residue level).

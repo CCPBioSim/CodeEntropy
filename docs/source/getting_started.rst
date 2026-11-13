@@ -179,7 +179,7 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - ``30``
      - ``int``
    * - ``--temperature``
-     - Temperature for entropy calculation (K).
+     - Temperature for entropy calculation (K) is the same as the simulation temperature.
      - ``298.0``
      - ``float``
    * - ``--verbose``
@@ -219,6 +219,10 @@ The ``top_traj_file`` argument is required; other arguments have default values.
    * - ``--search_type``
      - Method for finding neighbouring molecules.
      - ``RAD``
+     - ``str``
+   * - ``--conf_type``
+     - Method for identifying the residue level dihedrals for conformational entropy.
+     - ``ua_backbone``
      - ``str``
    * - ``--parallel_frames``
      - Execute frame-local covariance calculations in parallel. When enabled, frame-level
