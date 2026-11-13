@@ -212,10 +212,14 @@ The ``top_traj_file`` argument is required; other arguments have default values.
        2019 paper.
      - ``True``
      - ``bool``
-   * - ``--customised_axes``
-     - Use custom bonded axes to get COM, MOI and PA that match the 2019 paper.
-     - ``True``
-     - ``bool``
+   * - ``--axes``
+     - Axes used for residue and united-atom rotations. One of ``principal``
+       (principal axes of the residue/UA), ``topology`` (bonded axes using cached
+       topology indices, matching the 2019 paper) or ``local`` (local internal
+       coordinate-derived axes for residues and UA translation, bonded axes for UA
+       rotation).
+     - ``local``
+     - ``str``
    * - ``--search_type``
      - Method for finding neighbouring molecules.
      - ``RAD``

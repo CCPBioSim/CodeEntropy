@@ -95,8 +95,8 @@ class FakeUniverse:
         self.atoms = FakeAtoms(fragments=fragments, atom_map=atom_map)
 
 
-def _args(*, customised_axes):
-    return SimpleNamespace(customised_axes=customised_axes)
+def _args(*, axes):
+    return SimpleNamespace(axes=axes)
 
 
 def _single_molecule_universe():
@@ -164,9 +164,9 @@ def test_axes_topology_defaults_to_empty_mappings():
     assert topology.residue == {}
 
 
-def test_run_writes_empty_topology_when_customised_axes_disabled():
+def test_run_writes_empty_topology_when_axes_is_principal():
     node = BuildAxesTopologyNode()
-    shared_data = {"args": _args(customised_axes=False)}
+    shared_data = {"args": _args(axes="principal")}
 
     result = node.run(shared_data)
 
@@ -184,7 +184,7 @@ def test_run_builds_residue_topology_for_residue_levels():
     neighbor_query = "(resindex -1 or resindex 1) and bonded resid 0"
     molecule._select_map[neighbor_query] = FakeAtomGroup([bonded_heavy])
     shared_data = {
-        "args": _args(customised_axes=True),
+        "args": _args(axes="topology"),
         "reduced_universe": universe,
         "levels": [["residue"]],
         "beads": {(0, "residue"): [np.array([1, 2, 3, 4])]},
@@ -244,7 +244,7 @@ def test_run_builds_ua_topology_for_united_atom_levels():
         _single_molecule_universe()
     )
     shared_data = {
-        "args": _args(customised_axes=True),
+        "args": _args(axes="topology"),
         "reduced_universe": universe,
         "levels": [["united_atom"]],
         "beads": {(0, "united_atom", 0): [np.array([1, 2])]},
@@ -276,7 +276,7 @@ def test_run_ignores_molecules_without_united_atom_level():
     node = BuildAxesTopologyNode()
     universe, _, _, _, _, _ = _single_molecule_universe()
     shared_data = {
-        "args": _args(customised_axes=True),
+        "args": _args(axes="topology"),
         "reduced_universe": universe,
         "levels": [["residue"]],
         "beads": {(0, "united_atom", 0): [np.array([1, 2])]},
@@ -413,3 +413,14 @@ def test_get_ua_masses_from_topology_returns_empty_list_for_light_atoms_only():
     masses = BuildAxesTopologyNode._get_ua_masses_from_topology(atom_group)
 
     assert masses == []
+
+
+def test_run_writes_empty_topology_when_axes_is_local():
+    node = BuildAxesTopologyNode()
+    shared_data = {"args": _args(axes="local")}
+
+    result = node.run(shared_data)
+
+    assert result["axes_topology"].ua == {}
+    assert result["axes_topology"].residue == {}
+    assert shared_data["axes_topology"] is result["axes_topology"]
