@@ -177,6 +177,9 @@ class ConformationPeakDetector(DihedralAngleCollector):
                             target_res[dihedral_index] + counts[dihedral_index]
                         )
 
+        logger.debug("Histogram UA: %s", hist_ua)
+        logger.debug("Histogram Res: %s", hist_res)
+
         return DihedralHistogramData(
             num_residues=num_residues,
             num_dihedrals_ua=num_dihedrals_ua,

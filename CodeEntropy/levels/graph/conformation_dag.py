@@ -63,6 +63,7 @@ class ConformationDAG:
         groups = shared_data["groups"]
         frame_selection: FrameSelection = shared_data["frame_selection"]
         bin_width = int(shared_data["args"].bin_width)
+        conf_type = str(shared_data["args"].conf_type)
         chunk_size = self._policy.frame_chunk_size(
             shared_data,
             n_frames=frame_selection.n_frames,
@@ -74,6 +75,7 @@ class ConformationDAG:
                 levels=levels,
                 groups=groups,
                 bin_width=bin_width,
+                conf_type=conf_type,
                 frame_selection=frame_selection,
                 progress=progress,
                 chunk_size=chunk_size,
