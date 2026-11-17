@@ -1425,12 +1425,29 @@ def test_get_residue_bonded_axes_multiple_heavy_atoms_backbone_2neighbours(monke
         _atom(index=9, mass=12.0, pos=[0, 1, 0]),
         _atom(index=10, mass=14.0, pos=[0, 2, 0]),
     ]
+    neighbours = _FakeAtomGroup(
+        [
+            _atom(index=7, mass=14.0, pos=[1, 1, 1]),
+            _atom(index=13, mass=12.0, pos=[2, 2, 2]),
+        ],
+        positions=np.array([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]], dtype=float),
+    )
+    neighbours[0].resindex = 0
+    neighbours[1].resindex = 2
 
     def _select_atoms(q):
-        if q.endswith("(bonded resindex 0 or resindex 2)"):
-            return edge_atom_set
+        if q == "resindex 1":
+            return residue
+        if q.startswith("(not resindex 1"):
+            return neighbours
+        if q == "(bonded resindex 0) and (resindex 1)":
+            return [edge_atom_set[0]]
+        if q == "(bonded resindex 2) and (resindex 1)":
+            return [edge_atom_set[1]]
+
 
     u.atoms.select_atoms.side_effect = _select_atoms
+    u.select_atoms.side_effect = _select_atoms
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
     )
@@ -1465,6 +1482,7 @@ def test_get_residue_bonded_axes_terminal_resid(monkeypatch):
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     residue = u.select_atoms("resindex 0")
     residue.__len__.return_value = 3
+
     uas = _FakeAtomGroup(
         [
             _atom(index=0, mass=12.0, pos=[1, -1, 0]),
@@ -1473,13 +1491,22 @@ def test_get_residue_bonded_axes_terminal_resid(monkeypatch):
         ]
     )
 
+    neighbour = _FakeAtomGroup(
+        [
+            _atom(index=3, mass=12.0, pos=[-1, -1, 0]),
+
+        ]
+
+    )
+
     def _select_atoms(q):
-        if q == "mass 2 to 999":
-            return uas
-        if q.startswith("(mass 2 to 999) and bonded"):
-            return [uas[1]]
-        if q.startswith("resindex 0 and (bonded resindex"):
+        if q == "resindex 0":
+            return residue
+        if q.startswith("(not resindex 0"):
+            return neighbour
+        if q == "(bonded resindex 1) and (resindex 0)":
             return [uas[2]]
+
 
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
