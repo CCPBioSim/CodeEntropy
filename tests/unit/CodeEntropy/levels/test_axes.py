@@ -1359,13 +1359,30 @@ def test_get_residue_bonded_axes_1_heavy_atom_backbone_2neighbours(monkeypatch):
         ],
         positions=np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=float),
     )
+    
     backbone_atom = _atom(index=9, mass=12.0, pos=[0, 1, 0])
+    neighbours = _FakeAtomGroup(
+        [
+            _atom(index=7, mass=14.0, pos=[1, 1, 1]),
+            _atom(index=11, mass=12.0, pos=[2, 2, 2]),
+        ],
+        positions=np.array([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]], dtype=float),
+    )
+    neighbours[0].resindex = 0
+    neighbours[1].resindex = 2
 
     def _select_atoms(q):
-        if q.endswith("(bonded resindex 0 or resindex 2)"):
-            return edge_atom_set
+        if q == "resindex 1":
+            return residue
+        if q.startswith("(not resindex 1"):
+            return neighbours
+        if q == "(bonded resindex 0) and (resindex 1)":
+            return [edge_atom_set[0]]
+        if q == "(bonded resindex 2) and (resindex 1)":
+            return [edge_atom_set[1]]
 
     u.atoms.select_atoms.side_effect = _select_atoms
+    u.select_atoms.side_effect = _select_atoms
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
     )
@@ -1496,21 +1513,16 @@ def test_get_ua_axes_bonded_axes_2neighbours_1_heavy_atom_backbone(monkeypatch):
     residue = residue_group.residues[1]
 
     heavy_atoms = _FakeAtomGroup(
-        [
+        [   _atoms(index=2, mass=12.0, pos=(1,1,1)),
             _atom(index=3, mass=12.0, pos=(1, 0, 0)),
             _atom(index=5, mass=12.0, pos=(0, 1, 0)),
             _atom(index=7, mass=12.0, pos=(0, 0, 1)),
+            _atom(index=8,mass=12.0, pos=(2, 2, 2))
         ],
         positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=float),
     )
 
-    edge_atoms = _FakeAtomGroup(
-        [
-            _atom(index=3, mass=12.0, pos=(1, 0, 0)),
-            _atom(index=7, mass=12.0, pos=(0, 0, 1)),
-        ],
-        positions=np.array([[1, 0, 0], [0, 0, 1]], dtype=float),
-    )
+    edge_atoms = [heavy_atoms[1],heavy_atoms[3]]
 
     def _select_atoms(q):
         if q == "mass 2 to 999":
@@ -1755,7 +1767,6 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
     ax = AxesCalculator()
     residue_group = MagicMock()
     residue = residue_group.atoms.residues[1]
-    print(type(residue_group.atoms.residues))
     residue_group.atoms.residues.__len__ = 2
     heavy_atoms = _FakeAtomGroup(
         [
