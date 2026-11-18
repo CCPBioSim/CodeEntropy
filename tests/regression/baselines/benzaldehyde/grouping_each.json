@@ -27,14 +27,14 @@
     "2": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 0.0022147884278620493,
-        "residue:FTmat-Transvibrational": 17.7650968672498,
+        "united_atom:Rovibrational": 0.002214788427862049,
+        "residue:FTmat-Transvibrational": 17.765096867249817,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 31.909265242174982
       },
-      "total": 49.67657689785264
+      "total": 49.67657689785266
     },
     "3": {
       "components": {
@@ -63,7 +63,7 @@
     "5": {
       "components": {
         "united_atom:Transvibrational": 0.0,
-        "united_atom:Rovibrational": 0.010824819910336868,
+        "united_atom:Rovibrational": 0.01082481991033685,
         "residue:FTmat-Transvibrational": 11.176470961462535,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
@@ -76,25 +76,25 @@
       "components": {
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.00018982532508837537,
-        "residue:FTmat-Transvibrational": 19.83851614381679,
+        "residue:FTmat-Transvibrational": 19.838516143816783,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 19.838705969141877
+      "total": 19.83870596914187
     },
     "7": {
       "components": {
         "united_atom:Transvibrational": 0.0,
         "united_atom:Rovibrational": 0.004033941970593011,
-        "residue:FTmat-Transvibrational": 19.06667852893644,
+        "residue:FTmat-Transvibrational": 19.066678528936453,
         "residue:FTmat-Rovibrational": 0.0,
         "united_atom:Conformational": 0.0,
         "residue:Conformational": 0.0,
         "residue:Orientational": 0.0
       },
-      "total": 19.070712470907033
+      "total": 19.070712470907047
     },
     "8": {
       "components": {

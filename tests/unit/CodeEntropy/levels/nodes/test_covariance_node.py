@@ -74,12 +74,12 @@ def _args(
     *,
     force_partitioning=0.5,
     combined_forcetorque=False,
-    customised_axes=False,
+    axes="principal",
 ):
     return SimpleNamespace(
         force_partitioning=force_partitioning,
         combined_forcetorque=combined_forcetorque,
-        customised_axes=customised_axes,
+        axes=axes,
     )
 
 
@@ -100,7 +100,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
             "groups": {7: [0]},
             "levels": [["united_atom", "residue", "polymer"]],
             "beads": {},
-            "args": _args(combined_forcetorque=True, customised_axes=True),
+            "args": _args(combined_forcetorque=True, axes="topology"),
             "axes_manager": axes_manager,
             "axes_topology": axes_topology,
         }
@@ -123,7 +123,7 @@ def test_run_processes_all_levels_and_writes_frame_covariance():
     assert ua_kwargs["axes_manager"] is axes_manager
     assert ua_kwargs["axes_topology"] is axes_topology
     assert ua_kwargs["force_partitioning"] == 0.5
-    assert ua_kwargs["customised_axes"] is True
+    assert ua_kwargs["axes"] == "topology"
     assert ua_kwargs["is_highest"] is False
 
     res_kwargs = node._process_residue.call_args.kwargs
@@ -178,7 +178,7 @@ def test_process_united_atom_updates_outputs_and_molcount():
         axes_topology=None,
         box=None,
         force_partitioning=0.5,
-        customised_axes=False,
+        axes="principal",
         is_highest=True,
         out_force=out_force,
         out_torque=out_torque,
@@ -206,7 +206,7 @@ def test_process_united_atom_returns_when_no_beads_or_empty_atom_groups():
         axes_topology=None,
         box=None,
         force_partitioning=0.5,
-        customised_axes=False,
+        axes="principal",
         is_highest=True,
         out_force=out_force,
         out_torque=out_torque,
@@ -228,7 +228,7 @@ def test_process_united_atom_returns_when_no_beads_or_empty_atom_groups():
         axes_topology=None,
         box=None,
         force_partitioning=0.5,
-        customised_axes=False,
+        axes="principal",
         is_highest=True,
         out_force=out_force,
         out_torque=out_torque,
@@ -264,7 +264,7 @@ def test_process_residue_updates_outputs_and_combined_ft():
         axes_manager="axes",
         axes_topology=None,
         box=None,
-        customised_axes=True,
+        axes="local",
         force_partitioning=0.5,
         is_highest=True,
         out_force=out_force,
@@ -294,7 +294,7 @@ def test_process_residue_returns_when_no_beads_or_empty_groups():
         axes_manager=None,
         axes_topology=None,
         box=None,
-        customised_axes=False,
+        axes="principal",
         force_partitioning=0.5,
         is_highest=True,
         out_force=out_force,
@@ -316,7 +316,7 @@ def test_process_residue_returns_when_no_beads_or_empty_groups():
         axes_manager=None,
         axes_topology=None,
         box=None,
-        customised_axes=False,
+        axes="principal",
         force_partitioning=0.5,
         is_highest=True,
         out_force=out_force,
@@ -417,7 +417,7 @@ def test_process_polymer_returns_when_no_beads_or_empty_groups():
     assert out_force["poly"] == {}
 
 
-def test_build_ua_vectors_uses_customised_axes():
+def test_build_ua_vectors_uses_local_axes():
     node = FrameCovarianceNode()
     axes_manager = MagicMock()
     axes_manager.get_UA_axes.return_value = (
@@ -440,7 +440,7 @@ def test_build_ua_vectors_uses_customised_axes():
             axes_topology=None,
             box=None,
             force_partitioning=0.5,
-            customised_axes=True,
+            axes="local",
             is_highest=True,
             res_position=None,
         )
@@ -477,7 +477,7 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
         axes_topology=axes_topology,
         box=None,
         force_partitioning=0.5,
-        customised_axes=True,
+        axes="topology",
         is_highest=True,
         res_position=None,
     )
@@ -494,7 +494,7 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
     axes_manager.get_UA_axes.assert_not_called()
 
 
-def test_build_ua_vectors_uses_molecule_axes_when_not_customised():
+def test_build_ua_vectors_uses_principal_axes():
     node = FrameCovarianceNode()
     axes_manager = MagicMock()
     axes_manager.get_molecule_axes.return_value = (
@@ -516,7 +516,7 @@ def test_build_ua_vectors_uses_molecule_axes_when_not_customised():
             axes_topology=None,
             box=None,
             force_partitioning=0.5,
-            customised_axes=False,
+            axes="principal",
             is_highest=False,
             res_position=None,
         )
@@ -545,7 +545,7 @@ def test_build_residue_vectors_uses_residue_axes():
         axes_manager=axes_manager,
         axes_topology=None,
         box=None,
-        customised_axes=True,
+        axes="local",
         force_partitioning=0.5,
         is_highest=True,
     )
@@ -555,7 +555,7 @@ def test_build_residue_vectors_uses_residue_axes():
     node._get_residue_axes.assert_called_once()
 
 
-def test_get_residue_axes_customised_uses_cached_topology_when_available():
+def test_get_residue_axes_topology_uses_cached_topology_when_available():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     axes_manager = MagicMock()
@@ -573,7 +573,7 @@ def test_get_residue_axes_customised_uses_cached_topology_when_available():
         relative_res_i=0,
         axes_manager=axes_manager,
         axes_topology=axes_topology,
-        customised_axes=True,
+        axes="topology",
     )
 
     assert result == expected
@@ -583,7 +583,7 @@ def test_get_residue_axes_customised_uses_cached_topology_when_available():
     axes_manager.get_residue_axes.assert_not_called()
 
 
-def test_get_residue_axes_customised_delegates_to_axes_manager():
+def test_get_residue_axes_local_delegates_to_axes_manager():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     axes_manager = MagicMock()
@@ -600,7 +600,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
             relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
-            customised_axes=True,
+            axes="local",
         )
         == expected
     )
@@ -613,7 +613,7 @@ def test_get_residue_axes_customised_delegates_to_axes_manager():
     )
 
 
-def test_get_residue_axes_molecule_uses_make_whole_and_molecule_axes():
+def test_get_residue_axes_principal_uses_make_whole_and_molecule_axes():
     node = FrameCovarianceNode()
     mol = FakeMolecule(n_residues=1)
     bead = FakeAtomGroup("res")
@@ -634,7 +634,7 @@ def test_get_residue_axes_molecule_uses_make_whole_and_molecule_axes():
             relative_res_i=0,
             axes_manager=axes_manager,
             axes_topology=None,
-            customised_axes=False,
+            axes="principal",
         )
 
     assert make_whole.call_count == 2
@@ -752,7 +752,7 @@ def test_process_united_atom_multiple_residues(monkeypatch):
         axes_topology=None,
         box=None,
         force_partitioning=0.5,
-        customised_axes=False,
+        axes="principal",
         is_highest=True,
         out_force=out_force,
         out_torque=out_torque,
@@ -784,7 +784,7 @@ def test_build_ua_vectors_multiple_residues_first_residue():
             axes_topology=None,
             box=None,
             force_partitioning=0.5,
-            customised_axes=True,
+            axes="local",
             is_highest=True,
             res_position=-1,
         )
@@ -816,10 +816,104 @@ def test_build_ua_vectors_multiple_residues_middle_residue():
             axes_topology=None,
             box=None,
             force_partitioning=0.5,
-            customised_axes=True,
+            axes="local",
             is_highest=True,
             res_position=0,
         )
 
     assert make_whole.call_count == 2
     axes_manager.get_UA_axes.assert_called_once()
+
+
+def test_build_ua_vectors_topology_falls_back_to_local_when_key_missing():
+    node = FrameCovarianceNode()
+    axes_manager = MagicMock()
+    axes_manager.get_UA_axes.return_value = (
+        np.eye(3),
+        2.0 * np.eye(3),
+        np.ones(3),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
+    node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+
+    with patch("CodeEntropy.levels.nodes.covariance.make_whole"):
+        node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeAtomGroup("res"),
+            axes_manager=axes_manager,
+            axes_topology=SimpleNamespace(ua={}),
+            box=None,
+            force_partitioning=0.5,
+            axes="topology",
+            is_highest=True,
+            res_position=None,
+        )
+
+    axes_manager.get_UA_axes.assert_called_once()
+    axes_manager.get_UA_axes_from_topology.assert_not_called()
+
+
+def test_build_ua_vectors_raises_for_unknown_axes():
+    node = FrameCovarianceNode()
+
+    with pytest.raises(ValueError, match="Unknown axes option"):
+        node._build_ua_vectors(
+            u=FakeUniverse([]),
+            mol_id=0,
+            local_res_i=0,
+            bead_groups=[FakeAtomGroup("ua")],
+            residue_group=FakeAtomGroup("res"),
+            axes_manager=MagicMock(),
+            axes_topology=None,
+            box=None,
+            force_partitioning=0.5,
+            axes="bogus",
+            is_highest=True,
+            res_position=None,
+        )
+
+
+def test_get_residue_axes_local_ignores_cached_topology():
+    node = FrameCovarianceNode()
+    mol = FakeMolecule(n_residues=1)
+    axes_manager = MagicMock()
+    expected = (np.eye(3), np.eye(3), np.zeros(3), np.ones(3))
+    axes_manager.get_residue_axes.return_value = expected
+    axes_topology = SimpleNamespace(residue={(0, 0): object()})
+
+    result = node._get_residue_axes(
+        u=FakeUniverse([mol]),
+        mol=mol,
+        mol_id=0,
+        bead=FakeAtomGroup("res"),
+        local_res_i=0,
+        relative_res_i=0,
+        axes_manager=axes_manager,
+        axes_topology=axes_topology,
+        axes="local",
+    )
+
+    assert result == expected
+    axes_manager.get_residue_axes_from_topology.assert_not_called()
+
+
+def test_get_residue_axes_raises_for_unknown_axes():
+    node = FrameCovarianceNode()
+    mol = FakeMolecule(n_residues=1)
+
+    with pytest.raises(ValueError, match="Unknown axes option"):
+        node._get_residue_axes(
+            u=FakeUniverse([mol]),
+            mol=mol,
+            mol_id=0,
+            bead=FakeAtomGroup("res"),
+            local_res_i=0,
+            relative_res_i=0,
+            axes_manager=MagicMock(),
+            axes_topology=None,
+            axes="bogus",
+        )
