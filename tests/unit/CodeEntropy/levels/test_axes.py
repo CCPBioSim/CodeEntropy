@@ -1490,7 +1490,6 @@ def test_get_residue_bonded_axes_terminal_resid(monkeypatch):
             _atom(index=2, mass=12.0, pos=[0, 0, 0]),
         ]
     )
-
     neighbour = _FakeAtomGroup(
         [
             _atom(index=3, mass=12.0, pos=[-1, -1, 0]),
@@ -1498,19 +1497,31 @@ def test_get_residue_bonded_axes_terminal_resid(monkeypatch):
         ]
 
     )
+    edge = uas[2]
+    neighbour[0].resindex= 1
+
 
     def _select_atoms(q):
+        if q == "mass 2 to 999":
+            return uas
         if q == "resindex 0":
             return residue
         if q.startswith("(not resindex 0"):
             return neighbour
         if q == "(bonded resindex 1) and (resindex 0)":
-            return [uas[2]]
+            return [edge]
+        if q.startswith("(mass 2 to 999) and bonded"):
+            return [uas[1]]
+    
+    print(f"The neighbour should be: {neighbour[0]}")
+    print(f"The edge we found should be: {edge}")
+
 
 
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
     )
+    u.select_atoms.side_effect = _select_atoms
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
