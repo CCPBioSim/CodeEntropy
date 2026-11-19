@@ -846,6 +846,7 @@ def test_build_ua_vectors_topology_falls_back_to_local_when_key_missing():
             u=FakeUniverse([]),
             mol_id=0,
             local_res_i=0,
+            relative_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
             residue_group=FakeAtomGroup("res"),
             axes_manager=axes_manager,
@@ -854,7 +855,6 @@ def test_build_ua_vectors_topology_falls_back_to_local_when_key_missing():
             force_partitioning=0.5,
             axes="topology",
             is_highest=True,
-            res_position=None,
         )
 
     axes_manager.get_UA_axes.assert_called_once()
@@ -869,6 +869,7 @@ def test_build_ua_vectors_raises_for_unknown_axes():
             u=FakeUniverse([]),
             mol_id=0,
             local_res_i=0,
+            relative_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
             residue_group=FakeAtomGroup("res"),
             axes_manager=MagicMock(),
@@ -877,7 +878,6 @@ def test_build_ua_vectors_raises_for_unknown_axes():
             force_partitioning=0.5,
             axes="bogus",
             is_highest=True,
-            res_position=None,
         )
 
 
