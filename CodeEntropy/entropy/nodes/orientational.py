@@ -43,6 +43,7 @@ class OrientationalEntropyNode:
         """
         groups = shared_data["groups"]
         levels = shared_data["levels"]
+        orient_type = shared_data["args"].orient_type
         neighbors = shared_data["neighbors"]
         symmetry_number = shared_data["symmetry_number"]
         linear = shared_data["linear"]
@@ -66,6 +67,7 @@ class OrientationalEntropyNode:
             hbond = hbond_factor[group_id]
 
             result_value = oe.calculate(
+                orient_type,
                 neighbor,
                 symmetry,
                 line,

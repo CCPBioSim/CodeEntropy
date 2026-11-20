@@ -8,6 +8,7 @@ does not vary by frame.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from MDAnalysis.analysis.hydrogenbonds.hbond_analysis import HydrogenBondAnalysis as HBA
@@ -17,6 +18,7 @@ from CodeEntropy.levels.hbond_bias import HBondFactor
 from CodeEntropy.levels.search import Search
 
 NeighborCounts = dict[int, tuple[int, int]]
+logger = logging.getLogger(__name__)
 
 
 class Neighbors:
@@ -35,6 +37,7 @@ class Neighbors:
         frame_source: Any,
         frame_index: int,
         search_type: str,
+        orient_type: str,
     ) -> NeighborCounts:
         """Return neighbour-count totals for one selected frame.
 
@@ -134,7 +137,10 @@ class Neighbors:
                 number_heavy,
                 number_hydrogen,
             )
+            logger.debug(f"group: {group_id}")
+            logger.debug(f"symmetry number: {symmetry_number[group_id]}")
             linear[group_id] = self._get_linear(rdkit_mol, number_heavy)
+            logger.debug(f"linear: {linear[group_id]}")
 
         return symmetry_number, linear
 

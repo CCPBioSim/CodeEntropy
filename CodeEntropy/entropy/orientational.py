@@ -54,6 +54,7 @@ class OrientationalEntropy:
 
     def calculate(
         self,
+        orient_type: str,
         neighbor_count: float,
         symmetry_number: int,
         linear: bool,
@@ -85,7 +86,9 @@ class OrientationalEntropy:
         if neighbor_count < 0:
             raise ValueError(f"neighbor_count must be >= 0, got {neighbor_count}")
 
-        omega = self._omega(neighbor_count, symmetry_number, linear, hbond_factor)
+        omega = self._omega(
+            orient_type, neighbor_count, symmetry_number, linear, hbond_factor
+        )
 
         total = self._gas_constant * math.log(omega)
         logger.debug(f"Orientational entropy total: {total}")
@@ -94,6 +97,7 @@ class OrientationalEntropy:
 
     def _omega(
         self,
+        orient_type: str,
         neighbor_count: int,
         symmetry: int,
         linear: bool,
@@ -112,11 +116,16 @@ class OrientationalEntropy:
         # symmetry number 0 = spherically symmetric = no orientational entropy
         if symmetry == 0:
             omega = 1
-        else:
+        elif orient_type == "hbond":
             if linear:
                 omega = neighbor_count * hbond_factor / symmetry
             else:
                 omega = np.sqrt((neighbor_count**3) * math.pi) * hbond_factor / symmetry
+        else:
+            if linear:
+                omega = neighbor_count / symmetry
+            else:
+                omega = np.sqrt((neighbor_count**3) * math.pi) / symmetry
 
         # avoid negative orientational entropy
         omega = max(omega, 1)

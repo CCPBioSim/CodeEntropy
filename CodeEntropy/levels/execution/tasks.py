@@ -245,6 +245,7 @@ def execute_frame_map_output(
         frame_source=shared_data["frame_source"],
         frame_index=frame_index,
         search_type=shared_data["args"].search_type,
+        orient_type=shared_data["args"].orient_type,
     )
 
     return frame_out

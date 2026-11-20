@@ -170,6 +170,13 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Type of neighbour search to use. Default is RAD; grid search is also "
         "available.",
     ),
+    "orient_type": ArgSpec(
+        type=str,
+        default="Nc",
+        help="Type of orientational entropy calculation. Default is Nc which is the"
+        "simplest approximation based on just the number of neighbors."
+        "hbond is Nc plus an empirical hydrogen bonding correction factor.",
+    ),
     "parallel_frames": ArgSpec(
         type=bool,
         default=False,

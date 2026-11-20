@@ -202,5 +202,11 @@ class LevelDAG:
             groups=shared_data["groups"],
         )
 
+        hbond_factor = helper.get_bias(
+            universe=universe,
+            groups=shared_data["groups"],
+        )
+
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear
+        shared_data["hbond_factor"] = hbond_factor
