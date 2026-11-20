@@ -63,7 +63,7 @@ Documentation = "https://codeentropy.readthedocs.io"
 testing = [
     "pytest>=9.0,<10.0",
     "pytest-cov>=7.0,<8.0",
-    "pytest-sugar>=1.1,<2.0",
+    "pytest-modern>=0.7.5,<0.8.0",
 ]
 pre-commit = [
     "pre-commit>=3.5.0,<5.0",
@@ -84,11 +84,16 @@ CodeEntropy = "CodeEntropy.cli:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-addopts = "-vv -ra"
+addopts = [
+    "-vv",
+    "-ra",
+    "--cov",
+    "--cov-report=term-missing",
+]
 
 markers = [
-  "regression: end-to-end regression tests against baselines",
-  "slow: long-running regression tests (20-30+ minutes)",
+    "regression: end-to-end regression tests against baselines",
+    "slow: long-running regression tests (20-30+ minutes)",
 ]
 
 [tool.ruff]
