@@ -128,6 +128,7 @@ def test_assign_state_partial_from_observable_handles_ua_and_residue_levels():
         level_list=["united_atom", "residue"],
         peaks_ua=[[[5.0, 15.0]], []],
         peaks_res=[[30.0, 40.0]],
+        conf_type="res_bonds",
     )
 
     assert partial.states_ua_updates[(2, 0)] == ["0", "1"]

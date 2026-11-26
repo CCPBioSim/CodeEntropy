@@ -43,6 +43,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         levels: dict[Any, list[str]],
         groups: dict[int, list[Any]],
         bin_width: float,
+        conf_type: str,
         frame_selection: FrameSelection,
         progress: _RichProgressSink | None = None,
         chunk_size: int | None = None,
@@ -78,6 +79,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
             levels=levels,
             groups=groups,
             bin_width=bin_width,
+            conf_type=conf_type,
             frame_selection=frame_selection,
             chunk_size=chunk_size,
             progress=progress,
@@ -89,6 +91,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
         levels: dict[Any, list[str]],
         groups: dict[int, list[Any]],
         bin_width: float,
+        conf_type: str,
         frame_selection: FrameSelection,
         chunk_size: int,
         progress: _RichProgressSink | None = None,
@@ -156,6 +159,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
                 group_id=group_id,
                 molecules=molecules,
                 level_list=level_list,
+                conf_type=conf_type,
             )
             tasks = self._build_conformation_chunk_tasks(
                 topologies=topologies,
@@ -188,6 +192,7 @@ class ConformationStateBuilder(ConformationPeakDetector, ConformationStateAssign
                     level_list=level_list,
                     peaks_ua=peak_data.peaks_ua,
                     peaks_res=peak_data.peaks_res,
+                    conf_type=conf_type,
                 )
                 for observable in observables
             ]

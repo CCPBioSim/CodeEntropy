@@ -202,7 +202,7 @@ def test_get_dihedrals_united_atom_collects_atoms_from_dihedral_objects() -> Non
         universe=universe,
     )
 
-    result = discovery._get_dihedrals(selected_heavy_atoms, "united_atom")
+    result = discovery._get_dihedrals(selected_heavy_atoms, "united_atom", "res_bonds")
 
     assert result == [valid_dihedral_atoms]
 
@@ -223,7 +223,9 @@ def test_get_dihedrals_united_atom_returns_empty_when_no_valid_dihedrals() -> No
         universe=universe,
     )
 
-    assert discovery._get_dihedrals(selected_heavy_atoms, "united_atom") == []
+    assert (
+        discovery._get_dihedrals(selected_heavy_atoms, "united_atom", "res_bonds") == []
+    )
 
 
 def test_get_dihedrals_residue_builds_one_dihedral_when_four_residues() -> None:
@@ -257,7 +259,7 @@ def test_get_dihedrals_residue_builds_one_dihedral_when_four_residues() -> None:
         universe=universe,
     )
 
-    result = discovery._get_dihedrals(mol, "residue")
+    result = discovery._get_dihedrals(mol, "residue", "res_bonds")
 
     assert len(result) == 1
     assert result[0].indices == [10, 20, 30, 40]
@@ -298,7 +300,7 @@ def test_get_dihedrals_residue_skips_invalid_four_residue_window(
         universe=universe,
     )
 
-    result = discovery._get_dihedrals(mol, "residue")
+    result = discovery._get_dihedrals(mol, "residue", "res_bonds")
 
     assert result == []
     assert "Skipping residue-level dihedral" in caplog.text
@@ -317,7 +319,7 @@ def test_get_dihedrals_residue_returns_empty_when_fewer_than_four_residues() -> 
         universe=universe,
     )
 
-    assert discovery._get_dihedrals(mol, "residue") == []
+    assert discovery._get_dihedrals(mol, "residue", "res_bonds") == []
 
 
 def test_atoms_in_source_bonded_to_target_returns_matching_source_atoms() -> None:
@@ -381,7 +383,9 @@ def test_discover_group_dihedral_topology_builds_one_entry_per_molecule(
     def fake_select_heavy_residue(mol: Any, res_id: int) -> str:
         return f"{mol.label}-heavy-{res_id}"
 
-    def fake_get_dihedrals(data_container: Any, level: str) -> list[str]:
+    def fake_get_dihedrals(
+        data_container: Any, level: str, conf_type: str
+    ) -> list[str]:
         if level == "united_atom":
             return [f"ua-{data_container}"]
         return [f"res-{data_container.label}"]
@@ -402,6 +406,7 @@ def test_discover_group_dihedral_topology_builds_one_entry_per_molecule(
         group_id=9,
         molecules=[100, 200],
         level_list=["united_atom", "residue"],
+        conf_type="res_bonds",
     )
 
     assert topologies == [
@@ -455,6 +460,7 @@ def test_discover_group_dihedral_topology_respects_enabled_levels(
         group_id=1,
         molecules=[0],
         level_list=["residue"],
+        conf_type="res_bonds",
     )
 
     assert topologies == [
@@ -469,4 +475,4 @@ def test_discover_group_dihedral_topology_respects_enabled_levels(
     ]
 
     select_heavy_residue.assert_not_called()
-    get_dihedrals.assert_called_once_with(molecule, "residue")
+    get_dihedrals.assert_called_once_with(molecule, "residue", "res_bonds")
