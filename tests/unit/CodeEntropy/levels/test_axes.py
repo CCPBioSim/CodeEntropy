@@ -2349,7 +2349,7 @@ def test_get_residue_axes_all_atom_MOI(monkeypatch):
     assert np.allclose(moi, [26, 38, 38])
 
 
-def get_residue_axes_branched(monkeypatch):
+def test_get_residue_axes_branched(monkeypatch):
     ax = AxesCalculator()
     u = MagicMock()
     u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
