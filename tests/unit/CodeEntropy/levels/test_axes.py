@@ -2468,7 +2468,8 @@ def test_get_ua_axes_branched(monkeypatch):
 
     u.select_atoms.side_effect = _select_atoms
     u.atoms.select_atoms.side_effect = _select_atoms
-    residue.select_atoms.side_effect = residue
+    residue.select_atoms.side_effect = _select_atoms
+    residue.atoms.select_atoms.side_effect = _select_atoms
     monkeypatch.setattr(
         ax, "get_residue_custom_axes", lambda edges, center: ([2, 2, 2], 2 * np.eye(3))
     )
