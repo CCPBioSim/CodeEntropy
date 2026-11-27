@@ -70,13 +70,14 @@ The axes for this transformation are calculated for each bead in each time step.
 
 For the polymer level, the translational and rotational axes are defined as the principal axes of the molecule.
 
-For the residue level, there are three situations.
-When the residue is not bonded to any other residues, the translational and rotational axes are the principal axes of the molecule.
-When the residue is part of a larger polymer and is not a terminus of that polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the two heavy atoms bonded to neighbour residues (E1,E2) and the average position of all other backbone atoms in the residue (C). The backbone of a residue is defined as the shortest path between the two edge atoms of the residue, i.e.the two heavy atoms bonded to neighbour residues.The centre of rotation (O) is located at the point where the perpendicular from C meets the E1-E2 vector.
-When the residue is part of a larger polymer and is a terminus of that polymer, the translational axes are the principal axes of the polymer, and the rotational axes are defined from the heavy atom bonded to a
-neighbour residue (E1), the average position of all heavy atoms bonded to E1 (C) and the average position of all other heavy atoms in the residue (E2). The centre of rotation (O) is defined the same as above forthe non-terminal residue case.
+For the residue level, translational axes correspond to the principal axes of the molecule. For rotational axes, there are four situations.
+1. When the residue is not bonded to any other residues, rotational axes are the same as translational axes.
+2. When the residue is part of a polymer and is a terminus of that polymer, rotational axes are defined from the heavy atom bonded to a
+neighbour residue (A1), the average position of all heavy atoms bonded to A1 (A3) and the average position of all other heavy atoms in the residue (A2). The centre of rotation (O) is located at the point where the perpendicular from A3 meets the A1-A2 vector. The x axis is then defined along the O-A1 vector, the y axis is defined along the O-A3 vector, and the z axis is defined as perpendicular to the x and y axes.
+3. When the residue is part of a larger polymer and is bonded to two other residues within that polymer, rotational axes are defined from the two heavy atoms bonded to neighbour residues (A1,A2) and the average position of all other backbone atoms in the residue (A3). The backbone of a residue is defined as the shortest path between A1 and A2. The axes and centre of rotation are then defined in the same manner as in the terminal residue case.
+4. When the residue is part of a larger polymer and is bonded to three or more residues within that polymer, rotational axes are defined from three of the heavy atom bonded to neighbour residues (E1,E2,E3). The axes and centre of rotation are then defined in the same manner as in the cases above.
 
-For the united atom level, the translational axes are defined as the residue rotational axes and the rotational axes are defined from the average position of the bonds to neighbouring heavy atoms.
+For the united atom level, the translational axes correspond to the residue rotational axes and the rotational axes are defined based on bonds to neighbouring heavy atoms.
 If there are no bonds to other heavy atoms, the principal axes of the molecule are used.
 
 Conformational Entropy
