@@ -301,3 +301,31 @@ def test_check_input_axes_raises_for_invalid_values(resolver, make_args, value):
 
     with pytest.raises(ValueError, match="Invalid 'axes'"):
         resolver._check_input_axes(args)
+
+
+@pytest.mark.parametrize("symmetry_number", [None, 0, 1, 12])
+def test_check_input_symmetry_number_valid_does_not_raise(
+    resolver, make_args, symmetry_number
+):
+    args = make_args(symmetry_number=symmetry_number)
+
+    resolver._check_input_symmetry_number(args)
+
+
+@pytest.mark.parametrize("symmetry_number", [-1, 1.5, "12", True])
+def test_check_input_symmetry_number_invalid_raises(
+    resolver, make_args, symmetry_number
+):
+    args = make_args(symmetry_number=symmetry_number)
+
+    with pytest.raises(ValueError, match="symmetry_number"):
+        resolver._check_input_symmetry_number(args)
+
+
+def test_validate_inputs_rejects_negative_symmetry_number(
+    resolver, dummy_universe, make_args
+):
+    args = make_args(symmetry_number=-1)
+
+    with pytest.raises(ValueError, match="symmetry_number"):
+        resolver.validate_inputs(dummy_universe, args)

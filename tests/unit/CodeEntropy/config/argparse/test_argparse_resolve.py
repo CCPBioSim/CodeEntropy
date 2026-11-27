@@ -120,3 +120,15 @@ def test_apply_hpc_conda_auto_detection_skips_when_hpc_and_submit_disabled(
     ConfigResolver._apply_hpc_conda_auto_detection(args)
 
     hpc_dask_manager.assert_not_called()
+
+
+def test_resolve_symmetry_number_from_yaml(resolver, empty_cli_args):
+    resolved = resolver.resolve(empty_cli_args, {"symmetry_number": 12})
+
+    assert resolved.symmetry_number == 12
+
+
+def test_resolve_symmetry_number_defaults_to_none(resolver, empty_cli_args):
+    resolved = resolver.resolve(empty_cli_args, {})
+
+    assert resolved.symmetry_number is None
