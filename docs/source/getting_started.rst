@@ -224,6 +224,12 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - Method for finding neighbouring molecules.
      - ``RAD``
      - ``str``
+   * - ``--symmetry_number``
+     - Rotational symmetry number (integer >= 0) used in the orientational entropy of
+       all molecule groups, replacing the value computed from the bond graph. ``0`` means
+       spherical (no orientational entropy). See :ref:`symmetry-number`.
+     - computed
+     - ``int``
    * - ``--parallel_frames``
      - Execute frame-local covariance calculations in parallel. When enabled, frame-level
        work is submitted to Dask and reduced in the parent process.
@@ -508,6 +514,61 @@ There are currently two options, chosen by the ``search_type`` argument.
 
 * ``RAD`` (default): Uses the relative angular distance method.
 * ``grid``: Uses the MDAnalysis NeighborSearch method.
+
+.. _symmetry-number:
+
+Symmetry Number
+---------------
+
+The orientational entropy is divided by the symmetry number :math:`\sigma` of the
+molecule. By default, :math:`\sigma` is computed with RDKit as the number of ways the
+molecule's bond graph can be mapped onto itself. This count includes reflections and
+does not depend on the molecule's conformation, so it can be larger than the
+rotational symmetry number (for example 24 instead of 12 for methane, and 6 instead
+of 3 for ammonia).
+
+The ``symmetry_number`` argument replaces the computed value with the rotational
+symmetry number, which is the order of the rotational subgroup of the molecule's
+point group:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Point group
+     - :math:`\sigma`
+     - Example
+   * - C\ :sub:`1`, C\ :sub:`s`
+     - 1
+     - methanol
+   * - C\ :sub:`2v`
+     - 2
+     - water
+   * - C\ :sub:`3v`
+     - 3
+     - ammonia
+   * - T\ :sub:`d`
+     - 12
+     - methane
+   * - D\ :sub:`6h`
+     - 12
+     - benzene
+
+``0`` is a special case for spherical molecules (for example, single atoms or ions),
+which have no orientational entropy. Values for common liquids are between 1 and 12.
+Values above 24 are rare (the largest is 60, for icosahedral molecules), so
+CodeEntropy logs a warning for them.
+
+.. note::
+
+   The value is applied to every molecule group in the selection, including water
+   unless ``water_entropy`` is enabled. Only set it when the system contains a single
+   molecule type, or when one value is correct for all of them.
+
+.. code-block:: yaml
+
+  run1:
+    top_traj_file: ["methane.tpr", "methane.trr"]
+    symmetry_number: 12
 
 
 Examples
