@@ -461,6 +461,15 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
     u = FakeUniverse([])
     ua_topology = object()
     axes_topology = SimpleNamespace(ua={(3, 4, 0): ua_topology})
+    residue_group = FakeAtomGroup("res")
+    residue = FakeResidue()
+    residue.atoms.name = residue_group.name
+
+    def _select_atoms(q):
+        if q == "resindex 7":
+            return residue
+
+    residue_group.select_atoms = _select_atoms
 
     axes_manager.get_UA_axes_from_topology.return_value = (
         np.eye(3),
@@ -475,9 +484,9 @@ def test_build_ua_vectors_uses_cached_axes_topology_when_available():
         u=u,
         mol_id=3,
         local_res_i=4,
-        relative_res_i=0,
+        relative_res_i=3,
         bead_groups=[FakeAtomGroup("ua")],
-        residue_group=FakeAtomGroup("res"),
+        residue_group=residue_group,
         axes_manager=axes_manager,
         axes_topology=axes_topology,
         box=None,
@@ -776,7 +785,14 @@ def test_build_ua_vectors_multiple_residues_first_residue():
     )
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+    residue = FakeResidue()
 
+    def _select_atoms(q):
+        if q == "resindex 0":
+            return residue
+
+    residue_group = FakeMolecule(n_residues=2)
+    residue_group.select_atoms = _select_atoms
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         force_vecs, torque_vecs = node._build_ua_vectors(
             u=FakeUniverse([]),
@@ -784,7 +800,7 @@ def test_build_ua_vectors_multiple_residues_first_residue():
             local_res_i=0,
             relative_res_i=0,
             bead_groups=[FakeAtomGroup("ua")],
-            residue_group=FakeMolecule(n_residues=2),
+            residue_group=residue_group,
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
@@ -808,6 +824,14 @@ def test_build_ua_vectors_multiple_residues_middle_residue():
     )
     node._ft.get_weighted_forces = MagicMock(return_value=np.array([1.0, 0.0, 0.0]))
     node._ft.get_weighted_torques = MagicMock(return_value=np.array([0.0, 1.0, 0.0]))
+    residue = FakeResidue()
+
+    def _select_atoms(q):
+        if q == "resindex 1":
+            return residue
+
+    residue_group = FakeMolecule(n_residues=3)
+    residue_group.select_atoms = _select_atoms
 
     with patch("CodeEntropy.levels.nodes.covariance.make_whole") as make_whole:
         force_vecs, torque_vecs = node._build_ua_vectors(
@@ -816,7 +840,7 @@ def test_build_ua_vectors_multiple_residues_middle_residue():
             local_res_i=0,
             relative_res_i=1,
             bead_groups=[FakeAtomGroup("ua")],
-            residue_group=FakeMolecule(n_residues=3),
+            residue_group=residue_group,
             axes_manager=axes_manager,
             axes_topology=None,
             box=None,
