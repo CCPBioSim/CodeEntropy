@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+from CodeEntropy.entropy.nodes.orientational import OrientationalEntropyNode
+from CodeEntropy.entropy.orientational import OrientationalEntropy
 from CodeEntropy.levels.graph.level_dag import LevelDAG
 
 
@@ -215,6 +219,64 @@ def test_initialise_neighbor_metadata_falls_back_to_universe_key():
         LevelDAG._initialise_neighbor_metadata(shared_data)
 
     helper.get_symmetry.assert_called_once_with(universe=universe, groups={0: [0]})
+
+
+def test_initialise_neighbor_metadata_uses_user_symmetry_number(caplog):
+    shared_data = {
+        "reduced_universe": object(),
+        "groups": {0: [0], 1: [1]},
+        "args": SimpleNamespace(symmetry_number=3),
+    }
+
+    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+        helper = Neighbors.return_value
+        helper.get_symmetry.return_value = ({0: 6, 1: 2}, {0: False, 1: True})
+
+        with caplog.at_level(logging.INFO):
+            LevelDAG._initialise_neighbor_metadata(shared_data)
+
+    assert shared_data["symmetry_number"] == {0: 3, 1: 3}
+    assert "Using symmetry number 3" in caplog.text
+    assert shared_data["linear"] == {0: False, 1: True}
+
+
+def test_initialise_neighbor_metadata_keeps_computed_symmetry_number_when_unset():
+    shared_data = {
+        "reduced_universe": object(),
+        "groups": {0: [0]},
+        "args": SimpleNamespace(symmetry_number=None),
+    }
+
+    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+        helper = Neighbors.return_value
+        helper.get_symmetry.return_value = ({0: 6}, {0: False})
+
+        LevelDAG._initialise_neighbor_metadata(shared_data)
+
+    assert shared_data["symmetry_number"] == {0: 6}
+
+
+def test_user_symmetry_number_reaches_orientational_entropy():
+    def orientational_entropy(symmetry_number):
+        shared_data = {
+            "reduced_universe": object(),
+            "groups": {0: [0]},
+            "levels": {0: ["united_atom", "residue"]},
+            "neighbors": {0: 10.0},
+            "args": SimpleNamespace(symmetry_number=symmetry_number),
+        }
+        with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+            Neighbors.return_value.get_symmetry.return_value = ({0: 2}, {0: False})
+            LevelDAG._initialise_neighbor_metadata(shared_data)
+
+        return OrientationalEntropyNode().run(shared_data)["orientational_entropy"][0]
+
+    computed = orientational_entropy(None)
+    user = orientational_entropy(1)
+
+    assert computed == OrientationalEntropy().calculate(10.0, 2, False)
+    assert user == OrientationalEntropy().calculate(10.0, 1, False)
+    assert user > computed
 
 
 def test_level_dag_runs_static_conformation_then_frame(monkeypatch):

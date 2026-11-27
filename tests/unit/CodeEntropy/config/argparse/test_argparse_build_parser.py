@@ -50,3 +50,10 @@ def test_version_flag_prints_installed_version_and_exits(capsys):
 
     assert exc.value.code == 0
     assert f"CodeEntropy {__version__}" in capsys.readouterr().out
+
+
+def test_build_parser_symmetry_number_defaults_none_and_parses_int():
+    parser = ConfigResolver().build_parser()
+
+    assert parser.parse_args([]).symmetry_number is None
+    assert parser.parse_args(["--symmetry_number", "12"]).symmetry_number == 12

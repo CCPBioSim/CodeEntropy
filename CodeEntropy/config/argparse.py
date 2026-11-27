@@ -170,6 +170,13 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Type of neighbour search to use. Default is RAD; grid search is also "
         "available.",
     ),
+    "symmetry_number": ArgSpec(
+        type=int,
+        default=None,
+        help="Symmetry number used in the orientational entropy for every molecule "
+        "group, in place of the value computed from the molecular graph. 0 means no "
+        "orientational entropy. If unset, the computed value is used.",
+    ),
     "parallel_frames": ArgSpec(
         type=bool,
         default=False,
@@ -515,6 +522,7 @@ class ConfigResolver:
         self._check_input_force_partitioning(args)
         self._check_parallel_frame_options(args)
         self._check_input_axes(args)
+        self._check_input_symmetry_number(args)
 
     @staticmethod
     def _check_input_axes(args: argparse.Namespace) -> None:
@@ -526,6 +534,23 @@ class ConfigResolver:
                 f"Invalid 'axes': {args.axes!r}. Must be one of {', '.join(valid)}."
             )
         args.axes = axes
+
+    @staticmethod
+    def _check_input_symmetry_number(args: argparse.Namespace) -> None:
+        """Check that the symmetry number, if given, is an integer >= 0."""
+        symmetry_number = getattr(args, "symmetry_number", None)
+        if symmetry_number is None:
+            return
+
+        if (
+            isinstance(symmetry_number, bool)
+            or not isinstance(symmetry_number, int)
+            or symmetry_number < 0
+        ):
+            raise ValueError(
+                f"Invalid 'symmetry_number': {symmetry_number!r}. It must be an "
+                f"integer greater than or equal to 0."
+            )
 
     @staticmethod
     def _check_input_start(u: Any, args: argparse.Namespace) -> None:
