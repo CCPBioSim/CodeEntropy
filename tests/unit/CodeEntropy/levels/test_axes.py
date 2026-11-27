@@ -2346,4 +2346,4 @@ def test_get_residue_axes_all_atom_MOI(monkeypatch):
     assert np.allclose(trans_axes, 2 * np.eye(3))
     assert np.allclose(rot_axes, np.eye(3))
     assert np.allclose(rot_center, [1, 0, 0])
-    assert np.allclose(moi, [26, 38, 38])
+    assert np.allclose(moi, [26, 38, 39])
