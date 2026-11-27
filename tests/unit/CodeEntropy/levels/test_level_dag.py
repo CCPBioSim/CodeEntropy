@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
+
+import pytest
 
 from CodeEntropy.levels.graph.level_dag import LevelDAG
 
@@ -202,6 +205,46 @@ def test_initialise_neighbor_metadata_writes_symmetry_and_linearity():
     helper.get_symmetry.assert_called_once_with(universe=universe, groups=groups)
     assert shared_data["symmetry_number"] == {0: 12, 1: 2}
     assert shared_data["linear"] == {0: False, 1: True}
+
+
+def test_initialise_neighbor_metadata_keeps_computed_symmetry_when_unset():
+    groups = {0: [0], 1: [1]}
+    shared_data = {
+        "reduced_universe": object(),
+        "groups": groups,
+        "args": SimpleNamespace(symmetry_number=None),
+    }
+
+    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+        Neighbors.return_value.get_symmetry.return_value = (
+            {0: 12, 1: 2},
+            {0: False, 1: True},
+        )
+
+        LevelDAG._initialise_neighbor_metadata(shared_data)
+
+    assert shared_data["symmetry_number"] == {0: 12, 1: 2}
+
+
+@pytest.mark.parametrize("override", [0, 1, 3, 60])
+def test_initialise_neighbor_metadata_applies_user_symmetry_number(override):
+    groups = {0: [0, 1], 1: [2], 2: []}
+    shared_data = {
+        "reduced_universe": object(),
+        "groups": groups,
+        "args": SimpleNamespace(symmetry_number=override),
+    }
+
+    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+        Neighbors.return_value.get_symmetry.return_value = (
+            {0: 24, 1: 6, 2: 0},
+            {0: False, 1: True, 2: False},
+        )
+
+        LevelDAG._initialise_neighbor_metadata(shared_data)
+
+    assert shared_data["symmetry_number"] == {0: override, 1: override, 2: 0}
+    assert shared_data["linear"] == {0: False, 1: True, 2: False}
 
 
 def test_initialise_neighbor_metadata_falls_back_to_universe_key():

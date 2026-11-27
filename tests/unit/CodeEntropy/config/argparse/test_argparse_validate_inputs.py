@@ -1,4 +1,5 @@
 import logging
+from types import SimpleNamespace
 
 import pytest
 
@@ -301,3 +302,52 @@ def test_check_input_axes_raises_for_invalid_values(resolver, make_args, value):
 
     with pytest.raises(ValueError, match="Invalid 'axes'"):
         resolver._check_input_axes(args)
+
+
+def test_check_input_symmetry_number_missing_attribute_does_not_raise(resolver):
+    resolver._check_input_symmetry_number(SimpleNamespace())
+
+
+@pytest.mark.parametrize("value", [None, 0, 1, 12, 24])
+def test_check_input_symmetry_number_accepts_valid_values(
+    resolver, make_args, value, caplog
+):
+    args = make_args(symmetry_number=value)
+
+    with caplog.at_level(logging.WARNING):
+        resolver._check_input_symmetry_number(args)
+
+    assert args.symmetry_number == value
+    assert "symmetry_number" not in caplog.text
+
+
+@pytest.mark.parametrize("value", [-1, True, False, 12.5, "12"])
+def test_check_input_symmetry_number_raises_for_invalid_values(
+    resolver, make_args, value
+):
+    args = make_args(symmetry_number=value)
+
+    with pytest.raises(ValueError, match="Invalid 'symmetry_number'"):
+        resolver._check_input_symmetry_number(args)
+
+
+@pytest.mark.parametrize("value", [25, 60])
+def test_check_input_symmetry_number_large_value_logs_warning(
+    resolver, make_args, value, caplog
+):
+    args = make_args(symmetry_number=value)
+
+    with caplog.at_level(logging.WARNING):
+        resolver._check_input_symmetry_number(args)
+
+    assert args.symmetry_number == value
+    assert "values above 24 are unusual" in caplog.text
+
+
+def test_validate_inputs_rejects_invalid_symmetry_number(
+    resolver, dummy_universe, make_args
+):
+    args = make_args(symmetry_number=-1)
+
+    with pytest.raises(ValueError, match="Invalid 'symmetry_number'"):
+        resolver.validate_inputs(dummy_universe, args)
