@@ -1,6 +1,9 @@
 import logging
+from types import SimpleNamespace
 
 import pytest
+
+from CodeEntropy.config.argparse import parse_symmetry_number
 
 
 def test_validate_inputs_valid_does_not_raise(resolver, dummy_universe, make_args):
@@ -301,3 +304,86 @@ def test_check_input_axes_raises_for_invalid_values(resolver, make_args, value):
 
     with pytest.raises(ValueError, match="Invalid 'axes'"):
         resolver._check_input_axes(args)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, {}),
+        ([], {}),
+        (0, {None: 0}),
+        (12, {None: 12}),
+        ("12", {None: 12}),
+        (["12"], {None: 12}),
+        ([" 12 "], {None: 12}),
+        (["MET:12", "NH3:3"], {"MET": 12, "NH3": 3}),
+        ([" MET : 12 "], {"MET": 12}),
+        (["1", "MET:12"], {None: 1, "MET": 12}),
+        (["MET:0"], {"MET": 0}),
+    ],
+)
+def test_parse_symmetry_number_accepts_valid_entries(raw, expected):
+    assert parse_symmetry_number(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        -1,
+        True,
+        12.5,
+        "abc",
+        ["-1"],
+        ["MET:"],
+        [":3"],
+        ["MET:abc"],
+        ["MET:-1"],
+        ["MET:1", "MET:2"],
+        ["1", "2"],
+    ],
+)
+def test_parse_symmetry_number_rejects_invalid_entries(raw):
+    with pytest.raises(ValueError, match="'symmetry_number' entry"):
+        parse_symmetry_number(raw)
+
+
+def test_check_input_symmetry_number_missing_attribute_does_not_raise(resolver):
+    resolver._check_input_symmetry_number(SimpleNamespace())
+
+
+@pytest.mark.parametrize("raw", [None, ["0"], ["24"], ["MET:12", "NH3:3"]])
+def test_check_input_symmetry_number_valid_does_not_warn(
+    resolver, make_args, raw, caplog
+):
+    args = make_args(symmetry_number=raw)
+
+    with caplog.at_level(logging.WARNING):
+        resolver._check_input_symmetry_number(args)
+
+    assert args.symmetry_number == raw
+    assert "symmetry_number" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("raw", "label"),
+    [(["25"], "all groups"), ([60], "all groups"), (["MET:25"], "MET")],
+)
+def test_check_input_symmetry_number_large_value_logs_warning(
+    resolver, make_args, raw, label, caplog
+):
+    args = make_args(symmetry_number=raw)
+
+    with caplog.at_level(logging.WARNING):
+        resolver._check_input_symmetry_number(args)
+
+    assert f"'symmetry_number' for {label}" in caplog.text
+    assert "values above 24 are unusual" in caplog.text
+
+
+def test_validate_inputs_rejects_invalid_symmetry_number(
+    resolver, dummy_universe, make_args
+):
+    args = make_args(symmetry_number=-1)
+
+    with pytest.raises(ValueError, match="Invalid 'symmetry_number'"):
+        resolver.validate_inputs(dummy_universe, args)

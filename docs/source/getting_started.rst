@@ -224,6 +224,14 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - Method for finding neighbouring molecules.
      - ``RAD``
      - ``str``
+   * - ``--symmetry_number``
+     - Rotational symmetry number (integer >= 0) used in the orientational entropy,
+       replacing the value computed from the bond graph. ``VALUE`` applies to all
+       molecule groups and ``RESNAME:VALUE`` to one residue name (e.g. ``12`` or
+       ``MET:12 NH3:3``). ``0`` means spherical (no orientational entropy). See
+       :ref:`symmetry-number`.
+     - computed
+     - ``str``
    * - ``--parallel_frames``
      - Execute frame-local covariance calculations in parallel. When enabled, frame-level
        work is submitted to Dask and reduced in the parent process.
@@ -508,6 +516,77 @@ There are currently two options, chosen by the ``search_type`` argument.
 
 * ``RAD`` (default): Uses the relative angular distance method.
 * ``grid``: Uses the MDAnalysis NeighborSearch method.
+
+.. _symmetry-number:
+
+Symmetry Number
+---------------
+
+The orientational entropy is divided by the symmetry number :math:`\sigma` of the
+molecule. By default, :math:`\sigma` is computed with RDKit as the number of ways the
+molecule's bond graph can be mapped onto itself. This count includes reflections and
+does not depend on the molecule's conformation, so it can be larger than the
+rotational symmetry number (for example 24 instead of 12 for methane, and 6 instead
+of 3 for ammonia).
+
+The ``symmetry_number`` argument replaces the computed value with the rotational
+symmetry number, which is the order of the rotational subgroup of the molecule's
+point group:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Point group
+     - :math:`\sigma`
+     - Example
+   * - C\ :sub:`1`, C\ :sub:`s`
+     - 1
+     - methanol
+   * - C\ :sub:`2v`
+     - 2
+     - water
+   * - C\ :sub:`3v`
+     - 3
+     - ammonia
+   * - T\ :sub:`d`
+     - 12
+     - methane
+   * - D\ :sub:`6h`
+     - 12
+     - benzene
+
+``0`` is a special case for spherical molecules (for example, single atoms or ions),
+which have no orientational entropy. Values for common liquids are between 1 and 12.
+Values above 24 are rare (the largest is 60, for icosahedral molecules), so
+CodeEntropy logs a warning for them.
+
+Each entry is either ``VALUE``, which applies to every molecule group, or
+``RESNAME:VALUE``, which applies to molecules whose first residue has that name. A
+``RESNAME:VALUE`` entry takes precedence over a plain ``VALUE``, and molecule groups
+that match no entry keep the computed value. Residue names are matched on the
+representative molecule of each group.
+
+.. code-block:: bash
+
+   CodeEntropy --symmetry_number 12              # all molecule groups
+   CodeEntropy --symmetry_number MET:12 NH3:3    # per residue name
+   CodeEntropy --symmetry_number 1 MET:12        # 12 for MET, 1 for all others
+
+The same forms can be used in ``config.yaml``:
+
+.. code-block:: yaml
+
+  run1:
+    top_traj_file: ["methane.tpr", "methane.trr"]
+    symmetry_number: 12
+
+  run2:
+    top_traj_file: ["mixture.tpr", "mixture.trr"]
+    symmetry_number: ["MET:12", "NH3:3"]
+
+.. note::
+
+   A plain ``VALUE`` also applies to water unless ``water_entropy`` is enabled.
 
 
 Examples

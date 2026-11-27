@@ -11,6 +11,7 @@ from typing import Any
 
 import networkx as nx
 
+from CodeEntropy.config.argparse import parse_symmetry_number
 from CodeEntropy.levels.axes import AxesCalculator
 from CodeEntropy.levels.execution.policy import ExecutionPolicy
 from CodeEntropy.levels.execution.reducers import NeighborReducer
@@ -189,7 +190,10 @@ class LevelDAG:
         Args:
             shared_data: Shared workflow data containing ``groups`` and either
                 ``reduced_universe`` or ``universe``. The method writes
-                ``symmetry_number`` and ``linear``.
+                ``symmetry_number`` and ``linear``. Values from
+                ``args.symmetry_number`` replace the computed symmetry numbers,
+                matched on the first residue name of each group's representative
+                molecule.
 
         Raises:
             KeyError: If ``groups`` is missing from ``shared_data``.
@@ -201,6 +205,17 @@ class LevelDAG:
             universe=universe,
             groups=shared_data["groups"],
         )
+
+        overrides = parse_symmetry_number(
+            getattr(shared_data.get("args"), "symmetry_number", None)
+        )
+        for group_id, mol_ids in shared_data["groups"].items():
+            if not overrides or not mol_ids:
+                continue
+            resname = universe.atoms.fragments[mol_ids[0]].residues.resnames[0]
+            value = overrides.get(resname, overrides.get(None))
+            if value is not None:
+                symmetry_number[group_id] = value
 
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear

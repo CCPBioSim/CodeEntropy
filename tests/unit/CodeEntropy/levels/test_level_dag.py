@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
+
+import pytest
 
 from CodeEntropy.levels.graph.level_dag import LevelDAG
 
@@ -202,6 +205,95 @@ def test_initialise_neighbor_metadata_writes_symmetry_and_linearity():
     helper.get_symmetry.assert_called_once_with(universe=universe, groups=groups)
     assert shared_data["symmetry_number"] == {0: 12, 1: 2}
     assert shared_data["linear"] == {0: False, 1: True}
+
+
+def test_initialise_neighbor_metadata_keeps_computed_symmetry_when_unset():
+    groups = {0: [0], 1: [1]}
+    shared_data = {
+        "reduced_universe": object(),
+        "groups": groups,
+        "args": SimpleNamespace(symmetry_number=None),
+    }
+
+    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+        Neighbors.return_value.get_symmetry.return_value = (
+            {0: 12, 1: 2},
+            {0: False, 1: True},
+        )
+
+        LevelDAG._initialise_neighbor_metadata(shared_data)
+
+    assert shared_data["symmetry_number"] == {0: 12, 1: 2}
+
+
+def _universe_with_resnames(*resnames_per_fragment):
+    fragments = [
+        SimpleNamespace(residues=SimpleNamespace(resnames=list(resnames)))
+        for resnames in resnames_per_fragment
+    ]
+    return SimpleNamespace(atoms=SimpleNamespace(fragments=fragments))
+
+
+def _run_with_symmetry_override(universe, groups, computed, raw):
+    shared_data = {
+        "reduced_universe": universe,
+        "groups": groups,
+        "args": SimpleNamespace(symmetry_number=raw),
+    }
+    linear = dict.fromkeys(computed, False)
+
+    with patch("CodeEntropy.levels.graph.level_dag.Neighbors") as Neighbors:
+        Neighbors.return_value.get_symmetry.return_value = (dict(computed), linear)
+
+        LevelDAG._initialise_neighbor_metadata(shared_data)
+
+    assert shared_data["linear"] == linear
+    return shared_data["symmetry_number"]
+
+
+@pytest.mark.parametrize("value", [0, 1, 3, 60])
+def test_initialise_neighbor_metadata_applies_value_to_all_groups(value):
+    universe = _universe_with_resnames(["MET"], ["MET"], ["SOL"])
+    groups = {0: [0, 1], 2: [2], 3: []}
+
+    result = _run_with_symmetry_override(
+        universe, groups, {0: 24, 2: 6, 3: 0}, [str(value)]
+    )
+
+    assert result == {0: value, 2: value, 3: 0}
+
+
+def test_initialise_neighbor_metadata_applies_per_residue_values():
+    universe = _universe_with_resnames(["MET"], ["NH3"], ["SOL"])
+    groups = {0: [0], 1: [1], 2: [2]}
+
+    result = _run_with_symmetry_override(
+        universe, groups, {0: 24, 1: 6, 2: 2}, ["MET:12", "NH3:3", "XYZ:5"]
+    )
+
+    assert result == {0: 12, 1: 3, 2: 2}
+
+
+def test_initialise_neighbor_metadata_residue_value_takes_precedence():
+    universe = _universe_with_resnames(["MET"], ["SOL"])
+    groups = {0: [0], 1: [1]}
+
+    result = _run_with_symmetry_override(
+        universe, groups, {0: 24, 1: 2}, ["1", "MET:12"]
+    )
+
+    assert result == {0: 12, 1: 1}
+
+
+def test_initialise_neighbor_metadata_matches_first_residue_of_representative():
+    universe = _universe_with_resnames(["SOL"], ["LIG", "MET"])
+    groups = {0: [1, 0]}
+
+    matched = _run_with_symmetry_override(universe, groups, {0: 6}, ["LIG:2"])
+    unmatched = _run_with_symmetry_override(universe, groups, {0: 6}, ["MET:2"])
+
+    assert matched == {0: 2}
+    assert unmatched == {0: 6}
 
 
 def test_initialise_neighbor_metadata_falls_back_to_universe_key():

@@ -170,6 +170,16 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Type of neighbour search to use. Default is RAD; grid search is also "
         "available.",
     ),
+    "symmetry_number": ArgSpec(
+        type=str,
+        nargs="+",
+        default=None,
+        help="Rotational symmetry number (integer >= 0) for the orientational "
+        "entropy. VALUE applies to all molecule groups; RESNAME:VALUE applies to "
+        "molecules whose first residue has that name (e.g. 12 or MET:12 NH3:3). "
+        "0 means spherical (no orientational entropy). Default: computed from "
+        "the bond graph.",
+    ),
     "parallel_frames": ArgSpec(
         type=bool,
         default=False,
@@ -261,6 +271,40 @@ ARG_SPECS: dict[str, ArgSpec] = {
         help="Conda environment name to activate on Dask workers.",
     ),
 }
+
+
+def parse_symmetry_number(raw: Any) -> dict[str | None, int]:
+    """Parse the ``symmetry_number`` option.
+
+    Each entry is either ``VALUE`` (applies to all molecule groups) or
+    ``RESNAME:VALUE`` (applies to molecules whose first residue has that name).
+
+    Args:
+        raw: ``None``, a single value, or a list of entries from the CLI or YAML.
+
+    Returns:
+        Mapping of residue name to symmetry number. The key ``None`` holds the
+        value for all groups. Empty if ``raw`` is ``None``.
+
+    Raises:
+        ValueError: If an entry is malformed, negative, not an integer, or
+            duplicated.
+    """
+    if raw is None:
+        return {}
+    result: dict[str | None, int] = {}
+    for item in raw if isinstance(raw, list) else [raw]:
+        name, sep, value = str(item).strip().rpartition(":")
+        name = name.strip() or None
+        if (sep and name is None) or not value.strip().isdigit():
+            raise ValueError(
+                f"Invalid 'symmetry_number' entry: {item!r}. "
+                "Use an integer >= 0 or RESNAME:VALUE."
+            )
+        if name in result:
+            raise ValueError(f"Duplicate 'symmetry_number' entry: {item!r}.")
+        result[name] = int(value)
+    return result
 
 
 class ConfigResolver:
@@ -515,6 +559,7 @@ class ConfigResolver:
         self._check_input_force_partitioning(args)
         self._check_parallel_frame_options(args)
         self._check_input_axes(args)
+        self._check_input_symmetry_number(args)
 
     @staticmethod
     def _check_input_axes(args: argparse.Namespace) -> None:
@@ -587,6 +632,17 @@ class ConfigResolver:
                 args.force_partitioning,
                 default_value,
             )
+
+    @staticmethod
+    def _check_input_symmetry_number(args: argparse.Namespace) -> None:
+        """Check symmetry_number entries are valid; warn on unusually large values."""
+        values = parse_symmetry_number(getattr(args, "symmetry_number", None))
+        for name, value in values.items():
+            if value > 24:
+                logger.warning(
+                    f"'symmetry_number' for {name or 'all groups'} is {value}; "
+                    "values above 24 are unusual."
+                )
 
     @staticmethod
     def _check_parallel_frame_options(args: argparse.Namespace) -> None:
