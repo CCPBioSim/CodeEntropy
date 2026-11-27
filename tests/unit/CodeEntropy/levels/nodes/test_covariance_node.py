@@ -171,7 +171,7 @@ def test_process_united_atom_updates_outputs_and_molcount():
     out_force = {"ua": {}, "res": {}, "poly": {}}
     out_torque = {"ua": {}, "res": {}, "poly": {}}
     molcount = {}
-
+    mol.residues[0].resindex = 0
     node._process_united_atom(
         u=universe,
         mol=mol,
@@ -199,7 +199,7 @@ def test_process_united_atom_returns_when_no_beads_or_empty_atom_groups():
     mol = FakeMolecule(n_residues=1)
     out_force = {"ua": {}, "res": {}, "poly": {}}
     out_torque = {"ua": {}, "res": {}, "poly": {}}
-
+    mol.residues[0].resindex = 7
     node._process_united_atom(
         u=FakeUniverse([mol]),
         mol=mol,
