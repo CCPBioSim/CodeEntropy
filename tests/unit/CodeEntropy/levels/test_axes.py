@@ -1857,8 +1857,7 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
         [
             _atom(index=1, mass=12.0, pos=(1, 0, 0)),
             _atom(index=2, mass=12.0, pos=(0, 1, 0)),
-            _atom(index=3, mass=14.0, pos=(2, 2, 2)),
-        ],
+        ]
     )
 
     bonded_atoms = [heavy_atoms[1]]
@@ -1887,6 +1886,7 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
     residue_group.select_atoms.side_effect = _select_atoms
     residue_group.atoms.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
+    residue.select_atoms.side_effect = _select_atoms
 
     monkeypatch.setattr(
         ax,
@@ -1911,24 +1911,37 @@ def test_get_ua_axes_bonded_terminal_2_points(monkeypatch):
 def test_get_ua_axes_non_terminal_2_atoms(monkeypatch):
     ax = AxesCalculator()
     residue_group = MagicMock()
-    residue_group.__len__ = 3
-    residue_group.atoms.residues.__len__ = 3
+    residue_group.atoms.residues.__len__.return_value = 3
     residue = residue_group.residues[1]
     heavy_atoms = _FakeAtomGroup(
         [
-            _atom(index=0, mass=12.0, pos=(1, 1, 1)),
-            _atom(index=1, mass=12.0, pos=(3, 3, 3)),
+            _atom(index=1, mass=12.0, pos=(1, 1, 1)),
+            _atom(index=2, mass=12.0, pos=(3, 3, 3)),
         ],
     )
+    neighbours = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=3, mass=12.0, pos=(3, 3, 4)),
+        ],
+    )
+    neighbours[0].resindex = 0
+    neighbours[1].resindex = 2
 
     def _select_atoms(q):
         if q == "mass 2 to 999":
             # return heavy atoms group
             return heavy_atoms
-        if q.startswith("index"):
+        if q == "resindex 1":
+            return residue
+        if q == "index 1":
             return [heavy_atoms[0]]
-        if q.startswith("resindex "):
-            return heavy_atoms
+        if q == "not resindex 1":
+            return neighbours
+        if q == ("(bonded resindex 0) and (resindex 1)"):
+            return [heavy_atoms[0]]
+        if q == ("(bonded resindex 2) and (resindex 1)"):
+            return [heavy_atoms[1]]
 
     residue_group.atoms.select_atoms.side_effect = _select_atoms
     residue_group.select_atoms.side_effect = _select_atoms
@@ -1959,22 +1972,41 @@ def test_get_residue_axes_non_terminal_2_atoms(monkeypatch):
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     residue = u.select_atoms("resindex 5")
     residue.__len__.return_value = 2
+    u.atoms.residues.__len__.return_value = 3
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
     )
+
     uas = _FakeAtomGroup(
         [
-            _atom(index=0, mass=12.0, pos=(1, 1, 1)),
-            _atom(index=1, mass=12.0, pos=(3, 3, 3)),
+            _atom(index=1, mass=12.0, pos=(1, 1, 1)),
+            _atom(index=2, mass=12.0, pos=(3, 3, 3)),
         ],
     )
 
+    neighbours = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=3, mass=12.0, pos=(3, 3, 4)),
+        ],
+    )
+    neighbours[0].resindex = 4
+    neighbours[1].resindex = 6
+
     def _select_atoms(q):
         if q == "mass 2 to 999":
+            # return heavy atoms group
             return uas
-        if q.startswith("resindex 5 and (bonded resindex"):
-            return uas
+        if q == "resindex 5":
+            return residue
+        if q.startswith("(not resindex 5)"):
+            return neighbours
+        if q == ("(bonded resindex 4) and (resindex 5)"):
+            return [uas[0]]
+        if q == ("(bonded resindex 6) and (resindex 5)"):
+            return [uas[1]]
 
+    u.select_atoms.side_effect = _select_atoms
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = residue
     monkeypatch.setattr(ax, "get_chain", lambda residue, first, last: [])
@@ -2012,22 +2044,34 @@ def test_get_residue_axes_terminal_2_atoms(monkeypatch):
         [
             _atom(index=0, mass=12.0, pos=(1, 0, 0)),
             _atom(index=1, mass=12.0, pos=(0, 1, 0)),
-            _atom(index=2, mass=12.0, pos=(0, 0, 1)),
         ],
     )
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
     )
 
+    neighbour = _FakeAtomGroup(
+        [
+            _atom(index=2, mass=12.0, pos=(2, 1, 1)),
+        ],
+    )
+    neighbour[0].resindex = 1
+    bonded_atoms = [uas[0]]
+
     def _select_atoms(q):
         if q == "mass 2 to 999":
+            # return heavy atoms group
             return uas
-        if q.startswith("resindex 0 and (bonded resindex"):
-            # the edge atom
-            return [uas[2]]
+        if q == "resindex 0":
+            return residue
+        if q.startswith("(not resindex 0)"):
+            return neighbour
+        if q == "(bonded resindex 1) and (resindex 0)":
+            return [uas[1]]
         if q.startswith("(mass 2 to 999) and bonded index "):
-            return uas[0:2]
+            return bonded_atoms
 
+    u.select_atoms.side_effect = _select_atoms
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
@@ -2048,7 +2092,7 @@ def test_get_residue_axes_terminal_2_atoms(monkeypatch):
     )
     assert np.allclose(trans_axes, np.eye(3))
     assert np.allclose(rot_axes, 2 * np.eye(3))
-    assert np.allclose(rot_center, [0, 0, 1])
+    assert np.allclose(rot_center, [0, 1, 0])
     assert np.allclose(moi, [1, 1, 1])
 
 
@@ -2064,6 +2108,12 @@ def test_get_res_axes_terminal_1_atom(monkeypatch):
             _atom(index=0, mass=12.0, pos=(1, 0, 0)),
         ],
     )
+    neighbour = _FakeAtomGroup(
+        [
+            _atom(index=1, mass=12.0, pos=(2, 1, 1)),
+        ],
+    )
+    neighbour[0].resindex = 1
     monkeypatch.setattr(
         ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
     )
@@ -2071,11 +2121,16 @@ def test_get_res_axes_terminal_1_atom(monkeypatch):
     def _select_atoms(q):
         if q == "mass 2 to 999":
             return uas
+        if q == "resindex 0":
+            return residue
         if q.startswith("(mass 2 to 999) and bonded index "):
             return []
-        if q.startswith("resindex "):
+        if q.startswith("(not resindex 0)"):
+            return neighbour
+        if q == "(bonded resindex 1) and (resindex 0)":
             return [uas[0]]
 
+    u.select_atoms.side_effect = _select_atoms
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = _select_atoms
     residue.atoms.select_atoms.side_effect = _select_atoms
@@ -2247,22 +2302,37 @@ def test_get_residue_axes_all_atom_MOI(monkeypatch):
     monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
     atoms = _FakeAtomGroup(
         [
-            _atom(index=0, mass=12.0, pos=(1, 0, 0)),
-            _atom(index=1, mass=12.0, pos=(0, 1, 0)),
-            _atom(index=2, mass=12.0, pos=(0, 0, 1)),
-            _atom(index=3, mass=1.0, pos=(0, 0, 0)),
-            _atom(index=4, mass=1.0, pos=(1, 1, 1)),
+            _atom(index=1, mass=12.0, pos=(1, 0, 0)),
+            _atom(index=2, mass=12.0, pos=(0, 1, 0)),
+            _atom(index=3, mass=12.0, pos=(0, 0, 1)),
+            _atom(index=4, mass=1.0, pos=(0, 0, 0)),
+            _atom(index=5, mass=1.0, pos=(1, 1, 1)),
         ],
         positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0], [1, 1, 1]]),
     )
+    neighbours = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(1, 2, 1)),
+            _atom(index=6, mass=12.0, pos=(3, 3, 4)),
+        ],
+    )
     residue.atoms.positions = atoms.positions
     residue.atoms.masses = atoms.masses
+    neighbours[0].resindex = 0
+    neighbours[1].resindex = 2
 
     def _select_atoms(q):
-        if q.startswith("resindex"):
-            return atoms[0:2]
+        if q == ("resindex 1"):
+            return residue
+        if q.startswith("(not resindex 1)"):
+            return neighbours
+        if q == "(bonded resindex 0) and (resindex 1)":
+            return [atoms[0]]
+        if q == "(bonded resindex 2) and (resindex 1)":
+            return [atoms[2]]
 
     u.atoms.select_atoms.side_effect = _select_atoms
+    u.select_atoms.side_effect = _select_atoms
     monkeypatch.setattr(ax, "get_principal_axes_from_group", lambda _ag: 2 * np.eye(3))
     monkeypatch.setattr(
         ax,
