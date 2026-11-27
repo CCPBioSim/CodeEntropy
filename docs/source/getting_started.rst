@@ -224,6 +224,13 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - Method for finding neighbouring molecules.
      - ``RAD``
      - ``str``
+   * - ``--symmetry_number``
+     - Symmetry number used in the orientational entropy for every molecule group, in
+       place of the value computed from the molecular graph (see
+       :ref:`Orientational Entropy <orientational-symmetry-number>`). ``0`` means no
+       orientational entropy.
+     - ``None`` (computed)
+     - ``int``
    * - ``--parallel_frames``
      - Execute frame-local covariance calculations in parallel. When enabled, frame-level
        work is submitted to Dask and reduced in the parent process.

@@ -126,6 +126,12 @@ CodeEntropy is using the united atom beads to determine if a molecule is treated
 where N is the number of neighbours the molecule has averaged over the number of frames and :math:`\sigma` is the symmetry number of the molecule.
 The max of 1 or the number of neighbours expression prevents the resulting orientational entropy value being less than zero.
 
+.. _orientational-symmetry-number:
+
+By default, :math:`\sigma` is computed from the molecular graph as the number of ways the heavy-atom skeleton maps onto the molecule (or the whole molecule onto itself if it has one heavy atom).
+This counts permutations of the bond graph, which can be larger than the rotational symmetry number of the point group (for example 24 rather than 12 for methane).
+The ``symmetry_number`` argument sets :math:`\sigma` directly and is used for every molecule group.
+
 .. math::
    S_{\mathrm{orient}} = R \ln{ \Omega_{\mathrm{orient}} }
 
