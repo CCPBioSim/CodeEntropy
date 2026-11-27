@@ -5,7 +5,11 @@ import numpy as np
 import pytest
 
 from CodeEntropy.levels.axes import AxesCalculator
-from CodeEntropy.levels.nodes.axes_topology import ResidueAxesTopology, UAAxesTopology
+from CodeEntropy.levels.nodes.axes_topology import (
+    BuildAxesTopologyNode,
+    ResidueAxesTopology,
+    UAAxesTopology,
+)
 
 
 class _FakeAtom:
@@ -531,7 +535,7 @@ def test_get_bonded_axes_case2_one_heavy_no_h_calls_bonded_vector_axes_and_custo
     assert np.allclose(out_moi, np.array([9.0, 8.0, 7.0]))
 
 
-def test_get_bonded_axes_case3_one_heavy_with_h_calls_get_bonded_vector_axes(
+def test_get_bonded_axes_case3_one_heavy_with_two_h_calls_get_bonded_vector_axes(
     monkeypatch,
 ):
     ax = AxesCalculator()
@@ -541,7 +545,12 @@ def test_get_bonded_axes_case3_one_heavy_with_h_calls_get_bonded_vector_axes(
     heavy = _FakeAtomGroup(
         [_atom(index=3, mass=12.0, pos=(1, 0, 0))], positions=np.array([[1, 0, 0]])
     )
-    hyd = _FakeAtomGroup([_atom(index=4, mass=1.0, pos=(0, 1, 0))])
+    hyd = _FakeAtomGroup(
+        [
+            _atom(index=4, mass=1.0, pos=(0, 1, 0)),
+            _atom(index=5, mass=1.0, pos=(0, 0, 1)),
+        ]
+    )
 
     monkeypatch.setattr(ax, "find_bonded_atoms", lambda _idx, _sys: (heavy, hyd))
     called = {"n": 0}
@@ -1177,13 +1186,16 @@ def test_get_bonded_axes_from_topology_one_heavy_with_light_uses_light_as_c(
     heavy_atom = _FakeAtom(1, 12.0, [0.0, 0.0, 0.0])
     bonded_heavy = _FakeAtom(3, 12.0, [1.0, 0.0, 0.0])
     bonded_light = _FakeAtom(2, 1.0, [0.0, 1.0, 0.0])
-    universe = _FakeUniverse({1: heavy_atom, 2: bonded_light, 3: bonded_heavy})
+    second_light = _FakeAtom(4, 1.0, [0.0, 0.0, 1.0])
+    universe = _FakeUniverse(
+        {1: heavy_atom, 2: bonded_light, 3: bonded_heavy, 4: second_light}
+    )
     topology = _ua_topology(
         heavy_atom_index=1,
-        ua_atom_indices=(1, 2),
-        ua_all_atom_indices=(1, 3, 2),
+        ua_atom_indices=(1, 2, 4),
+        ua_all_atom_indices=(1, 3, 2, 4),
         bonded_heavy_indices=(3,),
-        bonded_light_indices=(2,),
+        bonded_light_indices=(2, 4),
     )
 
     get_bonded_vector_axes = MagicMock(return_value=np.eye(3))
@@ -2218,3 +2230,270 @@ def test_get_residue_axes_all_atom_MOI(monkeypatch):
     assert np.allclose(rot_axes, np.eye(3))
     assert np.allclose(rot_center, [1, 0, 0])
     assert np.allclose(moi, [26, 38, 38])
+
+
+def _methanol_universe():
+    """Methanol C0, O1, H2 (hydroxyl), H3-H5 (methyl), in a large box."""
+    universe = mda.Universe.empty(
+        n_atoms=6, n_residues=1, atom_resindex=[0] * 6, trajectory=True
+    )
+    universe.add_TopologyAttr("masses", [12.011, 15.999, 1.008, 1.008, 1.008, 1.008])
+    universe.add_TopologyAttr("bonds", [(0, 1), (1, 2), (0, 3), (0, 4), (0, 5)])
+    universe.dimensions = [50.0, 50.0, 50.0, 90.0, 90.0, 90.0]
+    return universe
+
+
+def _methanol_positions(coh_degrees):
+    """Methanol positions with the hydroxyl H in the xy plane at C-O-H angle."""
+    angle = np.radians(coh_degrees)
+    carbon = np.array([-1.43, 0.0, 0.0])
+    hydroxyl_h = 0.96 * np.array([-np.cos(angle), np.sin(angle), 0.0])
+    methyl_h = carbon + np.array(
+        [[-0.36, -0.51, 0.89], [-0.36, -0.51, -0.89], [-0.36, 1.03, 0.0]]
+    )
+    return np.vstack([carbon, [0.0, 0.0, 0.0], hydroxyl_h, methyl_h]) + 25.0
+
+
+def _propanoic_acid_universe():
+    """Propanoic acid C0-C1-C2(=O3)-O4-H10, H5-H7 on C0 and H8-H9 on C1."""
+    universe = mda.Universe.empty(
+        n_atoms=11, n_residues=1, atom_resindex=[0] * 11, trajectory=True
+    )
+    universe.add_TopologyAttr("masses", [12.011] * 3 + [15.999] * 2 + [1.008] * 6)
+    universe.add_TopologyAttr(
+        "bonds",
+        [(0, 1), (1, 2), (2, 3), (2, 4), (0, 5), (0, 6), (0, 7), (1, 8), (1, 9)]
+        + [(4, 10)],
+    )
+    universe.dimensions = [50.0, 50.0, 50.0, 90.0, 90.0, 90.0]
+    universe.atoms.positions = (
+        np.array(
+            [
+                [-1.378, 0.495, -0.065],
+                [-0.283, -0.543, 0.103],
+                [1.087, 0.063, -0.030],
+                [1.367, 1.229, -0.245],
+                [2.059, -0.858, 0.119],
+                [-1.293, 1.283, 0.690],
+                [-2.364, 0.029, 0.035],
+                [-1.323, 0.969, -1.051],
+                [-0.365, -1.002, 1.093],
+                [-0.395, -1.318, -0.663],
+                [2.888, -0.346, 0.013],
+            ]
+        )
+        + 25.0
+    )
+    return universe
+
+
+def _cached_ua_topology(heavy_atom):
+    """Cached UA topology for one heavy atom, as built by the topology node."""
+    bonded_heavy, bonded_light = BuildAxesTopologyNode._split_bonded_atoms(heavy_atom)
+    return _ua_topology(
+        heavy_atom_index=heavy_atom.index,
+        ua_atom_indices=[heavy_atom.index, *bonded_light.indices],
+        ua_all_atom_indices=[
+            heavy_atom.index,
+            *bonded_heavy.indices,
+            *bonded_light.indices,
+        ],
+        bonded_heavy_indices=bonded_heavy.indices,
+        bonded_light_indices=bonded_light.indices,
+    )
+
+
+def test_get_bonded_axes_single_hydrogen_zeroes_same_axis_every_frame():
+    """The O-H united atom of methanol loses the moment about O-H, axis 0."""
+    ax = AxesCalculator()
+    universe = _methanol_universe()
+    dims = universe.dimensions[:3]
+    oxygen, hydrogen = universe.atoms[1], universe.atoms[2]
+
+    old_zeroed_axes = set()
+    for coh_degrees in (108.0, 150.0):
+        universe.atoms.positions = _methanol_positions(coh_degrees)
+
+        axes, moi = ax.get_bonded_axes(universe.atoms, oxygen, dims)
+
+        bond = hydrogen.position - oxygen.position
+        assert np.allclose(axes[0], bond / np.linalg.norm(bond), atol=1e-6)
+        assert moi[0] == 0.0
+        assert np.all(moi[1:] > 0.0)
+
+        # the axes built from the C-O bond have their smallest moment on
+        # different axes at these two angles
+        old_axes = ax.get_bonded_vector_axes(
+            a=oxygen.position,
+            b_list=[universe.atoms[0].position],
+            c=hydrogen.position,
+            dimensions=dims,
+        )
+        old_moi = np.sum(np.cross(old_axes, bond) ** 2, axis=1)
+        old_zeroed_axes.add(int(np.argmin(old_moi)))
+
+    assert len(old_zeroed_axes) == 2
+
+
+def test_get_bonded_axes_single_hydrogen_second_axis_towards_heavy_neighbour():
+    ax = AxesCalculator()
+    universe = _methanol_universe()
+    universe.atoms.positions = _methanol_positions(108.0)
+    oxygen, carbon = universe.atoms[1], universe.atoms[0]
+
+    axes, _ = ax.get_bonded_axes(universe.atoms, oxygen, universe.dimensions[:3])
+
+    oxygen_carbon = carbon.position - oxygen.position
+    in_plane = oxygen_carbon - np.dot(oxygen_carbon, axes[0]) * axes[0]
+    assert np.allclose(axes[2], in_plane / np.linalg.norm(in_plane), atol=1e-6)
+    assert np.allclose(np.abs(axes[1]), [0.0, 0.0, 1.0], atol=1e-6)
+
+
+def test_get_bonded_axes_collinear_single_hydrogen_raises():
+    ax = AxesCalculator()
+    universe = _methanol_universe()
+    universe.atoms.positions = _methanol_positions(180.0)
+
+    with pytest.raises(ValueError):
+        ax.get_bonded_axes(universe.atoms, universe.atoms[1], universe.dimensions[:3])
+
+
+def test_get_bonded_axes_unchanged_without_single_hydrogen():
+    """United atoms with zero or at least two hydrogens keep their axes."""
+    ax = AxesCalculator()
+    universe = _propanoic_acid_universe()
+    dims = universe.dimensions[:3]
+    atoms = universe.atoms
+
+    # (heavy atom, b_list, c) of the bonded vector axes before single-hydrogen
+    # united atoms had their own axes
+    cases = [
+        (0, [1], 5),  # CH3: one heavy, three H
+        (1, [0, 2], 2),  # CH2: two heavy, two H
+        (2, [1, 3, 4], 3),  # C: three heavy, no H
+        (3, [2], None),  # =O: one heavy, no H
+    ]
+    for index, b_indices, c_index in cases:
+        heavy_atom = atoms[index]
+        ua = heavy_atom + atoms.select_atoms(f"mass 1 to 1.1 and bonded index {index}")
+        expected_axes = ax.get_bonded_vector_axes(
+            a=heavy_atom.position,
+            b_list=atoms[b_indices].positions,
+            c=np.zeros(3) if c_index is None else atoms[c_index].position,
+            dimensions=dims,
+        )
+        expected_moi = ax.get_custom_moment_of_inertia(
+            UA=ua,
+            custom_rotation_axes=expected_axes,
+            center_of_mass=heavy_atom.position,
+            dimensions=dims,
+        )
+        expected_axes = ax.get_flipped_axes(
+            ua, expected_axes, heavy_atom.position, dims
+        )
+
+        axes, moi = ax.get_bonded_axes(atoms, heavy_atom, dims)
+
+        np.testing.assert_array_equal(axes, expected_axes)
+        np.testing.assert_array_equal(moi, expected_moi)
+
+
+def test_get_bonded_axes_single_hydrogen_without_heavy_neighbour_uses_principal():
+    """A molecule HX keeps its principal axes and principal moments."""
+    ax = AxesCalculator()
+    universe = mda.Universe.empty(
+        n_atoms=2, n_residues=1, atom_resindex=[0, 0], trajectory=True
+    )
+    universe.add_TopologyAttr("masses", [35.45, 1.008])
+    universe.add_TopologyAttr("bonds", [(0, 1)])
+    universe.dimensions = [50.0, 50.0, 50.0, 90.0, 90.0, 90.0]
+    universe.atoms.positions = np.array([[25.0, 25.0, 25.0], [26.0, 25.6, 25.4]])
+    expected_axes, expected_moi = ax.get_molecule_axes(universe.atoms)
+
+    axes, moi = ax.get_bonded_axes(
+        universe.atoms, universe.atoms[0], universe.dimensions[:3]
+    )
+
+    np.testing.assert_allclose(axes, expected_axes)
+    np.testing.assert_allclose(moi, expected_moi)
+
+
+@pytest.mark.parametrize("heavy_index", [0, 1, 2, 3, 4])
+def test_get_bonded_axes_from_topology_matches_local_axes(heavy_index):
+    ax = AxesCalculator()
+    universe = _propanoic_acid_universe()
+    dims = universe.dimensions[:3]
+    heavy_atom = universe.atoms[heavy_index]
+
+    local_axes, local_moi = ax.get_bonded_axes(universe.atoms, heavy_atom, dims)
+    cached_axes, cached_moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=heavy_atom,
+        topology=_cached_ua_topology(heavy_atom),
+        dimensions=dims,
+    )
+
+    np.testing.assert_array_equal(cached_axes, local_axes)
+    np.testing.assert_array_equal(cached_moi, local_moi)
+
+
+def test_get_bonded_axes_from_topology_single_hydrogen_zeroes_axis_along_bond():
+    ax = AxesCalculator()
+    universe = _methanol_universe()
+    dims = universe.dimensions[:3]
+    oxygen, hydrogen = universe.atoms[1], universe.atoms[2]
+    topology = _cached_ua_topology(oxygen)
+
+    for coh_degrees in (108.0, 150.0):
+        universe.atoms.positions = _methanol_positions(coh_degrees)
+
+        axes, moi = ax.get_bonded_axes_from_topology(
+            u=universe, heavy_atom=oxygen, topology=topology, dimensions=dims
+        )
+
+        bond = hydrogen.position - oxygen.position
+        assert np.allclose(axes[0], bond / np.linalg.norm(bond), atol=1e-6)
+        assert moi[0] == 0.0
+        assert np.all(moi[1:] > 0.0)
+
+
+def test_get_bonded_axes_single_hydrogen_two_heavy_neighbours_uses_lowest_index():
+    """The N-H of dimethylamine (methyl H omitted): axis 0 along N-H, axis 2
+    towards C0, and the same axes from the cached topology."""
+    ax = AxesCalculator()
+    universe = mda.Universe.empty(
+        n_atoms=4, n_residues=1, atom_resindex=[0] * 4, trajectory=True
+    )
+    universe.add_TopologyAttr("masses", [12.011, 14.007, 12.011, 1.008])
+    universe.add_TopologyAttr("bonds", [(0, 1), (1, 2), (1, 3)])
+    universe.dimensions = [50.0, 50.0, 50.0, 90.0, 90.0, 90.0]
+    universe.atoms.positions = (
+        np.array(
+            [
+                [1.188, 0.172, 0.129],
+                [-0.011, 0.215, -0.698],
+                [-1.202, -0.050, 0.097],
+                [0.065, -0.487, -1.434],
+            ]
+        )
+        + 25.0
+    )
+    dims = universe.dimensions[:3]
+    nitrogen = universe.atoms[1]
+
+    axes, moi = ax.get_bonded_axes(universe.atoms, nitrogen, dims)
+    cached_axes, cached_moi = ax.get_bonded_axes_from_topology(
+        u=universe,
+        heavy_atom=nitrogen,
+        topology=_cached_ua_topology(nitrogen),
+        dimensions=dims,
+    )
+
+    bond = universe.atoms[3].position - nitrogen.position
+    nitrogen_carbon = universe.atoms[0].position - nitrogen.position
+    in_plane = nitrogen_carbon - np.dot(nitrogen_carbon, axes[0]) * axes[0]
+    assert np.allclose(axes[0], bond / np.linalg.norm(bond), atol=1e-6)
+    assert np.allclose(axes[2], in_plane / np.linalg.norm(in_plane), atol=1e-6)
+    assert moi[0] == 0.0
+    np.testing.assert_array_equal(cached_axes, axes)
+    np.testing.assert_array_equal(cached_moi, moi)

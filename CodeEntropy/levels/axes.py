@@ -453,7 +453,7 @@ class AxesCalculator:
                 dimensions=dimensions,
             )
 
-        if len(heavy_bonded) == 1 and len(light_bonded) >= 1:
+        if len(heavy_bonded) == 1 and len(light_bonded) >= 2:
             custom_axes = self.get_bonded_vector_axes(
                 a=heavy_atom.position,
                 b_list=[heavy_bonded[0].position],
@@ -461,11 +461,19 @@ class AxesCalculator:
                 dimensions=dimensions,
             )
 
-        if len(heavy_bonded) >= 2:
+        if len(heavy_bonded) >= 2 and len(light_bonded) != 1:
             custom_axes = self.get_bonded_vector_axes(
                 a=heavy_atom.position,
                 b_list=heavy_bonded.positions,
                 c=heavy_bonded[1].position,
+                dimensions=dimensions,
+            )
+
+        if len(heavy_bonded) >= 1 and len(light_bonded) == 1:
+            custom_axes = self.get_bonded_vector_axes(
+                a=heavy_atom.position,
+                b_list=[light_bonded[0].position],
+                c=heavy_bonded[0].position,
                 dimensions=dimensions,
             )
 
@@ -659,13 +667,16 @@ class AxesCalculator:
 
             X -- R = bonded to one heavy atom (case2)
 
-            R -- X -- H = bonded to one heavy and at least one light atom (case3)
+            R -- X -- H = bonded to one heavy and at least two light atoms (case3)
 
             R1 -- X -- R2 = bonded to two heavy atoms (case4)
 
             R1 -- X -- R2 = bonded to more than two heavy atoms (case5)
                   |
                   R3
+
+            R -- X -- H = bonded to at least one heavy and exactly one light
+                          atom (case6)
 
         Note that axis2 is calculated by taking the cross product between axis1 and
         the vector chosen for each case, dependent on bonding:
@@ -681,7 +692,17 @@ class AxesCalculator:
         - case5: get the sum of all XR normalised vectors as axis1, then use vector
           R1R2 to calculate axis2
 
+        - case6: use vector XH as axis1, and XR1 to calculate axis2, where R1 is
+          the bonded heavy atom with the lowest index. The UA has no moment about
+          the XH bond, which is then always axis1, so the moment that
+          :meth:`get_custom_moment_of_inertia` removes belongs to the same
+          rotation in every frame. A UA with one light atom and no heavy
+          neighbour (a molecule HX) is case1.
+
         axis3 is always the cross product of axis1 and axis2.
+
+        As for case3, an exactly collinear R -- X -- H in case6 leaves axis2
+        undefined and :meth:`get_bonded_vector_axes` raises ``ValueError``.
 
         Args:
             system:
@@ -726,7 +747,7 @@ class AxesCalculator:
             )
 
         # case3
-        if len(heavy_bonded) == 1 and len(light_bonded) >= 1:
+        if len(heavy_bonded) == 1 and len(light_bonded) >= 2:
             custom_axes = self.get_bonded_vector_axes(
                 a=atom.position,
                 b_list=[heavy_bonded[0].position],
@@ -736,11 +757,20 @@ class AxesCalculator:
 
         # case4 (not used in original 2019 code; case5 used instead)
         # case5
-        if len(heavy_bonded) >= 2:
+        if len(heavy_bonded) >= 2 and len(light_bonded) != 1:
             custom_axes = self.get_bonded_vector_axes(
                 a=atom.position,
                 b_list=heavy_bonded.positions,
                 c=heavy_bonded[1].position,
+                dimensions=dimensions,
+            )
+
+        # case6
+        if len(heavy_bonded) >= 1 and len(light_bonded) == 1:
+            custom_axes = self.get_bonded_vector_axes(
+                a=atom.position,
+                b_list=[light_bonded[0].position],
+                c=heavy_bonded[0].position,
                 dimensions=dimensions,
             )
 
@@ -923,8 +953,10 @@ class AxesCalculator:
         - Uses PBC-aware translated coordinates.
         - Sums contributions from each atom using the squared norm of (axis × r)
           multiplied by mass.
-        - Removes the lowest MOI degree of freedom if the UA only has a single
-          bonded H (i.e. UA has 2 atoms total).
+        - Removes the MOI about the first axis if the UA only has a single
+          bonded H (i.e. UA has 2 atoms total). The first axis is then the XH
+          bond (case6 of :meth:`get_bonded_axes`), about which the UA has no
+          moment.
 
         Args:
             UA: MDAnalysis AtomGroup for the UA (heavy + bonded H atoms).
@@ -945,8 +977,7 @@ class AxesCalculator:
             custom_moment_of_inertia += axis_component
 
         if len(UA) == 2:
-            order = custom_moment_of_inertia.argsort()[::-1]  # descending order
-            custom_moment_of_inertia[order[-1]] = 0.0
+            custom_moment_of_inertia[0] = 0.0
 
         return custom_moment_of_inertia
 
