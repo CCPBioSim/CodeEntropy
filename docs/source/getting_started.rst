@@ -225,11 +225,13 @@ The ``top_traj_file`` argument is required; other arguments have default values.
      - ``RAD``
      - ``str``
    * - ``--symmetry_number``
-     - Rotational symmetry number (integer >= 0) used in the orientational entropy of
-       all molecule groups, replacing the value computed from the bond graph. ``0`` means
-       spherical (no orientational entropy). See :ref:`symmetry-number`.
+     - Rotational symmetry number (integer >= 0) used in the orientational entropy,
+       replacing the value computed from the bond graph. ``VALUE`` applies to all
+       molecule groups and ``RESNAME:VALUE`` to one residue name (e.g. ``12`` or
+       ``MET:12 NH3:3``). ``0`` means spherical (no orientational entropy). See
+       :ref:`symmetry-number`.
      - computed
-     - ``int``
+     - ``str``
    * - ``--parallel_frames``
      - Execute frame-local covariance calculations in parallel. When enabled, frame-level
        work is submitted to Dask and reduced in the parent process.
@@ -558,17 +560,33 @@ which have no orientational entropy. Values for common liquids are between 1 and
 Values above 24 are rare (the largest is 60, for icosahedral molecules), so
 CodeEntropy logs a warning for them.
 
-.. note::
+Each entry is either ``VALUE``, which applies to every molecule group, or
+``RESNAME:VALUE``, which applies to molecules whose first residue has that name. A
+``RESNAME:VALUE`` entry takes precedence over a plain ``VALUE``, and molecule groups
+that match no entry keep the computed value. Residue names are matched on the
+representative molecule of each group.
 
-   The value is applied to every molecule group in the selection, including water
-   unless ``water_entropy`` is enabled. Only set it when the system contains a single
-   molecule type, or when one value is correct for all of them.
+.. code-block:: bash
+
+   CodeEntropy --symmetry_number 12              # all molecule groups
+   CodeEntropy --symmetry_number MET:12 NH3:3    # per residue name
+   CodeEntropy --symmetry_number 1 MET:12        # 12 for MET, 1 for all others
+
+The same forms can be used in ``config.yaml``:
 
 .. code-block:: yaml
 
   run1:
     top_traj_file: ["methane.tpr", "methane.trr"]
     symmetry_number: 12
+
+  run2:
+    top_traj_file: ["mixture.tpr", "mixture.trr"]
+    symmetry_number: ["MET:12", "NH3:3"]
+
+.. note::
+
+   A plain ``VALUE`` also applies to water unless ``water_entropy`` is enabled.
 
 
 Examples

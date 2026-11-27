@@ -130,7 +130,7 @@ By default, :math:`\sigma` is computed from the molecule's bond graph using RDKi
 This counts all permutations of the graph, including those that correspond to reflections,
 so it can be larger than the rotational symmetry number of the point group (for example 24 instead of 12 for methane).
 If :math:`\sigma` becomes larger than the neighbour term, :math:`\Omega_{\mathrm{orient}}` is limited to 1 and the orientational entropy is zero.
-The rotational symmetry number can be set with the ``symmetry_number`` option; a value of 0 is used for spherical molecules and gives zero orientational entropy.
+The rotational symmetry number can be set with the ``symmetry_number`` option, either as one value for all molecules or per residue name; a value of 0 is used for spherical molecules and gives zero orientational entropy.
 
 .. math::
    S_{\mathrm{orient}} = R \ln{ \Omega_{\mathrm{orient}} }
