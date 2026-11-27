@@ -1,0 +1,12 @@
+---
+
+run1:
+  top_traj_file:
+    - "../thioredoxin.prmtop"
+    - "../thioredoxin_1_imaged.nc"
+  selection_string: "resid 29-34"
+  start: 0
+  end: 100
+  step: 1
+  combined_forcetorque: False
+  axes: "local"
