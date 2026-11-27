@@ -2348,6 +2348,7 @@ def test_get_residue_axes_all_atom_MOI(monkeypatch):
     assert np.allclose(rot_center, [1, 0, 0])
     assert np.allclose(moi, [26, 38, 38])
 
+
 def get_residue_axes_branched(monkeypatch):
     ax = AxesCalculator()
     u = MagicMock()
@@ -2364,7 +2365,7 @@ def get_residue_axes_branched(monkeypatch):
         [
             _atom(index=1, mass=12.0, pos=(1, 1, 1)),
             _atom(index=2, mass=12.0, pos=(3, 3, 3)),
-            _atom(index=3, mass = 16.0, pos = (4,4,4))
+            _atom(index=3, mass=16.0, pos=(4, 4, 4)),
         ],
     )
 
@@ -2372,7 +2373,7 @@ def get_residue_axes_branched(monkeypatch):
         [
             _atom(index=0, mass=12.0, pos=(0, 0, 0)),
             _atom(index=4, mass=12.0, pos=(3, 3, 4)),
-            _atom(index = 6, mass = 16.0, pos=(4,5,4))
+            _atom(index=6, mass=16.0, pos=(4, 5, 4)),
         ],
     )
     neighbours[0].resindex = 4
@@ -2398,7 +2399,7 @@ def get_residue_axes_branched(monkeypatch):
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = residue
     monkeypatch.setattr(
-        ax, "get_residue_custom_axes", lambda edges, center: 2 * np.eye(3), [2,2,2]
+        ax, "get_residue_custom_axes", lambda edges, center: 2 * np.eye(3), [2, 2, 2]
     )
     monkeypatch.setattr(
         ax,
@@ -2420,7 +2421,6 @@ def get_residue_axes_branched(monkeypatch):
     assert np.allclose(moi, [1, 1, 1])
 
 
-
 def get_ua_axes_branched(monkeypatch):
     ax = AxesCalculator()
     u = MagicMock()
@@ -2430,12 +2430,11 @@ def get_ua_axes_branched(monkeypatch):
     residue.__len__.return_value = 3
     u.atoms.residues.__len__.return_value = 4
 
-
     heavy_atoms = _FakeAtomGroup(
         [
             _atom(index=1, mass=12.0, pos=(1, 1, 1)),
             _atom(index=2, mass=12.0, pos=(3, 3, 3)),
-            _atom(index=3, mass = 16.0, pos = (4,4,4))
+            _atom(index=3, mass=16.0, pos=(4, 4, 4)),
         ],
     )
 
@@ -2443,7 +2442,7 @@ def get_ua_axes_branched(monkeypatch):
         [
             _atom(index=0, mass=12.0, pos=(0, 0, 0)),
             _atom(index=4, mass=12.0, pos=(3, 3, 4)),
-            _atom(index = 6, mass = 16.0, pos=(4,5,4))
+            _atom(index=6, mass=16.0, pos=(4, 5, 4)),
         ],
     )
     neighbours[0].resindex = 4
@@ -2453,7 +2452,7 @@ def get_ua_axes_branched(monkeypatch):
     def _select_atoms(q):
         if q == "mass 2 to 999":
             # return heavy atoms group
-            return uas
+            return heavy_atoms
         if q == "resindex 5":
             return residue
         if q == "index 3":
@@ -2461,22 +2460,23 @@ def get_ua_axes_branched(monkeypatch):
         if q == "not resindex 5":
             return neighbours
         if q == ("(bonded resindex 4) and (resindex 5)"):
-            return [uas[0]]
+            return [heavy_atoms[0]]
         if q == ("(bonded resindex 6) and (resindex 5)"):
-            return [uas[1]]
+            return [heavy_atoms[1]]
         if q == ("(bonded resindex 8) and (resindex 5)"):
-            return [uas[2]]
+            return [heavy_atoms[2]]
 
     u.select_atoms.side_effect = _select_atoms
     u.atoms.select_atoms.side_effect = _select_atoms
     residue.select_atoms.side_effect = residue
     monkeypatch.setattr(
-        ax, "get_residue_custom_axes", lambda edges, center: (2 * np.eye(3), [2,2,2])
+        ax, "get_residue_custom_axes", lambda edges, center: (2 * np.eye(3), [2, 2, 2])
     )
     monkeypatch.setattr(
-        ax, "get_bonded_axes", lambda system, atom, dimensions: (3* np.eye(3), [12,12,12])
+        ax,
+        "get_bonded_axes",
+        lambda system, atom, dimensions: (3 * np.eye(3), [12, 12, 12]),
     )
-
 
     trans_axes, rot_axes, rot_center, moi = ax.get_UA_axes(
         data_container=u,
@@ -2489,18 +2489,11 @@ def get_ua_axes_branched(monkeypatch):
     assert np.allclose(rot_center, [4, 4, 4])
     assert np.allclose(moi, [12, 12, 12])
 
+
 def get_non_terminal_axes_branched(monkeypatch):
     ax = AxesCalculator()
     residue = MagicMock()
     residue.__len__ = 4
-    heavy_atoms = _FakeAtomGroup(
-        [
-            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
-            _atom(index=1, mass=12.0, pos=(1, 0, 0)),
-            _atom(index=2, mass=14.0, pos=(3, 0, 0)),
-            _atom(index=3, mass=12.0, pos=(1, 1, 0)),
-        ],
-    )
     edges = _FakeAtomGroup(
         [
             _atom(index=0, mass=12.0, pos=(0, 0, 0)),
