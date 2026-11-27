@@ -202,5 +202,12 @@ class LevelDAG:
             groups=shared_data["groups"],
         )
 
+        override = getattr(shared_data.get("args"), "symmetry_number", None)
+        if override is not None:
+            symmetry_number = {
+                group_id: (override if mol_ids else symmetry_number[group_id])
+                for group_id, mol_ids in shared_data["groups"].items()
+            }
+
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear

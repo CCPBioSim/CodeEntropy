@@ -172,7 +172,7 @@ ARG_SPECS: dict[str, ArgSpec] = {
     ),
     "symmetry_number": ArgSpec(
         type=int,
-        default=1,
+        default=None,
         help="Rotational symmetry number (integer >= 0) used for the orientational "
         "entropy of all molecule groups. 0 means spherical (no orientational "
         "entropy). Default: computed from the bond graph.",
