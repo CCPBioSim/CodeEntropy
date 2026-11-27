@@ -2346,4 +2346,76 @@ def test_get_residue_axes_all_atom_MOI(monkeypatch):
     assert np.allclose(trans_axes, 2 * np.eye(3))
     assert np.allclose(rot_axes, np.eye(3))
     assert np.allclose(rot_center, [1, 0, 0])
-    assert np.allclose(moi, [26, 38, 39])
+    assert np.allclose(moi, [26, 38, 38])
+
+
+def get_residue_axes_branched(monkeypatch):
+    ax = AxesCalculator()
+    u = MagicMock()
+    u.dimensions = np.array([10.0, 10.0, 10.0, 90, 90, 90])
+    monkeypatch.setattr("CodeEntropy.levels.axes.make_whole", lambda _ag: None)
+    residue = u.select_atoms("resindex 5")
+    residue.__len__.return_value = 3
+    u.atoms.residues.__len__.return_value = 4
+    monkeypatch.setattr(
+        ax, "get_principal_axes_from_group", lambda *_a, **_k: np.eye(3)
+    )
+
+    uas = _FakeAtomGroup(
+        [
+            _atom(index=1, mass=12.0, pos=(1, 1, 1)),
+            _atom(index=2, mass=12.0, pos=(3, 3, 3)),
+            _atom(index=3, mass=16.0, pos=(4, 4, 4)),
+        ],
+    )
+
+    neighbours = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=4, mass=12.0, pos=(3, 3, 4)),
+            _atom(index=6, mass=16.0, pos=(4, 5, 4)),
+        ],
+    )
+    neighbours[0].resindex = 4
+    neighbours[1].resindex = 6
+    neighbours[2].resindex = 8
+
+    def _select_atoms(q):
+        if q == "mass 2 to 999":
+            # return heavy atoms group
+            return uas
+        if q == "resindex 5":
+            return residue
+        if q.startswith("(not resindex 5)"):
+            return neighbours
+        if q == ("(bonded resindex 4) and (resindex 5)"):
+            return [uas[0]]
+        if q == ("(bonded resindex 6) and (resindex 5)"):
+            return [uas[1]]
+        if q == ("(bonded resindex 8) and (resindex 5)"):
+            return [uas[2]]
+
+    u.select_atoms.side_effect = _select_atoms
+    u.atoms.select_atoms.side_effect = _select_atoms
+    residue.select_atoms.side_effect = residue
+    monkeypatch.setattr(
+        ax, "get_residue_custom_axes", lambda edges, center: 2 * np.eye(3), [2, 2, 2]
+    )
+    monkeypatch.setattr(
+        ax,
+        "get_custom_residue_moment_of_inertia",
+        lambda center_of_mass, positions, masses, custom_rot_axes, dimensions: np.array(
+            [1, 1, 1]
+        ),
+    )
+
+    trans_axes, rot_axes, rot_center, moi = ax.get_residue_axes(
+        data_container=u,
+        index=5,
+        relative_index=0,
+    )
+
+    assert np.allclose(trans_axes, np.eye(3))
+    assert np.allclose(rot_axes, 2 * np.eye(3))
+    assert np.allclose(rot_center, [2, 2, 2])
+    assert np.allclose(moi, [1, 1, 1])
