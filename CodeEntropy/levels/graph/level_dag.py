@@ -7,6 +7,7 @@ states. FrameScheduler executes frame-local covariance and neighbour work.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import networkx as nx
@@ -24,6 +25,8 @@ from CodeEntropy.levels.nodes.beads import BuildBeadsNode
 from CodeEntropy.levels.nodes.detect_levels import DetectLevelsNode
 from CodeEntropy.levels.nodes.detect_molecules import DetectMoleculesNode
 from CodeEntropy.results.reporter import _RichProgressSink
+
+logger = logging.getLogger(__name__)
 
 
 class LevelDAG:
@@ -186,10 +189,13 @@ class LevelDAG:
     def _initialise_neighbor_metadata(shared_data: dict[str, Any]) -> None:
         """Compute frame-invariant neighbour metadata.
 
+        If ``args.symmetry_number`` is set, it replaces the computed symmetry number
+        of every group.
+
         Args:
             shared_data: Shared workflow data containing ``groups`` and either
-                ``reduced_universe`` or ``universe``. The method writes
-                ``symmetry_number`` and ``linear``.
+                ``reduced_universe`` or ``universe``, and optionally ``args``. The
+                method writes ``symmetry_number`` and ``linear``.
 
         Raises:
             KeyError: If ``groups`` is missing from ``shared_data``.
@@ -201,6 +207,16 @@ class LevelDAG:
             universe=universe,
             groups=shared_data["groups"],
         )
+
+        user_symmetry_number = getattr(shared_data.get("args"), "symmetry_number", None)
+        if user_symmetry_number is not None:
+            logger.info(
+                "Using symmetry number %d for all molecule groups in place of the "
+                "computed values %s.",
+                user_symmetry_number,
+                symmetry_number,
+            )
+            symmetry_number = dict.fromkeys(symmetry_number, user_symmetry_number)
 
         shared_data["symmetry_number"] = symmetry_number
         shared_data["linear"] = linear
