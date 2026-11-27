@@ -2489,3 +2489,25 @@ def test_get_ua_axes_branched(monkeypatch):
     assert np.allclose(rot_axes, 3 * np.eye(3))
     assert np.allclose(rot_center, [4, 4, 4])
     assert np.allclose(moi, [12, 12, 12])
+
+
+def test_get_non_terminal_axes_branched(monkeypatch):
+    ax = AxesCalculator()
+    residue = MagicMock()
+    residue.__len__ = 4
+    edges = _FakeAtomGroup(
+        [
+            _atom(index=0, mass=12.0, pos=(0, 0, 0)),
+            _atom(index=2, mass=14.0, pos=(3, 0, 0)),
+            _atom(index=3, mass=12.0, pos=(1, 1, 0)),
+        ],
+    )
+    monkeypatch.setattr(
+        ax, "get_residue_custom_axes", lambda edges, center: ([1, 0, 0], 3 * np.eye(3))
+    )
+    centre, axes = ax.get_non_terminal_axes(
+        residue=residue, edges=edges, dimensions=np.array([1, 1, 1])
+    )
+
+    assert np.allclose(centre, [1, 0, 0])
+    assert np.allclose(axes, 3 * np.eye(3))
